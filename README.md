@@ -42,9 +42,9 @@ npm run dev
 - Current checkout is restricted to the United States.
 - Product images, blog images, and home-banner assets are read from the local `images/` folders.
 - This app uses Prisma with Supabase Postgres. Use the Supabase connection strings from `Project Settings -> Database -> Connection string`.
-- For Vercel and other serverless environments, `DATABASE_URL` should use the Supabase transaction pooler string on port `6543`, with `pgbouncer=true&connection_limit=1`.
+- For Vercel and other serverless environments, `DATABASE_URL` should use the Supabase transaction pooler string on port `6543`, with `pgbouncer=true&connection_limit=5&pool_timeout=30`.
 - For Prisma schema operations such as `prisma db push`, `DIRECT_URL` should use the Supabase session pooler string on port `5432`.
-- The app runtime prefers `DIRECT_URL` when it is available, which keeps local development and production builds reading from the same Supabase database path more reliably.
+- The app runtime uses `DATABASE_URL`, while `DIRECT_URL` is reserved for Prisma schema operations.
 - Avoid using the direct `db.<project-ref>.supabase.co:5432` connection string on Vercel unless your environment supports IPv6 or you have the Supabase IPv4 add-on.
 - The Supabase project API URL is not used by the current app because authentication and data access run through Prisma, not the Supabase JS client.
 - When you provide real product pricing, photography, and final copy, the existing admin and storefront structure can be updated directly without rebuilding the site architecture.

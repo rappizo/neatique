@@ -296,25 +296,15 @@ export default async function HomePage() {
       <section className="section">
         <div className="container">
           <div className="philosophy-band">
-            <div className="philosophy-band__intro">
-              <p className="eyebrow">Brand Philosophy</p>
-              <h2>Luxury in feel, clarity in routine, and comfort in every layer.</h2>
-              <p>
-                Neatique is built for women who want skincare to feel elevated without feeling
-                complicated. The brand philosophy centers on glow, softness, visual polish, and a
-                ritual that still makes sense on busy mornings and calm evenings alike.
-              </p>
-            </div>
-
-            <div className="philosophy-band__layout">
-              <div className="philosophy-band__grid">
-                {brandPillars.map((pillar) => (
-                  <article key={pillar.eyebrow} className="panel philosophy-card">
-                    <p className="eyebrow">{pillar.eyebrow}</p>
-                    <h3>{pillar.title}</h3>
-                    <p>{pillar.description}</p>
-                  </article>
-                ))}
+            <div className="philosophy-band__hero">
+              <div className="philosophy-band__intro">
+                <p className="eyebrow">Brand Philosophy</p>
+                <h2>Luxury in feel, clarity in routine, and comfort in every layer.</h2>
+                <p>
+                  Neatique is built for women who want skincare to feel elevated without feeling
+                  complicated. The brand philosophy centers on glow, softness, visual polish, and a
+                  ritual that still makes sense on busy mornings and calm evenings alike.
+                </p>
               </div>
 
               <div className="home-mosaic">
@@ -352,6 +342,16 @@ export default async function HomePage() {
                 </div>
               </div>
             </div>
+
+            <div className="philosophy-band__grid">
+              {brandPillars.map((pillar) => (
+                <article key={pillar.eyebrow} className="panel philosophy-card">
+                  <p className="eyebrow">{pillar.eyebrow}</p>
+                  <h3>{pillar.title}</h3>
+                  <p>{pillar.description}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -359,44 +359,46 @@ export default async function HomePage() {
       <section className="section">
         <div className="container">
           <div className="ritual-spotlight">
-            <div className="ritual-spotlight__media">
-              <div className="home-image home-image--square">
-                <Image
-                  src={homeImages.ritual.src}
-                  alt={homeImages.ritual.alt}
-                  width={homeImages.ritual.width}
-                  height={homeImages.ritual.height}
-                  sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 24vw"
-                  quality={82}
+            <div className="ritual-spotlight__hero">
+              <div className="ritual-spotlight__content">
+                <SectionHeading
+                  eyebrow="Designed For Daily Rituals"
+                  title="A simple three-step rhythm that keeps skincare feeling calm, clear, and luxurious."
+                  description="Whether the routine starts at a busy vanity or ends with a quiet evening reset, Neatique is designed to keep each step intuitive and beautiful to use."
                 />
               </div>
-              <div className="home-image home-image--square">
-                <Image
-                  src={homeImages.application.src}
-                  alt={homeImages.application.alt}
-                  width={homeImages.application.width}
-                  height={homeImages.application.height}
-                  sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 20vw"
-                  quality={82}
-                />
+              <div className="ritual-spotlight__media">
+                <div className="home-image home-image--square">
+                  <Image
+                    src={homeImages.ritual.src}
+                    alt={homeImages.ritual.alt}
+                    width={homeImages.ritual.width}
+                    height={homeImages.ritual.height}
+                    sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 24vw"
+                    quality={82}
+                  />
+                </div>
+                <div className="home-image home-image--square">
+                  <Image
+                    src={homeImages.application.src}
+                    alt={homeImages.application.alt}
+                    width={homeImages.application.width}
+                    height={homeImages.application.height}
+                    sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 20vw"
+                    quality={82}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="ritual-spotlight__content">
-              <SectionHeading
-                eyebrow="Designed For Daily Rituals"
-                title="A simple three-step rhythm that keeps skincare feeling calm, clear, and luxurious."
-                description="Whether the routine starts at a busy vanity or ends with a quiet evening reset, Neatique is designed to keep each step intuitive and beautiful to use."
-              />
-              <div className="ritual-steps">
-                {routineSteps.map((step) => (
-                  <article key={step.step} className="panel ritual-step">
-                    <span className="ritual-step__index">{step.step}</span>
-                    <h3>{step.title}</h3>
-                    <p>{step.description}</p>
-                  </article>
-                ))}
-              </div>
+            <div className="ritual-steps ritual-steps--grid">
+              {routineSteps.map((step) => (
+                <article key={step.step} className="panel ritual-step">
+                  <span className="ritual-step__index">{step.step}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.description}</p>
+                </article>
+              ))}
             </div>
           </div>
         </div>

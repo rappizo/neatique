@@ -561,6 +561,10 @@ main {
   margin-bottom: 0;
 }
 
+.ritual-spotlight__content .section-heading {
+  max-width: 620px;
+}
+
 .brand-manifesto__title {
   margin: 0;
   font-family: Baskerville, "Palatino Linotype", serif;
@@ -603,11 +607,20 @@ main {
   letter-spacing: -0.03em;
 }
 
-.philosophy-band__layout {
+.philosophy-band__hero,
+.ritual-spotlight__hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(320px, 0.98fr);
-  gap: 22px;
-  align-items: start;
+  grid-template-columns: minmax(0, 0.98fr) minmax(320px, 1.02fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.philosophy-band__intro {
+  max-width: 640px;
+}
+
+.philosophy-band__intro p:not(.eyebrow) {
+  max-width: 620px;
 }
 
 .philosophy-band__grid,
@@ -617,9 +630,15 @@ main {
   gap: 18px;
 }
 
+.philosophy-band__grid {
+  align-items: stretch;
+}
+
 .philosophy-card {
   display: grid;
   gap: 14px;
+  align-content: start;
+  min-height: 100%;
 }
 
 .philosophy-card h3,
@@ -628,22 +647,32 @@ main {
 .image-prompt__header strong {
   margin: 0;
   font-family: Baskerville, "Palatino Linotype", serif;
-  font-size: 1.6rem;
+  font-size: 1.42rem;
+  line-height: 1.18;
 }
 
 .ritual-spotlight,
 .ingredient-story-grid,
 .home-cta {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
+  gap: 24px;
   align-items: start;
+}
+
+.ritual-spotlight {
+  grid-template-columns: 1fr;
+}
+
+.ingredient-story-grid,
+.home-cta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .ritual-spotlight__media {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
   gap: 18px;
+  align-items: start;
 }
 
 .ritual-steps {
@@ -651,9 +680,15 @@ main {
   gap: 16px;
 }
 
+.ritual-steps--grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .ritual-step {
   display: grid;
   gap: 12px;
+  align-content: start;
+  min-height: 100%;
 }
 
 .ritual-step__index {
@@ -1755,8 +1790,8 @@ main {
   .admin-review-group__overview,
   .admin-review-detail__hero,
   .brand-manifesto,
-  .philosophy-band__layout,
-  .ritual-spotlight,
+  .philosophy-band__hero,
+  .ritual-spotlight__hero,
   .ingredient-story-grid,
   .home-cta {
     grid-template-columns: 1fr;
@@ -1786,6 +1821,7 @@ main {
   .review-showcase,
   .admin-review-group__stats,
   .philosophy-band__grid,
+  .ritual-steps--grid,
   .editorial-prompt-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1841,6 +1877,7 @@ main {
   .review-showcase,
   .admin-review-group__stats,
   .philosophy-band__grid,
+  .ritual-steps--grid,
   .editorial-prompt-grid,
   .ritual-spotlight__media,
   .home-mosaic {

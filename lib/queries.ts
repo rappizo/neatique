@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type {
   AdminProductReviewPageRecord,
   AdminReviewProductSummary,
@@ -11,6 +12,7 @@ import type {
   RewardEntryRecord,
   StoreSettingsRecord
 } from "@/lib/types";
+import { unstable_cache } from "next/cache";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { prisma } from "@/lib/db";
 import {
@@ -25,6 +27,8 @@ import {
 } from "@/lib/fallback-data";
 import { ensureStoreBootstrap } from "@/lib/store-bootstrap";
 
+const PUBLIC_CONTENT_REVALIDATE_SECONDS = 60;
+
 function parseGalleryImages(value: string | null | undefined) {
   return (value ?? "")
     .split(/\r?\n/)
@@ -32,13 +36,46 @@ function parseGalleryImages(value: string | null | undefined) {
     .filter(Boolean);
 }
 
-async function withFallback<T>(run: () => Promise<T>, fallback: T): Promise<T> {
+function isTransientDatabaseError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === "P2024";
+  }
+
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return true;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    message.includes("Timed out fetching a new connection from the connection pool") ||
+    message.includes("Can't reach database server")
+  );
+}
+
+async function withFallback<T>(
+  run: () => Promise<T>,
+  fallback: T,
+  options?: {
+    allowFallbackOnDatabaseError?: boolean;
+  }
+): Promise<T> {
   if (!hasValidPostgresDatabaseUrl()) {
     return fallback;
   }
 
   await ensureStoreBootstrap();
-  return await run();
+
+  try {
+    return await run();
+  } catch (error) {
+    if (options?.allowFallbackOnDatabaseError && isTransientDatabaseError(error)) {
+      console.error("Using fallback data after a transient database error:", error);
+      return fallback;
+    }
+
+    throw error;
+  }
 }
 
 function mapProductRecord(product: any, reviewCount: number, averageRating: number | null): ProductRecord {
@@ -236,23 +273,85 @@ function mapReview(review: any): ProductReviewRecord {
   };
 }
 
+const getFeaturedProductsFromDatabase = unstable_cache(
+  async (limit: number) =>
+    (
+      await prisma.product.findMany({
+        where: {
+          featured: true,
+          status: "ACTIVE"
+        },
+        include: {
+          reviews: true
+        },
+        orderBy: [{ createdAt: "desc" }],
+        take: limit
+      })
+    ).map(mapProduct),
+  ["featured-products"],
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+);
+
+const getActiveProductsFromDatabase = unstable_cache(
+  async () =>
+    (
+      await prisma.product.findMany({
+        where: { status: "ACTIVE" },
+        include: {
+          reviews: true
+        },
+        orderBy: [{ featured: "desc" }, { createdAt: "desc" }]
+      })
+    ).map(mapProduct),
+  ["active-products"],
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+);
+
+const getProductBySlugFromDatabase = unstable_cache(
+  async (slug: string) => {
+    const product = await prisma.product.findUnique({
+      where: { slug },
+      include: {
+        reviews: true
+      }
+    });
+
+    return product ? mapProduct(product) : null;
+  },
+  ["product-by-slug"],
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+);
+
+const getPublishedPostsFromDatabase = unstable_cache(
+  async (limit?: number) =>
+    (
+      await prisma.post.findMany({
+        where: { published: true },
+        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+        take: limit
+      })
+    ).map(mapPost),
+  ["published-posts"],
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+);
+
+const getPostBySlugFromDatabase = unstable_cache(
+  async (slug: string) => {
+    const post = await prisma.post.findUnique({
+      where: { slug }
+    });
+
+    return post ? mapPost(post) : null;
+  },
+  ["post-by-slug"],
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+);
+
 export async function getFeaturedProducts(limit = 4) {
   return withFallback(
-    async () =>
-      (
-        await prisma.product.findMany({
-          where: {
-            featured: true,
-            status: "ACTIVE"
-          },
-          include: {
-            reviews: true
-          },
-          orderBy: [{ createdAt: "desc" }],
-          take: limit
-        })
-      ).map(mapProduct),
-    fallbackProducts.filter((product) => product.featured).slice(0, limit)
+    async () => getFeaturedProductsFromDatabase(limit),
+    fallbackProducts.filter((product) => product.featured).slice(0, limit),
+    { allowFallbackOnDatabaseError: true }
   );
 }
 
@@ -273,33 +372,17 @@ export async function getProducts() {
 
 export async function getActiveProducts() {
   return withFallback(
-    async () =>
-      (
-        await prisma.product.findMany({
-          where: { status: "ACTIVE" },
-          include: {
-            reviews: true
-          },
-          orderBy: [{ featured: "desc" }, { createdAt: "desc" }]
-        })
-      ).map(mapProduct),
-    fallbackProducts.filter((product) => product.status === "ACTIVE")
+    async () => getActiveProductsFromDatabase(),
+    fallbackProducts.filter((product) => product.status === "ACTIVE"),
+    { allowFallbackOnDatabaseError: true }
   );
 }
 
 export async function getProductBySlug(slug: string) {
   return withFallback(
-    async () => {
-      const product = await prisma.product.findUnique({
-        where: { slug },
-        include: {
-          reviews: true
-        }
-      });
-
-      return product ? mapProduct(product) : null;
-    },
-    fallbackProducts.find((product) => product.slug === slug) ?? null
+    async () => getProductBySlugFromDatabase(slug),
+    fallbackProducts.find((product) => product.slug === slug) ?? null,
+    { allowFallbackOnDatabaseError: true }
   );
 }
 
@@ -321,17 +404,11 @@ export async function getProductById(id: string) {
 
 export async function getPublishedPosts(limit?: number) {
   return withFallback(
-    async () =>
-      (
-        await prisma.post.findMany({
-          where: { published: true },
-          orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-          take: limit
-        })
-      ).map(mapPost),
+    async () => getPublishedPostsFromDatabase(limit),
     typeof limit === "number"
       ? fallbackPosts.filter((post) => post.published).slice(0, limit)
-      : fallbackPosts.filter((post) => post.published)
+      : fallbackPosts.filter((post) => post.published),
+    { allowFallbackOnDatabaseError: true }
   );
 }
 
@@ -349,14 +426,9 @@ export async function getAllPosts() {
 
 export async function getPostBySlug(slug: string) {
   return withFallback(
-    async () => {
-      const post = await prisma.post.findUnique({
-        where: { slug }
-      });
-
-      return post ? mapPost(post) : null;
-    },
-    fallbackPosts.find((post) => post.slug === slug) ?? null
+    async () => getPostBySlugFromDatabase(slug),
+    fallbackPosts.find((post) => post.slug === slug) ?? null,
+    { allowFallbackOnDatabaseError: true }
   );
 }
 
@@ -428,7 +500,8 @@ export async function getPublishedReviewsByProductId(productId: string) {
       ).map(mapReview),
     fallbackReviews.filter(
       (review) => review.productId === productId && review.status === "PUBLISHED"
-    )
+    ),
+    { allowFallbackOnDatabaseError: true }
   );
 }
 
