@@ -1,6 +1,6 @@
 # Neatique Beauty
 
-First-phase brand website for `neatiquebeauty.com`, built with Next.js, Prisma, SQLite, and Stripe-ready checkout.
+First-phase brand website for `neatiquebeauty.com`, built with Next.js, Prisma, PostgreSQL, and Stripe-ready checkout.
 
 ## Included in this phase
 
@@ -24,7 +24,7 @@ First-phase brand website for `neatiquebeauty.com`, built with Next.js, Prisma, 
 npm install
 ```
 
-4. Generate the database and seed starter data:
+4. Point `DATABASE_URL` to a PostgreSQL database, then generate the database and starter data:
 
 ```bash
 npm run db:push
@@ -40,6 +40,22 @@ npm run dev
 ## Notes
 
 - Current checkout is restricted to the United States.
-- Product and post images are local SVG placeholders and can be replaced at any time.
+- Product images, blog images, and home-banner assets are read from the local `images/` folders.
 - When you provide real product pricing, photography, and final copy, the existing admin and storefront structure can be updated directly without rebuilding the site architecture.
-"# neaitque" 
+
+## Vercel Deployment
+
+1. Create a PostgreSQL database for production.
+   Recommended: Vercel Postgres or another hosted PostgreSQL provider such as Neon or Supabase.
+2. In Vercel, add your `DATABASE_URL` environment variable plus the existing Stripe, admin, and email variables.
+3. Deploy the GitHub repository.
+
+The repo includes [`vercel.json`](./vercel.json), so Vercel will automatically run:
+
+```bash
+npm run vercel-build
+```
+
+That command generates Prisma Client, runs `prisma db push`, and then builds the Next.js app.
+
+After the schema is in place, the app automatically bootstraps starter products, posts, store settings, and sample reviews into an empty production database on first build/request.

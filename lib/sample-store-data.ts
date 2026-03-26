@@ -1,20 +1,18 @@
-const { PrismaClient } = require("@prisma/client");
+import type { BeautyPostRecord, ProductRecord, ProductReviewRecord, StoreSettingsRecord } from "@/lib/types";
+import { getDefaultProductImageUrl, getLocalProductGallery } from "@/lib/product-media";
+import { buildSiteImageUrl } from "@/lib/site-media";
 
-const prisma = new PrismaClient();
+type BaseProduct = Omit<ProductRecord, "reviewCount" | "averageRating">;
 
-function buildProductMediaUrl(folder, fileName) {
-  return `/media/product/${encodeURIComponent(folder)}/${encodeURIComponent(fileName)}`;
-}
-
-function buildSiteMediaUrl(folder, fileName) {
-  return `/media/site/${encodeURIComponent(folder)}/${encodeURIComponent(fileName)}`;
-}
-
-function buildProductGallery(folder, totalImages) {
-  return Array.from({ length: totalImages }, (_, index) =>
-    buildProductMediaUrl(folder, `${index}.png`)
-  );
-}
+type ReviewPlan = {
+  count: number;
+  ratings: number[];
+  texturePhrases: string[];
+  finishPhrases: string[];
+  timingPhrases: string[];
+  resultPhrases: string[];
+  titlePhrases: string[];
+};
 
 const firstNames = [
   "Olivia",
@@ -61,13 +59,22 @@ const firstNames = [
 
 const lastInitials = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-function buildDisplayName(index) {
+function buildDisplayName(index: number) {
   const firstName = firstNames[index % firstNames.length];
   const lastInitial = lastInitials[(index * 7 + 3) % lastInitials.length];
   return `${firstName} ${lastInitial}.`;
 }
 
-const products = [
+function average(values: number[]) {
+  if (values.length === 0) {
+    return null;
+  }
+
+  const total = values.reduce((sum, value) => sum + value, 0);
+  return total / values.length;
+}
+
+const baseProducts: BaseProduct[] = [
   {
     id: "prod_pdrn_cream",
     name: "PDRN Cream",
@@ -79,15 +86,18 @@ const products = [
       "Neatique PDRN Cream is designed for skin that needs visible comfort, density, and daily recovery support. The texture melts in smoothly, sealing hydration while helping the complexion look rested, balanced, and refined.",
     details:
       "Ideal for dry, dehydrated, or stressed skin.\nUse as the final step of your evening ritual or under SPF in the morning.\nPairs beautifully with PDRN Serum for a layered bounce routine.",
-    imageUrl: buildProductMediaUrl("HH075 PDRN Cream", "0.png"),
-    galleryImages: buildProductGallery("HH075 PDRN Cream", 8).join("\n"),
+    imageUrl: getDefaultProductImageUrl("pdrn-cream") ?? "/products/pdrn-cream.svg",
+    galleryImages: getLocalProductGallery("pdrn-cream"),
     featured: true,
     status: "ACTIVE",
     inventory: 120,
     priceCents: 5200,
     compareAtPriceCents: 6400,
     currency: "USD",
-    pointsReward: 52
+    pointsReward: 52,
+    stripePriceId: null,
+    createdAt: new Date("2026-03-01T08:00:00.000Z"),
+    updatedAt: new Date("2026-03-20T08:00:00.000Z")
   },
   {
     id: "prod_pdrn_serum",
@@ -100,15 +110,18 @@ const products = [
       "Formulated around Salmon PDRN and a 5-peptide blend, Neatique PDRN Serum is designed for skin that looks dull, tired, or texturally uneven. The fast-absorbing formula helps support a smoother-looking, firmer-feeling, more radiant complexion without leaving behind heaviness.",
     details:
       "Works well for normal, combination, and dehydrated skin.\nApply after cleansing and before cream.\nUse morning and night for hydration, glow, and layering support.",
-    imageUrl: buildProductMediaUrl("HH079 PDRN Serum", "0.png"),
-    galleryImages: buildProductGallery("HH079 PDRN Serum", 9).join("\n"),
+    imageUrl: getDefaultProductImageUrl("pdrn-serum") ?? "/products/pdrn-serum.svg",
+    galleryImages: getLocalProductGallery("pdrn-serum"),
     featured: true,
     status: "ACTIVE",
     inventory: 140,
     priceCents: 4800,
     compareAtPriceCents: 5900,
     currency: "USD",
-    pointsReward: 48
+    pointsReward: 48,
+    stripePriceId: null,
+    createdAt: new Date("2026-03-02T08:00:00.000Z"),
+    updatedAt: new Date("2026-03-20T08:00:00.000Z")
   },
   {
     id: "prod_snail_cream",
@@ -121,15 +134,18 @@ const products = [
       "Neatique Snail Mucin Cream helps replenish moisture while supporting a soft, healthy-looking finish. The formula is ideal when the skin barrier needs extra comfort without feeling heavy.",
     details:
       "Especially lovely for dry and sensitized skin.\nUse after serum to lock in moisture.\nCan be layered more generously as an overnight comfort cream.",
-    imageUrl: buildProductMediaUrl("HH069 SC93 Snail Mucin Cream", "0.png"),
-    galleryImages: buildProductGallery("HH069 SC93 Snail Mucin Cream", 8).join("\n"),
+    imageUrl: getDefaultProductImageUrl("snail-mucin-cream") ?? "/products/snail-mucin-cream.svg",
+    galleryImages: getLocalProductGallery("snail-mucin-cream"),
     featured: true,
     status: "ACTIVE",
     inventory: 110,
     priceCents: 4200,
     compareAtPriceCents: 5200,
     currency: "USD",
-    pointsReward: 42
+    pointsReward: 42,
+    stripePriceId: null,
+    createdAt: new Date("2026-03-03T08:00:00.000Z"),
+    updatedAt: new Date("2026-03-20T08:00:00.000Z")
   },
   {
     id: "prod_snail_serum",
@@ -142,73 +158,22 @@ const products = [
       "Neatique Snail Mucin Serum is built for gentle hydration, softness, and daily bounce. Its fluid texture helps skin feel refreshed and cared for, making it an easy choice for morning or evening use.",
     details:
       "Great for dehydrated and easily stressed skin.\nUse on freshly cleansed skin.\nFollow with cream to complete the ritual.",
-    imageUrl: buildProductMediaUrl("HH068 SE96 Snail Mucin Serum", "0.png"),
-    galleryImages: buildProductGallery("HH068 SE96 Snail Mucin Serum", 8).join("\n"),
+    imageUrl: getDefaultProductImageUrl("snail-mucin-serum") ?? "/products/snail-mucin-serum.svg",
+    galleryImages: getLocalProductGallery("snail-mucin-serum"),
     featured: true,
     status: "ACTIVE",
     inventory: 135,
     priceCents: 3900,
     compareAtPriceCents: 4900,
     currency: "USD",
-    pointsReward: 39
+    pointsReward: 39,
+    stripePriceId: null,
+    createdAt: new Date("2026-03-04T08:00:00.000Z"),
+    updatedAt: new Date("2026-03-20T08:00:00.000Z")
   }
 ];
 
-const posts = [
-  {
-    id: "post_pdrn_intro",
-    title: "What PDRN Skincare Is and Why It Is Everywhere Right Now",
-    slug: "what-is-pdrn-skincare",
-    excerpt:
-      "A beginner-friendly breakdown of PDRN, its role in modern routines, and how to use it alongside hydrators and barrier creams.",
-    category: "Ingredient Guide",
-    readTime: 5,
-    coverImageUrl: buildSiteMediaUrl("blog", "PDRN Guide.png"),
-    content:
-      "PDRN has quickly become one of the most talked-about skin support ingredients in advanced routines. In topical skincare, people reach for PDRN-focused formulas when they want a routine that feels restorative, modern, and glow-forward.\n\nThe easiest way to use PDRN is by layering it after cleansing and before moisturizer. A serum gives quick hydration and slip, while a cream helps hold moisture in place.\n\nFor dry or tired-looking skin, pairing a PDRN serum with a richer cream can create a soft, supported finish. If your skin is easily overwhelmed, keep the rest of the routine simple and focus on hydration, barrier support, and sunscreen during the day.",
-    seoTitle: "What Is PDRN Skincare? Benefits, Texture, and Routine Tips",
-    seoDescription:
-      "Learn what PDRN skincare is, who it suits, and how to use a PDRN serum or cream in a modern routine.",
-    published: true,
-    publishedAt: new Date("2026-03-18T09:00:00.000Z")
-  },
-  {
-    id: "post_snail_dry",
-    title: "How to Build a Snail Mucin Routine for Dry, Dehydrated Skin",
-    slug: "snail-mucin-routine-for-dry-skin",
-    excerpt:
-      "Use snail mucin to create a calm, cushiony routine that focuses on hydration, bounce, and visible comfort.",
-    category: "Routine Tips",
-    readTime: 4,
-    coverImageUrl: buildSiteMediaUrl("blog", "Snail Routine.png"),
-    content:
-      "Snail mucin routines are loved for their comforting, replenishing feel. If your skin often feels tight or flaky, start with a gentle cleanser, then apply a hydrating serum while the skin is still slightly damp.\n\nFollow with a cream that helps seal in moisture and reduce that dry, stretched feeling. During the day, finish with a sunscreen you enjoy wearing.\n\nAt night, you can keep the same steps and apply a slightly fuller layer of cream for extra comfort. The goal is consistency, not complexity.",
-    seoTitle: "Snail Mucin Routine for Dry Skin: A Simple Layering Guide",
-    seoDescription:
-      "A simple, effective snail mucin skincare routine for dry or dehydrated skin, including layering tips for serum and cream.",
-    published: true,
-    publishedAt: new Date("2026-03-15T09:00:00.000Z")
-  },
-  {
-    id: "post_order_layering",
-    title: "Serum vs Cream: Which One Does Your Routine Need First?",
-    slug: "serum-vs-cream-routine-order",
-    excerpt:
-      "Not sure how to layer a serum and cream? Here is the easiest way to decide based on texture and skin goals.",
-    category: "Skin School",
-    readTime: 3,
-    coverImageUrl: "/posts/serum-vs-cream.svg",
-    content:
-      "Serums usually go on first because they are lighter and designed to sit closer to the skin. Creams come after, creating a more comforting outer layer.\n\nIf your skin feels dehydrated, a serum can bring slip and lightweight moisture, while a cream helps the routine last longer. When in doubt, go from thinnest to richest texture.",
-    seoTitle: "Serum vs Cream: The Best Layering Order for Healthy-Looking Skin",
-    seoDescription:
-      "Learn whether serum or cream comes first and how to layer skincare products for smoother, more hydrated skin.",
-    published: true,
-    publishedAt: new Date("2026-03-10T09:00:00.000Z")
-  }
-];
-
-const reviewPlans = {
+const reviewPlans: Record<string, ReviewPlan> = {
   "pdrn-cream": {
     count: 68,
     ratings: [5, 5, 4, 5, 5, 4, 5, 5, 4, 5],
@@ -275,7 +240,12 @@ const reviewPlans = {
   }
 };
 
-function buildReviewBody(product, plan, index) {
+function buildReviewTitle(productSlug: string, index: number) {
+  const plan = reviewPlans[productSlug];
+  return plan.titlePhrases[index % plan.titlePhrases.length];
+}
+
+function buildReviewBody(product: BaseProduct, plan: ReviewPlan, index: number) {
   const texture = plan.texturePhrases[index % plan.texturePhrases.length];
   const finish = plan.finishPhrases[(index * 2) % plan.finishPhrases.length];
   const timing = plan.timingPhrases[(index * 3) % plan.timingPhrases.length];
@@ -296,126 +266,121 @@ function buildReviewBody(product, plan, index) {
   return shortBody;
 }
 
-function buildSampleReviews(product) {
+function buildProductReviews(product: BaseProduct): ProductReviewRecord[] {
   const plan = reviewPlans[product.slug];
 
   return Array.from({ length: plan.count }, (_, index) => {
-    const publishedAt = new Date(Date.UTC(2026, index % 6, ((index * 3) % 27) + 1, 9, 0, 0));
+    const rating = plan.ratings[index % plan.ratings.length];
+    const publishedAt = new Date(Date.UTC(2026, (index % 6), ((index * 3) % 27) + 1, 9, 0, 0));
 
     return {
       id: `sample-review-${product.slug}-${index + 1}`,
-      productId: product.id,
-      rating: plan.ratings[index % plan.ratings.length],
-      title: plan.titlePhrases[index % plan.titlePhrases.length],
+      rating,
+      title: buildReviewTitle(product.slug, index),
       content: buildReviewBody(product, plan, index),
       displayName: buildDisplayName(index + product.slug.length),
-      verifiedPurchase: index % 4 !== 0,
       status: "PUBLISHED",
+      verifiedPurchase: index % 4 !== 0,
+      adminNotes: null,
       source: "ADMIN_IMPORT",
-      publishedAt
+      productId: product.id,
+      productName: product.name,
+      productSlug: product.slug,
+      customerId: null,
+      customerEmail: null,
+      orderId: null,
+      publishedAt,
+      createdAt: publishedAt,
+      updatedAt: publishedAt
     };
   });
 }
 
-async function main() {
-  for (const product of products) {
-    await prisma.product.upsert({
-      where: { slug: product.slug },
-      update: {
-        name: product.name,
-        tagline: product.tagline,
-        category: product.category,
-        shortDescription: product.shortDescription,
-        description: product.description,
-        details: product.details,
-        imageUrl: product.imageUrl,
-        galleryImages: product.galleryImages,
-        featured: product.featured,
-        status: product.status,
-        inventory: product.inventory,
-        priceCents: product.priceCents,
-        compareAtPriceCents: product.compareAtPriceCents,
-        currency: product.currency,
-        pointsReward: product.pointsReward
-      },
-      create: product
-    });
+export const sampleReviews: ProductReviewRecord[] = baseProducts.flatMap(buildProductReviews);
+
+export const sampleProducts: ProductRecord[] = baseProducts.map((product) => {
+  const productReviews = sampleReviews.filter((review) => review.productId === product.id);
+  const productAverageRating = average(productReviews.map((review) => review.rating));
+
+  return {
+    ...product,
+    reviewCount: productReviews.length,
+    averageRating: productAverageRating
+  };
+});
+
+export const samplePosts: BeautyPostRecord[] = [
+  {
+    id: "post_pdrn_intro",
+    title: "What PDRN Skincare Is and Why It Is Everywhere Right Now",
+    slug: "what-is-pdrn-skincare",
+    excerpt:
+      "A beginner-friendly breakdown of PDRN, its role in modern routines, and how to use it alongside hydrators and barrier creams.",
+    category: "Ingredient Guide",
+    readTime: 5,
+    coverImageUrl: buildSiteImageUrl("blog", "PDRN Guide.png"),
+    content:
+      "PDRN has quickly become one of the most talked-about skin support ingredients in advanced routines. In topical skincare, people reach for PDRN-focused formulas when they want a routine that feels restorative, modern, and glow-forward.\n\nThe easiest way to use PDRN is by layering it after cleansing and before moisturizer. A serum gives quick hydration and slip, while a cream helps hold moisture in place.\n\nFor dry or tired-looking skin, pairing a PDRN serum with a richer cream can create a soft, supported finish. If your skin is easily overwhelmed, keep the rest of the routine simple and focus on hydration, barrier support, and sunscreen during the day.",
+    seoTitle: "What Is PDRN Skincare? Benefits, Texture, and Routine Tips",
+    seoDescription:
+      "Learn what PDRN skincare is, who it suits, and how to use a PDRN serum or cream in a modern routine.",
+    published: true,
+    publishedAt: new Date("2026-03-18T09:00:00.000Z"),
+    createdAt: new Date("2026-03-18T09:00:00.000Z"),
+    updatedAt: new Date("2026-03-18T09:00:00.000Z")
+  },
+  {
+    id: "post_snail_dry",
+    title: "How to Build a Snail Mucin Routine for Dry, Dehydrated Skin",
+    slug: "snail-mucin-routine-for-dry-skin",
+    excerpt:
+      "Use snail mucin to create a calm, cushiony routine that focuses on hydration, bounce, and visible comfort.",
+    category: "Routine Tips",
+    readTime: 4,
+    coverImageUrl: buildSiteImageUrl("blog", "Snail Routine.png"),
+    content:
+      "Snail mucin routines are loved for their comforting, replenishing feel. If your skin often feels tight or flaky, start with a gentle cleanser, then apply a hydrating serum while the skin is still slightly damp.\n\nFollow with a cream that helps seal in moisture and reduce that dry, stretched feeling. During the day, finish with a sunscreen you enjoy wearing.\n\nAt night, you can keep the same steps and apply a slightly fuller layer of cream for extra comfort. The goal is consistency, not complexity.",
+    seoTitle: "Snail Mucin Routine for Dry Skin: A Simple Layering Guide",
+    seoDescription:
+      "A simple, effective snail mucin skincare routine for dry or dehydrated skin, including layering tips for serum and cream.",
+    published: true,
+    publishedAt: new Date("2026-03-15T09:00:00.000Z"),
+    createdAt: new Date("2026-03-15T09:00:00.000Z"),
+    updatedAt: new Date("2026-03-15T09:00:00.000Z")
+  },
+  {
+    id: "post_order_layering",
+    title: "Serum vs Cream: Which One Does Your Routine Need First?",
+    slug: "serum-vs-cream-routine-order",
+    excerpt:
+      "Not sure how to layer a serum and cream? Here is the easiest way to decide based on texture and skin goals.",
+    category: "Skin School",
+    readTime: 3,
+    coverImageUrl: "/posts/serum-vs-cream.svg",
+    content:
+      "Serums usually go on first because they are lighter and designed to sit closer to the skin. Creams come after, creating a more comforting outer layer.\n\nIf your skin feels dehydrated, a serum can bring slip and lightweight moisture, while a cream helps the routine last longer. When in doubt, go from thinnest to richest texture.",
+    seoTitle: "Serum vs Cream: The Best Layering Order for Healthy-Looking Skin",
+    seoDescription:
+      "Learn whether serum or cream comes first and how to layer skincare products for smoother, more hydrated skin.",
+    published: true,
+    publishedAt: new Date("2026-03-10T09:00:00.000Z"),
+    createdAt: new Date("2026-03-10T09:00:00.000Z"),
+    updatedAt: new Date("2026-03-10T09:00:00.000Z")
   }
+];
 
-  for (const post of posts) {
-    await prisma.post.upsert({
-      where: { slug: post.slug },
-      update: {
-        title: post.title,
-        excerpt: post.excerpt,
-        category: post.category,
-        readTime: post.readTime,
-        coverImageUrl: post.coverImageUrl,
-        content: post.content,
-        seoTitle: post.seoTitle,
-        seoDescription: post.seoDescription,
-        published: post.published,
-        publishedAt: post.publishedAt
-      },
-      create: post
-    });
-  }
-
-  for (const [key, value] of Object.entries({
-    shipping_region: "United States only",
-    support_email: "support@neatiquebeauty.com",
-    reward_rule: "1 point per $1 spent",
-    stripe_mode: "Test mode until live keys are added",
-    email_enabled: "false",
-    smtp_host: "",
-    smtp_port: "587",
-    smtp_secure: "false",
-    smtp_user: "",
-    smtp_pass: "",
-    email_from_name: "Neatique Beauty",
-    email_from_address: "",
-    contact_recipient: ""
-  })) {
-    await prisma.storeSetting.upsert({
-      where: { key },
-      update: { value },
-      create: { key, value }
-    });
-  }
-
-  const storedProducts = await prisma.product.findMany({
-    where: {
-      slug: {
-        in: products.map((product) => product.slug)
-      }
-    }
-  });
-
-  for (const product of storedProducts) {
-    const sampleReviews = buildSampleReviews(product);
-
-    await prisma.productReview.deleteMany({
-      where: {
-        id: {
-          in: sampleReviews.map((review) => review.id)
-        }
-      }
-    });
-
-    for (const review of sampleReviews) {
-      await prisma.productReview.create({
-        data: review
-      });
-    }
-  }
-}
-
-main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (error) => {
-    console.error(error);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+export const sampleStoreSettings: StoreSettingsRecord = {
+  shipping_region: "United States only",
+  support_email: "support@neatiquebeauty.com",
+  reward_rule: "1 point per $1 spent",
+  stripe_mode: "Test mode until live keys are added",
+  email_enabled: "false",
+  smtp_host: "",
+  smtp_port: "587",
+  smtp_secure: "false",
+  smtp_user: "",
+  smtp_pass: "",
+  email_from_name: "Neatique Beauty",
+  email_from_address: "",
+  contact_recipient: ""
+};
