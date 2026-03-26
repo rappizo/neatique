@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FULFILLED
+  CANCELLED
+  REFUNDED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+}
+
+enum RewardType {
+  EARNED
+  REDEEMED
+  ADJUSTMENT
+}
+
+enum ReviewStatus {
+  PENDING
+  PUBLISHED
+  HIDDEN
+}
+
+model Product {
+  id                  String        @id @default(cuid())
+  name                String
+  slug                String        @unique
+  tagline             String
+  category            String
+  shortDescription    String
+  description         String
+  details             String
+  imageUrl            String
+  galleryImages       String?
+  featured            Boolean       @default(false)
+  status              ProductStatus @default(DRAFT)
+  inventory           Int           @default(0)
+  priceCents          Int
+  compareAtPriceCents Int?
+  currency            String        @default("USD")
+  pointsReward        Int           @default(0)
+  stripePriceId       String?
+  orderItems          OrderItem[]
+  reviews             ProductReview[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+model Post {
+  id             String   @id @default(cuid())
+  title          String
+  slug           String   @unique
+  excerpt        String
+  category       String
+  readTime       Int      @default(4)
+  coverImageUrl  String
+  content        String
+  seoTitle       String
+  seoDescription String
+  published      Boolean  @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Customer {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  firstName       String?
+  lastName        String?
+  passwordHash    String?
+  passwordSetAt   DateTime?
+  lastLoginAt     DateTime?
+  marketingOptIn  Boolean       @default(false)
+  loyaltyPoints   Int           @default(0)
+  totalSpentCents Int           @default(0)
+  orders          Order[]
+  rewards         RewardEntry[]
+  reviews         ProductReview[]
+  sessions        CustomerSession[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Order {
+  id                    String            @id @default(cuid())
+  orderNumber           String            @unique
+  email                 String
+  status                OrderStatus       @default(PENDING)
+  fulfillmentStatus     FulfillmentStatus @default(UNFULFILLED)
+  currency              String            @default("USD")
+  subtotalCents         Int
+  shippingCents         Int               @default(0)
+  taxCents              Int               @default(0)
+  totalCents            Int
+  pointsEarned          Int               @default(0)
+  stripeCheckoutId      String?
+  stripePaymentIntentId String?
+  shippingName          String?
+  shippingAddress1      String?
+  shippingAddress2      String?
+  shippingCity          String?
+  shippingState         String?
+  shippingPostalCode    String?
+  shippingCountry       String?
+  notes                 String?
+  customerId            String?
+  customer              Customer?         @relation(fields: [customerId], references: [id])
+  items                 OrderItem[]
+  rewards               RewardEntry[]
+  reviews               ProductReview[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String
+  quantity       Int
+  unitPriceCents Int
+  lineTotalCents Int
+  imageUrl       String
+  orderId        String
+  productId      String?
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product? @relation(fields: [productId], references: [id])
+}
+
+model RewardEntry {
+  id         String     @id @default(cuid())
+  type       RewardType
+  points     Int
+  note       String?
+  customerId String
+  orderId    String?
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order      Order?     @relation(fields: [orderId], references: [id])
+  createdAt  DateTime   @default(now())
+}
+
+model CustomerSession {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ProductReview {
+  id               String       @id @default(cuid())
+  rating           Int
+  title            String
+  content          String
+  displayName      String
+  status           ReviewStatus @default(PENDING)
+  verifiedPurchase Boolean      @default(false)
+  adminNotes       String?
+  source           String       @default("CUSTOMER")
+  productId        String
+  customerId       String?
+  orderId          String?
+  publishedAt      DateTime?
+  product          Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer         Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  order            Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model StoreSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model ContactSubmission {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  createdAt DateTime @default(now())
+}

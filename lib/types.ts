@@ -1,0 +1,155 @@
+export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
+export type OrderStatus = "PENDING" | "PAID" | "FULFILLED" | "CANCELLED" | "REFUNDED";
+export type FulfillmentStatus = "UNFULFILLED" | "PROCESSING" | "SHIPPED" | "DELIVERED";
+export type RewardType = "EARNED" | "REDEEMED" | "ADJUSTMENT";
+export type ReviewStatus = "PENDING" | "PUBLISHED" | "HIDDEN";
+
+export type ProductRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  tagline: string;
+  category: string;
+  shortDescription: string;
+  description: string;
+  details: string;
+  imageUrl: string;
+  galleryImages: string[];
+  featured: boolean;
+  status: ProductStatus;
+  inventory: number;
+  priceCents: number;
+  compareAtPriceCents: number | null;
+  currency: string;
+  pointsReward: number;
+  stripePriceId: string | null;
+  reviewCount?: number;
+  averageRating?: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type BeautyPostRecord = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  category: string;
+  readTime: number;
+  coverImageUrl: string;
+  content: string;
+  seoTitle: string;
+  seoDescription: string;
+  published: boolean;
+  publishedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CustomerRecord = {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  hasPassword: boolean;
+  passwordSetAt: Date | null;
+  lastLoginAt: Date | null;
+  marketingOptIn: boolean;
+  loyaltyPoints: number;
+  totalSpentCents: number;
+  orderCount?: number;
+  reviewCount?: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type OrderItemRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  quantity: number;
+  unitPriceCents: number;
+  lineTotalCents: number;
+  imageUrl: string;
+};
+
+export type OrderRecord = {
+  id: string;
+  orderNumber: string;
+  email: string;
+  status: OrderStatus;
+  fulfillmentStatus: FulfillmentStatus;
+  currency: string;
+  subtotalCents: number;
+  shippingCents: number;
+  taxCents: number;
+  totalCents: number;
+  pointsEarned: number;
+  shippingName: string | null;
+  shippingAddress1: string | null;
+  shippingAddress2: string | null;
+  shippingCity: string | null;
+  shippingState: string | null;
+  shippingPostalCode: string | null;
+  shippingCountry: string | null;
+  notes: string | null;
+  stripeCheckoutId: string | null;
+  stripePaymentIntentId: string | null;
+  customerId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  items: OrderItemRecord[];
+};
+
+export type RewardEntryRecord = {
+  id: string;
+  type: RewardType;
+  points: number;
+  note: string | null;
+  orderId: string | null;
+  customerId: string;
+  customerEmail: string;
+  createdAt: Date;
+};
+
+export type ProductReviewRecord = {
+  id: string;
+  rating: number;
+  title: string;
+  content: string;
+  displayName: string;
+  status: ReviewStatus;
+  verifiedPurchase: boolean;
+  adminNotes: string | null;
+  source: string;
+  productId: string;
+  productName?: string;
+  productSlug?: string;
+  customerId: string | null;
+  customerEmail: string | null;
+  orderId: string | null;
+  publishedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CustomerAccountRecord = {
+  customer: CustomerRecord;
+  orders: OrderRecord[];
+  rewards: RewardEntryRecord[];
+  reviews: ProductReviewRecord[];
+  purchasedProductIds: string[];
+};
+
+export type DashboardSummary = {
+  activeProductCount: number;
+  publishedPostCount: number;
+  customerCount: number;
+  orderCount: number;
+  paidRevenueCents: number;
+  pointsIssued: number;
+  lowInventoryProducts: ProductRecord[];
+  recentOrders: OrderRecord[];
+};
+
+export type StoreSettingsRecord = Record<string, string>;

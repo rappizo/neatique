@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 520">
+  <rect width="520" height="520" rx="42" fill="#fff8f4" />
+  <circle cx="128" cy="404" r="88" fill="#d9e2d6" />
+  <rect x="130" y="194" width="260" height="190" rx="56" fill="#fffdfb" />
+  <rect x="174" y="152" width="172" height="54" rx="20" fill="#2e2825" />
+  <text x="260" y="274" text-anchor="middle" font-size="28" fill="#ed7361" font-family="Georgia, serif">Snail</text>
+  <text x="260" y="312" text-anchor="middle" font-size="24" fill="#2e2825" font-family="Arial, sans-serif">Mucin Cream</text>
+</svg>

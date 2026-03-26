@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 860">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff8f4" />
+      <stop offset="100%" stop-color="#f8d2c5" />
+    </linearGradient>
+    <linearGradient id="jar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ed7361" />
+      <stop offset="100%" stop-color="#f4a594" />
+    </linearGradient>
+  </defs>
+  <rect width="900" height="860" rx="44" fill="url(#bg)" />
+  <circle cx="160" cy="150" r="90" fill="#f6e4dc" />
+  <circle cx="740" cy="170" r="96" fill="#dce5d8" />
+  <rect x="102" y="430" width="170" height="240" rx="42" fill="#fffdfb" />
+  <rect x="118" y="390" width="138" height="66" rx="24" fill="#2e2825" />
+  <rect x="356" y="338" width="190" height="302" rx="52" fill="url(#jar)" />
+  <rect x="390" y="286" width="122" height="72" rx="24" fill="#2e2825" />
+  <rect x="626" y="456" width="156" height="214" rx="40" fill="#fffdfb" />
+  <rect x="644" y="424" width="120" height="54" rx="22" fill="#2e2825" />
+  <text x="187" y="536" text-anchor="middle" font-size="32" fill="#ed7361" font-family="Georgia, serif">PDRN</text>
+  <text x="451" y="502" text-anchor="middle" font-size="36" fill="#fff8f4" font-family="Georgia, serif">NEATIQUE</text>
+  <text x="704" y="566" text-anchor="middle" font-size="24" fill="#ed7361" font-family="Georgia, serif">SNAIL</text>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 520">
+  <rect width="520" height="520" rx="42" fill="#fff7f3" />
+  <circle cx="404" cy="120" r="78" fill="#e3eadf" />
+  <rect x="184" y="112" width="152" height="62" rx="20" fill="#2e2825" />
+  <rect x="160" y="162" width="200" height="246" rx="52" fill="#ed7361" />
+  <text x="260" y="280" text-anchor="middle" font-size="34" fill="#fff8f4" font-family="Georgia, serif">PDRN</text>
+  <text x="260" y="324" text-anchor="middle" font-size="22" fill="#fff8f4" font-family="Arial, sans-serif">Serum</text>
+</svg>

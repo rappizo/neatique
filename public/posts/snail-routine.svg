@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420">
+  <rect width="640" height="420" rx="34" fill="#fff8f4" />
+  <rect x="70" y="72" width="500" height="276" rx="28" fill="#fffdfb" />
+  <rect x="108" y="116" width="184" height="18" rx="9" fill="#ed7361" />
+  <rect x="108" y="156" width="430" height="14" rx="7" fill="#dbe3d8" />
+  <rect x="108" y="190" width="360" height="14" rx="7" fill="#dbe3d8" />
+  <rect x="108" y="224" width="402" height="14" rx="7" fill="#dbe3d8" />
+  <circle cx="486" cy="250" r="54" fill="#f1e2d7" />
+  <text x="108" y="302" font-size="38" fill="#2e2825" font-family="Georgia, serif">Snail Routine</text>
+</svg>

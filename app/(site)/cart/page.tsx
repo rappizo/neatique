@@ -1,0 +1,167 @@
+import Image from "next/image";
+import Link from "next/link";
+import type { Metadata } from "next";
+import {
+  clearCartAction,
+  removeCartItemAction,
+  updateCartItemAction
+} from "@/app/(site)/cart/actions";
+import { ButtonLink } from "@/components/ui/button-link";
+import { getCartDetails } from "@/lib/cart";
+import { getCurrentCustomer } from "@/lib/customer-auth";
+import { formatCurrency } from "@/lib/format";
+
+type CartPageProps = {
+  searchParams: Promise<{ status?: string; error?: string }>;
+};
+
+export const metadata: Metadata = {
+  title: "Cart",
+  description: "Review your Neatique selections and continue to checkout."
+};
+
+export default async function CartPage({ searchParams }: CartPageProps) {
+  const [{ lines, subtotalCents, itemCount }, currentCustomer, params] = await Promise.all([
+    getCartDetails(),
+    getCurrentCustomer(),
+    searchParams
+  ]);
+
+  return (
+    <section className="section">
+      <div className="container">
+        <div className="page-hero">
+          <p className="eyebrow">Cart</p>
+          <h1>Your skincare picks, ready for checkout.</h1>
+          <p>
+            Review your items, adjust quantities, and continue to secure checkout when you are
+            ready.
+          </p>
+          <div className="page-hero__stats">
+            <span className="pill">{itemCount} items</span>
+            <span className="pill">Secure checkout</span>
+            <span className="pill">Ships within the United States</span>
+          </div>
+        </div>
+
+        {params.status === "added" ? <p className="notice">Item added to your cart.</p> : null}
+        {params.error === "empty-cart" ? <p className="notice">Your cart is empty.</p> : null}
+        {params.error === "account" ? (
+          <p className="notice">Please sign in with the password for that email, or continue and we will send account access to your inbox.</p>
+        ) : null}
+
+        {lines.length === 0 ? (
+          <div className="empty-state">
+            <p className="eyebrow">Your bag is empty</p>
+            <h1>Add a product to get started.</h1>
+            <p>Explore the collection and build a routine that feels light, smooth, and radiant.</p>
+            <ButtonLink href="/shop" variant="primary">
+              Browse products
+            </ButtonLink>
+          </div>
+        ) : (
+          <div className="cart-layout">
+            <section className="admin-table">
+              <h2>Your items</h2>
+              <div className="cart-lines">
+                {lines.map((line) => (
+                  <article key={line.product.id} className="cart-line">
+                    <div className="cart-line__media">
+                      <Image src={line.product.imageUrl} alt={line.product.name} width={220} height={220} />
+                    </div>
+                    <div className="cart-line__content">
+                      <div>
+                        <p className="eyebrow">{line.product.category}</p>
+                        <h3>{line.product.name}</h3>
+                        <p>{line.product.shortDescription}</p>
+                      </div>
+                      <div className="cart-line__controls">
+                        <form action={updateCartItemAction} className="cart-line__form">
+                          <input type="hidden" name="productId" value={line.product.id} />
+                          <label htmlFor={`qty-${line.product.id}`}>Qty</label>
+                          <select id={`qty-${line.product.id}`} name="quantity" defaultValue={String(line.quantity)}>
+                            {Array.from({ length: 10 }, (_, index) => (
+                              <option key={index + 1} value={index + 1}>
+                                {index + 1}
+                              </option>
+                            ))}
+                          </select>
+                          <button type="submit" className="button button--secondary">
+                            Update
+                          </button>
+                        </form>
+                        <form action={removeCartItemAction}>
+                          <input type="hidden" name="productId" value={line.product.id} />
+                          <button type="submit" className="button button--ghost">
+                            Remove
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                    <div className="cart-line__total">{formatCurrency(line.lineTotalCents)}</div>
+                  </article>
+                ))}
+              </div>
+              <form action={clearCartAction}>
+                <button type="submit" className="button button--ghost">
+                  Clear cart
+                </button>
+              </form>
+            </section>
+
+            <aside className="admin-form cart-summary">
+              <h2>Checkout</h2>
+              <p>Subtotal</p>
+              <div className="product-detail__price">
+                <strong>{formatCurrency(subtotalCents)}</strong>
+              </div>
+              <p>Shipping and taxes are calculated during secure checkout.</p>
+              {!currentCustomer ? (
+                <p>
+                  Returning customer? <Link href="/account/login" className="link-inline">Sign in</Link>. New here? You can continue with your email and we will help set up your account after checkout.
+                </p>
+              ) : (
+                <p>
+                  Signed in as <strong>{currentCustomer.email}</strong>.
+                </p>
+              )}
+              <form action="/api/checkout" method="post" className="checkout-form">
+                <div className="field">
+                  <label htmlFor="checkout-email">Email</label>
+                  <input
+                    id="checkout-email"
+                    name="email"
+                    type="email"
+                    defaultValue={currentCustomer?.email ?? ""}
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="field">
+                    <label htmlFor="checkout-first-name">First name</label>
+                    <input
+                      id="checkout-first-name"
+                      name="firstName"
+                      defaultValue={currentCustomer?.firstName ?? ""}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="checkout-last-name">Last name</label>
+                    <input
+                      id="checkout-last-name"
+                      name="lastName"
+                      defaultValue={currentCustomer?.lastName ?? ""}
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="button button--primary">
+                  Proceed to checkout
+                </button>
+              </form>
+            </aside>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
