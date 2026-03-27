@@ -67,6 +67,12 @@ export default async function CheckoutConfirmationPage({
         {params.error === "stripe-checkout" ? (
           <p className="notice">We could not open Stripe checkout. Please try again in a moment.</p>
         ) : null}
+        {params.error === "coupon-over-discount" ? (
+          <p className="notice">
+            One of the coupon combinations makes the payable amount invalid for Stripe. Please go
+            back to cart and use a lower discount coupon.
+          </p>
+        ) : null}
         {params.status === "canceled" ? (
           <p className="notice">Your payment was canceled. Your order details are still here, so you can try again anytime.</p>
         ) : null}

@@ -1,8 +1,4 @@
-import { createCustomerSession } from "@/lib/customer-auth";
 import { type CheckoutAddress, type CheckoutDraft } from "@/lib/checkout-draft";
-import { prisma } from "@/lib/db";
-import { sendCustomerWelcomeEmail } from "@/lib/email";
-import { generateTemporaryPassword, hashPassword } from "@/lib/password";
 import { getBaseUrl, stripe } from "@/lib/stripe";
 import type { CartLine } from "@/lib/cart";
 import { buildDiscountedStripeLineItems } from "@/lib/coupons";
@@ -51,66 +47,19 @@ export async function createStripeCheckoutSession({ request, cart, draft }: Chec
   }
 
   const { lineItems } = buildDiscountedStripeLineItems(cart.lines, cart.appliedCoupons);
+
+  if (lineItems.length === 0) {
+    throw new Error("coupon-over-discount");
+  }
+
   const baseUrl = getBaseUrl(request);
   const email = draft.email.trim().toLowerCase();
   const firstName = draft.firstName.trim() || null;
   const lastName = draft.lastName.trim() || null;
 
-  let customer = await prisma.customer.findUnique({
-    where: { email }
-  });
-
-  let generatedPassword: string | null = null;
-
-  if (!customer) {
-    generatedPassword = generateTemporaryPassword();
-    customer = await prisma.customer.create({
-      data: {
-        email,
-        firstName,
-        lastName,
-        passwordHash: hashPassword(generatedPassword),
-        passwordSetAt: new Date()
-      }
-    });
-
-    await createCustomerSession(customer.id);
-  } else if (!customer.passwordHash) {
-    generatedPassword = generateTemporaryPassword();
-    customer = await prisma.customer.update({
-      where: { id: customer.id },
-      data: {
-        firstName: customer.firstName || firstName,
-        lastName: customer.lastName || lastName,
-        passwordHash: hashPassword(generatedPassword),
-        passwordSetAt: new Date()
-      }
-    });
-  } else {
-    customer = await prisma.customer.update({
-      where: { id: customer.id },
-      data: {
-        firstName: customer.firstName || firstName,
-        lastName: customer.lastName || lastName
-      }
-    });
-  }
-
-  if (generatedPassword) {
-    try {
-      await sendCustomerWelcomeEmail({
-        email,
-        firstName: customer.firstName,
-        password: generatedPassword
-      });
-    } catch (error) {
-      console.error("Welcome email delivery failed:", error);
-    }
-  }
-
   const cartMetadata = cart.lines.map((line) => `${line.product.id}:${line.quantity}`).join(",");
   const metadata = {
-    customerId: customer.id,
+    customerId: "",
     cartItems: cartMetadata,
     couponIds: cart.appliedCoupons.map((coupon) => coupon.id).join(","),
     couponCodes: cart.appliedCouponCodes.join(","),

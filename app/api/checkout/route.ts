@@ -41,7 +41,17 @@ export async function POST(request: Request) {
 
     return NextResponse.redirect(session.url!, 303);
   } catch (error) {
+    console.error("Checkout API session creation failed:", error);
     const message = error instanceof Error ? error.message : "stripe-checkout";
-    return redirectToConfirmation(request, message === "stripe-config" ? "stripe-config" : "stripe-checkout");
+
+    if (message === "stripe-config") {
+      return redirectToConfirmation(request, "stripe-config");
+    }
+
+    if (message === "coupon-over-discount") {
+      return redirectToConfirmation(request, "coupon-over-discount");
+    }
+
+    return redirectToConfirmation(request, "stripe-checkout");
   }
 }

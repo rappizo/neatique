@@ -298,20 +298,24 @@ export function buildDiscountedStripeLineItems(
     });
   }
 
+  const rawLineItems = Array.from(groupedUnits.values()).map((item) => ({
+    quantity: item.quantity,
+    price_data: {
+      currency: item.product.currency.toLowerCase(),
+      unit_amount: item.unitAmountCents,
+      product_data: {
+        name: item.product.name,
+        description: item.product.shortDescription
+      }
+    }
+  }));
+  const lineItems = rawLineItems.filter((item) => item.price_data.unit_amount > 0);
+
   return {
     discountCents: totalDiscountCents,
     appliedCouponCodes,
-    lineItems: Array.from(groupedUnits.values()).map((item) => ({
-      quantity: item.quantity,
-      price_data: {
-        currency: item.product.currency.toLowerCase(),
-        unit_amount: item.unitAmountCents,
-        product_data: {
-          name: item.product.name,
-          description: item.product.shortDescription
-        }
-      }
-    }))
+    lineItems,
+    hasNonPositiveUnitAmount: rawLineItems.some((item) => item.price_data.unit_amount <= 0)
   };
 }
 

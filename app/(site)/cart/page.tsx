@@ -68,6 +68,9 @@ export default async function CartPage({ searchParams }: CartPageProps) {
         {params.error === "coupon-conflict" ? (
           <p className="notice">These coupons cannot be used together because at least one of them is marked for standalone use only.</p>
         ) : null}
+        {params.error === "coupon-over-discount" ? (
+          <p className="notice">This coupon combination makes one or more items free and cannot be processed by checkout. Please use a lower discount coupon.</p>
+        ) : null}
         {params.error === "account" ? (
           <p className="notice">Please sign in with the password for that email, or continue and we will send account access to your inbox.</p>
         ) : null}

@@ -196,7 +196,7 @@ async function resolveAppliedCoupons(lines: Array<{ product: ProductRecord; quan
     };
   }
 
-  const { discountCents, appliedCouponCodes } = buildDiscountedStripeLineItems(lines, resolvedCoupons);
+  const { discountCents, appliedCouponCodes, lineItems } = buildDiscountedStripeLineItems(lines, resolvedCoupons);
 
   if (discountCents <= 0 || appliedCouponCodes.length !== resolvedCoupons.length) {
     return {
@@ -205,6 +205,16 @@ async function resolveAppliedCoupons(lines: Array<{ product: ProductRecord; quan
       appliedCouponCodes: [] as string[],
       discountCents: 0,
       couponError: "coupon-not-eligible" as const
+    };
+  }
+
+  if (lineItems.length === 0) {
+    return {
+      enteredCouponCodes: couponCodes,
+      appliedCoupons: [] as AppliedCartCoupon[],
+      appliedCouponCodes: [] as string[],
+      discountCents: 0,
+      couponError: "coupon-over-discount" as const
     };
   }
 

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/db";
+import { sendCustomerWelcomeEmail } from "@/lib/email";
+import { generateTemporaryPassword, hashPassword } from "@/lib/password";
 import { stripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -135,7 +137,8 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
         where: { email: customerEmail }
       });
 
-  const customer = existingCustomer
+  let welcomePassword: string | null = null;
+  let customer = existingCustomer
     ? await prisma.customer.update({
         where: { id: existingCustomer.id },
         data: {
@@ -154,11 +157,24 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
           email: customerEmail,
           firstName: nameParts.firstName,
           lastName: nameParts.lastName,
+          passwordHash: hashPassword((welcomePassword = generateTemporaryPassword())),
+          passwordSetAt: new Date(),
           totalSpentCents: totalCents,
           loyaltyPoints: pointsEarned,
           marketingOptIn: false
         }
       });
+
+  if (!customer.passwordHash) {
+    welcomePassword = generateTemporaryPassword();
+    customer = await prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        passwordHash: hashPassword(welcomePassword),
+        passwordSetAt: new Date()
+      }
+    });
+  }
 
   const appliedCoupons = metadataCouponIds.length
     ? await prisma.coupon.findMany({
@@ -229,6 +245,16 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
         points: pointsEarned,
         note: `Paid order ${order.orderNumber}`
       }
+    });
+  }
+
+  if (welcomePassword) {
+    await sendCustomerWelcomeEmail({
+      email: customerEmail,
+      firstName: customer.firstName,
+      password: welcomePassword
+    }).catch((error) => {
+      console.error("Welcome email delivery failed:", error);
     });
   }
 
