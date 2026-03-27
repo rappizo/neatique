@@ -1836,8 +1836,36 @@ main {
 }
 
 .cart-line__total {
-  font-weight: 700;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
   font-size: 1.1rem;
+}
+
+.cart-line__total strong {
+  font-size: 1.12rem;
+}
+
+.cart-coupon-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(237, 115, 97, 0.14);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.cart-coupon-panel h3 {
+  margin: 0;
+  font-family: Baskerville, "Palatino Linotype", serif;
+  font-size: 1.45rem;
+}
+
+.cart-coupon-panel__applied {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .cart-summary {

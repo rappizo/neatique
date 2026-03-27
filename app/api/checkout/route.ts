@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import { getCartDetails } from "@/lib/cart";
 import {
   buildDiscountedStripeLineItems,
-  couponsCanBeCombined,
-  parseCouponCodesInput,
-  parseStoredCouponProductCodes
 } from "@/lib/coupons";
 import { createCustomerSession } from "@/lib/customer-auth";
 import { prisma } from "@/lib/db";
@@ -22,11 +19,8 @@ export async function POST(request: Request) {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const firstName = String(formData.get("firstName") || "").trim() || null;
   const lastName = String(formData.get("lastName") || "").trim() || null;
-  const rawCouponCodes = parseCouponCodesInput(
-    String(formData.get("couponCodes") || formData.get("couponCode") || "")
-  );
   const baseUrl = getBaseUrl();
-  let { lines } = await getCartDetails();
+  let { lines, appliedCoupons, appliedCouponCodes, discountCents } = await getCartDetails();
 
   if (lines.length === 0 && productId) {
     const product = await getProductById(productId);
@@ -36,74 +30,21 @@ export async function POST(request: Request) {
         {
           product,
           quantity,
-          lineTotalCents: product.priceCents * quantity
+          lineTotalCents: product.priceCents * quantity,
+          originalLineTotalCents: product.priceCents * quantity,
+          discountCents: 0
         }
       ];
+      appliedCoupons = [];
+      appliedCouponCodes = [];
+      discountCents = 0;
     }
   }
 
   if (lines.length === 0 || !email) {
     return NextResponse.redirect(new URL("/cart?error=empty-cart", baseUrl), 303);
   }
-
-  const couponRows = rawCouponCodes.length
-    ? await prisma.coupon.findMany({
-        where: {
-          code: {
-            in: rawCouponCodes
-          }
-        }
-      })
-    : [];
-
-  const couponRowMap = new Map(couponRows.map((coupon) => [coupon.code, coupon]));
-  const resolvedCoupons = rawCouponCodes
-    .map((code) => couponRowMap.get(code))
-    .filter((coupon): coupon is NonNullable<typeof coupon> => Boolean(coupon))
-    .map((coupon) => ({
-      id: coupon.id,
-      code: coupon.code,
-      content: coupon.content,
-      active: coupon.active,
-      combinable: coupon.combinable,
-      appliesToAll: coupon.appliesToAll,
-      productCodes: parseStoredCouponProductCodes(coupon.productCodes),
-      discountType: coupon.discountType,
-      percentOff: coupon.percentOff,
-      amountOffCents: coupon.amountOffCents,
-      usageMode: coupon.usageMode,
-      usageCount: coupon.usageCount,
-      createdAt: coupon.createdAt,
-      updatedAt: coupon.updatedAt
-    }));
-
-  if (
-    rawCouponCodes.length > 0 &&
-    (resolvedCoupons.length !== rawCouponCodes.length ||
-      resolvedCoupons.some((coupon) => !coupon.active))
-  ) {
-    return NextResponse.redirect(new URL("/cart?error=coupon-invalid", baseUrl), 303);
-  }
-
-  if (!couponsCanBeCombined(resolvedCoupons)) {
-    return NextResponse.redirect(new URL("/cart?error=coupon-conflict", baseUrl), 303);
-  }
-
-  if (resolvedCoupons.some((coupon) => coupon.usageMode === "SINGLE_USE" && coupon.usageCount > 0)) {
-    return NextResponse.redirect(new URL("/cart?error=coupon-used", baseUrl), 303);
-  }
-
-  const { discountCents, appliedCouponCodes, lineItems } = buildDiscountedStripeLineItems(
-    lines,
-    resolvedCoupons
-  );
-
-  if (
-    rawCouponCodes.length > 0 &&
-    (discountCents <= 0 || appliedCouponCodes.length !== resolvedCoupons.length)
-  ) {
-    return NextResponse.redirect(new URL("/cart?error=coupon-not-eligible", baseUrl), 303);
-  }
+  const { lineItems } = buildDiscountedStripeLineItems(lines, appliedCoupons);
 
   let customer = await prisma.customer.findUnique({
     where: { email }
@@ -166,7 +107,7 @@ export async function POST(request: Request) {
     metadata: {
       customerId: customer.id,
       cartItems: cartMetadata,
-      couponIds: resolvedCoupons.map((coupon) => coupon.id).join(","),
+      couponIds: appliedCoupons.map((coupon) => coupon.id).join(","),
       couponCodes: appliedCouponCodes.join(","),
       discountCents: String(discountCents)
     },

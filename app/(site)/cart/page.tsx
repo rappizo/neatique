@@ -4,10 +4,12 @@ import type { Metadata } from "next";
 import {
   clearCartAction,
   removeCartItemAction,
+  updateCartCouponsAction,
   updateCartItemAction
 } from "@/app/(site)/cart/actions";
 import { ButtonLink } from "@/components/ui/button-link";
 import { getCartDetails } from "@/lib/cart";
+import { formatCouponValue } from "@/lib/coupons";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { formatCurrency } from "@/lib/format";
 
@@ -21,7 +23,11 @@ export const metadata: Metadata = {
 };
 
 export default async function CartPage({ searchParams }: CartPageProps) {
-  const [{ lines, subtotalCents, itemCount }, currentCustomer, params] = await Promise.all([
+  const [
+    { lines, subtotalCents, discountedSubtotalCents, discountCents, itemCount, couponCodes, appliedCoupons },
+    currentCustomer,
+    params
+  ] = await Promise.all([
     getCartDetails(),
     getCurrentCustomer(),
     searchParams
@@ -45,6 +51,9 @@ export default async function CartPage({ searchParams }: CartPageProps) {
         </div>
 
         {params.status === "added" ? <p className="notice">Item added to your cart.</p> : null}
+        {params.status === "coupon-updated" ? (
+          <p className="notice">Your coupon update has been applied to the cart.</p>
+        ) : null}
         {params.error === "empty-cart" ? <p className="notice">Your cart is empty.</p> : null}
         {params.error === "coupon-invalid" ? (
           <p className="notice">That coupon code is not active or could not be found.</p>
@@ -110,10 +119,59 @@ export default async function CartPage({ searchParams }: CartPageProps) {
                         </form>
                       </div>
                     </div>
-                    <div className="cart-line__total">{formatCurrency(line.lineTotalCents)}</div>
+                    <div className="cart-line__total">
+                      {line.discountCents > 0 ? (
+                        <>
+                          <span className="product-price-stack__original">
+                            {formatCurrency(line.originalLineTotalCents)}
+                          </span>
+                          <strong>{formatCurrency(line.lineTotalCents)}</strong>
+                        </>
+                      ) : (
+                        <strong>{formatCurrency(line.lineTotalCents)}</strong>
+                      )}
+                    </div>
                   </article>
                 ))}
               </div>
+              <section className="cart-coupon-panel">
+                <div>
+                  <h3>Coupon code</h3>
+                  <p className="form-note">
+                    Apply your code here first. Once the price updates in the cart, you can safely
+                    continue to checkout.
+                  </p>
+                </div>
+                <form action={updateCartCouponsAction} className="checkout-form">
+                  <div className="field">
+                    <label htmlFor="cart-coupon-codes">Coupon code(s)</label>
+                    <input
+                      id="cart-coupon-codes"
+                      name="couponCodes"
+                      defaultValue={couponCodes.join(", ")}
+                      placeholder="Enter one or more codes, separated by commas"
+                    />
+                    <p className="form-note">
+                      Product-specific coupons match against Product IDs. If any selected coupon is
+                      marked for standalone use, it cannot be combined with another code.
+                    </p>
+                  </div>
+                  <button type="submit" className="button button--secondary">
+                    Update
+                  </button>
+                </form>
+
+                {appliedCoupons.length > 0 ? (
+                  <div className="cart-coupon-panel__applied">
+                    {appliedCoupons.map((coupon) => (
+                      <div key={coupon.id} className="pill">
+                        <strong>{coupon.code}</strong>
+                        <span>{formatCouponValue(coupon)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
               <form action={clearCartAction}>
                 <button type="submit" className="button button--ghost">
                   Clear cart
@@ -125,8 +183,20 @@ export default async function CartPage({ searchParams }: CartPageProps) {
               <h2>Checkout</h2>
               <p>Subtotal</p>
               <div className="product-detail__price">
-                <strong>{formatCurrency(subtotalCents)}</strong>
+                {discountCents > 0 ? (
+                  <>
+                    <span className="product-price-stack__original">
+                      {formatCurrency(subtotalCents)}
+                    </span>
+                    <strong>{formatCurrency(discountedSubtotalCents)}</strong>
+                  </>
+                ) : (
+                  <strong>{formatCurrency(subtotalCents)}</strong>
+                )}
               </div>
+              {discountCents > 0 ? (
+                <p className="form-note">Coupon savings applied: {formatCurrency(discountCents)}</p>
+              ) : null}
               <p>Shipping and taxes are calculated during secure checkout.</p>
               {!currentCustomer ? (
                 <p>
@@ -162,23 +232,10 @@ export default async function CartPage({ searchParams }: CartPageProps) {
                     <input
                       id="checkout-last-name"
                       name="lastName"
-                      defaultValue={currentCustomer?.lastName ?? ""}
-                    />
-                  </div>
-                </div>
-                <div className="field">
-                  <label htmlFor="checkout-coupon">Coupon code(s)</label>
-                  <input
-                    id="checkout-coupon"
-                    name="couponCodes"
-                    placeholder="Enter one or more codes, separated by commas"
+                    defaultValue={currentCustomer?.lastName ?? ""}
                   />
-                  <p className="form-note">
-                    Product-specific coupons match against Product IDs. Enter multiple codes with
-                    commas or spaces. If any selected coupon is marked for standalone use, checkout
-                    will stop the combination.
-                  </p>
                 </div>
+              </div>
                 <button type="submit" className="button button--primary">
                   Proceed to checkout
                 </button>

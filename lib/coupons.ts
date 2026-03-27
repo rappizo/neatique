@@ -15,6 +15,17 @@ type DiscountedUnit = {
   adjustedAmountCents: number;
 };
 
+type AppliedCoupon = Pick<
+  CouponRecord,
+  | "code"
+  | "discountType"
+  | "percentOff"
+  | "amountOffCents"
+  | "appliesToAll"
+  | "productCodes"
+  | "combinable"
+>;
+
 export function normalizeCouponCode(value: string | null | undefined) {
   return (value || "").trim().toUpperCase();
 }
@@ -158,21 +169,7 @@ function distributeDiscountAcrossEligibleUnits(
   return allocations;
 }
 
-export function buildDiscountedStripeLineItems(
-  lines: DiscountableCartLine[],
-  coupons: Array<
-    Pick<
-      CouponRecord,
-      | "code"
-      | "discountType"
-      | "percentOff"
-      | "amountOffCents"
-      | "appliesToAll"
-      | "productCodes"
-      | "combinable"
-    >
-  >
-) {
+function applyCouponsToWorkingUnits(lines: DiscountableCartLine[], coupons: AppliedCoupon[]) {
   const workingUnits: DiscountedUnit[] = lines.flatMap((line) =>
     Array.from({ length: line.quantity }, () => ({
       product: line.product,
@@ -216,6 +213,65 @@ export function buildDiscountedStripeLineItems(
     appliedCouponCodes.push(coupon.code);
     totalDiscountCents += computedDiscount.discountCents;
   }
+
+  return {
+    workingUnits,
+    discountCents: totalDiscountCents,
+    appliedCouponCodes
+  };
+}
+
+export function buildDiscountedCartLines(lines: DiscountableCartLine[], coupons: AppliedCoupon[]) {
+  const { workingUnits } = applyCouponsToWorkingUnits(lines, coupons);
+  const groupedUnits = new Map<
+    string,
+    {
+      product: DiscountableCartLine["product"];
+      quantity: number;
+      lineTotalCents: number;
+      originalLineTotalCents: number;
+    }
+  >();
+
+  for (const unit of workingUnits) {
+    const existing = groupedUnits.get(unit.product.id);
+
+    if (existing) {
+      existing.quantity += 1;
+      existing.lineTotalCents += unit.adjustedAmountCents;
+      existing.originalLineTotalCents += unit.product.priceCents;
+      continue;
+    }
+
+    groupedUnits.set(unit.product.id, {
+      product: unit.product,
+      quantity: 1,
+      lineTotalCents: unit.adjustedAmountCents,
+      originalLineTotalCents: unit.product.priceCents
+    });
+  }
+
+  return lines.map((line) => {
+    const grouped = groupedUnits.get(line.product.id);
+    const originalLineTotalCents = line.product.priceCents * line.quantity;
+    const lineTotalCents = grouped?.lineTotalCents ?? originalLineTotalCents;
+
+    return {
+      product: line.product,
+      quantity: line.quantity,
+      originalLineTotalCents,
+      lineTotalCents,
+      discountCents: Math.max(0, originalLineTotalCents - lineTotalCents)
+    };
+  });
+}
+
+export function buildDiscountedStripeLineItems(
+  lines: DiscountableCartLine[],
+  coupons: AppliedCoupon[]
+) {
+  const { workingUnits, discountCents: totalDiscountCents, appliedCouponCodes } =
+    applyCouponsToWorkingUnits(lines, coupons);
 
   const groupedUnits = new Map<
     string,

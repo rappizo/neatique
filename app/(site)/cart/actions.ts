@@ -2,7 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { addCartItem, clearCartItems, removeCartItem, updateCartItem } from "@/lib/cart";
+import {
+  addCartItem,
+  clearCartCoupons,
+  clearCartItems,
+  previewCartCouponCodes,
+  removeCartItem,
+  setCartCouponCodes,
+  updateCartItem
+} from "@/lib/cart";
+import { parseCouponCodesInput } from "@/lib/coupons";
 import { toInt, toPlainString } from "@/lib/utils";
 
 export async function addToCartAction(formData: FormData) {
@@ -36,4 +45,24 @@ export async function clearCartAction() {
   await clearCartItems();
   revalidatePath("/cart");
   redirect("/cart");
+}
+
+export async function updateCartCouponsAction(formData: FormData) {
+  const rawCouponCodes = parseCouponCodesInput(toPlainString(formData.get("couponCodes")));
+
+  if (rawCouponCodes.length === 0) {
+    await clearCartCoupons();
+    revalidatePath("/cart");
+    redirect("/cart?status=coupon-updated");
+  }
+
+  const resolution = await previewCartCouponCodes(rawCouponCodes);
+
+  if (resolution.couponError) {
+    redirect(`/cart?error=${resolution.couponError}`);
+  }
+
+  await setCartCouponCodes(rawCouponCodes);
+  revalidatePath("/cart");
+  redirect("/cart?status=coupon-updated");
 }
