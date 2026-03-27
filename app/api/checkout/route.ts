@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const firstName = String(formData.get("firstName") || "").trim() || null;
   const lastName = String(formData.get("lastName") || "").trim() || null;
-  const baseUrl = getBaseUrl();
+  const baseUrl = getBaseUrl(request);
   let { lines, appliedCoupons, appliedCouponCodes, discountCents } = await getCartDetails();
 
   if (lines.length === 0 && productId) {
@@ -91,31 +91,44 @@ export async function POST(request: Request) {
   }
 
   if (!stripe) {
-    return NextResponse.redirect(new URL("/cart", baseUrl), 303);
+    console.error("Stripe checkout is unavailable because STRIPE_SECRET_KEY is missing or invalid.");
+    return NextResponse.redirect(new URL("/cart?error=stripe-config", baseUrl), 303);
   }
 
   const cartMetadata = lines.map((line) => `${line.product.id}:${line.quantity}`).join(",");
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    billing_address_collection: "required",
-    customer_creation: "always",
-    allow_promotion_codes: false,
-    shipping_address_collection: {
-      allowed_countries: ["US"]
-    },
-    metadata: {
-      customerId: customer.id,
-      cartItems: cartMetadata,
-      couponIds: appliedCoupons.map((coupon) => coupon.id).join(","),
-      couponCodes: appliedCouponCodes.join(","),
-      discountCents: String(discountCents)
-    },
-    customer_email: email,
-    line_items: lineItems,
-    success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/cart`
-  });
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      billing_address_collection: "required",
+      customer_creation: "always",
+      allow_promotion_codes: false,
+      shipping_address_collection: {
+        allowed_countries: ["US"]
+      },
+      metadata: {
+        customerId: customer.id,
+        cartItems: cartMetadata,
+        couponIds: appliedCoupons.map((coupon) => coupon.id).join(","),
+        couponCodes: appliedCouponCodes.join(","),
+        discountCents: String(discountCents)
+      },
+      customer_email: email,
+      line_items: lineItems,
+      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/cart`
+    });
 
-  return NextResponse.redirect(session.url || `${baseUrl}/cart`, 303);
+    if (!session.url) {
+      console.error("Stripe checkout session created without a redirect URL.", {
+        sessionId: session.id
+      });
+      return NextResponse.redirect(new URL("/cart?error=stripe-checkout", baseUrl), 303);
+    }
+
+    return NextResponse.redirect(session.url, 303);
+  } catch (error) {
+    console.error("Stripe checkout session creation failed:", error);
+    return NextResponse.redirect(new URL("/cart?error=stripe-checkout", baseUrl), 303);
+  }
 }

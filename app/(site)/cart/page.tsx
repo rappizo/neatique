@@ -70,6 +70,17 @@ export default async function CartPage({ searchParams }: CartPageProps) {
         {params.error === "account" ? (
           <p className="notice">Please sign in with the password for that email, or continue and we will send account access to your inbox.</p>
         ) : null}
+        {params.error === "stripe-config" ? (
+          <p className="notice">
+            Secure checkout is temporarily unavailable because the Stripe secret key could not be loaded.
+          </p>
+        ) : null}
+        {params.error === "stripe-checkout" ? (
+          <p className="notice">
+            We could not create the Stripe checkout session. Please try again, and if it still fails,
+            check the server logs for the Stripe error details.
+          </p>
+        ) : null}
 
         {lines.length === 0 ? (
           <div className="empty-state">
