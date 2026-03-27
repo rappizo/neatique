@@ -320,38 +320,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </p>
               </div>
 
-              <div className="home-mosaic">
-                <div className="home-image home-image--square home-mosaic__feature">
+              <div className="philosophy-band__media">
+                <div className="home-image home-image--landscape philosophy-band__feature">
                   <Image
                     src={homeImages.morning.src}
                     alt={homeImages.morning.alt}
                     width={homeImages.morning.width}
                     height={homeImages.morning.height}
-                    sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 26vw"
+                    sizes="(max-width: 720px) 100vw, (max-width: 1080px) 58vw, 36vw"
                     quality={82}
                   />
-                </div>
-                <div className="home-mosaic__stack">
-                  <div className="home-image home-image--square">
-                    <Image
-                      src={homeImages.lifestyle.src}
-                      alt={homeImages.lifestyle.alt}
-                      width={homeImages.lifestyle.width}
-                      height={homeImages.lifestyle.height}
-                      sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 18vw"
-                      quality={82}
-                    />
-                  </div>
-                  <div className="home-image home-image--square">
-                    <Image
-                      src={homeImages.texture.src}
-                      alt={homeImages.texture.alt}
-                      width={homeImages.texture.width}
-                      height={homeImages.texture.height}
-                      sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 18vw"
-                      quality={82}
-                    />
-                  </div>
                 </div>
               </div>
             </div>

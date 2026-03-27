@@ -712,15 +712,33 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 0.98fr) minmax(320px, 1.02fr);
   gap: 24px;
+}
+
+.philosophy-band__hero {
   align-items: center;
+}
+
+.ritual-spotlight__hero {
+  align-items: start;
 }
 
 .philosophy-band__intro {
   max-width: 640px;
+  align-content: center;
 }
 
 .philosophy-band__intro p:not(.eyebrow) {
   max-width: 620px;
+}
+
+.philosophy-band__media {
+  display: grid;
+}
+
+.philosophy-band__feature {
+  width: min(100%, 600px);
+  min-height: 100%;
+  justify-self: end;
 }
 
 .philosophy-band__grid,
@@ -2811,6 +2829,11 @@ main {
   .ritual-spotlight__media,
   .home-mosaic {
     grid-template-columns: 1fr;
+  }
+
+  .philosophy-band__feature {
+    width: 100%;
+    justify-self: stretch;
   }
 
   .site-header__inner {
