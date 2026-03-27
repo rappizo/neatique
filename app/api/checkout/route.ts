@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getCartDetails } from "@/lib/cart";
 import {
   buildDiscountedStripeLineItems,
-  normalizeCouponCode,
+  couponsCanBeCombined,
+  parseCouponCodesInput,
   parseStoredCouponProductCodes
 } from "@/lib/coupons";
 import { createCustomerSession } from "@/lib/customer-auth";
@@ -21,7 +22,9 @@ export async function POST(request: Request) {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const firstName = String(formData.get("firstName") || "").trim() || null;
   const lastName = String(formData.get("lastName") || "").trim() || null;
-  const rawCouponCode = normalizeCouponCode(String(formData.get("couponCode") || ""));
+  const rawCouponCodes = parseCouponCodesInput(
+    String(formData.get("couponCodes") || formData.get("couponCode") || "")
+  );
   const baseUrl = getBaseUrl();
   let { lines } = await getCartDetails();
 
@@ -43,41 +46,62 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/cart?error=empty-cart", baseUrl), 303);
   }
 
-  const coupon = rawCouponCode
-    ? await prisma.coupon.findUnique({
-        where: { code: rawCouponCode }
+  const couponRows = rawCouponCodes.length
+    ? await prisma.coupon.findMany({
+        where: {
+          code: {
+            in: rawCouponCodes
+          }
+        }
       })
-    : null;
+    : [];
 
-  if (rawCouponCode && (!coupon || !coupon.active)) {
+  const couponRowMap = new Map(couponRows.map((coupon) => [coupon.code, coupon]));
+  const resolvedCoupons = rawCouponCodes
+    .map((code) => couponRowMap.get(code))
+    .filter((coupon): coupon is NonNullable<typeof coupon> => Boolean(coupon))
+    .map((coupon) => ({
+      id: coupon.id,
+      code: coupon.code,
+      content: coupon.content,
+      active: coupon.active,
+      combinable: coupon.combinable,
+      appliesToAll: coupon.appliesToAll,
+      productCodes: parseStoredCouponProductCodes(coupon.productCodes),
+      discountType: coupon.discountType,
+      percentOff: coupon.percentOff,
+      amountOffCents: coupon.amountOffCents,
+      usageMode: coupon.usageMode,
+      usageCount: coupon.usageCount,
+      createdAt: coupon.createdAt,
+      updatedAt: coupon.updatedAt
+    }));
+
+  if (
+    rawCouponCodes.length > 0 &&
+    (resolvedCoupons.length !== rawCouponCodes.length ||
+      resolvedCoupons.some((coupon) => !coupon.active))
+  ) {
     return NextResponse.redirect(new URL("/cart?error=coupon-invalid", baseUrl), 303);
   }
 
-  const resolvedCoupon = coupon
-    ? {
-        id: coupon.id,
-        code: coupon.code,
-        content: coupon.content,
-        active: coupon.active,
-        appliesToAll: coupon.appliesToAll,
-        productCodes: parseStoredCouponProductCodes(coupon.productCodes),
-        discountType: coupon.discountType,
-        percentOff: coupon.percentOff,
-        amountOffCents: coupon.amountOffCents,
-        usageMode: coupon.usageMode,
-        usageCount: coupon.usageCount,
-        createdAt: coupon.createdAt,
-        updatedAt: coupon.updatedAt
-      }
-    : null;
+  if (!couponsCanBeCombined(resolvedCoupons)) {
+    return NextResponse.redirect(new URL("/cart?error=coupon-conflict", baseUrl), 303);
+  }
 
-  if (resolvedCoupon?.usageMode === "SINGLE_USE" && resolvedCoupon.usageCount > 0) {
+  if (resolvedCoupons.some((coupon) => coupon.usageMode === "SINGLE_USE" && coupon.usageCount > 0)) {
     return NextResponse.redirect(new URL("/cart?error=coupon-used", baseUrl), 303);
   }
 
-  const { discountCents, lineItems } = buildDiscountedStripeLineItems(lines, resolvedCoupon);
+  const { discountCents, appliedCouponCodes, lineItems } = buildDiscountedStripeLineItems(
+    lines,
+    resolvedCoupons
+  );
 
-  if (rawCouponCode && discountCents <= 0) {
+  if (
+    rawCouponCodes.length > 0 &&
+    (discountCents <= 0 || appliedCouponCodes.length !== resolvedCoupons.length)
+  ) {
     return NextResponse.redirect(new URL("/cart?error=coupon-not-eligible", baseUrl), 303);
   }
 
@@ -142,8 +166,8 @@ export async function POST(request: Request) {
     metadata: {
       customerId: customer.id,
       cartItems: cartMetadata,
-      couponId: resolvedCoupon?.id ?? "",
-      couponCode: resolvedCoupon?.code ?? "",
+      couponIds: resolvedCoupons.map((coupon) => coupon.id).join(","),
+      couponCodes: appliedCouponCodes.join(","),
       discountCents: String(discountCents)
     },
     customer_email: email,

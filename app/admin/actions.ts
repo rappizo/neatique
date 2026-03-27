@@ -82,6 +82,7 @@ type CouponPayloadResult =
         code: string;
         content: string;
         active: boolean;
+        combinable: boolean;
         appliesToAll: boolean;
         productCodes: string | null;
         discountType: CouponDiscountType;
@@ -95,6 +96,7 @@ function buildCouponPayload(formData: FormData): CouponPayloadResult {
   const code = normalizeCouponCode(toPlainString(formData.get("code")));
   const content = toPlainString(formData.get("content"));
   const active = toBool(formData.get("active"));
+  const combinable = toBool(formData.get("combinable"));
   const discountType = parseCouponDiscountType(toPlainString(formData.get("discountType")));
   const usageMode = parseCouponUsageMode(toPlainString(formData.get("usageMode")));
   const scope = parseCouponScopeInput(toPlainString(formData.get("scope")));
@@ -132,6 +134,7 @@ function buildCouponPayload(formData: FormData): CouponPayloadResult {
       code,
       content,
       active,
+      combinable,
       appliesToAll: scope.appliesToAll,
       productCodes: scope.appliesToAll ? null : serializeCouponScope(scope.codes),
       discountType,

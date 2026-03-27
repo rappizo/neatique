@@ -226,6 +226,7 @@ model Coupon {
   code           String             @unique
   content        String
   active         Boolean            @default(true)
+  combinable     Boolean            @default(false)
   appliesToAll   Boolean            @default(false)
   productCodes   String?
   discountType   CouponDiscountType

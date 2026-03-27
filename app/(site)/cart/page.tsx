@@ -55,6 +55,9 @@ export default async function CartPage({ searchParams }: CartPageProps) {
         {params.error === "coupon-used" ? (
           <p className="notice">That coupon has already been used and can no longer be applied.</p>
         ) : null}
+        {params.error === "coupon-conflict" ? (
+          <p className="notice">These coupons cannot be used together because at least one of them is marked for standalone use only.</p>
+        ) : null}
         {params.error === "account" ? (
           <p className="notice">Please sign in with the password for that email, or continue and we will send account access to your inbox.</p>
         ) : null}
@@ -164,15 +167,16 @@ export default async function CartPage({ searchParams }: CartPageProps) {
                   </div>
                 </div>
                 <div className="field">
-                  <label htmlFor="checkout-coupon">Coupon code</label>
+                  <label htmlFor="checkout-coupon">Coupon code(s)</label>
                   <input
                     id="checkout-coupon"
-                    name="couponCode"
-                    placeholder="Enter your code if you have one"
+                    name="couponCodes"
+                    placeholder="Enter one or more codes, separated by commas"
                   />
                   <p className="form-note">
-                    Product-specific coupons match against Product IDs. Use ALL-order coupons the
-                    same way.
+                    Product-specific coupons match against Product IDs. Enter multiple codes with
+                    commas or spaces. If any selected coupon is marked for standalone use, checkout
+                    will stop the combination.
                   </p>
                 </div>
                 <button type="submit" className="button button--primary">

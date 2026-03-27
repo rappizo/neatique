@@ -33,8 +33,14 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
   }
 
   const metadataCustomerId = session.metadata?.customerId;
-  const metadataCouponId = session.metadata?.couponId || null;
-  const metadataCouponCode = session.metadata?.couponCode || null;
+  const metadataCouponIds = (session.metadata?.couponIds || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const metadataCouponCodes = (session.metadata?.couponCodes || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
   const metadataDiscountCents = Math.max(
     0,
     Number.parseInt(session.metadata?.discountCents || "0", 10) || 0
@@ -139,12 +145,18 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
         }
       });
 
-  const appliedCoupon = metadataCouponId
-    ? await prisma.coupon.findUnique({
-        where: { id: metadataCouponId },
-        select: { id: true }
+  const appliedCoupons = metadataCouponIds.length
+    ? await prisma.coupon.findMany({
+        where: {
+          id: {
+            in: metadataCouponIds
+          }
+        },
+        select: {
+          id: true
+        }
       })
-    : null;
+    : [];
 
   const order = await prisma.order.create({
     data: {
@@ -159,8 +171,8 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
       taxCents,
       totalCents,
       pointsEarned,
-      couponCode: metadataCouponCode,
-      couponId: appliedCoupon?.id ?? null,
+      couponCode: metadataCouponCodes.join(", ") || null,
+      couponId: appliedCoupons.length === 1 ? appliedCoupons[0].id : null,
       stripeCheckoutId: checkoutId,
       stripePaymentIntentId:
         typeof session.payment_intent === "string" ? session.payment_intent : null,
@@ -198,17 +210,19 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
     });
   }
 
-  if (appliedCoupon?.id) {
-    await prisma.coupon.update({
-      where: { id: appliedCoupon.id },
-      data: {
-        usageCount: {
-          increment: 1
+  for (const coupon of appliedCoupons) {
+    await prisma.coupon
+      .update({
+        where: { id: coupon.id },
+        data: {
+          usageCount: {
+            increment: 1
+          }
         }
-      }
-    }).catch((error) => {
-      console.error("Coupon usage update skipped:", error);
-    });
+      })
+      .catch((error) => {
+        console.error("Coupon usage update skipped:", error);
+      });
   }
 }
 

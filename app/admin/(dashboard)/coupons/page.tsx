@@ -3,7 +3,11 @@ import { createCouponAction, toggleCouponStatusAction } from "@/app/admin/action
 import { CouponEditorForm } from "@/components/admin/coupon-editor-form";
 import { formatDate } from "@/lib/format";
 import { getCoupons } from "@/lib/queries";
-import { formatCouponScopeSummary, formatCouponValue } from "@/lib/coupons";
+import {
+  formatCouponCombinationSummary,
+  formatCouponScopeSummary,
+  formatCouponValue
+} from "@/lib/coupons";
 
 type AdminCouponsPageProps = {
   searchParams: Promise<{ status?: string }>;
@@ -35,13 +39,14 @@ export default async function AdminCouponsPage({ searchParams }: AdminCouponsPag
                 <span>{coupon.active ? "Active" : "Inactive"}</span>
                 <span>{formatCouponValue(coupon)}</span>
                 <span>{coupon.usageMode === "SINGLE_USE" ? "Single use" : "Unlimited"}</span>
+                <span>{coupon.combinable ? "Combinable" : "Standalone"}</span>
               </div>
               <h3>{coupon.code}</h3>
               <p>{coupon.content}</p>
               <ul className="admin-list">
                 <li>Scope: {formatCouponScopeSummary(coupon)}</li>
+                <li>Combination: {formatCouponCombinationSummary(coupon)}</li>
                 <li>Used {coupon.usageCount} time(s)</li>
-                <li>{coupon.orderCount ?? 0} order(s) linked</li>
                 <li>Updated {formatDate(coupon.updatedAt)}</li>
               </ul>
 

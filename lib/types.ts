@@ -112,6 +112,7 @@ export type CouponRecord = {
   code: string;
   content: string;
   active: boolean;
+  combinable: boolean;
   appliesToAll: boolean;
   productCodes: string[];
   discountType: CouponDiscountType;

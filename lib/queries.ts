@@ -249,6 +249,7 @@ function mapCoupon(coupon: any): CouponRecord {
     code: coupon.code,
     content: coupon.content,
     active: coupon.active,
+    combinable: coupon.combinable,
     appliesToAll: coupon.appliesToAll,
     productCodes: parseStoredCouponProductCodes(coupon.productCodes),
     discountType: coupon.discountType,

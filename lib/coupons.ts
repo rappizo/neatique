@@ -19,6 +19,17 @@ export function normalizeCouponCode(value: string | null | undefined) {
   return (value || "").trim().toUpperCase();
 }
 
+export function parseCouponCodesInput(value: string | null | undefined) {
+  return Array.from(
+    new Set(
+      (value || "")
+        .split(/[\s,;]+/)
+        .map((item) => normalizeCouponCode(item))
+        .filter(Boolean)
+    )
+  );
+}
+
 export function parseCouponScopeInput(value: string | null | undefined) {
   return parseProductCodesInput(value);
 }
@@ -61,17 +72,19 @@ export function formatCouponScopeSummary(coupon: Pick<CouponRecord, "appliesToAl
   return coupon.productCodes.join(", ");
 }
 
+export function formatCouponCombinationSummary(coupon: Pick<CouponRecord, "combinable">) {
+  return coupon.combinable ? "Can combine with other coupons" : "Must be used alone";
+}
+
 export function calculateCouponDiscount(
   coupon: Pick<
     CouponRecord,
     "discountType" | "percentOff" | "amountOffCents" | "appliesToAll" | "productCodes"
   >,
-  lines: DiscountableCartLine[]
+  units: Array<{ product: DiscountableCartLine["product"]; amountCents: number }>
 ) {
-  const eligibleLines = lines.filter((line) =>
-    couponAppliesToProduct(coupon, line.product.productCode)
-  );
-  const eligibleSubtotalCents = eligibleLines.reduce((sum, line) => sum + line.lineTotalCents, 0);
+  const eligibleUnits = units.filter((unit) => couponAppliesToProduct(coupon, unit.product.productCode));
+  const eligibleSubtotalCents = eligibleUnits.reduce((sum, unit) => sum + unit.amountCents, 0);
 
   if (eligibleSubtotalCents <= 0) {
     return {
@@ -95,18 +108,18 @@ export function calculateCouponDiscount(
 }
 
 function distributeDiscountAcrossEligibleUnits(
-  eligibleUnits: Array<{ product: DiscountableCartLine["product"]; baseAmountCents: number }>,
+  eligibleUnits: Array<{ product: DiscountableCartLine["product"]; amountCents: number }>,
   discountCents: number
 ) {
   if (discountCents <= 0 || eligibleUnits.length === 0) {
     return eligibleUnits.map(() => 0);
   }
 
-  const eligibleSubtotalCents = eligibleUnits.reduce((sum, unit) => sum + unit.baseAmountCents, 0);
+  const eligibleSubtotalCents = eligibleUnits.reduce((sum, unit) => sum + unit.amountCents, 0);
   const allocations = eligibleUnits.map((unit) =>
     Math.min(
-      unit.baseAmountCents,
-      Math.floor((discountCents * unit.baseAmountCents) / eligibleSubtotalCents)
+      unit.amountCents,
+      Math.floor((discountCents * unit.amountCents) / eligibleSubtotalCents)
     )
   );
 
@@ -115,15 +128,15 @@ function distributeDiscountAcrossEligibleUnits(
   const priorityOrder = eligibleUnits
     .map((unit, index) => ({
       index,
-      baseAmountCents: unit.baseAmountCents
+      amountCents: unit.amountCents
     }))
-    .sort((left, right) => right.baseAmountCents - left.baseAmountCents || left.index - right.index);
+    .sort((left, right) => right.amountCents - left.amountCents || left.index - right.index);
 
   while (remainderCents > 0) {
     let changed = false;
 
     for (const item of priorityOrder) {
-      if (allocations[item.index] >= eligibleUnits[item.index].baseAmountCents) {
+      if (allocations[item.index] >= eligibleUnits[item.index].amountCents) {
         continue;
       }
 
@@ -147,44 +160,61 @@ function distributeDiscountAcrossEligibleUnits(
 
 export function buildDiscountedStripeLineItems(
   lines: DiscountableCartLine[],
-  coupon: Pick<
-    CouponRecord,
-    "discountType" | "percentOff" | "amountOffCents" | "appliesToAll" | "productCodes"
-  > | null
+  coupons: Array<
+    Pick<
+      CouponRecord,
+      | "code"
+      | "discountType"
+      | "percentOff"
+      | "amountOffCents"
+      | "appliesToAll"
+      | "productCodes"
+      | "combinable"
+    >
+  >
 ) {
-  const computedDiscount = coupon ? calculateCouponDiscount(coupon, lines) : { discountCents: 0 };
-  const eligibleUnitPool = coupon
-    ? lines.flatMap((line) =>
-        couponAppliesToProduct(coupon, line.product.productCode)
-          ? Array.from({ length: line.quantity }, () => ({
-              product: line.product,
-              baseAmountCents: line.product.priceCents
-            }))
-          : []
-      )
-    : [];
-  const unitDiscounts = distributeDiscountAcrossEligibleUnits(
-    eligibleUnitPool,
-    computedDiscount.discountCents
+  const workingUnits: DiscountedUnit[] = lines.flatMap((line) =>
+    Array.from({ length: line.quantity }, () => ({
+      product: line.product,
+      adjustedAmountCents: line.product.priceCents
+    }))
   );
+  const appliedCouponCodes: string[] = [];
+  let totalDiscountCents = 0;
 
-  let eligibleUnitIndex = 0;
-  const discountedUnits: DiscountedUnit[] = [];
+  for (const coupon of coupons) {
+    const computedDiscount = calculateCouponDiscount(
+      coupon,
+      workingUnits.map((unit) => ({
+        product: unit.product,
+        amountCents: unit.adjustedAmountCents
+      }))
+    );
 
-  for (const line of lines) {
-    for (let count = 0; count < line.quantity; count += 1) {
-      const isEligible = coupon ? couponAppliesToProduct(coupon, line.product.productCode) : false;
-      const discountForUnit = isEligible ? unitDiscounts[eligibleUnitIndex] ?? 0 : 0;
-
-      if (isEligible) {
-        eligibleUnitIndex += 1;
-      }
-
-      discountedUnits.push({
-        product: line.product,
-        adjustedAmountCents: Math.max(0, line.product.priceCents - discountForUnit)
-      });
+    if (computedDiscount.discountCents <= 0) {
+      continue;
     }
+
+    const eligibleUnitEntries = workingUnits
+      .map((unit, index) => ({ unit, index }))
+      .filter(({ unit }) => couponAppliesToProduct(coupon, unit.product.productCode));
+    const unitDiscounts = distributeDiscountAcrossEligibleUnits(
+      eligibleUnitEntries.map(({ unit }) => ({
+        product: unit.product,
+        amountCents: unit.adjustedAmountCents
+      })),
+      computedDiscount.discountCents
+    );
+
+    eligibleUnitEntries.forEach(({ index }, unitIndex) => {
+      workingUnits[index].adjustedAmountCents = Math.max(
+        0,
+        workingUnits[index].adjustedAmountCents - (unitDiscounts[unitIndex] ?? 0)
+      );
+    });
+
+    appliedCouponCodes.push(coupon.code);
+    totalDiscountCents += computedDiscount.discountCents;
   }
 
   const groupedUnits = new Map<
@@ -196,7 +226,7 @@ export function buildDiscountedStripeLineItems(
     }
   >();
 
-  for (const unit of discountedUnits) {
+  for (const unit of workingUnits) {
     const key = `${unit.product.id}:${unit.adjustedAmountCents}`;
     const existing = groupedUnits.get(key);
 
@@ -213,7 +243,8 @@ export function buildDiscountedStripeLineItems(
   }
 
   return {
-    discountCents: computedDiscount.discountCents,
+    discountCents: totalDiscountCents,
+    appliedCouponCodes,
     lineItems: Array.from(groupedUnits.values()).map((item) => ({
       quantity: item.quantity,
       price_data: {
@@ -226,4 +257,10 @@ export function buildDiscountedStripeLineItems(
       }
     }))
   };
+}
+
+export function couponsCanBeCombined(
+  coupons: Array<Pick<CouponRecord, "combinable">>
+) {
+  return coupons.length <= 1 || coupons.every((coupon) => coupon.combinable);
 }

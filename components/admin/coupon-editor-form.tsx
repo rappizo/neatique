@@ -1,6 +1,10 @@
 import type { CouponRecord } from "@/lib/types";
 import { formatCurrency, formatCurrencyInput } from "@/lib/format";
-import { formatCouponScopeSummary, formatCouponValue } from "@/lib/coupons";
+import {
+  formatCouponCombinationSummary,
+  formatCouponScopeSummary,
+  formatCouponValue
+} from "@/lib/coupons";
 
 type CouponEditorFormProps = {
   action: (formData: FormData) => Promise<void>;
@@ -28,13 +32,14 @@ export function CouponEditorForm({ action, mode, coupon }: CouponEditorFormProps
             <span>{coupon.active ? "Active" : "Inactive"}</span>
             <span>{formatCouponValue(coupon)}</span>
             <span>{coupon.usageMode === "SINGLE_USE" ? "Single use" : "Unlimited"}</span>
+            <span>{coupon.combinable ? "Combinable" : "Standalone"}</span>
           </div>
           <h3>{coupon.code}</h3>
           <p>{coupon.content}</p>
           <ul className="admin-list">
             <li>Scope: {formatCouponScopeSummary(coupon)}</li>
+            <li>Combination: {formatCouponCombinationSummary(coupon)}</li>
             <li>Used {coupon.usageCount} time(s)</li>
-            <li>{coupon.orderCount ?? 0} order(s) attached</li>
           </ul>
         </article>
       ) : null}
@@ -100,6 +105,10 @@ export function CouponEditorForm({ action, mode, coupon }: CouponEditorFormProps
             </select>
           </div>
           <label className="field field--checkbox">
+            <input type="checkbox" name="combinable" defaultChecked={coupon?.combinable ?? false} />
+            Can combine with other coupons
+          </label>
+          <label className="field field--checkbox">
             <input type="checkbox" name="active" defaultChecked={coupon?.active ?? true} />
             Coupon is active
           </label>
@@ -142,6 +151,11 @@ export function CouponEditorForm({ action, mode, coupon }: CouponEditorFormProps
             example {formatCurrency(500)} for five dollars off.
           </p>
         )}
+
+        <p className="form-note">
+          New coupons default to standalone use. If this switch stays off, the checkout will reject
+          any attempt to use this coupon together with a second code.
+        </p>
 
         <button type="submit" className="button button--primary">
           {mode === "create" ? "Create coupon" : "Save coupon"}
