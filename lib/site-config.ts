@@ -38,6 +38,12 @@ export const siteConfig = {
       { href: "/contact", label: "Contact Us" },
       { href: "/cart", label: "Cart" },
       { href: "/account", label: "My Account" }
+    ],
+    policies: [
+      { href: "/privacy-policy", label: "Privacy Policy" },
+      { href: "/terms-of-use", label: "Terms of Use" },
+      { href: "/shipping-policy", label: "Shipping Policy" },
+      { href: "/return-policy", label: "Return Policy" }
     ]
   }
 };

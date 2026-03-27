@@ -39,19 +39,19 @@ export function SiteFooter() {
           </ul>
         </div>
         <div className="site-footer__note">
-          <h3>Brand Promise</h3>
-          <p>
-            Thoughtful formulas, elegant textures, and routines that feel bright, smooth, and
-            comforting every day.
-          </p>
-          <Link href="/beauty-tips" className="site-footer__admin-link">
-            Explore beauty tips
-          </Link>
+          <h3>Policies</h3>
+          <ul className="footer-link-list">
+            {siteConfig.footerLinks.policies.map((item) => (
+              <li key={item.href}>
+                <Link href={item.href}>{item.label}</Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
       <div className="container site-footer__bottom">
         <p>(c) 2026 Neatique Beauty. All rights reserved.</p>
-        <p>Secure checkout. Ships within the United States.</p>
+        <p>Secure checkout. Ships within 1 business day. 30 Days Money Back.</p>
       </div>
     </footer>
   );
