@@ -175,91 +175,135 @@ export default async function AdminProductReviewsPage({
         </div>
       </section>
 
-      <div className="admin-review-list">
-        {reviews.length > 0 ? (
-          reviews.map((review) => (
-            <article key={review.id} className="admin-form admin-review-item">
-              <div className="admin-review-item__header">
-                <div>
-                  <h3>{review.title}</h3>
-                  <p>
-                    {review.displayName} / {formatDate(review.createdAt)} /{" "}
-                    {review.customerEmail || "No customer record"}
-                  </p>
-                </div>
-                <RatingStars rating={review.rating} size="sm" />
-              </div>
+      {reviews.length > 0 ? (
+        <section className="admin-table admin-table--scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Display Name</th>
+                <th>Rating</th>
+                <th>Status</th>
+                <th>Verified</th>
+                <th>Title</th>
+                <th>Content</th>
+                <th>Admin Notes</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reviews.map((review) => {
+                const updateFormId = `review-update-${review.id}`;
+                const deleteFormId = `review-delete-${review.id}`;
 
-              <form action={updateReviewAction}>
-                <input type="hidden" name="id" value={review.id} />
-                <input type="hidden" name="productSlug" value={product.slug} />
-                <input type="hidden" name="redirectTo" value={redirectTo} />
-                <div className="admin-form__grid">
-                  <div className="field">
-                    <label>Display name</label>
-                    <input name="displayName" defaultValue={review.displayName} />
-                  </div>
-                  <div className="field">
-                    <label>Rating</label>
-                    <input
-                      name="rating"
-                      type="number"
-                      min="1"
-                      max="5"
-                      defaultValue={review.rating}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Status</label>
-                    <select name="status" defaultValue={review.status}>
-                      <option value="PENDING">PENDING</option>
-                      <option value="PUBLISHED">PUBLISHED</option>
-                      <option value="HIDDEN">HIDDEN</option>
-                    </select>
-                  </div>
-                  <label className="field field--checkbox">
-                    <input
-                      type="checkbox"
-                      name="verifiedPurchase"
-                      defaultChecked={review.verifiedPurchase}
-                    />
-                    Verified purchase
-                  </label>
-                </div>
-                <div className="field">
-                  <label>Title</label>
-                  <input name="title" defaultValue={review.title} />
-                </div>
-                <div className="field">
-                  <label>Content</label>
-                  <textarea name="content" defaultValue={review.content} />
-                </div>
-                <div className="field">
-                  <label>Admin notes</label>
-                  <textarea name="adminNotes" defaultValue={review.adminNotes ?? ""} />
-                </div>
-                <button type="submit" className="button button--primary">
-                  Save review
-                </button>
-              </form>
+                return (
+                  <tr key={review.id}>
+                    <td>
+                      <div className="admin-table__cell-stack">
+                        <strong>{formatDate(review.createdAt)}</strong>
+                        <span className="form-note">{review.customerEmail || "No customer record"}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <input
+                        className="admin-table__input"
+                        name="displayName"
+                        defaultValue={review.displayName}
+                        form={updateFormId}
+                      />
+                    </td>
+                    <td>
+                      <div className="admin-table__rating-cell">
+                        <input
+                          className="admin-table__input admin-table__input--xs"
+                          name="rating"
+                          type="number"
+                          min="1"
+                          max="5"
+                          defaultValue={review.rating}
+                          form={updateFormId}
+                        />
+                        <RatingStars rating={review.rating} size="sm" />
+                      </div>
+                    </td>
+                    <td>
+                      <select
+                        className="admin-table__select"
+                        name="status"
+                        defaultValue={review.status}
+                        form={updateFormId}
+                      >
+                        <option value="PENDING">PENDING</option>
+                        <option value="PUBLISHED">PUBLISHED</option>
+                        <option value="HIDDEN">HIDDEN</option>
+                      </select>
+                    </td>
+                    <td>
+                      <label className="admin-table__checkbox-label">
+                        <input
+                          type="checkbox"
+                          name="verifiedPurchase"
+                          defaultChecked={review.verifiedPurchase}
+                          form={updateFormId}
+                        />
+                        <span>Verified</span>
+                      </label>
+                    </td>
+                    <td>
+                      <input
+                        className="admin-table__input"
+                        name="title"
+                        defaultValue={review.title}
+                        form={updateFormId}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        className="admin-table__textarea"
+                        name="content"
+                        defaultValue={review.content}
+                        form={updateFormId}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        className="admin-table__textarea"
+                        name="adminNotes"
+                        defaultValue={review.adminNotes ?? ""}
+                        form={updateFormId}
+                      />
+                    </td>
+                    <td className="admin-table__actions">
+                      <form id={updateFormId} action={updateReviewAction}>
+                        <input type="hidden" name="id" value={review.id} />
+                        <input type="hidden" name="productSlug" value={product.slug} />
+                        <input type="hidden" name="redirectTo" value={redirectTo} />
+                      </form>
+                      <button type="submit" className="button button--primary" form={updateFormId}>
+                        Save
+                      </button>
 
-              <form action={deleteReviewAction}>
-                <input type="hidden" name="id" value={review.id} />
-                <input type="hidden" name="productSlug" value={product.slug} />
-                <input type="hidden" name="redirectTo" value={redirectTo} />
-                <button type="submit" className="button button--ghost">
-                  Delete review
-                </button>
-              </form>
-            </article>
-          ))
-        ) : (
-          <section className="admin-form admin-review-item">
-            <h3>No reviews yet</h3>
-            <p>Upload a CSV for {product.name} or wait for customer reviews to appear here.</p>
-          </section>
-        )}
-      </div>
+                      <form id={deleteFormId} action={deleteReviewAction}>
+                        <input type="hidden" name="id" value={review.id} />
+                        <input type="hidden" name="productSlug" value={product.slug} />
+                        <input type="hidden" name="redirectTo" value={redirectTo} />
+                      </form>
+                      <button type="submit" className="button button--ghost" form={deleteFormId}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      ) : (
+        <section className="admin-form admin-review-item">
+          <h3>No reviews yet</h3>
+          <p>Upload a CSV for {product.name} or wait for customer reviews to appear here.</p>
+        </section>
+      )}
     </div>
   );
 }

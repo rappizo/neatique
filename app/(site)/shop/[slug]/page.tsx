@@ -121,7 +121,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   };
 
   return (
-    <section className="section">
+    <section className="section section--product">
       <div className="container">
         <script
           type="application/ld+json"
@@ -130,13 +130,6 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
         <div className="product-detail">
           <ProductGallery images={displayGallery} alt={product.name} />
           <div className="product-detail__copy">
-            <div className="product-detail__meta">
-              <span>{product.category}</span>
-              <span>Product ID {product.productCode || "Pending"}</span>
-              <span>{product.inventory} units in stock</span>
-              <span>{product.pointsReward} reward points</span>
-              {product.reviewCount ? <span>{product.reviewCount} reviews</span> : null}
-            </div>
             <h1>{product.name}</h1>
             <p>{product.tagline}</p>
 
