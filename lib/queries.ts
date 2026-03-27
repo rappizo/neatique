@@ -93,6 +93,8 @@ function mapProductRecord(product: any, reviewCount: number, averageRating: numb
   return {
     id: product.id,
     productCode: product.productCode ?? "",
+    productShortName: product.productShortName ?? null,
+    amazonAsin: product.amazonAsin ?? null,
     name: product.name,
     slug: product.slug,
     tagline: product.tagline,
@@ -479,6 +481,25 @@ export async function getProductById(id: string) {
       return product ? mapProduct(product) : null;
     },
     fallbackProducts.find((product) => product.id === id) ?? null
+  );
+}
+
+export async function getOmbSelectableProducts() {
+  return withFallback(
+    async () =>
+      (
+        await prisma.product.findMany({
+          where: {
+            productShortName: {
+              not: null
+            }
+          },
+          orderBy: [{ createdAt: "asc" }]
+        })
+      )
+        .map(mapProduct)
+        .filter((product) => Boolean(product.productShortName)),
+    fallbackProducts.filter((product) => Boolean(product.productShortName))
   );
 }
 

@@ -54,6 +54,8 @@ enum CouponUsageMode {
 model Product {
   id                  String        @id @default(cuid())
   productCode         String?       @unique
+  productShortName    String?
+  amazonAsin          String?
   name                String
   slug                String        @unique
   tagline             String

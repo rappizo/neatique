@@ -11,18 +11,6 @@ export type OrderMatchPlatformConfig = {
   outboundUrl: string | null;
 };
 
-export const OMB_PRODUCT_OPTIONS = [
-  "AT13",
-  "SE96 Snail Mucin Serum",
-  "SC93 Snail Mucin Cream",
-  "PDRN Cream",
-  "PDRN5+ Serum",
-  "8+ NAD+ Serum",
-  "TNV3",
-  "NT16",
-  "KT9+"
-] as const;
-
 export const OMB_SCREENSHOT_MAX_BYTES = 15 * 1024 * 1024;
 export const OMB_SCREENSHOT_TARGET_BYTES = 1024 * 1024;
 export const OMB_MIN_COMMENT_LENGTH = 10;
@@ -110,10 +98,6 @@ export function getOrderMatchErrorMessage(error: string | null | undefined) {
 
 export function isHighRating(rating: number) {
   return rating >= 4;
-}
-
-export function validateOmbProduct(value: string | null | undefined) {
-  return OMB_PRODUCT_OPTIONS.includes((value || "").trim() as (typeof OMB_PRODUCT_OPTIONS)[number]);
 }
 
 export function getOmbStepTwoErrorMessage(error: string | null | undefined) {

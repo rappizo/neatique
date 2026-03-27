@@ -26,6 +26,8 @@ async function seedProductsIfEmpty() {
       where: { slug: product.slug },
       update: {
         productCode: product.productCode,
+        productShortName: product.productShortName,
+        amazonAsin: product.amazonAsin,
         name: product.name,
         tagline: product.tagline,
         category: product.category,
@@ -46,6 +48,8 @@ async function seedProductsIfEmpty() {
       create: {
         id: product.id,
         productCode: product.productCode,
+        productShortName: product.productShortName,
+        amazonAsin: product.amazonAsin,
         name: product.name,
         slug: product.slug,
         tagline: product.tagline,

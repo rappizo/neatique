@@ -4,9 +4,15 @@ import { useMemo, useState } from "react";
 import {
   getOrderMatchPlatform,
   isHighRating,
-  OMB_MIN_COMMENT_LENGTH,
-  OMB_PRODUCT_OPTIONS
+  OMB_MIN_COMMENT_LENGTH
 } from "@/lib/order-match";
+
+type OmbSelectableProduct = {
+  id: string;
+  name: string;
+  shortName: string;
+  amazonAsin: string | null;
+};
 
 type OmbClaimStepTwoFormProps = {
   claimId: string;
@@ -16,6 +22,7 @@ type OmbClaimStepTwoFormProps = {
   name: string;
   email: string;
   phone: string | null;
+  productOptions: OmbSelectableProduct[];
 };
 
 export function OmbClaimStepTwoForm({
@@ -25,16 +32,34 @@ export function OmbClaimStepTwoForm({
   orderId,
   name,
   email,
-  phone
+  phone,
+  productOptions
 }: OmbClaimStepTwoFormProps) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+  const [selectedProductShortName, setSelectedProductShortName] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState("");
   const platform = useMemo(() => getOrderMatchPlatform(platformKey), [platformKey]);
   const shouldShowClaimFields = isHighRating(rating);
+  const selectedProduct = useMemo(
+    () => productOptions.find((product) => product.shortName === selectedProductShortName) ?? null,
+    [productOptions, selectedProductShortName]
+  );
+  const destinationUrl = useMemo(() => {
+    if (platform.key === "amazon") {
+      return selectedProduct?.amazonAsin
+        ? `https://www.amazon.com/review/create-review/?asin=${encodeURIComponent(selectedProduct.amazonAsin)}`
+        : null;
+    }
+
+    return platform.outboundUrl;
+  }, [platform, selectedProduct]);
+  const canUseOutboundButton =
+    comment.trim().length >= OMB_MIN_COMMENT_LENGTH && Boolean(destinationUrl);
 
   async function handleCopyAndGo() {
-    if (comment.trim().length < OMB_MIN_COMMENT_LENGTH) {
+    if (!canUseOutboundButton) {
       return;
     }
 
@@ -45,8 +70,8 @@ export function OmbClaimStepTwoForm({
       console.error("Could not copy review text:", error);
     }
 
-    if (platform.outboundUrl) {
-      window.open(platform.outboundUrl, "_blank", "noopener,noreferrer");
+    if (destinationUrl) {
+      window.open(destinationUrl, "_blank", "noopener,noreferrer");
     }
   }
 
@@ -81,13 +106,19 @@ export function OmbClaimStepTwoForm({
             <label htmlFor="purchased-product">
               What did you purchase from us? <span className="field__required">(Required)</span>
             </label>
-            <select id="purchased-product" name="purchasedProduct" required defaultValue="">
+            <select
+              id="purchased-product"
+              name="purchasedProduct"
+              required
+              defaultValue=""
+              onChange={(event) => setSelectedProductShortName(event.target.value)}
+            >
               <option value="" disabled>
                 Select a product
               </option>
-              {OMB_PRODUCT_OPTIONS.map((product) => (
-                <option key={product} value={product}>
-                  {product}
+              {productOptions.map((product) => (
+                <option key={product.id} value={product.shortName}>
+                  {product.shortName}
                 </option>
               ))}
             </select>
@@ -135,21 +166,13 @@ export function OmbClaimStepTwoForm({
 
           {shouldShowClaimFields ? (
             <>
-              <div className="omb-cta-card">
-                <div>
-                  <p className="eyebrow">{platformLabel} review</p>
-                  <h3>{platform.outboundButtonLabel}</h3>
-                  <p>
-                    Use this button to copy your comment text, then continue to the marketplace
-                    review page.
-                  </p>
-                </div>
+              <div className="omb-cta-card omb-cta-card--highlight">
                 <div className="stack-row">
                   <button
                     type="button"
-                    className="button button--secondary"
+                    className="button button--primary"
                     onClick={handleCopyAndGo}
-                    disabled={comment.trim().length < OMB_MIN_COMMENT_LENGTH}
+                    disabled={!canUseOutboundButton}
                   >
                     {platform.outboundButtonLabel}
                   </button>
@@ -157,16 +180,29 @@ export function OmbClaimStepTwoForm({
                 </div>
               </div>
 
-              <div className="field">
-                <label htmlFor="omb-screenshot">
-                  Please upload the screenshot of your comment on the platform{" "}
-                  <span className="field__required">(Required)</span>
-                </label>
-                <input id="omb-screenshot" name="screenshot" type="file" accept="image/*" required />
-                <p className="form-note">
-                  Upload a JPG, PNG, WEBP, or AVIF image. Files must be under 15MB.
-                </p>
-              </div>
+              {platform.key !== "amazon" ? (
+                <div className="field">
+                  <label htmlFor="omb-screenshot">
+                    Please upload the screenshot of your comment on the platform{" "}
+                    <span className="field__required">(Required)</span>
+                  </label>
+                  <input
+                    id="omb-screenshot"
+                    name="screenshot"
+                    type="file"
+                    accept="image/*"
+                    required
+                    className="omb-file-input"
+                    onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name || "")}
+                  />
+                  <label htmlFor="omb-screenshot" className="omb-file-trigger">
+                    <span className="button button--secondary">Choose File</span>
+                    <span className="omb-file-trigger__name">
+                      {selectedFileName || "No file selected"}
+                    </span>
+                  </label>
+                </div>
+              ) : null}
 
               <div className="field">
                 <label htmlFor="omb-address">
@@ -179,7 +215,7 @@ export function OmbClaimStepTwoForm({
           ) : null}
 
           <button type="submit" className="button button--primary om-shell__submit">
-            Submit OMB claim
+            Submit OMB Claim
           </button>
         </form>
       </div>

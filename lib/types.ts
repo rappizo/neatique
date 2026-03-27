@@ -9,6 +9,8 @@ export type CouponUsageMode = "SINGLE_USE" | "UNLIMITED";
 export type ProductRecord = {
   id: string;
   productCode: string;
+  productShortName: string | null;
+  amazonAsin: string | null;
   name: string;
   slug: string;
   tagline: string;

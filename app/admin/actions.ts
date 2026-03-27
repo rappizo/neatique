@@ -265,6 +265,8 @@ export async function createProductAction(formData: FormData) {
   const product = await prisma.product.create({
     data: {
       productCode,
+      productShortName: toPlainString(formData.get("productShortName")) || null,
+      amazonAsin: toPlainString(formData.get("amazonAsin")) || null,
       name: toPlainString(formData.get("name")),
       slug: toPlainString(formData.get("slug")),
       tagline: toPlainString(formData.get("tagline")),
@@ -305,6 +307,8 @@ export async function updateProductAction(formData: FormData) {
   const product = await prisma.product.update({
     where: { id },
     data: {
+      productShortName: toPlainString(formData.get("productShortName")) || null,
+      amazonAsin: toPlainString(formData.get("amazonAsin")) || null,
       name: toPlainString(formData.get("name")),
       slug: toPlainString(formData.get("slug")),
       tagline: toPlainString(formData.get("tagline")),

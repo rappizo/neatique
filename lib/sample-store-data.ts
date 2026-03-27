@@ -78,6 +78,8 @@ const baseProducts: BaseProduct[] = [
   {
     id: "prod_pdrn_cream",
     productCode: "0001",
+    productShortName: "PDRN Cream",
+    amazonAsin: null,
     name: "PDRN Cream",
     slug: "pdrn-cream",
     tagline: "Daily repair cream for calm, comforted, resilient-looking skin.",
@@ -103,6 +105,8 @@ const baseProducts: BaseProduct[] = [
   {
     id: "prod_pdrn_serum",
     productCode: "0002",
+    productShortName: "PDRN5+ Serum",
+    amazonAsin: null,
     name: "PDRN Serum",
     slug: "pdrn-serum",
     tagline: "A silky Salmon PDRN serum that supports smoothness, bounce, and glow.",
@@ -128,6 +132,8 @@ const baseProducts: BaseProduct[] = [
   {
     id: "prod_snail_cream",
     productCode: "0003",
+    productShortName: "SC93 Snail Mucin Cream",
+    amazonAsin: null,
     name: "Snail Mucin Cream",
     slug: "snail-mucin-cream",
     tagline: "Velvety moisture care that helps skin feel soothed and replenished.",
@@ -153,6 +159,8 @@ const baseProducts: BaseProduct[] = [
   {
     id: "prod_snail_serum",
     productCode: "0004",
+    productShortName: "SE96 Snail Mucin Serum",
+    amazonAsin: null,
     name: "Snail Mucin Serum",
     slug: "snail-mucin-serum",
     tagline: "Daily hydration serum for soft-looking skin and lasting comfort.",

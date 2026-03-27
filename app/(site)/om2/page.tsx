@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { OmbClaimStepTwoForm } from "@/components/order-match/omb-claim-step-two-form";
 import { getOrderMatchPlatform, getOmbStepTwoErrorMessage } from "@/lib/order-match";
 import { prisma } from "@/lib/db";
+import { getOmbSelectableProducts } from "@/lib/queries";
 
 type OrderMatchStepTwoPageProps = {
   searchParams: Promise<{ platform?: string; claim?: string; status?: string; error?: string }>;
@@ -31,15 +32,15 @@ export default async function OrderMatchStepTwoPage({
     redirect("/om");
   }
 
-  const platform = getOrderMatchPlatform(claim.platformKey);
+  const [platform, productOptions] = await Promise.all([
+    Promise.resolve(getOrderMatchPlatform(claim.platformKey)),
+    getOmbSelectableProducts()
+  ]);
   const errorMessage = getOmbStepTwoErrorMessage(params.error);
 
   return (
     <section className="section">
       <div className="container">
-        {params.status === "submitted" ? (
-          <p className="notice">Your OMB claim details were submitted successfully.</p>
-        ) : null}
         {errorMessage ? <p className="notice">{errorMessage}</p> : null}
 
         <div className="section om-section">
@@ -51,6 +52,12 @@ export default async function OrderMatchStepTwoPage({
             name={claim.name}
             email={claim.email}
             phone={claim.phone}
+            productOptions={productOptions.map((product) => ({
+              id: product.id,
+              name: product.name,
+              shortName: product.productShortName || product.name,
+              amazonAsin: product.amazonAsin
+            }))}
           />
         </div>
       </div>

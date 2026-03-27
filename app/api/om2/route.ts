@@ -3,10 +3,11 @@ import { prisma } from "@/lib/db";
 import {
   getOrderMatchPlatform,
   isHighRating,
-  OMB_MIN_COMMENT_LENGTH,
-  validateOmbProduct
+  OMB_MIN_COMMENT_LENGTH
 } from "@/lib/order-match";
 import { compressOmbScreenshot } from "@/lib/omb-screenshot";
+
+export const runtime = "nodejs";
 
 function redirectWithError(request: Request, claimId: string, platformKey: string, error: string) {
   return NextResponse.redirect(
@@ -35,8 +36,17 @@ export async function POST(request: Request) {
   }
 
   const platform = getOrderMatchPlatform(claim.platformKey);
+  const product = await prisma.product.findFirst({
+    where: {
+      productShortName: purchasedProduct
+    },
+    select: {
+      productShortName: true,
+      amazonAsin: true
+    }
+  });
 
-  if (!validateOmbProduct(purchasedProduct)) {
+  if (!product?.productShortName) {
     return redirectWithError(request, claim.id, platform.key, "product");
   }
 
@@ -58,7 +68,7 @@ export async function POST(request: Request) {
     | undefined;
 
   if (isHighRating(rating)) {
-    if (!(screenshot instanceof File) || screenshot.size <= 0) {
+    if (platform.key !== "amazon" && (!(screenshot instanceof File) || screenshot.size <= 0)) {
       return redirectWithError(request, claim.id, platform.key, "image-required");
     }
 
@@ -66,21 +76,30 @@ export async function POST(request: Request) {
       return redirectWithError(request, claim.id, platform.key, "address");
     }
 
-    try {
-      screenshotPayload = await compressOmbScreenshot(screenshot);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "image-type";
-      return redirectWithError(request, claim.id, platform.key, message);
+    if (platform.key !== "amazon") {
+      try {
+        screenshotPayload = await compressOmbScreenshot(screenshot as File);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "image-type";
+        return redirectWithError(request, claim.id, platform.key, message);
+      }
     }
   }
+
+  const reviewDestinationUrl =
+    platform.key === "amazon"
+      ? product.amazonAsin
+        ? `https://www.amazon.com/review/create-review/?asin=${encodeURIComponent(product.amazonAsin)}`
+        : null
+      : platform.outboundUrl;
 
   await prisma.ombClaim.update({
     where: { id: claim.id },
     data: {
-      purchasedProduct,
+      purchasedProduct: product.productShortName,
       reviewRating: rating,
       commentText,
-      reviewDestinationUrl: platform.outboundUrl,
+      reviewDestinationUrl,
       screenshotName: screenshotPayload?.name ?? null,
       screenshotMimeType: screenshotPayload?.mimeType ?? null,
       screenshotBase64: screenshotPayload?.base64 ?? null,
@@ -91,7 +110,7 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.redirect(
-    new URL(`/om2?claim=${claim.id}&platform=${platform.key}&status=submitted`, request.url),
+    new URL(`/om2/thank-you?claim=${claim.id}`, request.url),
     303
   );
 }
