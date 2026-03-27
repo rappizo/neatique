@@ -1613,6 +1613,7 @@ main {
   font-size: 1.02rem;
 }
 
+.om-shell .field select,
 .om-shell .field input {
   min-height: 78px;
   padding: 16px 18px;
@@ -1620,9 +1621,71 @@ main {
   border-radius: 20px;
 }
 
+.om-shell .field textarea {
+  min-height: 180px;
+  padding: 16px 18px;
+  font-size: 1.05rem;
+  border-radius: 20px;
+}
+
 .om-shell .field input::placeholder {
   color: #8b7d76;
   font-size: 1.05rem;
+}
+
+.omb-stars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.omb-stars__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  border: 1px solid rgba(237, 115, 97, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  color: #d2beb8;
+  font-size: 1.85rem;
+  cursor: pointer;
+  transition: transform 180ms ease, color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.omb-stars__button:hover,
+.omb-stars__button:focus-visible {
+  transform: translateY(-1px);
+}
+
+.omb-stars__button--active {
+  color: var(--brand);
+  background: rgba(237, 115, 97, 0.08);
+  box-shadow: 0 10px 20px rgba(237, 115, 97, 0.15);
+}
+
+.omb-cta-card {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(237, 115, 97, 0.16);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.omb-cta-card h3,
+.om-platform-card h3 {
+  margin: 0;
+  font-family: Baskerville, "Palatino Linotype", serif;
+  font-size: 1.55rem;
+}
+
+.omb-cta-card p,
+.om-platform-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
 }
 
 .om-platforms {
@@ -1650,18 +1713,6 @@ main {
   background:
     radial-gradient(circle at top right, rgba(247, 199, 188, 0.34), transparent 32%),
     var(--surface);
-}
-
-.om-platform-card h3 {
-  margin: 0;
-  font-family: Baskerville, "Palatino Linotype", serif;
-  font-size: 1.55rem;
-}
-
-.om-platform-card p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.75;
 }
 
 .om-form-card {
@@ -2470,9 +2521,20 @@ main {
     font-size: 0.98rem;
   }
 
+  .om-shell .field select,
   .om-shell .field input {
     min-height: 66px;
     font-size: 1.05rem;
+  }
+
+  .om-shell .field textarea {
+    min-height: 150px;
+  }
+
+  .omb-stars__button {
+    width: 50px;
+    height: 50px;
+    font-size: 1.65rem;
   }
 
   .product-page-stack {

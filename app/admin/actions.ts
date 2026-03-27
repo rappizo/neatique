@@ -79,6 +79,15 @@ function buildFormSubmissionRedirect(status: string, redirectTo?: string, formKe
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
 }
 
+function buildOmbClaimRedirect(status: string, redirectTo?: string) {
+  const basePath = redirectTo || "/admin/omb-claims";
+  const [pathname, queryString = ""] = basePath.split("?");
+  const params = new URLSearchParams(queryString);
+  params.set("status", status);
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
 function parseCouponDiscountType(value: string | undefined): CouponDiscountType {
   return value === "FIXED_AMOUNT" ? "FIXED_AMOUNT" : "PERCENT";
 }
@@ -445,6 +454,27 @@ export async function toggleFormSubmissionHandledAction(formData: FormData) {
   redirect(
     buildFormSubmissionRedirect(nextHandled ? "handled" : "reopened", redirectTo, formKey, id)
   );
+}
+
+export async function updateOmbClaimAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+  const giftSent = toBool(formData.get("giftSent"));
+  const adminNote = toPlainString(formData.get("adminNote")) || null;
+
+  await prisma.ombClaim.update({
+    where: { id },
+    data: {
+      giftSent,
+      giftSentAt: giftSent ? new Date() : null,
+      adminNote
+    }
+  });
+
+  revalidatePath("/admin/omb-claims");
+  redirect(buildOmbClaimRedirect("updated", redirectTo));
 }
 
 export async function createPostAction(formData: FormData) {

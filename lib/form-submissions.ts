@@ -10,21 +10,6 @@ export const FORM_DEFINITIONS = [
     key: "subscribe",
     label: "Subscribe",
     description: "Newsletter and first-purchase coupon signups from the homepage."
-  },
-  {
-    key: "amazon-order-match",
-    label: "Amazon Order Match",
-    description: "Amazon order verification submissions from the /om page."
-  },
-  {
-    key: "tiktok-order-match",
-    label: "TikTok Order Match",
-    description: "TikTok Shop order verification submissions from the /om page."
-  },
-  {
-    key: "walmart-order-match",
-    label: "Walmart Order Match",
-    description: "Walmart order verification submissions from the /om page."
   }
 ] as const;
 

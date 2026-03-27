@@ -10,6 +10,7 @@ import type {
   DashboardSummary,
   FormSubmissionRecord,
   FormSubmissionSummaryRecord,
+  OmbClaimRecord,
   OrderRecord,
   ProductRecord,
   ProductReviewRecord,
@@ -326,6 +327,32 @@ function mapFormSubmission(submission: any): FormSubmissionRecord {
   };
 }
 
+function mapOmbClaim(claim: any): OmbClaimRecord {
+  return {
+    id: claim.id,
+    platformKey: claim.platformKey,
+    platformLabel: claim.platformLabel,
+    orderId: claim.orderId,
+    name: claim.name,
+    email: claim.email,
+    phone: claim.phone ?? null,
+    purchasedProduct: claim.purchasedProduct ?? null,
+    reviewRating: claim.reviewRating ?? null,
+    commentText: claim.commentText ?? null,
+    reviewDestinationUrl: claim.reviewDestinationUrl ?? null,
+    screenshotName: claim.screenshotName ?? null,
+    screenshotMimeType: claim.screenshotMimeType ?? null,
+    screenshotBytes: claim.screenshotBytes ?? null,
+    extraBottleAddress: claim.extraBottleAddress ?? null,
+    giftSent: claim.giftSent,
+    giftSentAt: claim.giftSentAt ? new Date(claim.giftSentAt) : null,
+    adminNote: claim.adminNote ?? null,
+    completedAt: claim.completedAt ? new Date(claim.completedAt) : null,
+    createdAt: new Date(claim.createdAt),
+    updatedAt: new Date(claim.updatedAt)
+  };
+}
+
 const getFeaturedProductsFromDatabase = unstable_cache(
   async (limit: number) =>
     (
@@ -584,6 +611,9 @@ export async function getFormSubmissionSummaries() {
 
       for (const row of groupedRows) {
         const definition = getFormDefinition(row.formKey);
+        if (!definition) {
+          continue;
+        }
         const existing =
           summaryMap.get(row.formKey) ??
           ({
@@ -712,6 +742,41 @@ export async function getFormSubmissionById(formKey: string, id: string) {
       });
 
       return submission ? mapFormSubmission(submission) : null;
+    },
+    null
+  );
+}
+
+export async function getOmbClaims(searchEmail = "") {
+  const normalizedSearchEmail = searchEmail.trim().toLowerCase();
+
+  return withFallback(
+    async () =>
+      (
+        await prisma.ombClaim.findMany({
+          where: normalizedSearchEmail
+            ? {
+                email: {
+                  contains: normalizedSearchEmail,
+                  mode: "insensitive"
+                }
+              }
+            : undefined,
+          orderBy: [{ createdAt: "desc" }]
+        })
+      ).map(mapOmbClaim),
+    []
+  );
+}
+
+export async function getOmbClaimById(id: string) {
+  return withFallback(
+    async () => {
+      const claim = await prisma.ombClaim.findUnique({
+        where: { id }
+      });
+
+      return claim ? mapOmbClaim(claim) : null;
     },
     null
   );

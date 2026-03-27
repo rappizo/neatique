@@ -243,3 +243,27 @@ export type AdminFormSubmissionPageRecord = {
   pageSize: number;
   searchEmail: string;
 };
+
+export type OmbClaimRecord = {
+  id: string;
+  platformKey: string;
+  platformLabel: string;
+  orderId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  purchasedProduct: string | null;
+  reviewRating: number | null;
+  commentText: string | null;
+  reviewDestinationUrl: string | null;
+  screenshotName: string | null;
+  screenshotMimeType: string | null;
+  screenshotBytes: number | null;
+  extraBottleAddress: string | null;
+  giftSent: boolean;
+  giftSentAt: Date | null;
+  adminNote: string | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};

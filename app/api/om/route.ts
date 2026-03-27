@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createFormSubmission } from "@/lib/form-submissions";
+import { prisma } from "@/lib/db";
 import {
   getOrderMatchPlatform,
   isOrderMatchPlatform,
@@ -34,16 +34,10 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL(`/om?platform=${platform.key}&error=order-id`, request.url), 303);
   }
 
-  const submission = await createFormSubmission({
-    formKey: platform.formKey,
-    email,
-    name,
-    subject: `${platform.label} order verification`,
-    summary: `${platform.label} order ${orderId}`,
-    message: `Order verification submitted for ${platform.label}.`,
-    payload: {
-      platform: platform.label,
+  const claim = await prisma.ombClaim.create({
+    data: {
       platformKey: platform.key,
+      platformLabel: platform.label,
       orderId,
       name,
       email,
@@ -52,7 +46,7 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.redirect(
-    new URL(`/om2?platform=${platform.key}&submission=${submission.id}`, request.url),
+    new URL(`/om2?platform=${platform.key}&claim=${claim.id}`, request.url),
     303
   );
 }

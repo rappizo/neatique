@@ -3,50 +3,63 @@ export type OrderMatchPlatform = "amazon" | "tiktok" | "walmart";
 export type OrderMatchPlatformConfig = {
   key: OrderMatchPlatform;
   label: string;
-  formKey: string;
   heroTitle: string;
   description: string;
   orderIdLabel: string;
   orderIdPlaceholder: string;
-  validationHint: string;
+  outboundButtonLabel: string;
+  outboundUrl: string | null;
 };
+
+export const OMB_PRODUCT_OPTIONS = [
+  "AT13",
+  "SE96 Snail Mucin Serum",
+  "SC93 Snail Mucin Cream",
+  "PDRN Cream",
+  "PDRN5+ Serum",
+  "8+ NAD+ Serum",
+  "TNV3",
+  "NT16",
+  "KT9+"
+] as const;
+
+export const OMB_SCREENSHOT_MAX_BYTES = 15 * 1024 * 1024;
+export const OMB_SCREENSHOT_TARGET_BYTES = 1024 * 1024;
+export const OMB_MIN_COMMENT_LENGTH = 10;
 
 export const orderMatchPlatforms: OrderMatchPlatformConfig[] = [
   {
     key: "amazon",
     label: "Amazon",
-    formKey: "amazon-order-match",
     heroTitle: "Amazon order verification",
     description:
       "Use the Amazon form when the customer order was placed through Amazon and you want to verify the order before the next step.",
-    orderIdLabel: "Amazon Order ID",
+    orderIdLabel: "Order ID",
     orderIdPlaceholder: "1xx-...",
-    validationHint:
-      "Amazon order IDs must follow 1xx-xxxxxxx-xxxxxxx and start with 1."
+    outboundButtonLabel: "Copy Text and Go To Amazon",
+    outboundUrl: null
   },
   {
     key: "tiktok",
     label: "TikTok",
-    formKey: "tiktok-order-match",
     heroTitle: "TikTok Shop order verification",
     description:
-      "Use the TikTok form for TikTok Shop orders. The order ID must be an 18-digit number and follow the TikTok format.",
-    orderIdLabel: "TikTok Order ID",
+      "Use the TikTok form for TikTok Shop orders. The order ID must match the TikTok format before the claim can continue.",
+    orderIdLabel: "Order ID",
     orderIdPlaceholder: "5xxx...",
-    validationHint:
-      "TikTok order IDs must be 18 digits and start with 5."
+    outboundButtonLabel: "Copy Text and Go To TikTok",
+    outboundUrl: "https://www.tiktok.com/feedback/view/fe_tiktok_ecommerce_in_web/order_list/index.html"
   },
   {
     key: "walmart",
     label: "Walmart",
-    formKey: "walmart-order-match",
     heroTitle: "Walmart order verification",
     description:
-      "Use the Walmart form when the order came from Walmart. Walmart order IDs can include symbols in the middle but must still match the store format.",
-    orderIdLabel: "Walmart Order ID",
+      "Use the Walmart form when the order came from Walmart. The order ID must match the Walmart format before the claim can continue.",
+    orderIdLabel: "Order ID",
     orderIdPlaceholder: "200...",
-    validationHint:
-      "Walmart order IDs must start with 200 and be 15 or 16 characters long."
+    outboundButtonLabel: "Copy Text and Go To Walmart",
+    outboundUrl: "https://www.walmart.com/reviews/write-review"
   }
 ] as const;
 
@@ -54,7 +67,9 @@ export function getOrderMatchPlatform(platform: string | null | undefined) {
   return orderMatchPlatforms.find((item) => item.key === platform) ?? orderMatchPlatforms[0];
 }
 
-export function isOrderMatchPlatform(platform: string | null | undefined): platform is OrderMatchPlatform {
+export function isOrderMatchPlatform(
+  platform: string | null | undefined
+): platform is OrderMatchPlatform {
   return orderMatchPlatforms.some((item) => item.key === platform);
 }
 
@@ -75,7 +90,7 @@ export function validateOrderId(platform: OrderMatchPlatform, rawOrderId: string
 
 export function getOrderMatchErrorMessage(error: string | null | undefined) {
   if (error === "missing") {
-    return "Please complete Order ID, Name, Email, and Phone before continuing.";
+    return "Please complete Order ID, Name, and Email before continuing.";
   }
 
   if (error === "email") {
@@ -88,6 +103,50 @@ export function getOrderMatchErrorMessage(error: string | null | undefined) {
 
   if (error === "order-id") {
     return "The order ID does not match the selected platform format. Please recheck it and try again.";
+  }
+
+  return null;
+}
+
+export function isHighRating(rating: number) {
+  return rating >= 4;
+}
+
+export function validateOmbProduct(value: string | null | undefined) {
+  return OMB_PRODUCT_OPTIONS.includes((value || "").trim() as (typeof OMB_PRODUCT_OPTIONS)[number]);
+}
+
+export function getOmbStepTwoErrorMessage(error: string | null | undefined) {
+  if (error === "claim") {
+    return "We could not find that OMB claim. Please start again from the order verification page.";
+  }
+
+  if (error === "product") {
+    return "Please choose the product you purchased before submitting the claim.";
+  }
+
+  if (error === "rating") {
+    return "Please choose a review rating from 1 to 5 stars.";
+  }
+
+  if (error === "comment") {
+    return `Comments must be at least ${OMB_MIN_COMMENT_LENGTH} characters long.`;
+  }
+
+  if (error === "image-required") {
+    return "Please upload a screenshot of your platform comment for 4-star and 5-star claims.";
+  }
+
+  if (error === "image-size") {
+    return "The screenshot is too large. Please upload an image smaller than 15MB.";
+  }
+
+  if (error === "image-type") {
+    return "Please upload a JPG, PNG, WEBP, or AVIF screenshot.";
+  }
+
+  if (error === "address") {
+    return "Please leave the shipping address for the extra bottle.";
   }
 
   return null;

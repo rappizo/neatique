@@ -259,3 +259,33 @@ model FormSubmission {
   @@index([email])
   @@index([handled])
 }
+
+model OmbClaim {
+  id                   String   @id @default(cuid())
+  platformKey          String
+  platformLabel        String
+  orderId              String
+  name                 String
+  email                String
+  phone                String?
+  purchasedProduct     String?
+  reviewRating         Int?
+  commentText          String?
+  reviewDestinationUrl String?
+  screenshotName       String?
+  screenshotMimeType   String?
+  screenshotBase64     String?
+  screenshotBytes      Int?
+  extraBottleAddress   String?
+  giftSent             Boolean  @default(false)
+  giftSentAt           DateTime?
+  adminNote            String?
+  completedAt          DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([platformKey, createdAt])
+  @@index([email])
+  @@index([giftSent])
+  @@index([completedAt])
+}

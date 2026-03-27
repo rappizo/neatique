@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { ButtonLink } from "@/components/ui/button-link";
-import { getOrderMatchPlatform } from "@/lib/order-match";
+import { redirect } from "next/navigation";
+import { OmbClaimStepTwoForm } from "@/components/order-match/omb-claim-step-two-form";
+import { getOrderMatchPlatform, getOmbStepTwoErrorMessage } from "@/lib/order-match";
+import { prisma } from "@/lib/db";
 
 type OrderMatchStepTwoPageProps = {
-  searchParams: Promise<{ platform?: string; submission?: string }>;
+  searchParams: Promise<{ platform?: string; claim?: string; status?: string; error?: string }>;
 };
 
 export const metadata: Metadata = {
@@ -15,42 +17,41 @@ export default async function OrderMatchStepTwoPage({
   searchParams
 }: OrderMatchStepTwoPageProps) {
   const params = await searchParams;
-  const platform = getOrderMatchPlatform(params.platform);
+  const claimId = params.claim || "";
+
+  if (!claimId) {
+    redirect("/om");
+  }
+
+  const claim = await prisma.ombClaim.findUnique({
+    where: { id: claimId }
+  });
+
+  if (!claim) {
+    redirect("/om");
+  }
+
+  const platform = getOrderMatchPlatform(claim.platformKey);
+  const errorMessage = getOmbStepTwoErrorMessage(params.error);
 
   return (
     <section className="section">
       <div className="container">
-        <div className="page-hero">
-          <p className="eyebrow">Order Match / Step 2</p>
-          <h1>{platform.label} order format confirmed.</h1>
-          <p>
-            The order ID passed validation and the submission has been recorded. This screen is
-            ready for the next step once you share the `/om2` requirements.
-          </p>
-          <div className="page-hero__stats">
-            <span className="pill">{platform.label}</span>
-            {params.submission ? <span className="pill">Submission saved</span> : null}
-          </div>
-        </div>
+        {params.status === "submitted" ? (
+          <p className="notice">Your OMB claim details were submitted successfully.</p>
+        ) : null}
+        {errorMessage ? <p className="notice">{errorMessage}</p> : null}
 
-        <div className="section cards-2">
-          <section className="contact-card">
-            <h3>Current status</h3>
-            <p>
-              Validation is complete. The submission now lives in the admin Form Submissions area
-              under the matching marketplace form.
-            </p>
-          </section>
-          <section className="contact-card">
-            <h3>Next build step</h3>
-            <p>
-              Share the exact `/om2` flow you want and we can plug it directly into this verified
-              handoff without changing the validation page again.
-            </p>
-            <ButtonLink href="/om" variant="secondary">
-              Back to order match
-            </ButtonLink>
-          </section>
+        <div className="section om-section">
+          <OmbClaimStepTwoForm
+            claimId={claim.id}
+            platformKey={platform.key}
+            platformLabel={claim.platformLabel}
+            orderId={claim.orderId}
+            name={claim.name}
+            email={claim.email}
+            phone={claim.phone}
+          />
         </div>
       </div>
     </section>
