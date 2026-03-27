@@ -79,6 +79,33 @@ function average(values: number[]) {
 
 const baseProducts: BaseProduct[] = [
   {
+    id: "prod_at13_cream",
+    productCode: "0005",
+    productShortName: "AT13",
+    amazonAsin: null,
+    name: "AT13 8% Arbutin + 5% Tranexamic Cream",
+    slug: "at13-arbutin-tranexamic-cream",
+    tagline: "A tone-correcting daily cream made to support a brighter, more even-looking finish.",
+    category: "Brightening Cream",
+    shortDescription: "A silky daily cream with 8% arbutin and 5% tranexamic acid for a calm, refined glow.",
+    description:
+      "Neatique AT13 8% Arbutin + 5% Tranexamic Cream is designed for shoppers who want a daily brightening moisturizer that still feels elegant and comfortable on skin. The cream melts in with a smooth, soft finish while supporting a look that feels clearer, more even, and more polished over time.",
+    details:
+      "Ideal for tone-evening and daily brightening routines.\nUse after serum as the final cream step, morning or night.\nPairs well with hydration-focused serums when you want brightness without sacrificing comfort.",
+    imageUrl: getDefaultProductImageUrl("at13-arbutin-tranexamic-cream") ?? "/products/at13-arbutin-tranexamic-cream.svg",
+    galleryImages: getLocalProductGallery("at13-arbutin-tranexamic-cream"),
+    featured: false,
+    status: "ACTIVE",
+    inventory: 118,
+    priceCents: 2499,
+    compareAtPriceCents: 3999,
+    currency: "USD",
+    pointsReward: 25,
+    stripePriceId: null,
+    createdAt: new Date("2026-03-26T08:00:00.000Z"),
+    updatedAt: new Date("2026-03-27T08:00:00.000Z")
+  },
+  {
     id: "prod_pdrn_cream",
     productCode: "0001",
     productShortName: "PDRN Cream",
@@ -549,6 +576,11 @@ function buildUniqueReviewCopy(product: BaseProduct, plan: ReviewPlan, index: nu
 
 function buildProductReviews(product: BaseProduct): ProductReviewRecord[] {
   const plan = reviewPlans[product.slug];
+
+  if (!plan || plan.count <= 0) {
+    return [];
+  }
+
   const seen = new Set<string>();
 
   return Array.from({ length: plan.count }, (_, index) => {

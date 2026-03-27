@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const PRODUCT_MEDIA_FOLDERS: Record<string, string> = {
+  "at13-arbutin-tranexamic-cream": "HH061 AT13 8% Arbutin + 5% Tranexamic Cream",
   "pdrn-cream": "HH075 PDRN Cream",
   "pdrn-serum": "HH079 PDRN Serum",
   "snail-mucin-cream": "HH069 SC93 Snail Mucin Cream",

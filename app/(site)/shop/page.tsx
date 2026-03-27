@@ -33,7 +33,7 @@ export default async function ShopPage() {
             title="Choose the texture and finish that best fits your routine."
             description="Whether you love a silky serum, a comforting cream, or an extra dewy finish, the collection is designed to make daily skincare feel simple and beautiful."
           />
-          <div className="product-grid">
+          <div className="product-grid--shop">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

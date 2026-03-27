@@ -12,6 +12,62 @@ type ProductStory = {
 };
 
 export const productStories: Record<string, ProductStory> = {
+  "at13-arbutin-tranexamic-cream": {
+    gallery: getLocalProductGallery("at13-arbutin-tranexamic-cream"),
+    heroLabel: "HH061 AT13 8% Arbutin + 5% Tranexamic Cream",
+    sections: [
+      {
+        title: "1. What It Is",
+        body:
+          "Neatique AT13 8% Arbutin + 5% Tranexamic Cream is a daily brightening cream created for shoppers who want their moisturizer to help skin look clearer, more even, and softly radiant."
+      },
+      {
+        title: "2. Texture",
+        body:
+          "The texture feels silky, smooth, and comfortable on the skin. It spreads easily without feeling heavy and leaves behind a polished finish that still feels breathable."
+      },
+      {
+        title: "3. Formula Focus",
+        body:
+          "This cream is centered around 8% arbutin and 5% tranexamic acid, a pairing often chosen in tone-correcting routines when shoppers want to support a brighter and more refined overall look."
+      },
+      {
+        title: "4. Why Customers Reach For It",
+        body:
+          "Shoppers usually reach for this kind of cream when they want their routine to feel more targeted toward visible unevenness while still staying soft, simple, and easy to wear every day."
+      },
+      {
+        title: "5. Who It Is For",
+        body:
+          "AT13 is a beautiful choice for normal, combination, or dull-looking skin, and it also works well for anyone who wants a brightening cream that still feels elegant rather than clinical."
+      },
+      {
+        title: "6. When To Use It",
+        body:
+          "Use it after serum as the final cream step in the morning or evening. During the day it creates a clean base under sunscreen, and at night it gives the routine a more finished, comforted feel."
+      },
+      {
+        title: "7. Daily Finish",
+        body:
+          "On skin, the finish looks smooth, softly luminous, and refined. It gives brightness-focused routines a more elevated feel without leaving behind a greasy or overloaded surface."
+      },
+      {
+        title: "8. Routine Pairing",
+        body:
+          "It pairs especially well with lightweight hydrating serums, including PDRN Serum or Snail Mucin Serum, when you want to keep the routine balanced between glow, comfort, and clarity."
+      },
+      {
+        title: "9. What Makes It Easy To Use",
+        body:
+          "Because it functions as a familiar cream step, it is easy to keep consistent with. That makes it appealing for shoppers who want a more tone-focused routine without adding too many separate layers."
+      },
+      {
+        title: "10. Packaging Details",
+        body:
+          "The jar is designed to look polished and modern on a vanity, matching the product's clean, brightening identity while still feeling feminine and easy to love in everyday use."
+      }
+    ]
+  },
   "pdrn-cream": {
     gallery: getLocalProductGallery("pdrn-cream"),
     heroLabel: "HH075 PDRN Cream",

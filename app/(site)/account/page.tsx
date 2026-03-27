@@ -135,7 +135,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
           </section>
         </div>
 
-        <section className="admin-table">
+        <section className="admin-table account-reviews-table">
           <h2>My reviews</h2>
           <table>
             <thead>

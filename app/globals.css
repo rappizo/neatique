@@ -879,6 +879,10 @@ main {
   gap: 20px;
 }
 
+.account-reviews-table {
+  margin-top: 24px;
+}
+
 .panel,
 .contact-card,
 .admin-card,
@@ -908,6 +912,12 @@ main {
 .post-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.product-grid--shop {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
 }
 
@@ -2598,6 +2608,7 @@ main {
   .cards-3,
   .cards-2,
   .product-grid,
+  .product-grid--shop,
   .post-grid,
   .story-sections,
   .product-highlight-grid,
@@ -2672,6 +2683,7 @@ main {
   .cards-3,
   .cards-2,
   .product-grid,
+  .product-grid--shop,
   .post-grid,
   .form-row,
   .admin-form__grid,
