@@ -4,6 +4,8 @@ import { RatingStars } from "@/components/ui/rating-stars";
 import { formatDate, formatNumber, formatTime, LOS_ANGELES_TIME_ZONE } from "@/lib/format";
 import { getOmbClaimPage } from "@/lib/queries";
 
+const OMB_UNSUBMITTED_PRODUCT_FILTER = "__NOT_SUBMITTED__";
+
 type AdminOmbClaimsPageProps = {
   searchParams: Promise<{
     email?: string;
@@ -39,6 +41,10 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
   } = claimPage;
   const fromClaim = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const toClaim = Math.min(currentPage * pageSize, totalCount);
+
+  function getProductFilterLabel(value: string) {
+    return value === OMB_UNSUBMITTED_PRODUCT_FILTER ? "Not submitted yet" : value;
+  }
 
   function buildPageHref(page: number) {
     const query = new URLSearchParams();
@@ -104,16 +110,16 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
             </select>
           </div>
           <div className="field">
-            <label htmlFor="product">Product</label>
-            <select id="product" name="product" defaultValue={searchProduct}>
-              <option value="">All products</option>
-              {productOptions.map((product) => (
-                <option key={product} value={product}>
-                  {product}
-                </option>
-              ))}
-            </select>
-          </div>
+              <label htmlFor="product">Product</label>
+              <select id="product" name="product" defaultValue={searchProduct}>
+                <option value="">All products</option>
+                {productOptions.map((product) => (
+                  <option key={product} value={product}>
+                    {getProductFilterLabel(product)}
+                  </option>
+                ))}
+              </select>
+            </div>
           <div className="omb-claim-filters__actions">
             <button type="submit" className="button button--primary">
               Apply filters
@@ -132,7 +138,7 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
               Platform: {platformOptions.find((item) => item.value === searchPlatform)?.label || searchPlatform}
             </span>
           ) : null}
-          {searchProduct ? <span className="pill">Product: {searchProduct}</span> : null}
+          {searchProduct ? <span className="pill">Product: {getProductFilterLabel(searchProduct)}</span> : null}
           <span className="pill">Submitted times shown in Los Angeles time</span>
           <span className="pill">50 per page</span>
         </div>
@@ -165,6 +171,9 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                   : claim.reviewRating && claim.reviewRating >= 4
                     ? "Waiting for last step"
                     : "Waiting for step 2";
+                const progressClassName = claim.completedAt
+                  ? "admin-table__status-badge admin-table__status-badge--success"
+                  : "admin-table__status-badge admin-table__status-badge--warning";
                 const submittedAt = claim.completedAt ?? claim.createdAt;
 
                 return (
@@ -173,7 +182,7 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                       <div className="admin-table__cell-stack">
                         <strong>{formatDate(submittedAt, LOS_ANGELES_TIME_ZONE)}</strong>
                         <span>{formatTime(submittedAt, LOS_ANGELES_TIME_ZONE, true)}</span>
-                        <span className="form-note">{progressLabel}</span>
+                        <span className={progressClassName}>{progressLabel}</span>
                       </div>
                     </td>
                     <td>
@@ -186,22 +195,38 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                       <div className="admin-table__cell-stack">
                         <strong>{claim.name}</strong>
                         <span>{claim.email}</span>
-                        <span className="form-note">{claim.phone || "No phone"}</span>
+                        <span className={claim.phone ? "form-note" : "admin-table__empty"}>
+                          {claim.phone || "No phone"}
+                        </span>
                       </div>
                     </td>
-                    <td>{claim.purchasedProduct || "Not submitted yet"}</td>
+                    <td>
+                      {claim.purchasedProduct ? (
+                        claim.purchasedProduct
+                      ) : (
+                        <span className="admin-table__empty">Not submitted yet</span>
+                      )}
+                    </td>
                     <td>
                       {claim.reviewRating ? (
                         <RatingStars rating={claim.reviewRating} size="sm" />
                       ) : (
-                        "Not submitted yet"
+                        <span className="admin-table__empty">Not submitted yet</span>
                       )}
                     </td>
                     <td className="admin-table__clip">
-                      {claim.commentText || "No comment submitted yet."}
+                      {claim.commentText ? (
+                        claim.commentText
+                      ) : (
+                        <span className="admin-table__empty">No comment submitted yet.</span>
+                      )}
                     </td>
                     <td className="admin-table__clip">
-                      {claim.extraBottleAddress || "No address submitted."}
+                      {claim.extraBottleAddress ? (
+                        claim.extraBottleAddress
+                      ) : (
+                        <span className="admin-table__empty">No address submitted.</span>
+                      )}
                     </td>
                     <td>
                       {claim.screenshotName ? (
@@ -213,7 +238,7 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                           View image
                         </Link>
                       ) : (
-                        "No image"
+                        <span className="admin-table__empty">No image</span>
                       )}
                     </td>
                     <td>
@@ -252,8 +277,10 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
         </section>
       ) : (
         <section className="admin-form admin-review-item">
-          <h3>No claims found</h3>
-          <p>Try a different email, platform, or product filter, or wait for new OMB submissions to arrive.</p>
+          <h3 className="admin-table__empty">No claims found</h3>
+          <p className="admin-table__empty">
+            Try a different email, platform, or product filter, or wait for new OMB submissions to arrive.
+          </p>
         </section>
       )}
 

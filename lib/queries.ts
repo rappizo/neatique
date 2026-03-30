@@ -45,6 +45,7 @@ import {
 import { ensureStoreBootstrap } from "@/lib/store-bootstrap";
 
 const PUBLIC_CONTENT_REVALIDATE_SECONDS = 60;
+const OMB_UNSUBMITTED_PRODUCT_FILTER = "__NOT_SUBMITTED__";
 
 function parseGalleryImages(value: string | null | undefined) {
   return (value ?? "")
@@ -874,7 +875,13 @@ export async function getOmbClaimPage(
           : {}),
         ...(normalizedSearchProduct
           ? {
-              purchasedProduct: normalizedSearchProduct
+              ...(normalizedSearchProduct === OMB_UNSUBMITTED_PRODUCT_FILTER
+                ? {
+                    purchasedProduct: null
+                  }
+                : {
+                    purchasedProduct: normalizedSearchProduct
+                  })
             }
           : {})
       };
@@ -957,6 +964,7 @@ export async function getOmbClaimPage(
       const productOptions = Array.from(
         new Set(
           [
+            OMB_UNSUBMITTED_PRODUCT_FILTER,
             ...productRows.map((row) => row.purchasedProduct).filter((value): value is string => Boolean(value)),
             ...productShortNames
               .map((product) => product.productShortName)

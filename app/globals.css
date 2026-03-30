@@ -2678,6 +2678,31 @@ main {
   align-content: start;
 }
 
+.admin-table__empty {
+  color: #a9a19a;
+}
+
+.admin-table__status-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.admin-table__status-badge--success {
+  background: rgba(85, 168, 117, 0.14);
+  color: #2e8b57;
+}
+
+.admin-table__status-badge--warning {
+  background: rgba(215, 168, 67, 0.16);
+  color: #9a6b0f;
+}
+
 .admin-table__actions .button {
   min-height: 38px;
   padding: 0 14px;
