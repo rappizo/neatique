@@ -821,6 +821,40 @@ export async function deleteReviewAction(formData: FormData) {
   redirect(buildReviewRedirect("deleted", redirectTo, productSlug));
 }
 
+export async function bulkDeleteReviewsAction(formData: FormData) {
+  await requireAdminSession();
+
+  const productSlug = toPlainString(formData.get("productSlug"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+  const reviewIds = Array.from(
+    new Set(
+      formData
+        .getAll("reviewIds")
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean)
+    )
+  );
+
+  if (reviewIds.length === 0) {
+    redirect(buildReviewRedirect("no-selection", redirectTo, productSlug));
+  }
+
+  await prisma.productReview.deleteMany({
+    where: {
+      id: {
+        in: reviewIds
+      }
+    }
+  });
+
+  revalidatePath("/admin/reviews");
+  if (productSlug) {
+    revalidatePath(`/admin/reviews/${productSlug}`);
+  }
+  refreshStorefront(productSlug ? [productSlug] : []);
+  redirect(buildReviewRedirect("bulk-deleted", redirectTo, productSlug));
+}
+
 export async function bulkImportReviewsAction(formData: FormData) {
   await requireAdminSession();
 

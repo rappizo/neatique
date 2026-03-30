@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RatingStars } from "@/components/ui/rating-stars";
 import {
+  bulkDeleteReviewsAction,
   bulkImportReviewsAction,
   deleteReviewAction,
   updateReviewAction
@@ -55,6 +56,7 @@ export default async function AdminProductReviewsPage({
   const fromReview = totalReviewCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const toReview = Math.min(currentPage * pageSize, totalReviewCount);
   const redirectTo = buildPageHref(product.slug, currentPage);
+  const bulkDeleteFormId = `review-bulk-delete-${product.id}`;
 
   return (
     <div className="admin-page">
@@ -76,7 +78,15 @@ export default async function AdminProductReviewsPage({
         </Link>
       </div>
 
-      {query.status ? <p className="notice">Review action completed: {query.status}.</p> : null}
+      {query.status ? (
+        <p className="notice">
+          {query.status === "bulk-deleted"
+            ? "Selected reviews were deleted."
+            : query.status === "no-selection"
+              ? "Select at least one review before using bulk delete."
+              : `Review action completed: ${query.status}.`}
+        </p>
+      ) : null}
 
       <section className="admin-review-detail admin-product-card">
         <div className="admin-review-detail__hero">
@@ -140,9 +150,17 @@ export default async function AdminProductReviewsPage({
               <p className="form-note">
                 CSV columns: <code>{csvColumns}</code>
               </p>
-              <button type="submit" className="button button--primary">
-                Import CSV
-              </button>
+              <div className="stack-row">
+                <button type="submit" className="button button--primary">
+                  Import CSV
+                </button>
+                <Link
+                  href={`/api/admin/reviews/${product.slug}/export`}
+                  className="button button--secondary"
+                >
+                  Export CSV
+                </Link>
+              </div>
             </form>
           </div>
         </div>
@@ -158,6 +176,13 @@ export default async function AdminProductReviewsPage({
           </div>
 
           <div className="stack-row">
+            <form id={bulkDeleteFormId} action={bulkDeleteReviewsAction}>
+              <input type="hidden" name="productSlug" value={product.slug} />
+              <input type="hidden" name="redirectTo" value={redirectTo} />
+            </form>
+            <button type="submit" className="button button--ghost" form={bulkDeleteFormId}>
+              Delete selected
+            </button>
             <Link
               href={currentPage > 1 ? buildPageHref(product.slug, currentPage - 1) : "#"}
               className={`button button--secondary${currentPage > 1 ? "" : " button--disabled"}`}
@@ -184,6 +209,7 @@ export default async function AdminProductReviewsPage({
           <table>
             <thead>
               <tr>
+                <th>Select</th>
                 <th>Review Date</th>
                 <th>Display Name</th>
                 <th>Rating</th>
@@ -202,6 +228,12 @@ export default async function AdminProductReviewsPage({
 
                 return (
                   <tr key={review.id}>
+                    <td>
+                      <label className="admin-table__checkbox-label">
+                        <input type="checkbox" name="reviewIds" value={review.id} form={bulkDeleteFormId} />
+                        <span>Select</span>
+                      </label>
+                    </td>
                     <td>
                       <div className="admin-table__cell-stack">
                         <strong>{formatDate(review.reviewDate)}</strong>
