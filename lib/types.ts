@@ -5,6 +5,8 @@ export type RewardType = "EARNED" | "REDEEMED" | "ADJUSTMENT";
 export type ReviewStatus = "PENDING" | "PUBLISHED" | "HIDDEN";
 export type CouponDiscountType = "PERCENT" | "FIXED_AMOUNT";
 export type CouponUsageMode = "SINGLE_USE" | "UNLIMITED";
+export type EmailCampaignStatus = "DRAFT" | "SYNCED" | "SCHEDULED" | "SENT" | "FAILED";
+export type EmailAudienceType = "NEWSLETTER" | "CUSTOMERS" | "LEADS" | "ALL_MARKETING" | "CUSTOM";
 
 export type ProductRecord = {
   id: string;
@@ -289,4 +291,61 @@ export type AdminOmbClaimPageRecord = {
   totalPages: number;
   pageSize: number;
   searchEmail: string;
+  searchPlatform: string;
+  searchProduct: string;
+  platformOptions: Array<{ value: string; label: string }>;
+  productOptions: string[];
+};
+
+export type EmailMarketingAudienceSummaryRecord = {
+  key: EmailAudienceType;
+  label: string;
+  description: string;
+  localCount: number;
+  targetListId: number | null;
+};
+
+export type BrevoListRecord = {
+  id: number;
+  name: string;
+  totalSubscribers: number;
+  folderName: string | null;
+};
+
+export type EmailCampaignRecord = {
+  id: string;
+  name: string;
+  subject: string;
+  previewText: string | null;
+  strategyBrief: string | null;
+  audienceType: EmailAudienceType;
+  customListIds: string | null;
+  senderName: string | null;
+  senderEmail: string | null;
+  replyTo: string | null;
+  contentHtml: string;
+  contentText: string | null;
+  scheduledAt: Date | null;
+  status: EmailCampaignStatus;
+  brevoCampaignId: number | null;
+  lastSyncedAt: Date | null;
+  lastTestedAt: Date | null;
+  lastSentAt: Date | null;
+  syncError: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type EmailMarketingOverviewRecord = {
+  newsletterCount: number;
+  optedInCustomerCount: number;
+  leadCount: number;
+  campaignCount: number;
+  syncedCampaignCount: number;
+  scheduledCampaignCount: number;
+  sentCampaignCount: number;
+  audiences: EmailMarketingAudienceSummaryRecord[];
+  brevoLists: BrevoListRecord[];
+  brevoError: string | null;
+  campaigns: EmailCampaignRecord[];
 };

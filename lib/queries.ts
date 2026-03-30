@@ -5,10 +5,13 @@ import type {
   AdminReviewProductSummary,
   AdminFormSubmissionPageRecord,
   BeautyPostRecord,
+  BrevoListRecord,
   CouponRecord,
   CustomerAccountRecord,
   CustomerRecord,
   DashboardSummary,
+  EmailCampaignRecord,
+  EmailMarketingOverviewRecord,
   FormSubmissionRecord,
   FormSubmissionSummaryRecord,
   OmbClaimRecord,
@@ -19,6 +22,7 @@ import type {
   StoreSettingsRecord
 } from "@/lib/types";
 import { unstable_cache } from "next/cache";
+import { EMAIL_AUDIENCE_OPTIONS, fetchBrevoLists, getBrevoSettings } from "@/lib/brevo";
 import { parseStoredCouponProductCodes } from "@/lib/coupons";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { prisma } from "@/lib/db";
@@ -364,6 +368,32 @@ function mapOmbClaim(claim: any): OmbClaimRecord {
     completedAt: claim.completedAt ? new Date(claim.completedAt) : null,
     createdAt: new Date(claim.createdAt),
     updatedAt: new Date(claim.updatedAt)
+  };
+}
+
+function mapEmailCampaign(campaign: any): EmailCampaignRecord {
+  return {
+    id: campaign.id,
+    name: campaign.name,
+    subject: campaign.subject,
+    previewText: campaign.previewText ?? null,
+    strategyBrief: campaign.strategyBrief ?? null,
+    audienceType: campaign.audienceType,
+    customListIds: campaign.customListIds ?? null,
+    senderName: campaign.senderName ?? null,
+    senderEmail: campaign.senderEmail ?? null,
+    replyTo: campaign.replyTo ?? null,
+    contentHtml: campaign.contentHtml,
+    contentText: campaign.contentText ?? null,
+    scheduledAt: campaign.scheduledAt ? new Date(campaign.scheduledAt) : null,
+    status: campaign.status,
+    brevoCampaignId: campaign.brevoCampaignId ?? null,
+    lastSyncedAt: campaign.lastSyncedAt ? new Date(campaign.lastSyncedAt) : null,
+    lastTestedAt: campaign.lastTestedAt ? new Date(campaign.lastTestedAt) : null,
+    lastSentAt: campaign.lastSentAt ? new Date(campaign.lastSentAt) : null,
+    syncError: campaign.syncError ?? null,
+    createdAt: new Date(campaign.createdAt),
+    updatedAt: new Date(campaign.updatedAt)
   };
 }
 
@@ -802,8 +832,16 @@ export async function getOmbClaims(searchEmail = "") {
   );
 }
 
-export async function getOmbClaimPage(page = 1, pageSize = 50, searchEmail = "") {
+export async function getOmbClaimPage(
+  page = 1,
+  pageSize = 50,
+  searchEmail = "",
+  searchPlatform = "",
+  searchProduct = ""
+) {
   const normalizedSearchEmail = searchEmail.trim().toLowerCase();
+  const normalizedSearchPlatform = searchPlatform.trim().toLowerCase();
+  const normalizedSearchProduct = searchProduct.trim();
   const fallback: AdminOmbClaimPageRecord = {
     claims: [],
     totalCount: 0,
@@ -811,21 +849,37 @@ export async function getOmbClaimPage(page = 1, pageSize = 50, searchEmail = "")
     currentPage: 1,
     totalPages: 1,
     pageSize,
-    searchEmail: normalizedSearchEmail
+    searchEmail: normalizedSearchEmail,
+    searchPlatform: normalizedSearchPlatform,
+    searchProduct: normalizedSearchProduct,
+    platformOptions: [],
+    productOptions: []
   };
 
   return withFallback(
     async () => {
-      const where = normalizedSearchEmail
-        ? {
+      const where = {
+        ...(normalizedSearchEmail
+          ? {
             email: {
               contains: normalizedSearchEmail,
               mode: "insensitive" as const
             }
           }
-        : undefined;
+          : {}),
+        ...(normalizedSearchPlatform
+          ? {
+              platformKey: normalizedSearchPlatform
+            }
+          : {}),
+        ...(normalizedSearchProduct
+          ? {
+              purchasedProduct: normalizedSearchProduct
+            }
+          : {})
+      };
 
-      const [totalCount, claims, completedClaims] = await prisma.$transaction([
+      const [totalCount, claims, completedClaims, platformRows, productRows, productShortNames] = await prisma.$transaction([
         prisma.ombClaim.count({ where }),
         prisma.ombClaim.findMany({
           where,
@@ -842,6 +896,38 @@ export async function getOmbClaimPage(page = 1, pageSize = 50, searchEmail = "")
           select: {
             completedAt: true
           }
+        }),
+        prisma.ombClaim.findMany({
+          select: {
+            platformKey: true,
+            platformLabel: true
+          },
+          distinct: ["platformKey"],
+          orderBy: [{ platformLabel: "asc" }]
+        }),
+        prisma.ombClaim.findMany({
+          where: {
+            purchasedProduct: {
+              not: null
+            }
+          },
+          select: {
+            purchasedProduct: true
+          },
+          distinct: ["purchasedProduct"],
+          orderBy: [{ purchasedProduct: "asc" }]
+        }),
+        prisma.product.findMany({
+          where: {
+            productShortName: {
+              not: null
+            }
+          },
+          select: {
+            productShortName: true
+          },
+          distinct: ["productShortName"],
+          orderBy: [{ productShortName: "asc" }]
         })
       ]);
 
@@ -862,6 +948,23 @@ export async function getOmbClaimPage(page = 1, pageSize = 50, searchEmail = "")
               take: pageSize
             });
 
+      const platformOptions = platformRows
+        .filter((platform) => platform.platformKey && platform.platformLabel)
+        .map((platform) => ({
+          value: platform.platformKey,
+          label: platform.platformLabel
+        }));
+      const productOptions = Array.from(
+        new Set(
+          [
+            ...productRows.map((row) => row.purchasedProduct).filter((value): value is string => Boolean(value)),
+            ...productShortNames
+              .map((product) => product.productShortName)
+              .filter((value): value is string => Boolean(value))
+          ].sort((a, b) => a.localeCompare(b))
+        )
+      );
+
       return {
         claims: pagedClaims.map(mapOmbClaim),
         totalCount,
@@ -869,7 +972,11 @@ export async function getOmbClaimPage(page = 1, pageSize = 50, searchEmail = "")
         currentPage,
         totalPages,
         pageSize,
-        searchEmail: normalizedSearchEmail
+        searchEmail: normalizedSearchEmail,
+        searchPlatform: normalizedSearchPlatform,
+        searchProduct: normalizedSearchProduct,
+        platformOptions,
+        productOptions
       } satisfies AdminOmbClaimPageRecord;
     },
     fallback
@@ -1224,6 +1331,122 @@ export async function getStoreSettings() {
       }, {});
     },
     fallbackSettings
+  );
+}
+
+export async function getEmailCampaignById(id: string) {
+  return withFallback<EmailCampaignRecord | null>(
+    async () => {
+      const campaign = await prisma.emailCampaign.findUnique({
+        where: { id }
+      });
+
+      return campaign ? mapEmailCampaign(campaign) : null;
+    },
+    null
+  );
+}
+
+export async function getEmailMarketingOverview() {
+  return withFallback<EmailMarketingOverviewRecord>(
+    async () => {
+      const [settings, newsletterRows, leadRows, optedInCustomerCount, campaigns] = await Promise.all([
+        getStoreSettings(),
+        prisma.formSubmission.findMany({
+          where: {
+            formKey: "subscribe"
+          },
+          select: {
+            email: true
+          },
+          distinct: ["email"]
+        }),
+        prisma.formSubmission.findMany({
+          where: {
+            formKey: "contact"
+          },
+          select: {
+            email: true
+          },
+          distinct: ["email"]
+        }),
+        prisma.customer.count({
+          where: {
+            marketingOptIn: true
+          }
+        }),
+        prisma.emailCampaign.findMany({
+          orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
+        })
+      ]);
+
+      const brevoSettings = getBrevoSettings(settings);
+      const brevoListsResult = await fetchBrevoLists(brevoSettings);
+      const campaignsMapped = campaigns.map(mapEmailCampaign);
+
+      const newsletterCount = newsletterRows.length;
+      const leadCount = leadRows.length;
+      const campaignCount = campaignsMapped.length;
+      const syncedCampaignCount = campaignsMapped.filter((campaign) => campaign.status === "SYNCED").length;
+      const scheduledCampaignCount = campaignsMapped.filter((campaign) => campaign.status === "SCHEDULED").length;
+      const sentCampaignCount = campaignsMapped.filter((campaign) => campaign.status === "SENT").length;
+      const audiences = EMAIL_AUDIENCE_OPTIONS.map((option) => ({
+        key: option.value,
+        label: option.label,
+        description: option.description,
+        localCount:
+          option.value === "NEWSLETTER"
+            ? newsletterCount
+            : option.value === "CUSTOMERS"
+              ? optedInCustomerCount
+              : option.value === "LEADS"
+                ? leadCount
+                : option.value === "ALL_MARKETING"
+                  ? newsletterCount + optedInCustomerCount + leadCount
+                  : 0,
+        targetListId:
+          option.value === "NEWSLETTER"
+            ? brevoSettings.subscribersListId
+            : option.value === "CUSTOMERS"
+              ? brevoSettings.customersListId
+              : option.value === "LEADS"
+                ? brevoSettings.contactListId
+                : null
+      }));
+
+      return {
+        newsletterCount,
+        optedInCustomerCount,
+        leadCount,
+        campaignCount,
+        syncedCampaignCount,
+        scheduledCampaignCount,
+        sentCampaignCount,
+        audiences,
+        brevoLists: brevoListsResult.lists,
+        brevoError: brevoListsResult.error,
+        campaigns: campaignsMapped
+      } satisfies EmailMarketingOverviewRecord;
+    },
+    {
+      newsletterCount: 0,
+      optedInCustomerCount: 0,
+      leadCount: 0,
+      campaignCount: 0,
+      syncedCampaignCount: 0,
+      scheduledCampaignCount: 0,
+      sentCampaignCount: 0,
+      audiences: EMAIL_AUDIENCE_OPTIONS.map((option) => ({
+        key: option.value,
+        label: option.label,
+        description: option.description,
+        localCount: 0,
+        targetListId: null
+      })),
+      brevoLists: [] as BrevoListRecord[],
+      brevoError: null,
+      campaigns: []
+    }
   );
 }
 

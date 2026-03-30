@@ -24,6 +24,7 @@ export const siteConfig = {
     { href: "/admin/rewards", label: "Points" },
     { href: "/admin/reviews", label: "Reviews" },
     { href: "/admin/posts", label: "Posts" },
+    { href: "/admin/email-marketing", label: "Email Marketing" },
     { href: "/admin/email", label: "Email" }
   ],
   footerLinks: {

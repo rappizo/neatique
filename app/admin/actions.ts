@@ -5,6 +5,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import {
+  getBrevoSettings,
+  parseBrevoListIds,
+  pushCampaignToBrevo,
+  resolveAudienceListIds,
+  sendBrevoCampaignNow,
+  sendBrevoCampaignTest,
+  syncBrevoAudienceEmails
+} from "@/lib/brevo";
+import {
   clearAdminSession,
   requireAdminSession,
   setAdminSession,
@@ -14,6 +23,9 @@ import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
 import type {
   CouponDiscountType,
+  EmailAudienceType,
+  EmailCampaignRecord,
+  EmailCampaignStatus,
   CouponUsageMode,
   FulfillmentStatus,
   OrderStatus,
@@ -86,6 +98,128 @@ function buildOmbClaimRedirect(status: string, redirectTo?: string) {
   params.set("status", status);
   const nextQuery = params.toString();
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function buildEmailMarketingRedirect(status: string, campaignId?: string, redirectTo?: string) {
+  const fallbackPath = campaignId ? `/admin/email-marketing/${campaignId}` : "/admin/email-marketing";
+  const basePath = redirectTo || fallbackPath;
+  const [pathname, queryString = ""] = basePath.split("?");
+  const params = new URLSearchParams(queryString);
+  params.set("status", status);
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function parseEmailAudienceType(value: string | undefined): EmailAudienceType {
+  switch (value) {
+    case "CUSTOMERS":
+      return "CUSTOMERS";
+    case "LEADS":
+      return "LEADS";
+    case "ALL_MARKETING":
+      return "ALL_MARKETING";
+    case "CUSTOM":
+      return "CUSTOM";
+    default:
+      return "NEWSLETTER";
+  }
+}
+
+function parseEmailCampaignStatus(value: string | undefined): EmailCampaignStatus {
+  switch (value) {
+    case "SYNCED":
+      return "SYNCED";
+    case "SCHEDULED":
+      return "SCHEDULED";
+    case "SENT":
+      return "SENT";
+    case "FAILED":
+      return "FAILED";
+    default:
+      return "DRAFT";
+  }
+}
+
+function parseDateTimeInput(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+async function loadStoreSettingsMap() {
+  const settings = await prisma.storeSetting.findMany({
+    orderBy: {
+      key: "asc"
+    }
+  });
+
+  return settings.reduce<Record<string, string>>((accumulator, setting) => {
+    accumulator[setting.key] = setting.value;
+    return accumulator;
+  }, {});
+}
+
+function mapEmailCampaignRecord(campaign: any): EmailCampaignRecord {
+  return {
+    id: campaign.id,
+    name: campaign.name,
+    subject: campaign.subject,
+    previewText: campaign.previewText ?? null,
+    strategyBrief: campaign.strategyBrief ?? null,
+    audienceType: campaign.audienceType,
+    customListIds: campaign.customListIds ?? null,
+    senderName: campaign.senderName ?? null,
+    senderEmail: campaign.senderEmail ?? null,
+    replyTo: campaign.replyTo ?? null,
+    contentHtml: campaign.contentHtml,
+    contentText: campaign.contentText ?? null,
+    scheduledAt: campaign.scheduledAt ?? null,
+    status: campaign.status,
+    brevoCampaignId: campaign.brevoCampaignId ?? null,
+    lastSyncedAt: campaign.lastSyncedAt ?? null,
+    lastTestedAt: campaign.lastTestedAt ?? null,
+    lastSentAt: campaign.lastSentAt ?? null,
+    syncError: campaign.syncError ?? null,
+    createdAt: campaign.createdAt,
+    updatedAt: campaign.updatedAt
+  };
+}
+
+function buildEmailCampaignPayload(formData: FormData) {
+  const name = toPlainString(formData.get("name"));
+  const subject = toPlainString(formData.get("subject"));
+  const contentHtml = toPlainString(formData.get("contentHtml"));
+  const audienceType = parseEmailAudienceType(toPlainString(formData.get("audienceType")));
+
+  if (!name || !subject || !contentHtml) {
+    return {
+      error: "missing-fields" as const
+    };
+  }
+
+  return {
+    data: {
+      name,
+      subject,
+      previewText: toPlainString(formData.get("previewText")) || null,
+      strategyBrief: toPlainString(formData.get("strategyBrief")) || null,
+      audienceType,
+      customListIds:
+        audienceType === "CUSTOM"
+          ? parseBrevoListIds(toPlainString(formData.get("customListIds"))).join(", ") || null
+          : null,
+      senderName: toPlainString(formData.get("senderName")) || null,
+      senderEmail: toPlainString(formData.get("senderEmail")) || null,
+      replyTo: toPlainString(formData.get("replyTo")) || null,
+      contentHtml,
+      contentText: toPlainString(formData.get("contentText")) || null,
+      scheduledAt: parseDateTimeInput(toPlainString(formData.get("scheduledAt"))),
+      status: parseEmailCampaignStatus(toPlainString(formData.get("status")) || "DRAFT")
+    }
+  };
 }
 
 function parseCouponDiscountType(value: string | undefined): CouponDiscountType {
@@ -839,4 +973,379 @@ export async function saveEmailSettingsAction(formData: FormData) {
 
   revalidatePath("/admin/email");
   redirect("/admin/email?status=saved");
+}
+
+export async function saveEmailMarketingSettingsAction(formData: FormData) {
+  await requireAdminSession();
+
+  const existingSettings = await loadStoreSettingsMap();
+  const nextApiKey = toPlainString(formData.get("brevo_api_key")) || existingSettings.brevo_api_key || "";
+  const settings = [
+    ["brevo_enabled", toBool(formData.get("brevo_enabled")) ? "true" : "false"],
+    ["brevo_sync_subscribe", toBool(formData.get("brevo_sync_subscribe")) ? "true" : "false"],
+    ["brevo_sync_contact", toBool(formData.get("brevo_sync_contact")) ? "true" : "false"],
+    ["brevo_sync_customers", toBool(formData.get("brevo_sync_customers")) ? "true" : "false"],
+    ["brevo_api_key", nextApiKey],
+    ["brevo_sender_name", toPlainString(formData.get("brevo_sender_name")) || "Neatique Beauty"],
+    ["brevo_sender_email", toPlainString(formData.get("brevo_sender_email"))],
+    ["brevo_reply_to", toPlainString(formData.get("brevo_reply_to"))],
+    ["brevo_test_email", toPlainString(formData.get("brevo_test_email"))],
+    ["brevo_subscribers_list_id", parseBrevoListIds(toPlainString(formData.get("brevo_subscribers_list_id"))).join(", ")],
+    ["brevo_contact_list_id", parseBrevoListIds(toPlainString(formData.get("brevo_contact_list_id"))).join(", ")],
+    ["brevo_customers_list_id", parseBrevoListIds(toPlainString(formData.get("brevo_customers_list_id"))).join(", ")]
+  ];
+
+  await Promise.all(
+    settings.map(([key, value]) =>
+      prisma.storeSetting.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value }
+      })
+    )
+  );
+
+  revalidatePath("/admin/email-marketing");
+  redirect("/admin/email-marketing?status=settings-saved");
+}
+
+export async function syncBrevoAudienceAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email-marketing";
+  const audienceType = parseEmailAudienceType(toPlainString(formData.get("audienceType")));
+  const customListIds = toPlainString(formData.get("customListIds")) || null;
+  const settingsMap = await loadStoreSettingsMap();
+  const brevoSettings = getBrevoSettings(settingsMap);
+
+  if (!brevoSettings.enabled || !brevoSettings.apiKeyConfigured) {
+    redirect(buildEmailMarketingRedirect("brevo-not-configured", undefined, redirectTo));
+  }
+
+  const targetListIds = resolveAudienceListIds(audienceType, brevoSettings, customListIds);
+
+  if (targetListIds.length === 0) {
+    redirect(buildEmailMarketingRedirect("missing-list", undefined, redirectTo));
+  }
+
+  const [newsletterRows, leadRows, optedInCustomers] = await Promise.all([
+    prisma.formSubmission.findMany({
+      where: {
+        formKey: "subscribe"
+      },
+      select: {
+        email: true
+      },
+      distinct: ["email"]
+    }),
+    prisma.formSubmission.findMany({
+      where: {
+        formKey: "contact"
+      },
+      select: {
+        email: true
+      },
+      distinct: ["email"]
+    }),
+    prisma.customer.findMany({
+      where: {
+        marketingOptIn: true
+      },
+      select: {
+        email: true
+      }
+    })
+  ]);
+
+  const emails =
+    audienceType === "NEWSLETTER"
+      ? newsletterRows.map((row) => row.email)
+      : audienceType === "CUSTOMERS"
+        ? optedInCustomers.map((row) => row.email)
+        : audienceType === "LEADS"
+          ? leadRows.map((row) => row.email)
+          : audienceType === "ALL_MARKETING"
+            ? [
+                ...newsletterRows.map((row) => row.email),
+                ...optedInCustomers.map((row) => row.email),
+                ...leadRows.map((row) => row.email)
+              ]
+            : [];
+
+  const result = await syncBrevoAudienceEmails({
+    settings: brevoSettings,
+    emails,
+    listIds: targetListIds
+  });
+
+  revalidatePath("/admin/email-marketing");
+  redirect(
+    buildEmailMarketingRedirect(
+      result.failed > 0 ? "audience-sync-partial" : "audience-sync-complete",
+      undefined,
+      redirectTo
+    )
+  );
+}
+
+export async function createEmailCampaignAction(formData: FormData) {
+  await requireAdminSession();
+
+  const payload = buildEmailCampaignPayload(formData);
+
+  if ("error" in payload) {
+    redirect(buildEmailMarketingRedirect("missing-fields", undefined, "/admin/email-marketing/new"));
+  }
+
+  const campaign = await prisma.emailCampaign.create({
+    data: {
+      ...payload.data,
+      status: "DRAFT",
+      syncError: null,
+      brevoCampaignId: null,
+      lastSyncedAt: null,
+      lastTestedAt: null,
+      lastSentAt: null
+    }
+  });
+
+  revalidatePath("/admin/email-marketing");
+  revalidatePath(`/admin/email-marketing/${campaign.id}`);
+  redirect(buildEmailMarketingRedirect("created", campaign.id));
+}
+
+export async function updateEmailCampaignAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+  const payload = buildEmailCampaignPayload(formData);
+
+  if (!id) {
+    redirect(buildEmailMarketingRedirect("missing-campaign", undefined, redirectTo));
+  }
+
+  if ("error" in payload) {
+    redirect(buildEmailMarketingRedirect("missing-fields", id, redirectTo));
+  }
+
+  await prisma.emailCampaign.update({
+    where: { id },
+    data: {
+      ...payload.data,
+      status: "DRAFT",
+      syncError: null
+    }
+  });
+
+  revalidatePath("/admin/email-marketing");
+  revalidatePath(`/admin/email-marketing/${id}`);
+  redirect(buildEmailMarketingRedirect("updated", id, redirectTo));
+}
+
+export async function deleteEmailCampaignAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+
+  if (!id) {
+    redirect(buildEmailMarketingRedirect("missing-campaign"));
+  }
+
+  await prisma.emailCampaign.delete({
+    where: { id }
+  });
+
+  revalidatePath("/admin/email-marketing");
+  redirect(buildEmailMarketingRedirect("deleted"));
+}
+
+export async function syncEmailCampaignToBrevoAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+
+  if (!id) {
+    redirect(buildEmailMarketingRedirect("missing-campaign", undefined, redirectTo));
+  }
+
+  const [campaign, settingsMap] = await Promise.all([
+    prisma.emailCampaign.findUnique({
+      where: { id }
+    }),
+    loadStoreSettingsMap()
+  ]);
+
+  if (!campaign) {
+    redirect(buildEmailMarketingRedirect("missing-campaign", undefined, redirectTo));
+  }
+
+  const brevoSettings = getBrevoSettings(settingsMap);
+
+  try {
+    const pushResult = await pushCampaignToBrevo({
+      settings: brevoSettings,
+      campaign: mapEmailCampaignRecord(campaign)
+    });
+
+    await prisma.emailCampaign.update({
+      where: { id },
+      data: {
+        brevoCampaignId: pushResult.brevoCampaignId,
+        lastSyncedAt: new Date(),
+        status: campaign.scheduledAt ? "SCHEDULED" : "SYNCED",
+        syncError: null
+      }
+    });
+
+    revalidatePath("/admin/email-marketing");
+    revalidatePath(`/admin/email-marketing/${id}`);
+    redirect(buildEmailMarketingRedirect("brevo-synced", id, redirectTo));
+  } catch (error) {
+    await prisma.emailCampaign.update({
+      where: { id },
+      data: {
+        status: "FAILED",
+        syncError: error instanceof Error ? error.message : "Brevo sync failed."
+      }
+    });
+
+    revalidatePath("/admin/email-marketing");
+    revalidatePath(`/admin/email-marketing/${id}`);
+    redirect(buildEmailMarketingRedirect("brevo-error", id, redirectTo));
+  }
+}
+
+export async function sendEmailCampaignTestAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+  const explicitTestEmail = toPlainString(formData.get("testEmail"));
+
+  if (!id) {
+    redirect(buildEmailMarketingRedirect("missing-campaign", undefined, redirectTo));
+  }
+
+  const [campaign, settingsMap] = await Promise.all([
+    prisma.emailCampaign.findUnique({
+      where: { id }
+    }),
+    loadStoreSettingsMap()
+  ]);
+
+  if (!campaign) {
+    redirect(buildEmailMarketingRedirect("missing-campaign", undefined, redirectTo));
+  }
+
+  const brevoSettings = getBrevoSettings(settingsMap);
+  const testEmail = explicitTestEmail || brevoSettings.testEmail;
+
+  if (!testEmail) {
+    redirect(buildEmailMarketingRedirect("missing-test-email", id, redirectTo));
+  }
+
+  try {
+    const pushResult = await pushCampaignToBrevo({
+      settings: brevoSettings,
+      campaign: mapEmailCampaignRecord(campaign)
+    });
+
+    await sendBrevoCampaignTest({
+      settings: brevoSettings,
+      brevoCampaignId: pushResult.brevoCampaignId,
+      email: testEmail
+    });
+
+    await prisma.emailCampaign.update({
+      where: { id },
+      data: {
+        brevoCampaignId: pushResult.brevoCampaignId,
+        lastSyncedAt: new Date(),
+        lastTestedAt: new Date(),
+        status: campaign.scheduledAt ? "SCHEDULED" : "SYNCED",
+        syncError: null
+      }
+    });
+
+    revalidatePath("/admin/email-marketing");
+    revalidatePath(`/admin/email-marketing/${id}`);
+    redirect(buildEmailMarketingRedirect("test-sent", id, redirectTo));
+  } catch (error) {
+    await prisma.emailCampaign.update({
+      where: { id },
+      data: {
+        status: "FAILED",
+        syncError: error instanceof Error ? error.message : "Brevo test send failed."
+      }
+    });
+
+    revalidatePath("/admin/email-marketing");
+    revalidatePath(`/admin/email-marketing/${id}`);
+    redirect(buildEmailMarketingRedirect("brevo-error", id, redirectTo));
+  }
+}
+
+export async function sendEmailCampaignNowAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+
+  if (!id) {
+    redirect(buildEmailMarketingRedirect("missing-campaign", undefined, redirectTo));
+  }
+
+  const [campaign, settingsMap] = await Promise.all([
+    prisma.emailCampaign.findUnique({
+      where: { id }
+    }),
+    loadStoreSettingsMap()
+  ]);
+
+  if (!campaign) {
+    redirect(buildEmailMarketingRedirect("missing-campaign", undefined, redirectTo));
+  }
+
+  const brevoSettings = getBrevoSettings(settingsMap);
+
+  try {
+    const pushResult = await pushCampaignToBrevo({
+      settings: brevoSettings,
+      campaign: mapEmailCampaignRecord(campaign)
+    });
+
+    await sendBrevoCampaignNow({
+      settings: brevoSettings,
+      brevoCampaignId: pushResult.brevoCampaignId
+    });
+
+    await prisma.emailCampaign.update({
+      where: { id },
+      data: {
+        brevoCampaignId: pushResult.brevoCampaignId,
+        lastSyncedAt: new Date(),
+        lastSentAt: new Date(),
+        status: "SENT",
+        syncError: null
+      }
+    });
+
+    revalidatePath("/admin/email-marketing");
+    revalidatePath(`/admin/email-marketing/${id}`);
+    redirect(buildEmailMarketingRedirect("campaign-sent", id, redirectTo));
+  } catch (error) {
+    await prisma.emailCampaign.update({
+      where: { id },
+      data: {
+        status: "FAILED",
+        syncError: error instanceof Error ? error.message : "Brevo send failed."
+      }
+    });
+
+    revalidatePath("/admin/email-marketing");
+    revalidatePath(`/admin/email-marketing/${id}`);
+    redirect(buildEmailMarketingRedirect("brevo-error", id, redirectTo));
+  }
 }

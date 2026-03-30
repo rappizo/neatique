@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendContactSubmissionEmails } from "@/lib/email";
+import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import { createFormSubmission } from "@/lib/form-submissions";
 
 export async function POST(request: Request) {
@@ -34,6 +35,15 @@ export async function POST(request: Request) {
     },
     legacyContactSubmissionId: contactSubmission.id
   });
+
+  try {
+    await syncEmailMarketingContact({
+      email,
+      audienceType: "LEADS"
+    });
+  } catch (error) {
+    console.error("Brevo contact sync failed:", error);
+  }
 
   try {
     await sendContactSubmissionEmails({

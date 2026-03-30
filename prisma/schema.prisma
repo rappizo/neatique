@@ -51,6 +51,22 @@ enum CouponUsageMode {
   UNLIMITED
 }
 
+enum EmailCampaignStatus {
+  DRAFT
+  SYNCED
+  SCHEDULED
+  SENT
+  FAILED
+}
+
+enum EmailAudienceType {
+  NEWSLETTER
+  CUSTOMERS
+  LEADS
+  ALL_MARKETING
+  CUSTOM
+}
+
 model Product {
   id                  String        @id @default(cuid())
   productCode         String?       @unique
@@ -268,6 +284,34 @@ model FormSubmission {
   @@index([formKey, createdAt])
   @@index([email])
   @@index([handled])
+}
+
+model EmailCampaign {
+  id              String              @id @default(cuid())
+  name            String
+  subject         String
+  previewText     String?
+  strategyBrief   String?
+  audienceType    EmailAudienceType   @default(NEWSLETTER)
+  customListIds   String?
+  senderName      String?
+  senderEmail     String?
+  replyTo         String?
+  contentHtml     String
+  contentText     String?
+  scheduledAt     DateTime?
+  status          EmailCampaignStatus @default(DRAFT)
+  brevoCampaignId Int?
+  lastSyncedAt    DateTime?
+  lastTestedAt    DateTime?
+  lastSentAt      DateTime?
+  syncError       String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([audienceType])
+  @@index([scheduledAt])
 }
 
 model OmbClaim {

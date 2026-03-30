@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { clearCustomerSession, createCustomerSession, makeReviewDisplayName, requireCustomerSession } from "@/lib/customer-auth";
 import { prisma } from "@/lib/db";
+import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { toBool, toInt, toPlainString } from "@/lib/utils";
 
@@ -50,6 +51,17 @@ export async function registerCustomerAction(formData: FormData) {
           lastLoginAt: new Date()
         }
       });
+
+  if (marketingOptIn) {
+    try {
+      await syncEmailMarketingContact({
+        email,
+        audienceType: "CUSTOMERS"
+      });
+    } catch (error) {
+      console.error("Brevo customer sync failed:", error);
+    }
+  }
 
   await createCustomerSession(customer.id);
   revalidatePath("/account");

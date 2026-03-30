@@ -1,0 +1,430 @@
+import { siteConfig } from "@/lib/site-config";
+import type {
+  BrevoListRecord,
+  EmailAudienceType,
+  EmailCampaignRecord,
+  StoreSettingsRecord
+} from "@/lib/types";
+
+const BREVO_API_BASE_URL = process.env.BREVO_API_BASE_URL || "https://api.brevo.com/v3";
+
+export const EMAIL_AUDIENCE_OPTIONS: Array<{
+  value: EmailAudienceType;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "NEWSLETTER",
+    label: "Newsletter subscribers",
+    description: "Homepage subscribers and future welcome-offer signups."
+  },
+  {
+    value: "CUSTOMERS",
+    label: "Opted-in customers",
+    description: "Customers who explicitly enabled marketing email."
+  },
+  {
+    value: "LEADS",
+    label: "Contact leads",
+    description: "People who reached out through the Contact form."
+  },
+  {
+    value: "ALL_MARKETING",
+    label: "All marketing audiences",
+    description: "Combines the configured subscriber, customer, and lead lists."
+  },
+  {
+    value: "CUSTOM",
+    label: "Custom Brevo lists",
+    description: "Use one or more explicit Brevo list IDs for this campaign."
+  }
+];
+
+export type BrevoSettings = {
+  enabled: boolean;
+  syncSubscribe: boolean;
+  syncContact: boolean;
+  syncCustomers: boolean;
+  apiKey: string;
+  apiKeyConfigured: boolean;
+  apiKeySource: "env" | "database" | "missing";
+  senderName: string;
+  senderEmail: string;
+  replyTo: string;
+  testEmail: string;
+  subscribersListId: number | null;
+  contactListId: number | null;
+  customersListId: number | null;
+};
+
+type BrevoRequestInit = Omit<RequestInit, "headers"> & {
+  headers?: Record<string, string>;
+};
+
+function parseBool(value: string | undefined) {
+  return value === "true";
+}
+
+export function parseBrevoListIds(value: string | null | undefined) {
+  return Array.from(
+    new Set(
+      (value ?? "")
+        .split(/[\s,]+/)
+        .map((item) => Number.parseInt(item.trim(), 10))
+        .filter((item) => Number.isFinite(item) && item > 0)
+    )
+  );
+}
+
+function parseSingleBrevoListId(value: string | undefined) {
+  return parseBrevoListIds(value)[0] ?? null;
+}
+
+export function getBrevoSettings(settings: StoreSettingsRecord): BrevoSettings {
+  const envApiKey = (process.env.BREVO_API_KEY || "").trim();
+  const storedApiKey = (settings.brevo_api_key || "").trim();
+  const apiKey = envApiKey || storedApiKey;
+
+  return {
+    enabled: parseBool(settings.brevo_enabled || "false"),
+    syncSubscribe: parseBool(settings.brevo_sync_subscribe || "true"),
+    syncContact: parseBool(settings.brevo_sync_contact || "false"),
+    syncCustomers: parseBool(settings.brevo_sync_customers || "true"),
+    apiKey,
+    apiKeyConfigured: Boolean(apiKey),
+    apiKeySource: envApiKey ? "env" : storedApiKey ? "database" : "missing",
+    senderName: (settings.brevo_sender_name || settings.email_from_name || siteConfig.name).trim(),
+    senderEmail: (settings.brevo_sender_email || settings.email_from_address || "").trim(),
+    replyTo: (settings.brevo_reply_to || settings.contact_recipient || settings.support_email || "").trim(),
+    testEmail: (settings.brevo_test_email || settings.contact_recipient || settings.support_email || "").trim(),
+    subscribersListId: parseSingleBrevoListId(settings.brevo_subscribers_list_id),
+    contactListId: parseSingleBrevoListId(settings.brevo_contact_list_id),
+    customersListId: parseSingleBrevoListId(settings.brevo_customers_list_id)
+  };
+}
+
+export function getEmailAudienceMeta(audienceType: EmailAudienceType) {
+  return EMAIL_AUDIENCE_OPTIONS.find((option) => option.value === audienceType) || EMAIL_AUDIENCE_OPTIONS[0];
+}
+
+export function resolveAudienceListIds(
+  audienceType: EmailAudienceType,
+  settings: BrevoSettings,
+  customListIds?: string | null
+) {
+  switch (audienceType) {
+    case "NEWSLETTER":
+      return settings.subscribersListId ? [settings.subscribersListId] : [];
+    case "CUSTOMERS":
+      return settings.customersListId ? [settings.customersListId] : [];
+    case "LEADS":
+      return settings.contactListId ? [settings.contactListId] : [];
+    case "ALL_MARKETING":
+      return Array.from(
+        new Set(
+          [settings.subscribersListId, settings.customersListId, settings.contactListId].filter(
+            (value): value is number => typeof value === "number"
+          )
+        )
+      );
+    case "CUSTOM":
+      return parseBrevoListIds(customListIds);
+    default:
+      return [];
+  }
+}
+
+export function hasBrevoCampaignPrerequisites(settings: BrevoSettings) {
+  return settings.enabled && settings.apiKeyConfigured && Boolean(settings.senderEmail);
+}
+
+function buildBrevoHeaders(settings: BrevoSettings, headers?: Record<string, string>) {
+  return {
+    accept: "application/json",
+    "api-key": settings.apiKey,
+    ...(headers || {})
+  };
+}
+
+async function brevoRequest<T = unknown>(
+  settings: BrevoSettings,
+  path: string,
+  init: BrevoRequestInit = {}
+) {
+  if (!settings.apiKeyConfigured) {
+    throw new Error("Brevo API key is not configured.");
+  }
+
+  const response = await fetch(`${BREVO_API_BASE_URL}${path}`, {
+    ...init,
+    headers: buildBrevoHeaders(settings, init.headers),
+    cache: "no-store"
+  });
+
+  const rawText = await response.text();
+  const data = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const message =
+      (data && typeof data === "object" && "message" in data && typeof data.message === "string"
+        ? data.message
+        : null) ||
+      (data && typeof data === "object" && "code" in data && typeof data.code === "string"
+        ? data.code
+        : null) ||
+      `Brevo request failed with ${response.status}.`;
+
+    throw new Error(message);
+  }
+
+  return data as T;
+}
+
+function safeJsonParse(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+type RawBrevoList = {
+  id: number;
+  name: string;
+  totalSubscribers?: number;
+  folderName?: string | null;
+};
+
+export async function fetchBrevoLists(settings: BrevoSettings) {
+  if (!settings.enabled || !settings.apiKeyConfigured) {
+    return {
+      lists: [] as BrevoListRecord[],
+      error: null as string | null
+    };
+  }
+
+  try {
+    const response = await brevoRequest<{ lists?: RawBrevoList[] }>(
+      settings,
+      "/contacts/lists?limit=100&offset=0",
+      {
+        method: "GET"
+      }
+    );
+
+    const lists = (response.lists || []).map((list) => ({
+      id: list.id,
+      name: list.name,
+      totalSubscribers: list.totalSubscribers || 0,
+      folderName: list.folderName || null
+    }));
+
+    return {
+      lists,
+      error: null as string | null
+    };
+  } catch (error) {
+    return {
+      lists: [] as BrevoListRecord[],
+      error: error instanceof Error ? error.message : "Unable to load Brevo lists."
+    };
+  }
+}
+
+export async function upsertBrevoContact(input: {
+  settings: BrevoSettings;
+  email: string;
+  listIds: number[];
+}) {
+  const email = input.email.trim().toLowerCase();
+  const listIds = Array.from(new Set(input.listIds.filter((value) => Number.isFinite(value) && value > 0)));
+
+  if (!email || !input.settings.enabled || !input.settings.apiKeyConfigured || listIds.length === 0) {
+    return {
+      synced: false,
+      skipped: true
+    };
+  }
+
+  await brevoRequest(input.settings, "/contacts", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      email,
+      listIds,
+      updateEnabled: true
+    })
+  });
+
+  return {
+    synced: true,
+    skipped: false
+  };
+}
+
+export async function syncBrevoAudienceEmails(input: {
+  settings: BrevoSettings;
+  emails: string[];
+  listIds: number[];
+}) {
+  const uniqueEmails = Array.from(
+    new Set(
+      input.emails
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+
+  if (!input.settings.enabled || !input.settings.apiKeyConfigured) {
+    return {
+      total: uniqueEmails.length,
+      synced: 0,
+      skipped: uniqueEmails.length,
+      failed: 0
+    };
+  }
+
+  let synced = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const email of uniqueEmails) {
+    try {
+      const result = await upsertBrevoContact({
+        settings: input.settings,
+        email,
+        listIds: input.listIds
+      });
+
+      if (result.skipped) {
+        skipped += 1;
+      } else {
+        synced += 1;
+      }
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return {
+    total: uniqueEmails.length,
+    synced,
+    skipped,
+    failed
+  };
+}
+
+function buildCampaignSender(
+  campaign: Pick<EmailCampaignRecord, "senderName" | "senderEmail" | "replyTo">,
+  settings: BrevoSettings
+) {
+  const name = (campaign.senderName || settings.senderName || siteConfig.name).trim();
+  const email = (campaign.senderEmail || settings.senderEmail).trim();
+
+  if (!email) {
+    throw new Error("Add a Brevo sender email before syncing campaigns.");
+  }
+
+  return {
+    sender: {
+      name,
+      email
+    },
+    replyTo: (campaign.replyTo || settings.replyTo || "").trim() || undefined
+  };
+}
+
+function buildBrevoCampaignPayload(
+  campaign: EmailCampaignRecord,
+  settings: BrevoSettings,
+  includeType: boolean
+) {
+  const listIds = resolveAudienceListIds(campaign.audienceType, settings, campaign.customListIds);
+
+  if (listIds.length === 0) {
+    throw new Error("No Brevo list is configured for this campaign audience.");
+  }
+
+  const senderConfig = buildCampaignSender(campaign, settings);
+
+  return {
+    ...(includeType ? { type: "classic" } : {}),
+    name: campaign.name,
+    subject: campaign.subject,
+    previewText: campaign.previewText || undefined,
+    htmlContent: campaign.contentHtml,
+    recipients: {
+      listIds
+    },
+    scheduledAt: campaign.scheduledAt ? campaign.scheduledAt.toISOString() : undefined,
+    ...senderConfig
+  };
+}
+
+export async function pushCampaignToBrevo(input: {
+  settings: BrevoSettings;
+  campaign: EmailCampaignRecord;
+}) {
+  const payload = buildBrevoCampaignPayload(input.campaign, input.settings, !input.campaign.brevoCampaignId);
+
+  if (input.campaign.brevoCampaignId) {
+    await brevoRequest(
+      input.settings,
+      `/emailCampaigns/${input.campaign.brevoCampaignId}`,
+      {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    return {
+      brevoCampaignId: input.campaign.brevoCampaignId
+    };
+  }
+
+  const response = await brevoRequest<{ id?: number }>(input.settings, "/emailCampaigns", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response?.id) {
+    throw new Error("Brevo did not return a campaign ID.");
+  }
+
+  return {
+    brevoCampaignId: response.id
+  };
+}
+
+export async function sendBrevoCampaignTest(input: {
+  settings: BrevoSettings;
+  brevoCampaignId: number;
+  email: string;
+}) {
+  await brevoRequest(input.settings, `/emailCampaigns/${input.brevoCampaignId}/sendTest`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      emailTo: [input.email.trim().toLowerCase()]
+    })
+  });
+}
+
+export async function sendBrevoCampaignNow(input: {
+  settings: BrevoSettings;
+  brevoCampaignId: number;
+}) {
+  await brevoRequest(input.settings, `/emailCampaigns/${input.brevoCampaignId}/sendNow`, {
+    method: "POST"
+  });
+}

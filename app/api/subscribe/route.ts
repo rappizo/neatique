@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendSubscriptionCouponEmail } from "@/lib/email";
+import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import { createFormSubmission } from "@/lib/form-submissions";
 import {
   getSubscribeCouponDescription,
@@ -53,6 +54,15 @@ export async function POST(request: Request) {
       offer: getSubscribeCouponDescription()
     }
   });
+
+  try {
+    await syncEmailMarketingContact({
+      email,
+      audienceType: "NEWSLETTER"
+    });
+  } catch (error) {
+    console.error("Brevo subscribe sync failed:", error);
+  }
 
   try {
     const result = await sendSubscriptionCouponEmail({ email });

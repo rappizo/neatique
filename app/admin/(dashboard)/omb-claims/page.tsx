@@ -5,7 +5,13 @@ import { formatDate, formatNumber, formatTime, LOS_ANGELES_TIME_ZONE } from "@/l
 import { getOmbClaimPage } from "@/lib/queries";
 
 type AdminOmbClaimsPageProps = {
-  searchParams: Promise<{ email?: string; page?: string; status?: string }>;
+  searchParams: Promise<{
+    email?: string;
+    platform?: string;
+    product?: string;
+    page?: string;
+    status?: string;
+  }>;
 };
 
 export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaimsPageProps) {
@@ -14,7 +20,9 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
   const claimPage = await getOmbClaimPage(
     Number.isFinite(requestedPage) ? requestedPage : 1,
     50,
-    params.email || ""
+    params.email || "",
+    params.platform || "",
+    params.product || ""
   );
   const {
     claims,
@@ -23,7 +31,11 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
     currentPage,
     totalPages,
     pageSize,
-    searchEmail
+    searchEmail,
+    searchPlatform,
+    searchProduct,
+    platformOptions,
+    productOptions
   } = claimPage;
   const fromClaim = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const toClaim = Math.min(currentPage * pageSize, totalCount);
@@ -34,6 +46,14 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
 
     if (searchEmail) {
       query.set("email", searchEmail);
+    }
+
+    if (searchPlatform) {
+      query.set("platform", searchPlatform);
+    }
+
+    if (searchProduct) {
+      query.set("product", searchProduct);
     }
 
     return `/admin/omb-claims?${query.toString()}`;
@@ -71,15 +91,42 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                 placeholder="customer@example.com"
               />
             </div>
+            <div className="field">
+              <label htmlFor="platform">Platform</label>
+              <select id="platform" name="platform" defaultValue={searchPlatform}>
+                <option value="">All platforms</option>
+                {platformOptions.map((platform) => (
+                  <option key={platform.value} value={platform.value}>
+                    {platform.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="product">Product</label>
+              <select id="product" name="product" defaultValue={searchProduct}>
+                <option value="">All products</option>
+                {productOptions.map((product) => (
+                  <option key={product} value={product}>
+                    {product}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button type="submit" className="button button--secondary">
-              Search
+              Apply filters
             </button>
+            <Link href="/admin/omb-claims" className="button button--secondary">
+              Reset
+            </Link>
           </form>
         </div>
         <div className="stack-row">
           <span className="pill">
             {formatNumber(completedTodayCount)} completed today (Los Angeles)
           </span>
+          {searchPlatform ? <span className="pill">Platform: {platformOptions.find((item) => item.value === searchPlatform)?.label || searchPlatform}</span> : null}
+          {searchProduct ? <span className="pill">Product: {searchProduct}</span> : null}
           <span className="pill">Submitted times shown in Los Angeles time</span>
           <span className="pill">50 per page</span>
         </div>
@@ -200,7 +247,7 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
       ) : (
         <section className="admin-form admin-review-item">
           <h3>No claims found</h3>
-          <p>Try a different email search or wait for new OMB submissions to arrive.</p>
+          <p>Try a different email, platform, or product filter, or wait for new OMB submissions to arrive.</p>
         </section>
       )}
 

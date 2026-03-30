@@ -678,7 +678,18 @@ async function main() {
     smtp_pass: "",
     email_from_name: "Neatique Beauty",
     email_from_address: "",
-    contact_recipient: ""
+    contact_recipient: "",
+    brevo_enabled: "false",
+    brevo_sync_subscribe: "true",
+    brevo_sync_contact: "false",
+    brevo_sync_customers: "true",
+    brevo_sender_name: "Neatique Beauty",
+    brevo_sender_email: "",
+    brevo_reply_to: "",
+    brevo_test_email: "",
+    brevo_subscribers_list_id: "",
+    brevo_contact_list_id: "",
+    brevo_customers_list_id: ""
   })) {
     await prisma.storeSetting.upsert({
       where: { key },
