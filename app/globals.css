@@ -921,8 +921,17 @@ main {
   gap: 20px;
 }
 
+.account-dashboard {
+  display: grid;
+  gap: 24px;
+}
+
+.account-dashboard .cards-2 {
+  margin: 0;
+}
+
 .account-reviews-table {
-  margin-top: 24px;
+  margin-top: 0;
 }
 
 .panel,
@@ -1301,6 +1310,14 @@ main {
 .admin-list li {
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
+}
+
+.account-profile-card__list li:last-child {
+  border-bottom: none;
+}
+
+.account-profile-card__actions {
+  margin-top: 6px;
 }
 
 .checkout-form,
