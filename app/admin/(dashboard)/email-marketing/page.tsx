@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { saveEmailMarketingSettingsAction, syncBrevoAudienceAction } from "@/app/admin/actions";
+import {
+  importBrevoAudienceAction,
+  saveEmailMarketingSettingsAction,
+  syncBrevoAudienceAction
+} from "@/app/admin/actions";
 import { getBrevoSettings } from "@/lib/brevo";
 import { formatDate, formatNumber } from "@/lib/format";
 import { getEmailMarketingOverview, getStoreSettings } from "@/lib/queries";
@@ -14,6 +18,9 @@ const STATUS_MESSAGES: Record<string, string> = {
   "settings-saved": "Brevo settings were saved.",
   "audience-sync-complete": "Audience sync completed.",
   "audience-sync-partial": "Audience sync finished with some skipped or failed contacts.",
+  "audience-import-complete": "Brevo contacts were imported into the local email audience.",
+  "audience-import-empty": "That Brevo list is empty, so nothing new was imported.",
+  "audience-import-failed": "Brevo import failed. Check the API key and list ID, then try again.",
   "brevo-not-configured": "Add a Brevo API key, enable the module, and set a sender before syncing.",
   "missing-list": "This audience does not have a Brevo list ID configured yet.",
   "missing-fields": "Please complete the required campaign fields before saving."
@@ -36,10 +43,11 @@ export default async function AdminEmailMarketingPage({
     <div className="admin-page">
       <div className="admin-page__header">
         <p className="eyebrow">Email Marketing</p>
-        <h1>Run Brevo-powered campaigns from one workspace, with room for AI-assisted content next.</h1>
+        <h1>Run Brevo-powered campaigns from one workspace, with AI-ready drafting built into the flow.</h1>
         <p>
-          Version one keeps the system practical: configure Brevo, sync audiences from the site,
-          create campaign drafts locally, then push or send them manually when you are ready.
+          Version one now covers both directions: import existing Brevo contacts into the local
+          backend, keep site audiences in sync, and generate campaign drafts with AI before the
+          team reviews and sends them.
         </p>
       </div>
 
@@ -61,12 +69,21 @@ export default async function AdminEmailMarketingPage({
           <span>Contact leads</span>
         </div>
         <div className="stat-card">
+          <strong>{formatNumber(overview.importedContactCount)}</strong>
+          <span>Imported from Brevo</span>
+        </div>
+        <div className="stat-card">
           <strong>{formatNumber(overview.campaignCount)}</strong>
           <span>Campaign drafts</span>
           <span>
-            Synced {formatNumber(overview.syncedCampaignCount)} · Scheduled {formatNumber(overview.scheduledCampaignCount)} · Sent{" "}
-            {formatNumber(overview.sentCampaignCount)}
+            Synced {formatNumber(overview.syncedCampaignCount)} | Scheduled{" "}
+            {formatNumber(overview.scheduledCampaignCount)} | Sent {formatNumber(overview.sentCampaignCount)}
           </span>
+        </div>
+        <div className="stat-card">
+          <strong>{overview.aiReady ? "Ready" : "Not ready"}</strong>
+          <span>AI drafting</span>
+          <span>{overview.aiModel ? `Model ${overview.aiModel}` : "Set OPENAI_API_KEY"}</span>
         </div>
       </div>
 
@@ -211,6 +228,31 @@ export default async function AdminEmailMarketingPage({
       </section>
 
       <section className="admin-form">
+        <div className="admin-review-pagination">
+          <div>
+            <h2>AI drafting</h2>
+            <p className="form-note">
+              AI now lives inside each campaign draft. Create a shell campaign, write the strategy
+              brief, then open the draft and generate polished subject lines and content before your
+              manual review.
+            </p>
+          </div>
+          <div className="stack-row">
+            <span className="pill">{overview.aiReady ? "OpenAI ready" : "OpenAI not configured"}</span>
+            <span className="pill">{overview.aiModel ? `Model ${overview.aiModel}` : "Set OPENAI_API_KEY"}</span>
+          </div>
+        </div>
+
+        <div className="admin-card">
+          <h3>Recommended workflow</h3>
+          <p>
+            Create campaign shell → write strategy brief → generate with AI → review and tweak →
+            sync to Brevo → send test → send or schedule.
+          </p>
+        </div>
+      </section>
+
+      <section className="admin-form">
         <h2>Brevo lists</h2>
         <p className="form-note">
           Use these IDs in the fields above. If no lists appear, either the key is missing or the
@@ -245,8 +287,9 @@ export default async function AdminEmailMarketingPage({
       <section className="admin-form">
         <h2>Audience sync</h2>
         <p className="form-note">
-          Push the existing site audience into Brevo at any time. Auto-sync will keep future
-          submissions in step after you enable the toggles above.
+          Import existing contacts from Brevo into the local backend whenever you need visibility
+          here, or push the combined site audience back to Brevo after your store captures new
+          subscribers and customers.
         </p>
 
         <div className="admin-product-grid">
@@ -254,19 +297,37 @@ export default async function AdminEmailMarketingPage({
             <article key={audience.key} className="admin-product-card">
               <div className="admin-product-card__body">
                 <div className="product-card__meta">
-                  <span>{formatNumber(audience.localCount)} local contacts</span>
+                  <span>{formatNumber(audience.availableCount)} tracked contacts</span>
                   <span>{audience.targetListId ? `List ${audience.targetListId}` : "List not configured"}</span>
                 </div>
                 <h3>{audience.label}</h3>
                 <p>{audience.description}</p>
+                <ul className="admin-list">
+                  <li>Site contacts: {formatNumber(audience.localCount)}</li>
+                  <li>Imported from Brevo: {formatNumber(audience.importedCount)}</li>
+                  <li>
+                    Remote Brevo count:{" "}
+                    {typeof audience.remoteCount === "number" ? formatNumber(audience.remoteCount) : "Unknown"}
+                  </li>
+                </ul>
 
-                <form action={syncBrevoAudienceAction} className="stack-row">
-                  <input type="hidden" name="audienceType" value={audience.key} />
-                  <input type="hidden" name="redirectTo" value="/admin/email-marketing" />
-                  <button type="submit" className="button button--primary">
-                    Sync to Brevo
-                  </button>
-                </form>
+                <div className="stack-row">
+                  <form action={importBrevoAudienceAction}>
+                    <input type="hidden" name="audienceType" value={audience.key} />
+                    <input type="hidden" name="redirectTo" value="/admin/email-marketing" />
+                    <button type="submit" className="button button--secondary">
+                      Import from Brevo
+                    </button>
+                  </form>
+
+                  <form action={syncBrevoAudienceAction}>
+                    <input type="hidden" name="audienceType" value={audience.key} />
+                    <input type="hidden" name="redirectTo" value="/admin/email-marketing" />
+                    <button type="submit" className="button button--primary">
+                      Sync to Brevo
+                    </button>
+                  </form>
+                </div>
               </div>
             </article>
           ))}
@@ -278,8 +339,8 @@ export default async function AdminEmailMarketingPage({
           <div>
             <h2>Campaigns</h2>
             <p className="form-note">
-              Campaigns are stored locally first. Open any draft to edit HTML, test it, sync it to
-              Brevo, or schedule/send it manually.
+              Campaigns are stored locally first. Open any draft to edit HTML, generate with AI,
+              test it, sync it to Brevo, or schedule/send it manually.
             </p>
           </div>
           <Link href="/admin/email-marketing/new" className="button button--primary">
@@ -318,7 +379,7 @@ export default async function AdminEmailMarketingPage({
         ) : (
           <div className="admin-card">
             <h3>No campaigns yet</h3>
-            <p>Create the first draft and the team can start with manual review before AI generation is added.</p>
+            <p>Create the first draft and the team can use AI generation or manual writing before sending through Brevo.</p>
           </div>
         )}
       </section>

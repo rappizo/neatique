@@ -70,6 +70,23 @@ export type CustomerRecord = {
   updatedAt: Date;
 };
 
+export type EmailContactRecord = {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  audienceType: EmailAudienceType;
+  source: string;
+  brevoContactId: number | null;
+  brevoListId: number | null;
+  listName: string | null;
+  emailBlacklisted: boolean;
+  metadata: string | null;
+  lastSyncedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type OrderItemRecord = {
   id: string;
   name: string;
@@ -302,7 +319,10 @@ export type EmailMarketingAudienceSummaryRecord = {
   label: string;
   description: string;
   localCount: number;
+  importedCount: number;
+  availableCount: number;
   targetListId: number | null;
+  remoteCount: number | null;
 };
 
 export type BrevoListRecord = {
@@ -340,10 +360,13 @@ export type EmailMarketingOverviewRecord = {
   newsletterCount: number;
   optedInCustomerCount: number;
   leadCount: number;
+  importedContactCount: number;
   campaignCount: number;
   syncedCampaignCount: number;
   scheduledCampaignCount: number;
   sentCampaignCount: number;
+  aiReady: boolean;
+  aiModel: string | null;
   audiences: EmailMarketingAudienceSummaryRecord[];
   brevoLists: BrevoListRecord[];
   brevoError: string | null;

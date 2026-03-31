@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import {
+  fetchBrevoContactsFromList,
+  fetchBrevoLists,
   getBrevoSettings,
   parseBrevoListIds,
   pushCampaignToBrevo,
@@ -21,6 +23,7 @@ import {
 } from "@/lib/admin-auth";
 import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from "@/lib/coupons";
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
+import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
 import type {
   CouponDiscountType,
   EmailAudienceType,
@@ -160,6 +163,152 @@ async function loadStoreSettingsMap() {
     accumulator[setting.key] = setting.value;
     return accumulator;
   }, {});
+}
+
+async function getAudienceEmailsForSync(audienceType: EmailAudienceType) {
+  const [newsletterRows, leadRows, optedInCustomers, importedContacts] = await Promise.all([
+    prisma.formSubmission.findMany({
+      where: {
+        formKey: "subscribe"
+      },
+      select: {
+        email: true
+      },
+      distinct: ["email"]
+    }),
+    prisma.formSubmission.findMany({
+      where: {
+        formKey: "contact"
+      },
+      select: {
+        email: true
+      },
+      distinct: ["email"]
+    }),
+    prisma.customer.findMany({
+      where: {
+        marketingOptIn: true
+      },
+      select: {
+        email: true
+      }
+    }),
+    prisma.emailContact.findMany({
+      where:
+        audienceType === "ALL_MARKETING"
+          ? {
+              audienceType: {
+                in: ["NEWSLETTER", "CUSTOMERS", "LEADS"]
+              }
+            }
+          : {
+              audienceType
+            },
+      select: {
+        email: true
+      },
+      distinct: ["email"]
+    })
+  ]);
+
+  const newsletterEmails = newsletterRows.map((row) => row.email);
+  const leadEmails = leadRows.map((row) => row.email);
+  const customerEmails = optedInCustomers.map((row) => row.email);
+  const importedEmails = importedContacts.map((row) => row.email);
+
+  if (audienceType === "NEWSLETTER") {
+    return Array.from(new Set([...newsletterEmails, ...importedEmails]));
+  }
+
+  if (audienceType === "CUSTOMERS") {
+    return Array.from(new Set([...customerEmails, ...importedEmails]));
+  }
+
+  if (audienceType === "LEADS") {
+    return Array.from(new Set([...leadEmails, ...importedEmails]));
+  }
+
+  if (audienceType === "ALL_MARKETING") {
+    return Array.from(new Set([...newsletterEmails, ...customerEmails, ...leadEmails, ...importedEmails]));
+  }
+
+  return importedEmails;
+}
+
+async function importAudienceContactsFromBrevo(input: {
+  audienceType: EmailAudienceType;
+  listIds: number[];
+  listNameById?: Map<number, string>;
+  settings: ReturnType<typeof getBrevoSettings>;
+}) {
+  const importedEmails = new Set<string>();
+  let imported = 0;
+
+  for (const listId of input.listIds) {
+    const contacts = await fetchBrevoContactsFromList({
+      settings: input.settings,
+      listId
+    });
+
+    for (const contact of contacts) {
+      importedEmails.add(contact.email);
+
+      await prisma.emailContact.upsert({
+        where: {
+          email_audienceType: {
+            email: contact.email,
+            audienceType: input.audienceType
+          }
+        },
+        update: {
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          source: "BREVO_IMPORT",
+          brevoContactId: contact.brevoContactId,
+          brevoListId: listId,
+          listName: input.listNameById?.get(listId) || `Brevo list ${listId}`,
+          emailBlacklisted: contact.emailBlacklisted,
+          metadata: contact.metadata,
+          lastSyncedAt: new Date()
+        },
+        create: {
+          email: contact.email,
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          audienceType: input.audienceType,
+          source: "BREVO_IMPORT",
+          brevoContactId: contact.brevoContactId,
+          brevoListId: listId,
+          listName: input.listNameById?.get(listId) || `Brevo list ${listId}`,
+          emailBlacklisted: contact.emailBlacklisted,
+          metadata: contact.metadata,
+          lastSyncedAt: new Date()
+        }
+      });
+
+      imported += 1;
+    }
+  }
+
+  if (
+    input.listIds.length === 1 &&
+    (input.audienceType === "NEWSLETTER" || input.audienceType === "CUSTOMERS" || input.audienceType === "LEADS")
+  ) {
+    await prisma.emailContact.deleteMany({
+      where: {
+        audienceType: input.audienceType,
+        source: "BREVO_IMPORT",
+        email: {
+          notIn: Array.from(importedEmails)
+        }
+      }
+    });
+  }
+
+  return {
+    imported,
+    uniqueImported: importedEmails.size
+  };
 }
 
 function mapEmailCampaignRecord(campaign: any): EmailCampaignRecord {
@@ -1043,6 +1192,53 @@ export async function saveEmailMarketingSettingsAction(formData: FormData) {
   redirect("/admin/email-marketing?status=settings-saved");
 }
 
+export async function importBrevoAudienceAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email-marketing";
+  const audienceType = parseEmailAudienceType(toPlainString(formData.get("audienceType")));
+  const customListIds = toPlainString(formData.get("customListIds")) || null;
+  const settingsMap = await loadStoreSettingsMap();
+  const brevoSettings = getBrevoSettings(settingsMap);
+
+  if (!brevoSettings.enabled || !brevoSettings.apiKeyConfigured) {
+    redirect(buildEmailMarketingRedirect("brevo-not-configured", undefined, redirectTo));
+  }
+
+  const targetListIds = resolveAudienceListIds(audienceType, brevoSettings, customListIds);
+
+  if (targetListIds.length === 0) {
+    redirect(buildEmailMarketingRedirect("missing-list", undefined, redirectTo));
+  }
+
+  try {
+    const listLookup = new Map<number, string>();
+    const knownLists = await fetchBrevoLists(brevoSettings);
+    for (const list of knownLists.lists) {
+      listLookup.set(list.id, list.name);
+    }
+
+    const result = await importAudienceContactsFromBrevo({
+      audienceType,
+      listIds: targetListIds,
+      listNameById: listLookup,
+      settings: brevoSettings
+    });
+
+    revalidatePath("/admin/email-marketing");
+    redirect(
+      buildEmailMarketingRedirect(
+        result.uniqueImported > 0 ? "audience-import-complete" : "audience-import-empty",
+        undefined,
+        redirectTo
+      )
+    );
+  } catch (error) {
+    console.error("Brevo audience import failed:", error);
+    redirect(buildEmailMarketingRedirect("audience-import-failed", undefined, redirectTo));
+  }
+}
+
 export async function syncBrevoAudienceAction(formData: FormData) {
   await requireAdminSession();
 
@@ -1062,49 +1258,7 @@ export async function syncBrevoAudienceAction(formData: FormData) {
     redirect(buildEmailMarketingRedirect("missing-list", undefined, redirectTo));
   }
 
-  const [newsletterRows, leadRows, optedInCustomers] = await Promise.all([
-    prisma.formSubmission.findMany({
-      where: {
-        formKey: "subscribe"
-      },
-      select: {
-        email: true
-      },
-      distinct: ["email"]
-    }),
-    prisma.formSubmission.findMany({
-      where: {
-        formKey: "contact"
-      },
-      select: {
-        email: true
-      },
-      distinct: ["email"]
-    }),
-    prisma.customer.findMany({
-      where: {
-        marketingOptIn: true
-      },
-      select: {
-        email: true
-      }
-    })
-  ]);
-
-  const emails =
-    audienceType === "NEWSLETTER"
-      ? newsletterRows.map((row) => row.email)
-      : audienceType === "CUSTOMERS"
-        ? optedInCustomers.map((row) => row.email)
-        : audienceType === "LEADS"
-          ? leadRows.map((row) => row.email)
-          : audienceType === "ALL_MARKETING"
-            ? [
-                ...newsletterRows.map((row) => row.email),
-                ...optedInCustomers.map((row) => row.email),
-                ...leadRows.map((row) => row.email)
-              ]
-            : [];
+  const emails = await getAudienceEmailsForSync(audienceType);
 
   const result = await syncBrevoAudienceEmails({
     settings: brevoSettings,
@@ -1120,6 +1274,90 @@ export async function syncBrevoAudienceAction(formData: FormData) {
       redirectTo
     )
   );
+}
+
+export async function generateEmailCampaignWithAiAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+
+  if (!id) {
+    redirect(buildEmailMarketingRedirect("missing-campaign", undefined, redirectTo));
+  }
+
+  const [campaign, settingsMap, products] = await Promise.all([
+    prisma.emailCampaign.findUnique({
+      where: { id }
+    }),
+    loadStoreSettingsMap(),
+    prisma.product.findMany({
+      where: {
+        status: "ACTIVE"
+      },
+      select: {
+        name: true,
+        slug: true,
+        tagline: true,
+        shortDescription: true,
+        priceCents: true,
+        compareAtPriceCents: true
+      },
+      orderBy: [{ featured: "desc" }, { createdAt: "desc" }]
+    })
+  ]);
+
+  if (!campaign) {
+    redirect(buildEmailMarketingRedirect("missing-campaign", undefined, redirectTo));
+  }
+
+  if (!campaign.strategyBrief?.trim()) {
+    redirect(buildEmailMarketingRedirect("ai-missing-brief", id, redirectTo));
+  }
+
+  const brevoSettings = getBrevoSettings(settingsMap);
+
+  try {
+    const aiDraft = await generateEmailCampaignDraftWithAi({
+      campaignName: campaign.name,
+      audienceType: campaign.audienceType,
+      strategyBrief: campaign.strategyBrief,
+      senderName: campaign.senderName || brevoSettings.senderName,
+      senderEmail: campaign.senderEmail || brevoSettings.senderEmail,
+      replyTo: campaign.replyTo || brevoSettings.replyTo,
+      products
+    });
+
+    await prisma.emailCampaign.update({
+      where: { id },
+      data: {
+        subject: aiDraft.subject,
+        previewText: aiDraft.previewText,
+        contentHtml: aiDraft.contentHtml,
+        contentText: aiDraft.contentText,
+        senderName: campaign.senderName || brevoSettings.senderName || null,
+        senderEmail: campaign.senderEmail || brevoSettings.senderEmail || null,
+        replyTo: campaign.replyTo || brevoSettings.replyTo || null,
+        status: "DRAFT",
+        syncError: null
+      }
+    });
+
+    revalidatePath("/admin/email-marketing");
+    revalidatePath(`/admin/email-marketing/${id}`);
+    redirect(buildEmailMarketingRedirect("ai-generated", id, redirectTo));
+  } catch (error) {
+    await prisma.emailCampaign.update({
+      where: { id },
+      data: {
+        syncError: error instanceof Error ? error.message : "AI generation failed."
+      }
+    });
+
+    revalidatePath("/admin/email-marketing");
+    revalidatePath(`/admin/email-marketing/${id}`);
+    redirect(buildEmailMarketingRedirect("ai-error", id, redirectTo));
+  }
 }
 
 export async function createEmailCampaignAction(formData: FormData) {

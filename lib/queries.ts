@@ -26,6 +26,7 @@ import { EMAIL_AUDIENCE_OPTIONS, fetchBrevoLists, getBrevoSettings } from "@/lib
 import { parseStoredCouponProductCodes } from "@/lib/coupons";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { prisma } from "@/lib/db";
+import { getOpenAiEmailSettings } from "@/lib/openai-email";
 import { getDateKeyInTimeZone, LOS_ANGELES_TIME_ZONE } from "@/lib/format";
 import {
   ensureLegacyContactFormBackfill,
@@ -1358,7 +1359,7 @@ export async function getEmailCampaignById(id: string) {
 export async function getEmailMarketingOverview() {
   return withFallback<EmailMarketingOverviewRecord>(
     async () => {
-      const [settings, newsletterRows, leadRows, optedInCustomerCount, campaigns] = await Promise.all([
+      const [settings, newsletterRows, leadRows, optedInCustomerRows, importedContacts, campaigns] = await Promise.all([
         getStoreSettings(),
         prisma.formSubmission.findMany({
           where: {
@@ -1378,9 +1379,24 @@ export async function getEmailMarketingOverview() {
           },
           distinct: ["email"]
         }),
-        prisma.customer.count({
+        prisma.customer.findMany({
           where: {
             marketingOptIn: true
+          },
+          select: {
+            email: true
+          },
+          distinct: ["email"]
+        }),
+        prisma.emailContact.findMany({
+          where: {
+            audienceType: {
+              in: ["NEWSLETTER", "CUSTOMERS", "LEADS"]
+            }
+          },
+          select: {
+            email: true,
+            audienceType: true
           }
         }),
         prisma.emailCampaign.findMany({
@@ -1389,11 +1405,26 @@ export async function getEmailMarketingOverview() {
       ]);
 
       const brevoSettings = getBrevoSettings(settings);
+      const openAiSettings = getOpenAiEmailSettings();
       const brevoListsResult = await fetchBrevoLists(brevoSettings);
       const campaignsMapped = campaigns.map(mapEmailCampaign);
-
-      const newsletterCount = newsletterRows.length;
-      const leadCount = leadRows.length;
+      const brevoListLookup = new Map(brevoListsResult.lists.map((list) => [list.id, list]));
+      const newsletterEmailSet = new Set(newsletterRows.map((row) => row.email));
+      const leadEmailSet = new Set(leadRows.map((row) => row.email));
+      const customerEmailSet = new Set(optedInCustomerRows.map((row) => row.email));
+      const importedNewsletterSet = new Set(
+        importedContacts.filter((contact) => contact.audienceType === "NEWSLETTER").map((contact) => contact.email)
+      );
+      const importedCustomerSet = new Set(
+        importedContacts.filter((contact) => contact.audienceType === "CUSTOMERS").map((contact) => contact.email)
+      );
+      const importedLeadSet = new Set(
+        importedContacts.filter((contact) => contact.audienceType === "LEADS").map((contact) => contact.email)
+      );
+      const newsletterCount = new Set([...newsletterEmailSet, ...importedNewsletterSet]).size;
+      const leadCount = new Set([...leadEmailSet, ...importedLeadSet]).size;
+      const optedInCustomerCount = new Set([...customerEmailSet, ...importedCustomerSet]).size;
+      const importedContactCount = new Set(importedContacts.map((contact) => contact.email)).size;
       const campaignCount = campaignsMapped.length;
       const syncedCampaignCount = campaignsMapped.filter((campaign) => campaign.status === "SYNCED").length;
       const scheduledCampaignCount = campaignsMapped.filter((campaign) => campaign.status === "SCHEDULED").length;
@@ -1404,13 +1435,40 @@ export async function getEmailMarketingOverview() {
         description: option.description,
         localCount:
           option.value === "NEWSLETTER"
+            ? newsletterEmailSet.size
+            : option.value === "CUSTOMERS"
+              ? customerEmailSet.size
+              : option.value === "LEADS"
+                ? leadEmailSet.size
+                : option.value === "ALL_MARKETING"
+                  ? new Set([...newsletterEmailSet, ...customerEmailSet, ...leadEmailSet]).size
+                  : 0,
+        importedCount:
+          option.value === "NEWSLETTER"
+            ? importedNewsletterSet.size
+            : option.value === "CUSTOMERS"
+              ? importedCustomerSet.size
+              : option.value === "LEADS"
+                ? importedLeadSet.size
+                : option.value === "ALL_MARKETING"
+                  ? importedContactCount
+                  : 0,
+        availableCount:
+          option.value === "NEWSLETTER"
             ? newsletterCount
             : option.value === "CUSTOMERS"
               ? optedInCustomerCount
               : option.value === "LEADS"
                 ? leadCount
                 : option.value === "ALL_MARKETING"
-                  ? newsletterCount + optedInCustomerCount + leadCount
+                  ? new Set([
+                      ...newsletterEmailSet,
+                      ...customerEmailSet,
+                      ...leadEmailSet,
+                      ...importedNewsletterSet,
+                      ...importedCustomerSet,
+                      ...importedLeadSet
+                    ]).size
                   : 0,
         targetListId:
           option.value === "NEWSLETTER"
@@ -1419,6 +1477,14 @@ export async function getEmailMarketingOverview() {
               ? brevoSettings.customersListId
               : option.value === "LEADS"
                 ? brevoSettings.contactListId
+                : null,
+        remoteCount:
+          option.value === "NEWSLETTER" && brevoSettings.subscribersListId
+            ? brevoListLookup.get(brevoSettings.subscribersListId)?.totalSubscribers ?? null
+            : option.value === "CUSTOMERS" && brevoSettings.customersListId
+              ? brevoListLookup.get(brevoSettings.customersListId)?.totalSubscribers ?? null
+              : option.value === "LEADS" && brevoSettings.contactListId
+                ? brevoListLookup.get(brevoSettings.contactListId)?.totalSubscribers ?? null
                 : null
       }));
 
@@ -1426,10 +1492,13 @@ export async function getEmailMarketingOverview() {
         newsletterCount,
         optedInCustomerCount,
         leadCount,
+        importedContactCount,
         campaignCount,
         syncedCampaignCount,
         scheduledCampaignCount,
         sentCampaignCount,
+        aiReady: openAiSettings.ready,
+        aiModel: openAiSettings.model,
         audiences,
         brevoLists: brevoListsResult.lists,
         brevoError: brevoListsResult.error,
@@ -1440,16 +1509,22 @@ export async function getEmailMarketingOverview() {
       newsletterCount: 0,
       optedInCustomerCount: 0,
       leadCount: 0,
+      importedContactCount: 0,
       campaignCount: 0,
       syncedCampaignCount: 0,
       scheduledCampaignCount: 0,
       sentCampaignCount: 0,
+      aiReady: false,
+      aiModel: null,
       audiences: EMAIL_AUDIENCE_OPTIONS.map((option) => ({
         key: option.value,
         label: option.label,
         description: option.description,
         localCount: 0,
-        targetListId: null
+        importedCount: 0,
+        availableCount: 0,
+        targetListId: null,
+        remoteCount: null
       })),
       brevoLists: [] as BrevoListRecord[],
       brevoError: null,

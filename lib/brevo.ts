@@ -195,6 +195,13 @@ type RawBrevoList = {
   folderName?: string | null;
 };
 
+type RawBrevoContact = {
+  id?: number;
+  email?: string;
+  emailBlacklisted?: boolean;
+  attributes?: Record<string, unknown> | null;
+};
+
 export async function fetchBrevoLists(settings: BrevoSettings) {
   if (!settings.enabled || !settings.apiKeyConfigured) {
     return {
@@ -248,6 +255,89 @@ export async function fetchBrevoLists(settings: BrevoSettings) {
       error: error instanceof Error ? error.message : "Unable to load Brevo lists."
     };
   }
+}
+
+export async function fetchBrevoContactsFromList(input: {
+  settings: BrevoSettings;
+  listId: number;
+}) {
+  const contacts: Array<{
+    brevoContactId: number | null;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    emailBlacklisted: boolean;
+    metadata: string | null;
+  }> = [];
+  const pageSize = 500;
+  let offset = 0;
+  let totalCount = Number.POSITIVE_INFINITY;
+
+  while (offset < totalCount) {
+    const response = await brevoRequest<{ count?: number; contacts?: RawBrevoContact[] }>(
+      input.settings,
+      `/contacts/lists/${input.listId}/contacts?limit=${pageSize}&offset=${offset}`,
+      {
+        method: "GET"
+      }
+    );
+
+    const pageItems = (response.contacts || [])
+      .map((contact) => {
+        const email = (contact.email || "").trim().toLowerCase();
+        const attributes =
+          contact.attributes && typeof contact.attributes === "object" ? contact.attributes : {};
+        const firstNameValue =
+          attributes.FIRSTNAME ??
+          attributes.FIRST_NAME ??
+          attributes.firstName ??
+          attributes.first_name;
+        const lastNameValue =
+          attributes.LASTNAME ??
+          attributes.LAST_NAME ??
+          attributes.lastName ??
+          attributes.last_name;
+
+        if (!email) {
+          return null;
+        }
+
+        return {
+          brevoContactId: typeof contact.id === "number" ? contact.id : null,
+          email,
+          firstName: typeof firstNameValue === "string" && firstNameValue.trim() ? firstNameValue.trim() : null,
+          lastName: typeof lastNameValue === "string" && lastNameValue.trim() ? lastNameValue.trim() : null,
+          emailBlacklisted: Boolean(contact.emailBlacklisted),
+          metadata: Object.keys(attributes).length > 0 ? JSON.stringify(attributes) : null
+        };
+      })
+      .filter(
+        (
+          item
+        ): item is {
+          brevoContactId: number | null;
+          email: string;
+          firstName: string | null;
+          lastName: string | null;
+          emailBlacklisted: boolean;
+          metadata: string | null;
+        } => Boolean(item)
+      );
+
+    contacts.push(...pageItems);
+    totalCount =
+      typeof response.count === "number"
+        ? response.count
+        : offset + pageItems.length + (pageItems.length === pageSize ? 1 : 0);
+
+    if (pageItems.length < pageSize) {
+      break;
+    }
+
+    offset += pageSize;
+  }
+
+  return contacts;
 }
 
 export async function upsertBrevoContact(input: {

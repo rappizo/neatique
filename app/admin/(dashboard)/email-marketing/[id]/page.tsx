@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   deleteEmailCampaignAction,
+  generateEmailCampaignWithAiAction,
   sendEmailCampaignNowAction,
   sendEmailCampaignTestAction,
   syncEmailCampaignToBrevoAction,
@@ -9,6 +10,7 @@ import {
 } from "@/app/admin/actions";
 import { EmailCampaignEditorForm } from "@/components/admin/email-campaign-editor-form";
 import { getBrevoSettings } from "@/lib/brevo";
+import { getOpenAiEmailSettings } from "@/lib/openai-email";
 import { formatDate, formatTime } from "@/lib/format";
 import { getEmailCampaignById, getStoreSettings } from "@/lib/queries";
 
@@ -28,6 +30,9 @@ const STATUS_MESSAGES: Record<string, string> = {
   "brevo-error": "Brevo returned an error. Review the sync message below.",
   "missing-test-email": "Add a test email inbox before sending a test.",
   "missing-fields": "Please complete the required campaign fields before saving.",
+  "ai-generated": "AI generated a fresh draft and updated the campaign fields.",
+  "ai-missing-brief": "Add a strategy brief before asking AI to draft the campaign.",
+  "ai-error": "AI generation failed. Review the message below.",
   deleted: "Campaign deleted."
 };
 
@@ -38,6 +43,7 @@ export default async function AdminEmailCampaignDetailPage({
   const [{ id }, query, settings] = await Promise.all([params, searchParams, getStoreSettings()]);
   const [campaign] = await Promise.all([getEmailCampaignById(id)]);
   const brevoSettings = getBrevoSettings(settings);
+  const openAiSettings = getOpenAiEmailSettings();
 
   if (!campaign) {
     notFound();
@@ -61,6 +67,33 @@ export default async function AdminEmailCampaignDetailPage({
         defaultSenderEmail={brevoSettings.senderEmail}
         defaultReplyTo={brevoSettings.replyTo}
       />
+
+      <section className="admin-form">
+        <h2>AI draft generation</h2>
+        <p>
+          Use the strategy brief as the source of truth, then let AI draft the subject line,
+          preview text, HTML, and plain-text fallback. You can keep editing manually after that.
+        </p>
+
+        <div className="stack-row">
+          <span className="pill">{openAiSettings.ready ? "OpenAI ready" : "OpenAI not configured"}</span>
+          <span className="pill">{openAiSettings.model ? `Model ${openAiSettings.model}` : "Set OPENAI_API_KEY"}</span>
+          <span className="pill">{campaign.strategyBrief?.trim() ? "Brief ready" : "Strategy brief missing"}</span>
+        </div>
+
+        <form action={generateEmailCampaignWithAiAction} className="admin-card">
+          <h3>Generate with AI</h3>
+          <p>
+            This uses the current campaign name, strategy brief, audience, and active product
+            catalog. The result overwrites the subject, preview text, HTML, and plain-text fields.
+          </p>
+          <input type="hidden" name="id" value={campaign.id} />
+          <input type="hidden" name="redirectTo" value={`/admin/email-marketing/${campaign.id}`} />
+          <button type="submit" className="button button--primary" disabled={!openAiSettings.ready}>
+            Generate AI draft
+          </button>
+        </form>
+      </section>
 
       <section className="admin-form">
         <h2>Brevo delivery</h2>

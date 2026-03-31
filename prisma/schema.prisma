@@ -131,6 +131,27 @@ model Customer {
   updatedAt       DateTime      @updatedAt
 }
 
+model EmailContact {
+  id               String            @id @default(cuid())
+  email            String
+  firstName        String?
+  lastName         String?
+  audienceType     EmailAudienceType
+  source           String            @default("BREVO_IMPORT")
+  brevoContactId   Int?
+  brevoListId      Int?
+  listName         String?
+  emailBlacklisted Boolean           @default(false)
+  metadata         String?
+  lastSyncedAt     DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([email, audienceType])
+  @@index([audienceType, updatedAt])
+  @@index([brevoListId])
+}
+
 model Order {
   id                    String            @id @default(cuid())
   orderNumber           String            @unique

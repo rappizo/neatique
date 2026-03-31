@@ -28,6 +28,27 @@ export function EmailCampaignEditorForm({
   defaultReplyTo = ""
 }: EmailCampaignEditorFormProps) {
   const isEdit = mode === "edit" && campaign;
+  const defaultSubject = campaign?.subject || (mode === "new" ? "Neatique campaign draft" : "");
+  const defaultPreviewText =
+    campaign?.previewText || (mode === "new" ? "A local draft shell that can be refined manually or with AI." : "");
+  const defaultStrategyBrief =
+    campaign?.strategyBrief ||
+    (mode === "new"
+      ? "Goal, product focus, audience angle, offer, CTA, and any timing or compliance notes."
+      : "");
+  const defaultHtml =
+    campaign?.contentHtml ||
+    (mode === "new"
+      ? `<div style="margin:0 auto;max-width:600px;padding:32px 24px;font-family:Arial,Helvetica,sans-serif;color:#2f2a28;background:#fffaf7;">
+  <h1 style="margin:0 0 16px;font-size:28px;line-height:1.2;">Neatique email draft shell</h1>
+  <p style="margin:0;font-size:16px;line-height:1.7;">Use this shell for manual editing, or save it and generate a richer draft with AI from the strategy brief.</p>
+</div>`
+      : "");
+  const defaultText =
+    campaign?.contentText ||
+    (mode === "new"
+      ? "Neatique email draft shell. Save this draft, then generate a richer version with AI or continue editing manually."
+      : "");
 
   return (
     <section className="admin-form">
@@ -35,12 +56,12 @@ export function EmailCampaignEditorForm({
         <p className="eyebrow">Campaign Draft</p>
         <h1>
           {isEdit
-            ? "Shape the campaign locally, then push it to Brevo when the draft is ready."
-            : "Create a campaign draft that the team can refine now and hand off to AI later."}
+            ? "Shape the campaign locally, generate with AI if needed, then push it to Brevo when the draft is ready."
+            : "Create a campaign shell that the team can refine manually or expand with AI right away."}
         </h1>
         <p>
           Strategy brief, audience, sender, and HTML content all live in one record so the first
-          version can be operated manually while staying ready for future AI generation.
+          version can be operated manually while staying ready for AI-assisted generation whenever you want it.
         </p>
       </div>
 
@@ -57,12 +78,12 @@ export function EmailCampaignEditorForm({
 
           <div className="field">
             <label htmlFor="subject">Subject line</label>
-            <input id="subject" name="subject" defaultValue={campaign?.subject || ""} required />
+            <input id="subject" name="subject" defaultValue={defaultSubject} required />
           </div>
 
           <div className="field">
             <label htmlFor="previewText">Preview text</label>
-            <input id="previewText" name="previewText" defaultValue={campaign?.previewText || ""} />
+            <input id="previewText" name="previewText" defaultValue={defaultPreviewText} />
           </div>
 
           <div className="field">
@@ -130,7 +151,7 @@ export function EmailCampaignEditorForm({
             <textarea
               id="strategyBrief"
               name="strategyBrief"
-              defaultValue={campaign?.strategyBrief || ""}
+              defaultValue={defaultStrategyBrief}
               placeholder="Audience angle, launch goal, product focus, offer, timing notes, and any prompt you want future AI generation to follow."
             />
           </div>
@@ -140,7 +161,7 @@ export function EmailCampaignEditorForm({
             <textarea
               id="contentHtml"
               name="contentHtml"
-              defaultValue={campaign?.contentHtml || ""}
+              defaultValue={defaultHtml}
               placeholder="<html>...</html>"
               required
             />
@@ -151,7 +172,7 @@ export function EmailCampaignEditorForm({
             <textarea
               id="contentText"
               name="contentText"
-              defaultValue={campaign?.contentText || ""}
+              defaultValue={defaultText}
               placeholder="Optional plain-text version for internal reference."
             />
           </div>
