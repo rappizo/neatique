@@ -28,3 +28,12 @@ export function toBool(value: FormDataEntryValue | null) {
   const stringValue = toPlainString(value);
   return stringValue === "on" || stringValue === "true";
 }
+
+export function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}

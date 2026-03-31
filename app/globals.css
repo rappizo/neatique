@@ -2735,6 +2735,52 @@ main {
   gap: 22px;
 }
 
+.section--tight {
+  padding-top: 28px;
+}
+
+.mascot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.mascot-card .product-card__media {
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+
+.mascot-card .product-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mascot-story-card {
+  display: grid;
+  gap: 16px;
+}
+
+.mascot-qr {
+  display: grid;
+  place-items: center;
+  max-width: 280px;
+  padding: 16px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(252, 241, 237, 0.88));
+  border: 1px solid rgba(237, 115, 97, 0.14);
+}
+
+.mascot-qr img {
+  width: 100%;
+  height: auto;
+  border-radius: 20px;
+}
+
+.admin-product-grid--compact {
+  gap: 20px;
+}
+
 @media (max-width: 1080px) {
   .hero__grid,
   .product-detail,
@@ -2782,6 +2828,7 @@ main {
   .cards-3,
   .cards-2,
   .product-grid,
+  .mascot-grid,
   .product-grid--shop,
   .post-grid,
   .story-sections,
@@ -2870,6 +2917,7 @@ main {
   .cards-3,
   .cards-2,
   .product-grid,
+  .mascot-grid,
   .product-grid--shop,
   .post-grid,
   .form-row,

@@ -17,11 +17,14 @@ import type {
   EmailMarketingOverviewRecord,
   FormSubmissionRecord,
   FormSubmissionSummaryRecord,
+  MascotRedemptionRecord,
+  MascotRewardRecord,
   OmbClaimRecord,
   OrderRecord,
   ProductRecord,
   ProductReviewRecord,
   RewardEntryRecord,
+  RyoClaimRecord,
   StoreSettingsRecord
 } from "@/lib/types";
 import { unstable_cache } from "next/cache";
@@ -37,6 +40,7 @@ import {
   FORM_DEFINITIONS,
   getFormDefinition
 } from "@/lib/form-submissions";
+import { getDefaultMascotRewards } from "@/lib/mascot-program";
 import {
   fallbackCustomers,
   fallbackDashboardSummary,
@@ -330,6 +334,49 @@ function mapReward(reward: any): RewardEntryRecord {
   };
 }
 
+function mapMascotReward(mascot: any): MascotRewardRecord {
+  return {
+    id: mascot.id,
+    sku: mascot.sku,
+    name: mascot.name,
+    slug: mascot.slug,
+    description: mascot.description ?? null,
+    imageUrl: mascot.imageUrl,
+    pointsCost: mascot.pointsCost,
+    active: mascot.active,
+    sortOrder: mascot.sortOrder,
+    redemptionCount: mascot._count?.redemptions,
+    createdAt: new Date(mascot.createdAt),
+    updatedAt: new Date(mascot.updatedAt)
+  };
+}
+
+function mapMascotRedemption(redemption: any): MascotRedemptionRecord {
+  return {
+    id: redemption.id,
+    pointsSpent: redemption.pointsSpent,
+    status: redemption.status,
+    email: redemption.email,
+    fullName: redemption.fullName,
+    address1: redemption.address1,
+    address2: redemption.address2 ?? null,
+    city: redemption.city,
+    state: redemption.state,
+    postalCode: redemption.postalCode,
+    country: redemption.country,
+    adminNote: redemption.adminNote ?? null,
+    fulfilledAt: redemption.fulfilledAt ? new Date(redemption.fulfilledAt) : null,
+    customerId: redemption.customerId,
+    customerEmail: redemption.customer?.email ?? redemption.email,
+    mascotId: redemption.mascotId,
+    mascotName: redemption.mascot?.name ?? "Mascot",
+    mascotSku: redemption.mascot?.sku ?? "",
+    mascotImageUrl: redemption.mascot?.imageUrl ?? "",
+    createdAt: new Date(redemption.createdAt),
+    updatedAt: new Date(redemption.updatedAt)
+  };
+}
+
 function mapReview(review: any): ProductReviewRecord {
   const reviewDateSource = review.reviewDate ?? review.publishedAt ?? review.createdAt;
 
@@ -394,6 +441,33 @@ function mapOmbClaim(claim: any): OmbClaimRecord {
     extraBottleAddress: claim.extraBottleAddress ?? null,
     giftSent: claim.giftSent,
     giftSentAt: claim.giftSentAt ? new Date(claim.giftSentAt) : null,
+    adminNote: claim.adminNote ?? null,
+    completedAt: claim.completedAt ? new Date(claim.completedAt) : null,
+    createdAt: new Date(claim.createdAt),
+    updatedAt: new Date(claim.updatedAt)
+  };
+}
+
+function mapRyoClaim(claim: any): RyoClaimRecord {
+  return {
+    id: claim.id,
+    platformKey: claim.platformKey,
+    platformLabel: claim.platformLabel,
+    orderId: claim.orderId,
+    name: claim.name,
+    email: claim.email,
+    phone: claim.phone ?? null,
+    purchasedProduct: claim.purchasedProduct ?? null,
+    reviewRating: claim.reviewRating ?? null,
+    commentText: claim.commentText ?? null,
+    reviewDestinationUrl: claim.reviewDestinationUrl ?? null,
+    screenshotName: claim.screenshotName ?? null,
+    screenshotMimeType: claim.screenshotMimeType ?? null,
+    screenshotBytes: claim.screenshotBytes ?? null,
+    customerId: claim.customerId ?? null,
+    pointsAwarded: claim.pointsAwarded,
+    rewardGranted: claim.rewardGranted,
+    rewardGrantedAt: claim.rewardGrantedAt ? new Date(claim.rewardGrantedAt) : null,
     adminNote: claim.adminNote ?? null,
     completedAt: claim.completedAt ? new Date(claim.completedAt) : null,
     createdAt: new Date(claim.createdAt),
@@ -1053,6 +1127,125 @@ export async function getRewards() {
   );
 }
 
+export async function getMascotRewards() {
+  const fallback = getDefaultMascotRewards();
+
+  return withFallback(
+    async () =>
+      (
+        await prisma.mascotReward.findMany({
+          include: {
+            _count: {
+              select: {
+                redemptions: true
+              }
+            }
+          },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+        })
+      ).map(mapMascotReward),
+    fallback
+  );
+}
+
+export async function getActiveMascotRewards() {
+  const fallback = getDefaultMascotRewards().filter((mascot) => mascot.active);
+
+  return withFallback(
+    async () =>
+      (
+        await prisma.mascotReward.findMany({
+          where: {
+            active: true
+          },
+          include: {
+            _count: {
+              select: {
+                redemptions: true
+              }
+            }
+          },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+        })
+      ).map(mapMascotReward),
+    fallback
+  );
+}
+
+export async function getMascotRewardById(id: string) {
+  const fallback = getDefaultMascotRewards().find((mascot) => mascot.id === id) ?? null;
+
+  return withFallback<MascotRewardRecord | null>(
+    async () => {
+      const mascot = await prisma.mascotReward.findUnique({
+        where: { id },
+        include: {
+          _count: {
+            select: {
+              redemptions: true
+            }
+          }
+        }
+      });
+
+      return mascot ? mapMascotReward(mascot) : null;
+    },
+    fallback
+  );
+}
+
+export async function getMascotRewardBySlug(slug: string) {
+  const fallback = getDefaultMascotRewards().find((mascot) => mascot.slug === slug) ?? null;
+
+  return withFallback<MascotRewardRecord | null>(
+    async () => {
+      const mascot = await prisma.mascotReward.findUnique({
+        where: { slug },
+        include: {
+          _count: {
+            select: {
+              redemptions: true
+            }
+          }
+        }
+      });
+
+      return mascot ? mapMascotReward(mascot) : null;
+    },
+    fallback
+  );
+}
+
+export async function getMascotRedemptions(limit = 50) {
+  return withFallback(
+    async () =>
+      (
+        await prisma.mascotRedemption.findMany({
+          include: {
+            mascot: true,
+            customer: true
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: limit
+        })
+      ).map(mapMascotRedemption),
+    [] as MascotRedemptionRecord[]
+  );
+}
+
+export async function getRyoClaims(limit = 50) {
+  return withFallback(
+    async () =>
+      (
+        await prisma.ryoClaim.findMany({
+          orderBy: [{ createdAt: "desc" }],
+          take: limit
+        })
+      ).map(mapRyoClaim),
+    [] as RyoClaimRecord[]
+  );
+}
+
 export async function getPublishedReviewsByProductId(productId: string) {
   return withFallback(
     async () =>
@@ -1682,6 +1875,15 @@ export async function getCustomerAccountById(customerId: string) {
               createdAt: "desc"
             }
           },
+          mascotRedemptions: {
+            include: {
+              mascot: true,
+              customer: true
+            },
+            orderBy: {
+              createdAt: "desc"
+            }
+          },
           reviews: {
             include: {
               product: true
@@ -1711,6 +1913,7 @@ export async function getCustomerAccountById(customerId: string) {
         customer: mapCustomer(customer),
         orders: customer.orders.map(mapOrder),
         rewards: customer.rewards.map(mapReward),
+        mascotRedemptions: customer.mascotRedemptions.map(mapMascotRedemption),
         reviews: customer.reviews.map(mapReview),
         purchasedProductIds
       };
@@ -1738,6 +1941,7 @@ export async function getCustomerAccountById(customerId: string) {
         customer,
         orders,
         rewards,
+        mascotRedemptions: [],
         reviews,
         purchasedProductIds
       };

@@ -36,7 +36,7 @@ import type {
   ProductStatus,
   ReviewStatus
 } from "@/lib/types";
-import { normalizeMultilineValue, toBool, toInt, toPlainString, toPriceCents } from "@/lib/utils";
+import { normalizeMultilineValue, slugify, toBool, toInt, toPlainString, toPriceCents } from "@/lib/utils";
 
 function buildPublishedDate(formData: FormData, published: boolean) {
   const rawDate = toPlainString(formData.get("publishedAt"));
@@ -102,6 +102,21 @@ function buildOmbClaimRedirect(status: string, redirectTo?: string) {
   params.set("status", status);
   const nextQuery = params.toString();
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function buildRewardsRedirect(status: string, redirectTo?: string) {
+  const basePath = redirectTo || "/admin/rewards";
+  const [pathname, queryString = ""] = basePath.split("?");
+  const params = new URLSearchParams(queryString);
+  params.set("status", status);
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function buildMascotRedirect(status: string, mascotId?: string) {
+  const basePath = mascotId ? `/admin/rewards/mascots/${mascotId}` : "/admin/rewards";
+  const separator = basePath.includes("?") ? "&" : "?";
+  return `${basePath}${separator}status=${status}`;
 }
 
 function buildEmailMarketingRedirect(status: string, campaignId?: string, redirectTo?: string) {
@@ -468,6 +483,34 @@ function buildCouponPayload(formData: FormData): CouponPayloadResult {
       usageMode,
       expiresAt,
       active: active && !(expiresAt && expiresAt.getTime() <= Date.now())
+    }
+  };
+}
+
+function buildMascotPayload(formData: FormData) {
+  const sku = toPlainString(formData.get("sku")).toUpperCase();
+  const name = toPlainString(formData.get("name"));
+  const manualSlug = toPlainString(formData.get("slug"));
+  const slug = slugify(manualSlug || name || sku);
+  const imageUrl = toPlainString(formData.get("imageUrl"));
+  const pointsCost = Math.max(1, toInt(formData.get("pointsCost"), 1000));
+
+  if (!sku || !name || !slug || !imageUrl) {
+    return {
+      error: "missing-fields" as const
+    };
+  }
+
+  return {
+    data: {
+      sku,
+      name,
+      slug,
+      description: toPlainString(formData.get("description")) || null,
+      imageUrl,
+      pointsCost,
+      active: toBool(formData.get("active")),
+      sortOrder: Math.max(0, toInt(formData.get("sortOrder"), 0))
     }
   };
 }
@@ -917,6 +960,77 @@ export async function adjustCustomerPointsAction(formData: FormData) {
   revalidatePath("/admin/customers");
   revalidatePath("/admin/rewards");
   redirect("/admin/rewards?status=adjusted");
+}
+
+export async function createMascotRewardAction(formData: FormData) {
+  await requireAdminSession();
+
+  const payload = buildMascotPayload(formData);
+
+  if ("error" in payload) {
+    redirect("/admin/rewards/mascots/new?status=missing-fields");
+  }
+
+  const mascot = await prisma.mascotReward.create({
+    data: payload.data
+  });
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/rd");
+  revalidatePath("/mascot");
+  redirect(buildMascotRedirect("created", mascot.id));
+}
+
+export async function updateMascotRewardAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const payload = buildMascotPayload(formData);
+
+  if (!id) {
+    redirect(buildMascotRedirect("missing-mascot"));
+  }
+
+  if ("error" in payload) {
+    redirect(buildMascotRedirect("missing-fields", id));
+  }
+
+  await prisma.mascotReward.update({
+    where: { id },
+    data: payload.data
+  });
+
+  revalidatePath("/admin/rewards");
+  revalidatePath(`/admin/rewards/mascots/${id}`);
+  revalidatePath("/rd");
+  revalidatePath("/mascot");
+  redirect(buildMascotRedirect("updated", id));
+}
+
+export async function updateMascotRedemptionAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/rewards";
+
+  if (!id) {
+    redirect(buildRewardsRedirect("missing-redemption", redirectTo));
+  }
+
+  const fulfilled = toBool(formData.get("fulfilled"));
+  const adminNote = toPlainString(formData.get("adminNote")) || null;
+
+  await prisma.mascotRedemption.update({
+    where: { id },
+    data: {
+      status: fulfilled ? "FULFILLED" : "REQUESTED",
+      fulfilledAt: fulfilled ? new Date() : null,
+      adminNote
+    }
+  });
+
+  revalidatePath("/admin/rewards");
+  redirect(buildRewardsRedirect("redemption-updated", redirectTo));
 }
 
 export async function updateCustomerAction(formData: FormData) {

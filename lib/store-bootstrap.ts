@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
+import { getDefaultMascotRewards } from "@/lib/mascot-program";
 import { ensureProductCodes } from "@/lib/product-codes";
 import { samplePosts, sampleProducts, sampleReviews, sampleStoreSettings } from "@/lib/sample-store-data";
 
@@ -111,6 +112,33 @@ async function seedSettingsIfEmpty() {
   }
 }
 
+async function seedMascotsIfEmpty() {
+  const mascotCount = await prisma.mascotReward.count();
+
+  if (mascotCount > 0) {
+    return;
+  }
+
+  const defaultMascots = getDefaultMascotRewards();
+
+  await prisma.mascotReward.createMany({
+    data: defaultMascots.map((mascot) => ({
+      id: mascot.id,
+      sku: mascot.sku,
+      name: mascot.name,
+      slug: mascot.slug,
+      description: mascot.description,
+      imageUrl: mascot.imageUrl,
+      pointsCost: mascot.pointsCost,
+      active: mascot.active,
+      sortOrder: mascot.sortOrder,
+      createdAt: mascot.createdAt,
+      updatedAt: mascot.updatedAt
+    })),
+    skipDuplicates: true
+  });
+}
+
 async function seedReviewsIfEmpty() {
   const products = await prisma.product.findMany({
     select: {
@@ -188,6 +216,7 @@ async function runBootstrap() {
   await ensureProductCodes();
   await seedPostsIfEmpty();
   await seedSettingsIfEmpty();
+  await seedMascotsIfEmpty();
   await seedReviewsIfEmpty();
   bootstrapState = "ready";
 }

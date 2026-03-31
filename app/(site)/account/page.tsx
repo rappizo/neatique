@@ -53,11 +53,16 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
               <li>Points balance: {account.customer.loyaltyPoints}</li>
               <li>Last login: {formatDate(account.customer.lastLoginAt)}</li>
             </ul>
-            <form action={logoutCustomerAction}>
-              <button type="submit" className="button button--ghost">
-                Log out
-              </button>
-            </form>
+            <div className="stack-row">
+              <Link href="/rd" className="button button--primary">
+                Redeem mascots
+              </Link>
+              <form action={logoutCustomerAction}>
+                <button type="submit" className="button button--ghost">
+                  Log out
+                </button>
+              </form>
+            </div>
           </section>
 
           <section className="admin-form">
@@ -134,6 +139,36 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             </table>
           </section>
         </div>
+
+        <section className="admin-table">
+          <h2>Mascot redemptions</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Mascot</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              {account.mascotRedemptions.length > 0 ? (
+                account.mascotRedemptions.map((redemption) => (
+                  <tr key={redemption.id}>
+                    <td>{redemption.mascotName}</td>
+                    <td>{formatDate(redemption.createdAt)}</td>
+                    <td>{redemption.status}</td>
+                    <td>-{redemption.pointsSpent}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4}>No mascot redemptions yet. Once your balance reaches 1,000 points, you can redeem on /rd.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </section>
 
         <section className="admin-table account-reviews-table">
           <h2>My reviews</h2>

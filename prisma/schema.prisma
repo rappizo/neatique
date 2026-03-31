@@ -35,6 +35,12 @@ enum RewardType {
   ADJUSTMENT
 }
 
+enum MascotRedemptionStatus {
+  REQUESTED
+  FULFILLED
+  CANCELLED
+}
+
 enum ReviewStatus {
   PENDING
   PUBLISHED
@@ -125,10 +131,52 @@ model Customer {
   totalSpentCents Int           @default(0)
   orders          Order[]
   rewards         RewardEntry[]
+  mascotRedemptions MascotRedemption[]
+  ryoClaims       RyoClaim[]
   reviews         ProductReview[]
   sessions        CustomerSession[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+}
+
+model MascotReward {
+  id          String             @id @default(cuid())
+  sku         String             @unique
+  name        String
+  slug        String             @unique
+  description String?
+  imageUrl    String
+  pointsCost  Int                @default(1000)
+  active      Boolean            @default(true)
+  sortOrder   Int                @default(0)
+  redemptions MascotRedemption[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model MascotRedemption {
+  id          String                 @id @default(cuid())
+  pointsSpent Int
+  status      MascotRedemptionStatus @default(REQUESTED)
+  email       String
+  fullName    String
+  address1    String
+  address2    String?
+  city        String
+  state       String
+  postalCode  String
+  country     String                @default("US")
+  adminNote   String?
+  fulfilledAt DateTime?
+  customerId  String
+  mascotId    String
+  customer    Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  mascot      MascotReward          @relation(fields: [mascotId], references: [id], onDelete: Cascade)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
 }
 
 model EmailContact {
@@ -218,6 +266,38 @@ model RewardEntry {
   customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   order      Order?     @relation(fields: [orderId], references: [id])
   createdAt  DateTime   @default(now())
+}
+
+model RyoClaim {
+  id                   String    @id @default(cuid())
+  platformKey          String
+  platformLabel        String
+  orderId              String
+  name                 String
+  email                String
+  phone                String?
+  purchasedProduct     String?
+  reviewRating         Int?
+  commentText          String?
+  reviewDestinationUrl String?
+  screenshotName       String?
+  screenshotMimeType   String?
+  screenshotBase64     String?
+  screenshotBytes      Int?
+  customerId           String?
+  pointsAwarded        Int       @default(500)
+  rewardGranted        Boolean   @default(false)
+  rewardGrantedAt      DateTime?
+  adminNote            String?
+  completedAt          DateTime?
+  customer             Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([platformKey, createdAt])
+  @@index([email])
+  @@index([completedAt])
+  @@index([rewardGranted])
 }
 
 model CustomerSession {

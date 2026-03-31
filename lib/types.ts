@@ -2,6 +2,7 @@ export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
 export type OrderStatus = "PENDING" | "PAID" | "FULFILLED" | "CANCELLED" | "REFUNDED";
 export type FulfillmentStatus = "UNFULFILLED" | "PROCESSING" | "SHIPPED" | "DELIVERED";
 export type RewardType = "EARNED" | "REDEEMED" | "ADJUSTMENT";
+export type MascotRedemptionStatus = "REQUESTED" | "FULFILLED" | "CANCELLED";
 export type ReviewStatus = "PENDING" | "PUBLISHED" | "HIDDEN";
 export type CouponDiscountType = "PERCENT" | "FIXED_AMOUNT";
 export type CouponUsageMode = "SINGLE_USE" | "UNLIMITED";
@@ -180,6 +181,45 @@ export type RewardEntryRecord = {
   createdAt: Date;
 };
 
+export type MascotRewardRecord = {
+  id: string;
+  sku: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string;
+  pointsCost: number;
+  active: boolean;
+  sortOrder: number;
+  redemptionCount?: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type MascotRedemptionRecord = {
+  id: string;
+  pointsSpent: number;
+  status: MascotRedemptionStatus;
+  email: string;
+  fullName: string;
+  address1: string;
+  address2: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  adminNote: string | null;
+  fulfilledAt: Date | null;
+  customerId: string;
+  customerEmail: string;
+  mascotId: string;
+  mascotName: string;
+  mascotSku: string;
+  mascotImageUrl: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type ProductReviewRecord = {
   id: string;
   rating: number;
@@ -233,6 +273,7 @@ export type CustomerAccountRecord = {
   customer: CustomerRecord;
   orders: OrderRecord[];
   rewards: RewardEntryRecord[];
+  mascotRedemptions: MascotRedemptionRecord[];
   reviews: ProductReviewRecord[];
   purchasedProductIds: string[];
 };
@@ -310,6 +351,31 @@ export type OmbClaimRecord = {
   extraBottleAddress: string | null;
   giftSent: boolean;
   giftSentAt: Date | null;
+  adminNote: string | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type RyoClaimRecord = {
+  id: string;
+  platformKey: string;
+  platformLabel: string;
+  orderId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  purchasedProduct: string | null;
+  reviewRating: number | null;
+  commentText: string | null;
+  reviewDestinationUrl: string | null;
+  screenshotName: string | null;
+  screenshotMimeType: string | null;
+  screenshotBytes: number | null;
+  customerId: string | null;
+  pointsAwarded: number;
+  rewardGranted: boolean;
+  rewardGrantedAt: Date | null;
   adminNote: string | null;
   completedAt: Date | null;
   createdAt: Date;

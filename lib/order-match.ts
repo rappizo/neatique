@@ -76,7 +76,10 @@ export function validateOrderId(platform: OrderMatchPlatform, rawOrderId: string
   }
 }
 
-export function getOrderMatchErrorMessage(error: string | null | undefined) {
+export function getOrderMatchErrorMessage(
+  error: string | null | undefined,
+  processLabel = "OMB claim"
+) {
   if (error === "missing") {
     return "Please complete Order ID, Name, and Email before continuing.";
   }
@@ -94,11 +97,11 @@ export function getOrderMatchErrorMessage(error: string | null | undefined) {
   }
 
   if (error === "duplicate-order") {
-    return "We already have a completed OMB claim for this order ID. If you have any questions, please contact us.";
+    return `We already have a completed ${processLabel} for this order ID. If you have any questions, please contact us.`;
   }
 
   if (error === "duplicate-email") {
-    return "We already have a completed OMB claim for this email. If you have any questions, please contact us.";
+    return `We already have a completed ${processLabel} for this email. If you have any questions, please contact us.`;
   }
 
   return null;
@@ -139,6 +142,38 @@ export function getOmbStepTwoErrorMessage(error: string | null | undefined) {
 
   if (error === "address") {
     return "Please leave the shipping address for the extra bottle.";
+  }
+
+  return null;
+}
+
+export function getRyoStepErrorMessage(error: string | null | undefined) {
+  if (error === "claim") {
+    return "We could not find that RYO registration. Please start again from the order verification page.";
+  }
+
+  if (error === "product") {
+    return "Please choose the product you purchased before submitting the registration.";
+  }
+
+  if (error === "rating") {
+    return "Please choose a review rating from 1 to 5 stars.";
+  }
+
+  if (error === "comment") {
+    return `Comments must be at least ${OMB_MIN_COMMENT_LENGTH} characters long.`;
+  }
+
+  if (error === "image-required") {
+    return "Please upload a screenshot of your platform comment for 4-star and 5-star registrations.";
+  }
+
+  if (error === "image-size") {
+    return "The screenshot is too large. Please upload an image smaller than 15MB.";
+  }
+
+  if (error === "image-type") {
+    return "Please upload a JPG, PNG, WEBP, or AVIF screenshot.";
   }
 
   return null;

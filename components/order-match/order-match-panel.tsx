@@ -6,9 +6,17 @@ import { orderMatchPlatforms } from "@/lib/order-match";
 
 type OrderMatchPanelProps = {
   initialPlatform: OrderMatchPlatform;
+  eyebrow?: string;
+  title?: string;
+  submitAction?: string;
 };
 
-export function OrderMatchPanel({ initialPlatform }: OrderMatchPanelProps) {
+export function OrderMatchPanel({
+  initialPlatform,
+  eyebrow = "OMB Process",
+  title = "2 Simple Processes to Finished The OMB Process",
+  submitAction = "/api/om"
+}: OrderMatchPanelProps) {
   const [activePlatformKey, setActivePlatformKey] = useState<OrderMatchPlatform>(initialPlatform);
 
   const activePlatform =
@@ -23,8 +31,8 @@ export function OrderMatchPanel({ initialPlatform }: OrderMatchPanelProps) {
     <section className="om-shell">
       <div className="om-shell__header">
         <div className="section-heading">
-          <p className="section-heading__eyebrow">OMB Process</p>
-          <h1>2 Simple Processes to Finished The OMB Process</h1>
+          <p className="section-heading__eyebrow">{eyebrow}</p>
+          <h1>{title}</h1>
         </div>
       </div>
 
@@ -46,7 +54,7 @@ export function OrderMatchPanel({ initialPlatform }: OrderMatchPanelProps) {
       </div>
 
       <div className="om-shell__body">
-        <form action="/api/om" method="post" className="contact-form">
+        <form action={submitAction} method="post" className="contact-form">
           <input type="hidden" name="platform" value={activePlatform.key} />
 
           <div className="form-row">

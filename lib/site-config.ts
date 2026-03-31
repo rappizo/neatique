@@ -36,6 +36,7 @@ export const siteConfig = {
     ],
     discover: [
       { href: "/beauty-tips", label: "Beauty Tips" },
+      { href: "/mascot", label: "Mascot Rewards" },
       { href: "/contact", label: "Contact Us" },
       { href: "/cart", label: "Cart" },
       { href: "/account", label: "My Account" }

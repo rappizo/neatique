@@ -15,6 +15,14 @@ type OmbClaimStepThreeFormProps = {
   commentText: string;
   destinationUrl: string | null;
   outboundButtonLabel: string;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  calloutText?: string;
+  submitAction?: string;
+  submitLabel?: string;
+  addressLabel?: string;
+  includeAddress?: boolean;
 };
 
 export function OmbClaimStepThreeForm({
@@ -29,7 +37,15 @@ export function OmbClaimStepThreeForm({
   reviewRating,
   commentText,
   destinationUrl,
-  outboundButtonLabel
+  outboundButtonLabel,
+  eyebrow = "OMB Process / Last Step",
+  title = "You are almost done. Finish the last step to complete your OMB claim.",
+  description = `Copy your review text, post it on ${platformLabel}, then upload the proof and leave the address for your extra bottle. Once this step is submitted, your claim is complete.`,
+  calloutText = `Copy the review text you already wrote, open the ${platformLabel} review page, and paste the same text there before you submit the final claim below.`,
+  submitAction = "/api/om3",
+  submitLabel = "Submit OMB Claim",
+  addressLabel = "Leave the address for an extra bottle",
+  includeAddress = true
 }: OmbClaimStepThreeFormProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const [selectedFileName, setSelectedFileName] = useState("");
@@ -57,12 +73,9 @@ export function OmbClaimStepThreeForm({
     <section className="om-shell">
       <div className="om-shell__header">
         <div className="section-heading">
-          <p className="section-heading__eyebrow">OMB Process / Last Step</p>
-          <h1>You are almost done. Finish the last step to complete your OMB claim.</h1>
-          <p className="section-heading__description">
-            Copy your review text, post it on {platformLabel}, then upload the proof and leave the
-            address for your extra bottle. Once this step is submitted, your claim is complete.
-          </p>
+          <p className="section-heading__eyebrow">{eyebrow}</p>
+          <h1>{title}</h1>
+          <p className="section-heading__description">{description}</p>
         </div>
         <div className="page-hero__stats">
           <span className="pill">{platformLabel}</span>
@@ -72,7 +85,7 @@ export function OmbClaimStepThreeForm({
       </div>
 
       <div className="om-shell__body">
-        <form action="/api/om3" method="post" encType="multipart/form-data" className="contact-form">
+        <form action={submitAction} method="post" encType="multipart/form-data" className="contact-form">
           <input type="hidden" name="claimId" value={claimId} />
           <input type="hidden" name="platform" value={platformKey} />
           <input type="hidden" name="orderId" value={orderId} />
@@ -84,10 +97,7 @@ export function OmbClaimStepThreeForm({
           <input type="hidden" name="commentText" value={commentText} />
 
           <div className="omb-cta-card omb-cta-card--highlight">
-            <p>
-              Copy the review text you already wrote, open the {platformLabel} review page, and
-              paste the same text there before you submit the final claim below.
-            </p>
+            <p>{calloutText}</p>
             <div className="stack-row">
               <button
                 type="button"
@@ -125,16 +135,17 @@ export function OmbClaimStepThreeForm({
             </div>
           ) : null}
 
-          <div className="field">
-            <label htmlFor="omb-address">
-              Leave the address for an extra bottle{" "}
-              <span className="field__required">(Required)</span>
-            </label>
-            <textarea id="omb-address" name="extraBottleAddress" required />
-          </div>
+          {includeAddress ? (
+            <div className="field">
+              <label htmlFor="omb-address">
+                {addressLabel} <span className="field__required">(Required)</span>
+              </label>
+              <textarea id="omb-address" name="extraBottleAddress" required />
+            </div>
+          ) : null}
 
           <button type="submit" className="button button--primary om-shell__submit">
-            Submit OMB Claim
+            {submitLabel}
           </button>
         </form>
       </div>

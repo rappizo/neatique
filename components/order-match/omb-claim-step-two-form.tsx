@@ -18,6 +18,11 @@ type OmbClaimStepTwoFormProps = {
   email: string;
   phone: string | null;
   productOptions: OmbSelectableProduct[];
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  submitAction?: string;
+  submitLabel?: string;
 };
 
 export function OmbClaimStepTwoForm({
@@ -28,7 +33,12 @@ export function OmbClaimStepTwoForm({
   name,
   email,
   phone,
-  productOptions
+  productOptions,
+  eyebrow = "OMB Process / Step 2",
+  title = "Tell us what you purchased and how the product felt on your skin.",
+  description = "Your order verification from step 1 has already been carried over. Share the product, your rating, and your comments here before we send you to the final step.",
+  submitAction = "/api/om2",
+  submitLabel = "Continue"
 }: OmbClaimStepTwoFormProps) {
   const [rating, setRating] = useState(0);
 
@@ -36,12 +46,9 @@ export function OmbClaimStepTwoForm({
     <section className="om-shell">
       <div className="om-shell__header">
         <div className="section-heading">
-          <p className="section-heading__eyebrow">OMB Process / Step 2</p>
-          <h1>Tell us what you purchased and how the product felt on your skin.</h1>
-          <p className="section-heading__description">
-            Your order verification from step 1 has already been carried over. Share the product,
-            your rating, and your comments here before we send you to the final step.
-          </p>
+          <p className="section-heading__eyebrow">{eyebrow}</p>
+          <h1>{title}</h1>
+          <p className="section-heading__description">{description}</p>
         </div>
         <div className="page-hero__stats">
           <span className="pill">{platformLabel}</span>
@@ -50,7 +57,7 @@ export function OmbClaimStepTwoForm({
       </div>
 
       <div className="om-shell__body">
-        <form action="/api/om2" method="post" className="contact-form">
+        <form action={submitAction} method="post" className="contact-form">
           <input type="hidden" name="claimId" value={claimId} />
           <input type="hidden" name="platform" value={platformKey} />
           <input type="hidden" name="orderId" value={orderId} />
@@ -109,7 +116,7 @@ export function OmbClaimStepTwoForm({
           </div>
 
           <button type="submit" className="button button--primary om-shell__submit">
-            Continue
+            {submitLabel}
           </button>
         </form>
       </div>
