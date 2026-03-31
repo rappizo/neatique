@@ -9,7 +9,7 @@ import {
   updateEmailCampaignAction
 } from "@/app/admin/actions";
 import { EmailCampaignEditorForm } from "@/components/admin/email-campaign-editor-form";
-import { getBrevoSettings } from "@/lib/brevo";
+import { fetchBrevoSenders, getBrevoSettings } from "@/lib/brevo";
 import { getOpenAiEmailSettings } from "@/lib/openai-email";
 import { formatDate, formatTime } from "@/lib/format";
 import { getEmailCampaignById, getStoreSettings } from "@/lib/queries";
@@ -48,6 +48,14 @@ export default async function AdminEmailCampaignDetailPage({
   if (!campaign) {
     notFound();
   }
+
+  const senderEmail = (campaign.senderEmail || brevoSettings.senderEmail || "").trim().toLowerCase();
+  const senderSnapshot =
+    brevoSettings.enabled && brevoSettings.apiKeyConfigured
+      ? await fetchBrevoSenders(brevoSettings)
+      : { senders: [], error: null };
+  const activeSenders = senderSnapshot.senders.filter((sender) => sender.active);
+  const senderIsActive = senderEmail ? activeSenders.some((sender) => sender.email === senderEmail) : false;
 
   return (
     <div className="admin-page">
@@ -119,6 +127,18 @@ export default async function AdminEmailCampaignDetailPage({
         </div>
 
         {campaign.syncError ? <p className="notice">{campaign.syncError}</p> : null}
+        {!senderSnapshot.error && senderEmail && !senderIsActive ? (
+          <p className="notice notice--warning">
+            Current sender <strong>{senderEmail}</strong> is not active for Brevo marketing
+            campaigns. Active senders in this account:{" "}
+            {activeSenders.length > 0
+              ? activeSenders.map((sender) => sender.email).join(", ")
+              : "none returned by Brevo"}.
+          </p>
+        ) : null}
+        {senderSnapshot.error ? (
+          <p className="form-note">Brevo sender lookup is temporarily unavailable: {senderSnapshot.error}</p>
+        ) : null}
 
         <div className="cards-3">
           <form action={syncEmailCampaignToBrevoAction} className="admin-card">
@@ -154,6 +174,50 @@ export default async function AdminEmailCampaignDetailPage({
               Send campaign now
             </button>
           </form>
+        </div>
+      </section>
+
+      <section className="admin-form">
+        <div className="admin-review-pagination">
+          <div>
+            <h2>Email preview</h2>
+            <p className="form-note">
+              Preview reflects the latest saved draft. Save your edits first, then use this preview
+              to review layout, spacing, and CTA placement before sending a test.
+            </p>
+          </div>
+          <div className="stack-row">
+            <span className="pill">Subject: {campaign.subject}</span>
+            <span className="pill">
+              Preview text: {campaign.previewText?.trim() ? campaign.previewText : "Not set"}
+            </span>
+          </div>
+        </div>
+
+        <div className="admin-email-preview">
+          <div className="admin-email-preview__meta">
+            <p className="eyebrow">Saved campaign preview</p>
+            <h3>{campaign.name}</h3>
+            <p>
+              Sender: {(campaign.senderName || brevoSettings.senderName || "Neatique Beauty").trim()}
+              {" <"}
+              {(campaign.senderEmail || brevoSettings.senderEmail || "not configured").trim()}
+              {">"}
+            </p>
+            <p>
+              Reply-to: {(campaign.replyTo || brevoSettings.replyTo || "Not set").trim() || "Not set"}
+            </p>
+          </div>
+
+          <div className="admin-email-preview__frame-wrap">
+            <iframe
+              title={`${campaign.name} email preview`}
+              className="admin-email-preview__frame"
+              srcDoc={campaign.contentHtml}
+              sandbox=""
+              loading="lazy"
+            />
+          </div>
         </div>
       </section>
 

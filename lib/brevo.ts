@@ -195,6 +195,20 @@ type RawBrevoList = {
   folderName?: string | null;
 };
 
+export type BrevoSenderRecord = {
+  id: number;
+  name: string;
+  email: string;
+  active: boolean;
+};
+
+type RawBrevoSender = {
+  id?: number;
+  name?: string;
+  email?: string;
+  active?: boolean;
+};
+
 type RawBrevoContact = {
   id?: number;
   email?: string;
@@ -253,6 +267,46 @@ export async function fetchBrevoLists(settings: BrevoSettings) {
     return {
       lists: [] as BrevoListRecord[],
       error: error instanceof Error ? error.message : "Unable to load Brevo lists."
+    };
+  }
+}
+
+export async function fetchBrevoSenders(settings: BrevoSettings) {
+  if (!settings.enabled || !settings.apiKeyConfigured) {
+    return {
+      senders: [] as BrevoSenderRecord[],
+      error: null as string | null
+    };
+  }
+
+  try {
+    const response = await brevoRequest<{ senders?: RawBrevoSender[] }>(settings, "/senders", {
+      method: "GET"
+    });
+
+    return {
+      senders: (response.senders || [])
+        .map((sender) => {
+          const email = (sender.email || "").trim().toLowerCase();
+
+          if (!email || typeof sender.id !== "number") {
+            return null;
+          }
+
+          return {
+            id: sender.id,
+            name: (sender.name || "").trim() || email,
+            email,
+            active: Boolean(sender.active)
+          };
+        })
+        .filter((sender): sender is BrevoSenderRecord => Boolean(sender)),
+      error: null as string | null
+    };
+  } catch (error) {
+    return {
+      senders: [] as BrevoSenderRecord[],
+      error: error instanceof Error ? error.message : "Unable to load Brevo senders."
     };
   }
 }
@@ -510,6 +564,23 @@ export async function pushCampaignToBrevo(input: {
   campaign: EmailCampaignRecord;
 }) {
   const payload = buildBrevoCampaignPayload(input.campaign, input.settings, !input.campaign.brevoCampaignId);
+  const senderEmail = payload.sender.email.trim().toLowerCase();
+  const senderSnapshot = await fetchBrevoSenders(input.settings);
+
+  if (!senderSnapshot.error && senderSnapshot.senders.length > 0) {
+    const activeSenders = senderSnapshot.senders.filter((sender) => sender.active);
+    const senderIsActive = activeSenders.some((sender) => sender.email === senderEmail);
+
+    if (!senderIsActive) {
+      const activeSenderEmails = activeSenders.map((sender) => sender.email);
+      const senderListMessage =
+        activeSenderEmails.length > 0
+          ? `Active Brevo campaign senders in this account: ${activeSenderEmails.join(", ")}.`
+          : "No active Brevo campaign senders were returned by the account.";
+
+      throw new Error(`Sender ${senderEmail} is not active in Brevo campaigns. ${senderListMessage}`);
+    }
+  }
 
   if (input.campaign.brevoCampaignId) {
     await brevoRequest(

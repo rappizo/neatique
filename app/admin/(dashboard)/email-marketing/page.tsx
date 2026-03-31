@@ -4,7 +4,7 @@ import {
   saveEmailMarketingSettingsAction,
   syncBrevoAudienceAction
 } from "@/app/admin/actions";
-import { getBrevoSettings } from "@/lib/brevo";
+import { fetchBrevoSenders, getBrevoSettings } from "@/lib/brevo";
 import { formatDate, formatNumber } from "@/lib/format";
 import { getEmailMarketingOverview, getStoreSettings } from "@/lib/queries";
 
@@ -36,6 +36,15 @@ export default async function AdminEmailMarketingPage({
     searchParams
   ]);
   const brevoSettings = getBrevoSettings(settings);
+  const senderSnapshot =
+    brevoSettings.enabled && brevoSettings.apiKeyConfigured
+      ? await fetchBrevoSenders(brevoSettings)
+      : { senders: [], error: null };
+  const activeSenders = senderSnapshot.senders.filter((sender) => sender.active);
+  const configuredSenderEmail = (brevoSettings.senderEmail || "").trim().toLowerCase();
+  const configuredSenderIsActive = configuredSenderEmail
+    ? activeSenders.some((sender) => sender.email === configuredSenderEmail)
+    : false;
   const audienceCards = overview.audiences.filter(
     (audience) => audience.key === "NEWSLETTER" || audience.key === "CUSTOMERS" || audience.key === "LEADS"
   );
@@ -104,6 +113,9 @@ export default async function AdminEmailMarketingPage({
             </span>
             <span className="pill">
               Sender: {brevoSettings.senderEmail ? brevoSettings.senderEmail : "not ready"}
+            </span>
+            <span className="pill">
+              Active campaign senders: {formatNumber(activeSenders.length)}
             </span>
           </div>
         </div>
@@ -226,6 +238,37 @@ export default async function AdminEmailMarketingPage({
             </Link>
           </div>
         </form>
+
+        {!senderSnapshot.error && configuredSenderEmail && !configuredSenderIsActive ? (
+          <p className="notice notice--warning">
+            Current sender <strong>{configuredSenderEmail}</strong> is not active for Brevo
+            marketing campaigns. Available active senders:{" "}
+            {activeSenders.length > 0
+              ? activeSenders.map((sender) => sender.email).join(", ")
+              : "none returned by Brevo"}.
+          </p>
+        ) : null}
+
+        {senderSnapshot.error ? (
+          <p className="form-note">Brevo sender lookup is temporarily unavailable: {senderSnapshot.error}</p>
+        ) : null}
+
+        {senderSnapshot.senders.length > 0 ? (
+          <div className="admin-product-grid admin-product-grid--compact">
+            {senderSnapshot.senders.map((sender) => (
+              <article key={sender.id} className="admin-product-card">
+                <div className="admin-product-card__body">
+                  <div className="product-card__meta">
+                    <span>Sender ID {sender.id}</span>
+                    <span>{sender.active ? "Active" : "Inactive"}</span>
+                  </div>
+                  <h3>{sender.name}</h3>
+                  <p>{sender.email}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="admin-form">
