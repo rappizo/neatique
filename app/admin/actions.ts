@@ -939,18 +939,33 @@ export async function adjustCustomerPointsAction(formData: FormData) {
   const customerEmail = toPlainString(formData.get("customerEmail")).toLowerCase();
   const points = toInt(formData.get("points"));
   const note = toPlainString(formData.get("note")) || "Manual loyalty adjustment";
-  const customer =
+  const existingCustomer =
     customerId
       ? await prisma.customer.findUnique({
           where: { id: customerId },
-          select: { id: true }
+          select: { id: true, email: true }
         })
       : customerEmail
         ? await prisma.customer.findUnique({
             where: { email: customerEmail },
-            select: { id: true }
+            select: { id: true, email: true }
           })
         : null;
+
+  const customer =
+    existingCustomer ??
+    (customerEmail
+      ? await prisma.customer.create({
+          data: {
+            email: customerEmail,
+            marketingOptIn: false
+          },
+          select: {
+            id: true,
+            email: true
+          }
+        })
+      : null);
 
   if (!customer?.id) {
     redirect("/admin/rewards?status=missing-customer");
