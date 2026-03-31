@@ -1421,6 +1421,8 @@ export async function importBrevoAudienceAction(formData: FormData) {
     redirect(buildEmailMarketingRedirect("missing-list", undefined, redirectTo));
   }
 
+  let nextStatus = "audience-import-failed";
+
   try {
     const listLookup = new Map<number, string>();
     const knownLists = await fetchBrevoLists(brevoSettings);
@@ -1435,24 +1437,20 @@ export async function importBrevoAudienceAction(formData: FormData) {
       settings: brevoSettings
     });
 
-    revalidatePath("/admin/email-marketing");
-    redirect(
-      buildEmailMarketingRedirect(
-        result.failed > 0
-          ? result.uniqueImported > 0
-            ? "audience-import-partial"
-            : "audience-import-failed"
-          : result.uniqueImported > 0
-            ? "audience-import-complete"
-            : "audience-import-empty",
-        undefined,
-        redirectTo
-      )
-    );
+    nextStatus =
+      result.failed > 0
+        ? result.uniqueImported > 0
+          ? "audience-import-partial"
+          : "audience-import-failed"
+        : result.uniqueImported > 0
+          ? "audience-import-complete"
+          : "audience-import-empty";
   } catch (error) {
     console.error("Brevo audience import failed:", error);
-    redirect(buildEmailMarketingRedirect("audience-import-failed", undefined, redirectTo));
   }
+
+  revalidatePath("/admin/email-marketing");
+  redirect(buildEmailMarketingRedirect(nextStatus, undefined, redirectTo));
 }
 
 export async function deleteEmailAudienceContactAction(formData: FormData) {
@@ -1468,6 +1466,8 @@ export async function deleteEmailAudienceContactAction(formData: FormData) {
   if (!email) {
     redirect(buildEmailAudienceRedirect("missing-email", audienceType, redirectTo));
   }
+
+  let nextStatus = "remove-failed";
 
   try {
     if (targetListIds.length > 0 && brevoSettings.enabled && brevoSettings.apiKeyConfigured) {
@@ -1485,13 +1485,14 @@ export async function deleteEmailAudienceContactAction(formData: FormData) {
       }
     });
 
-    revalidatePath("/admin/email-marketing");
-    revalidatePath(`/admin/email-marketing/audience/${audienceType}`);
-    redirect(buildEmailAudienceRedirect("contact-removed", audienceType, redirectTo));
+    nextStatus = "contact-removed";
   } catch (error) {
     console.error("Brevo audience contact removal failed:", error);
-    redirect(buildEmailAudienceRedirect("remove-failed", audienceType, redirectTo));
   }
+
+  revalidatePath("/admin/email-marketing");
+  revalidatePath(`/admin/email-marketing/audience/${audienceType}`);
+  redirect(buildEmailAudienceRedirect(nextStatus, audienceType, redirectTo));
 }
 
 export async function syncBrevoAudienceAction(formData: FormData) {
@@ -1572,6 +1573,8 @@ export async function generateEmailCampaignWithAiAction(formData: FormData) {
 
   const brevoSettings = getBrevoSettings(settingsMap);
 
+  let nextStatus = "ai-error";
+
   try {
     const aiDraft = await generateEmailCampaignDraftWithAi({
       campaignName: campaign.name,
@@ -1597,10 +1600,7 @@ export async function generateEmailCampaignWithAiAction(formData: FormData) {
         syncError: null
       }
     });
-
-    revalidatePath("/admin/email-marketing");
-    revalidatePath(`/admin/email-marketing/${id}`);
-    redirect(buildEmailMarketingRedirect("ai-generated", id, redirectTo));
+    nextStatus = "ai-generated";
   } catch (error) {
     await prisma.emailCampaign.update({
       where: { id },
@@ -1608,11 +1608,11 @@ export async function generateEmailCampaignWithAiAction(formData: FormData) {
         syncError: error instanceof Error ? error.message : "AI generation failed."
       }
     });
-
-    revalidatePath("/admin/email-marketing");
-    revalidatePath(`/admin/email-marketing/${id}`);
-    redirect(buildEmailMarketingRedirect("ai-error", id, redirectTo));
   }
+
+  revalidatePath("/admin/email-marketing");
+  revalidatePath(`/admin/email-marketing/${id}`);
+  redirect(buildEmailMarketingRedirect(nextStatus, id, redirectTo));
 }
 
 export async function createEmailCampaignAction(formData: FormData) {
@@ -1710,6 +1710,8 @@ export async function syncEmailCampaignToBrevoAction(formData: FormData) {
 
   const brevoSettings = getBrevoSettings(settingsMap);
 
+  let nextStatus = "brevo-error";
+
   try {
     const pushResult = await pushCampaignToBrevo({
       settings: brevoSettings,
@@ -1725,10 +1727,7 @@ export async function syncEmailCampaignToBrevoAction(formData: FormData) {
         syncError: null
       }
     });
-
-    revalidatePath("/admin/email-marketing");
-    revalidatePath(`/admin/email-marketing/${id}`);
-    redirect(buildEmailMarketingRedirect("brevo-synced", id, redirectTo));
+    nextStatus = "brevo-synced";
   } catch (error) {
     await prisma.emailCampaign.update({
       where: { id },
@@ -1737,11 +1736,11 @@ export async function syncEmailCampaignToBrevoAction(formData: FormData) {
         syncError: error instanceof Error ? error.message : "Brevo sync failed."
       }
     });
-
-    revalidatePath("/admin/email-marketing");
-    revalidatePath(`/admin/email-marketing/${id}`);
-    redirect(buildEmailMarketingRedirect("brevo-error", id, redirectTo));
   }
+
+  revalidatePath("/admin/email-marketing");
+  revalidatePath(`/admin/email-marketing/${id}`);
+  redirect(buildEmailMarketingRedirect(nextStatus, id, redirectTo));
 }
 
 export async function sendEmailCampaignTestAction(formData: FormData) {
@@ -1773,6 +1772,8 @@ export async function sendEmailCampaignTestAction(formData: FormData) {
     redirect(buildEmailMarketingRedirect("missing-test-email", id, redirectTo));
   }
 
+  let nextStatus = "brevo-error";
+
   try {
     const pushResult = await pushCampaignToBrevo({
       settings: brevoSettings,
@@ -1795,10 +1796,7 @@ export async function sendEmailCampaignTestAction(formData: FormData) {
         syncError: null
       }
     });
-
-    revalidatePath("/admin/email-marketing");
-    revalidatePath(`/admin/email-marketing/${id}`);
-    redirect(buildEmailMarketingRedirect("test-sent", id, redirectTo));
+    nextStatus = "test-sent";
   } catch (error) {
     await prisma.emailCampaign.update({
       where: { id },
@@ -1807,11 +1805,11 @@ export async function sendEmailCampaignTestAction(formData: FormData) {
         syncError: error instanceof Error ? error.message : "Brevo test send failed."
       }
     });
-
-    revalidatePath("/admin/email-marketing");
-    revalidatePath(`/admin/email-marketing/${id}`);
-    redirect(buildEmailMarketingRedirect("brevo-error", id, redirectTo));
   }
+
+  revalidatePath("/admin/email-marketing");
+  revalidatePath(`/admin/email-marketing/${id}`);
+  redirect(buildEmailMarketingRedirect(nextStatus, id, redirectTo));
 }
 
 export async function sendEmailCampaignNowAction(formData: FormData) {
@@ -1837,6 +1835,8 @@ export async function sendEmailCampaignNowAction(formData: FormData) {
 
   const brevoSettings = getBrevoSettings(settingsMap);
 
+  let nextStatus = "brevo-error";
+
   try {
     const pushResult = await pushCampaignToBrevo({
       settings: brevoSettings,
@@ -1858,10 +1858,7 @@ export async function sendEmailCampaignNowAction(formData: FormData) {
         syncError: null
       }
     });
-
-    revalidatePath("/admin/email-marketing");
-    revalidatePath(`/admin/email-marketing/${id}`);
-    redirect(buildEmailMarketingRedirect("campaign-sent", id, redirectTo));
+    nextStatus = "campaign-sent";
   } catch (error) {
     await prisma.emailCampaign.update({
       where: { id },
@@ -1870,9 +1867,9 @@ export async function sendEmailCampaignNowAction(formData: FormData) {
         syncError: error instanceof Error ? error.message : "Brevo send failed."
       }
     });
-
-    revalidatePath("/admin/email-marketing");
-    revalidatePath(`/admin/email-marketing/${id}`);
-    redirect(buildEmailMarketingRedirect("brevo-error", id, redirectTo));
   }
+
+  revalidatePath("/admin/email-marketing");
+  revalidatePath(`/admin/email-marketing/${id}`);
+  redirect(buildEmailMarketingRedirect(nextStatus, id, redirectTo));
 }
