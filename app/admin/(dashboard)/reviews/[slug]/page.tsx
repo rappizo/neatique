@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ReviewBulkSelectToggle } from "@/components/admin/review-bulk-select-toggle";
 import { RatingStars } from "@/components/ui/rating-stars";
 import {
   bulkDeleteReviewsAction,
@@ -209,7 +210,12 @@ export default async function AdminProductReviewsPage({
           <table>
             <thead>
               <tr>
-                <th>Select</th>
+                <th>
+                  <div className="admin-table__select-header">
+                    <span>Select</span>
+                    <ReviewBulkSelectToggle formId={bulkDeleteFormId} />
+                  </div>
+                </th>
                 <th>Review Date</th>
                 <th>Display Name</th>
                 <th>Rating</th>

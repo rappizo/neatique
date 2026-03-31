@@ -2698,8 +2698,18 @@ main {
   font-size: 0.9rem;
 }
 
+.admin-table__checkbox-label--header {
+  min-height: 28px;
+}
+
 .admin-table__checkbox-label input {
   margin: 0;
+}
+
+.admin-table__select-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .admin-table__rating-cell {
