@@ -1070,22 +1070,28 @@ main {
 }
 
 .rating-stars__visual {
-  position: relative;
+  display: flex;
+  gap: 4px;
   width: fit-content;
+}
+
+.rating-stars__star {
+  position: relative;
+  display: block;
   color: rgba(237, 115, 97, 0.2);
 }
 
-.rating-stars__track,
-.rating-stars__fill {
-  display: flex;
-  gap: 4px;
+.rating-stars__star-track,
+.rating-stars__star-fill {
+  display: block;
 }
 
-.rating-stars__fill {
+.rating-stars__star-fill {
   position: absolute;
   inset: 0 auto 0 0;
   overflow: hidden;
   color: var(--brand);
+  pointer-events: none;
 }
 
 .rating-stars svg {

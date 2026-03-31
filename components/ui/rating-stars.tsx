@@ -32,16 +32,23 @@ export function RatingStars({
   return (
     <div className={`rating-stars rating-stars--${size}`}>
       <div className="rating-stars__visual" aria-label={`${safeRating.toFixed(1)} out of 5 stars`}>
-        <div className="rating-stars__track">
-          {Array.from({ length: 5 }, (_, index) => (
-            <StarIcon key={`track-${index}`} filled={false} />
-          ))}
-        </div>
-        <div className="rating-stars__fill" style={{ width: `${(safeRating / 5) * 100}%` }}>
-          {Array.from({ length: 5 }, (_, index) => (
-            <StarIcon key={`fill-${index}`} filled />
-          ))}
-        </div>
+        {Array.from({ length: 5 }, (_, index) => {
+          const starFill = Math.max(0, Math.min(1, safeRating - index));
+
+          return (
+            <span key={`star-${index}`} className="rating-stars__star">
+              <span className="rating-stars__star-track">
+                <StarIcon filled={false} />
+              </span>
+              <span
+                className="rating-stars__star-fill"
+                style={{ width: `${starFill * 100}%` }}
+              >
+                <StarIcon filled />
+              </span>
+            </span>
+          );
+        })}
       </div>
       {showValue ? <span className="rating-stars__value">{safeRating.toFixed(1)}</span> : null}
       {showCount ? (
