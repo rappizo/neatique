@@ -105,16 +105,33 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
                     <Image src={mascot.imageUrl} alt={mascot.name} width={520} height={520} unoptimized />
                   </div>
                   <div className="product-card__body">
-                    <div className="product-card__meta">
+                    <div className="mascot-card__meta">
                       <span>{mascot.sku}</span>
                       <span>{formatNumber(mascot.pointsCost)} points</span>
                     </div>
-                    <h3>{mascot.name}</h3>
-                    <p>{mascot.description || "Redeem this mascot with reward points."}</p>
-                    <div className="stack-row">
+                    <div className="mascot-card__title">
+                      <h3>{mascot.name}</h3>
+                      <p>{mascot.description || "Redeem this mascot with reward points."}</p>
+                    </div>
+                    <div className="mascot-card__footer">
+                      <div className="mascot-card__status-row">
+                        <span
+                          className={`mascot-card__status ${
+                            canRedeem ? "mascot-card__status--ready" : "mascot-card__status--waiting"
+                          }`}
+                        >
+                          {canRedeem ? "Ready to redeem" : "Need more points"}
+                        </span>
+                        <span className="mascot-card__hint">
+                          {canRedeem
+                            ? `${formatNumber(pointsBalance)} points available`
+                            : `${formatNumber(mascot.pointsCost - pointsBalance)} points to go`}
+                        </span>
+                      </div>
                       <ButtonLink
                         href={`/rd?mascot=${mascot.slug}`}
                         variant={canRedeem ? "primary" : "secondary"}
+                        className="mascot-card__cta"
                       >
                         {canRedeem ? "Redeem now" : "Need more points"}
                       </ButtonLink>

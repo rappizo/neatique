@@ -97,33 +97,56 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         </div>
       </section>
 
-      <section className="admin-form">
+      <section className="admin-table admin-table--scroll">
         <h2>Manual point adjustment</h2>
-        <form action={adjustCustomerPointsAction}>
-          <div className="admin-form__grid">
-            <div className="field">
-              <label htmlFor="customerId">Customer</label>
-              <select id="customerId" name="customerId" required>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="points">Points</label>
-              <input id="points" name="points" type="number" required />
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="note">Note</label>
-            <textarea id="note" name="note" defaultValue="Manual loyalty adjustment" />
-          </div>
-          <button type="submit" className="button button--primary">
-            Apply adjustment
-          </button>
-        </form>
+        <table>
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Current balance</th>
+              <th>Adjust by</th>
+              <th>Note</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <form id="manual-points-adjustment" action={adjustCustomerPointsAction}>
+                  <select id="customerId" name="customerId" required>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.email}
+                      </option>
+                    ))}
+                  </select>
+                </form>
+              </td>
+              <td>
+                <span className="admin-table__empty">
+                  Select a customer, then apply a positive or negative point update.
+                </span>
+              </td>
+              <td>
+                <input form="manual-points-adjustment" id="points" name="points" type="number" required />
+              </td>
+              <td>
+                <textarea
+                  className="admin-table__textarea"
+                  form="manual-points-adjustment"
+                  id="note"
+                  name="note"
+                  defaultValue="Manual loyalty adjustment"
+                />
+              </td>
+              <td className="admin-table__actions">
+                <button type="submit" className="button button--primary" form="manual-points-adjustment">
+                  Apply adjustment
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section className="admin-table admin-table--scroll">

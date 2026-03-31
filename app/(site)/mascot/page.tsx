@@ -76,12 +76,22 @@ export default async function MascotPage() {
                   <Image src={mascot.imageUrl} alt={mascot.name} width={520} height={520} unoptimized />
                 </div>
                 <div className="product-card__body">
-                  <div className="product-card__meta">
+                  <div className="mascot-card__meta">
                     <span>{mascot.sku}</span>
                     <span>{formatNumber(mascot.pointsCost)} points</span>
                   </div>
-                  <h3>{mascot.name}</h3>
-                  <p>{mascot.description || "Redeem this mascot once your points are ready."}</p>
+                  <div className="mascot-card__title">
+                    <h3>{mascot.name}</h3>
+                    <p>{mascot.description || "Redeem this mascot once your points are ready."}</p>
+                  </div>
+                  <div className="mascot-card__footer">
+                    <p className="mascot-card__hint">
+                      Save up your points, then open the redeem page to claim this mascot.
+                    </p>
+                    <ButtonLink href={`/rd?mascot=${mascot.slug}`} variant="secondary" className="mascot-card__cta">
+                      View redeem option
+                    </ButtonLink>
+                  </div>
                 </div>
               </article>
             ))}
