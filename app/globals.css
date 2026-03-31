@@ -2207,10 +2207,8 @@ main {
 }
 
 .review-showcase {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 14px;
-  grid-auto-flow: dense;
+  column-gap: 14px;
+  column-count: 3;
 }
 
 .review-showcase__footer {
@@ -2223,13 +2221,18 @@ main {
 }
 
 .review-card {
-  display: grid;
+  display: inline-grid;
+  width: 100%;
   gap: 12px;
   padding: 18px;
+  margin: 0 0 14px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.86);
   border: 1px solid var(--line);
-  grid-column: span 4;
+  align-content: start;
+  align-items: start;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
 }
 
 .review-card--link {
@@ -2255,30 +2258,6 @@ main {
 
 .review-card p {
   margin: 0;
-}
-
-.review-card:nth-child(6n + 1) {
-  grid-column: span 5;
-}
-
-.review-card:nth-child(6n + 2) {
-  grid-column: span 3;
-}
-
-.review-card:nth-child(6n + 3) {
-  grid-column: span 4;
-}
-
-.review-card:nth-child(6n + 4) {
-  grid-column: span 4;
-}
-
-.review-card:nth-child(6n + 5) {
-  grid-column: span 3;
-}
-
-.review-card:nth-child(6n + 6) {
-  grid-column: span 5;
 }
 
 .review-card__meta {
@@ -3083,7 +3062,6 @@ main {
   .product-highlight-grid,
   .admin-product-grid,
   .admin-product-editor__gallery,
-  .review-showcase,
   .admin-review-group__stats,
   .philosophy-band__grid,
   .ritual-steps--grid,
@@ -3091,14 +3069,8 @@ main {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .review-card,
-  .review-card:nth-child(6n + 1),
-  .review-card:nth-child(6n + 2),
-  .review-card:nth-child(6n + 3),
-  .review-card:nth-child(6n + 4),
-  .review-card:nth-child(6n + 5),
-  .review-card:nth-child(6n + 6) {
-    grid-column: span 1;
+  .review-showcase {
+    column-count: 2;
   }
 
   .review-detail-card__rating {
@@ -3178,7 +3150,6 @@ main {
   .product-highlight-grid,
   .admin-product-grid,
   .admin-product-editor__gallery,
-  .review-showcase,
   .admin-review-group__stats,
   .philosophy-band__grid,
   .ritual-steps--grid,
@@ -3186,6 +3157,10 @@ main {
   .ritual-spotlight__media,
   .home-mosaic {
     grid-template-columns: 1fr;
+  }
+
+  .review-showcase {
+    column-count: 1;
   }
 
   .philosophy-band__feature {
