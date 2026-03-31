@@ -204,20 +204,39 @@ export async function fetchBrevoLists(settings: BrevoSettings) {
   }
 
   try {
-    const response = await brevoRequest<{ lists?: RawBrevoList[] }>(
-      settings,
-      "/contacts/lists?limit=100&offset=0",
-      {
-        method: "GET"
-      }
-    );
+    const pageSize = 50;
+    let offset = 0;
+    let totalCount = Number.POSITIVE_INFINITY;
+    const lists: BrevoListRecord[] = [];
 
-    const lists = (response.lists || []).map((list) => ({
-      id: list.id,
-      name: list.name,
-      totalSubscribers: list.totalSubscribers || 0,
-      folderName: list.folderName || null
-    }));
+    while (offset < totalCount) {
+      const response = await brevoRequest<{ count?: number; lists?: RawBrevoList[] }>(
+        settings,
+        `/contacts/lists?limit=${pageSize}&offset=${offset}`,
+        {
+          method: "GET"
+        }
+      );
+
+      const pageItems = (response.lists || []).map((list) => ({
+        id: list.id,
+        name: list.name,
+        totalSubscribers: list.totalSubscribers || 0,
+        folderName: list.folderName || null
+      }));
+
+      lists.push(...pageItems);
+      totalCount =
+        typeof response.count === "number"
+          ? response.count
+          : offset + pageItems.length + (pageItems.length === pageSize ? 1 : 0);
+
+      if (pageItems.length < pageSize) {
+        break;
+      }
+
+      offset += pageSize;
+    }
 
     return {
       lists,
