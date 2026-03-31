@@ -3259,6 +3259,10 @@ main {
     min-height: 320px;
   }
 
+  .right-img {
+    display: none;
+  }
+
   .slider-nav {
     top: auto;
     bottom: 16px;

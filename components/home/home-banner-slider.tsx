@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { buildSiteImageUrl } from "@/lib/site-media";
+
+const transparentPixel =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 const slides = [
   {
@@ -12,6 +14,7 @@ const slides = [
       "Discover silky textures and glow-focused care made to leave skin looking smooth, fresh, and beautifully comfortable.",
     href: "/shop/pdrn-serum",
     middleImage: buildSiteImageUrl("home-banner", "1.jpg"),
+    middleImageMobile: buildSiteImageUrl("home-banner", "1-mobile.jpg"),
     rightImage: buildSiteImageUrl("home-banner", "3.jpg")
   },
   {
@@ -20,6 +23,7 @@ const slides = [
       "Explore formulas that wrap the skin in moisture and help create a softer, more luminous finish from morning to night.",
     href: "/shop/snail-mucin-serum",
     middleImage: buildSiteImageUrl("home-banner", "4.jpg"),
+    middleImageMobile: buildSiteImageUrl("home-banner", "4-mobile.jpg"),
     rightImage: buildSiteImageUrl("home-banner", "6.jpg")
   },
   {
@@ -28,6 +32,7 @@ const slides = [
       "Build a routine with serums and creams designed to feel elegant, easy to layer, and lovely to come back to every day.",
     href: "/shop/snail-mucin-cream",
     middleImage: buildSiteImageUrl("home-banner", "7.jpg"),
+    middleImageMobile: buildSiteImageUrl("home-banner", "7-mobile.jpg"),
     rightImage: buildSiteImageUrl("home-banner", "8.jpg")
   }
 ];
@@ -73,28 +78,32 @@ export function HomeBannerSlider() {
                   </div>
                 </div>
                 <div className="slide-part image-part middle-img">
-                  <Image
-                    src={slide.middleImage}
-                    alt={`${slide.title} campaign visual`}
-                    width={560}
-                    height={760}
-                    sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 26vw"
-                    quality={75}
-                    unoptimized
-                    priority={index === 0}
-                  />
+                  <picture>
+                    <source media="(max-width: 720px)" srcSet={slide.middleImageMobile} />
+                    <img
+                      src={slide.middleImage}
+                      alt={`${slide.title} campaign visual`}
+                      width={560}
+                      height={760}
+                      loading={index === 0 ? "eager" : "lazy"}
+                      fetchPriority={index === 0 ? "high" : "auto"}
+                      decoding="async"
+                    />
+                  </picture>
                 </div>
                 <div className="slide-part image-part right-img">
-                  <Image
-                    src={slide.rightImage}
-                    alt={`${slide.title} skincare detail`}
-                    width={560}
-                    height={760}
-                    sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 26vw"
-                    quality={75}
-                    unoptimized
-                    priority={index === 0}
-                  />
+                  <picture>
+                    <source media="(max-width: 720px)" srcSet={transparentPixel} />
+                    <img
+                      src={slide.rightImage}
+                      alt={`${slide.title} skincare detail`}
+                      width={560}
+                      height={760}
+                      loading="lazy"
+                      fetchPriority="low"
+                      decoding="async"
+                    />
+                  </picture>
                 </div>
               </div>
             ))}
