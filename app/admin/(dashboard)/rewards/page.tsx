@@ -102,7 +102,8 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         <table>
           <thead>
             <tr>
-              <th>Customer</th>
+              <th>Customer selector</th>
+              <th>Email input</th>
               <th>Current balance</th>
               <th>Adjust by</th>
               <th>Note</th>
@@ -113,7 +114,8 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
             <tr>
               <td>
                 <form id="manual-points-adjustment" action={adjustCustomerPointsAction}>
-                  <select id="customerId" name="customerId" required>
+                  <select id="customerId" name="customerId">
+                    <option value="">Select an existing customer</option>
                     {customers.map((customer) => (
                       <option key={customer.id} value={customer.id}>
                         {customer.email}
@@ -123,8 +125,17 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
                 </form>
               </td>
               <td>
+                <input
+                  form="manual-points-adjustment"
+                  id="customerEmail"
+                  name="customerEmail"
+                  type="email"
+                  placeholder="or enter customer email"
+                />
+              </td>
+              <td>
                 <span className="admin-table__empty">
-                  Select a customer, then apply a positive or negative point update.
+                  Select a customer or enter an existing customer email, then apply a positive or negative point update.
                 </span>
               </td>
               <td>

@@ -164,7 +164,7 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
                   <form action="/rd/redeem" method="post" className="checkout-confirmation-form">
                     <input type="hidden" name="mascotSlug" value={selectedMascot.slug} />
 
-                    <section className="admin-form">
+                    <section className="admin-form checkout-confirmation-form__body">
                       <div className="admin-form__grid">
                         <div className="field">
                           <label htmlFor="rd-full-name">Full name</label>
@@ -214,7 +214,7 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
                           />
                         </div>
                       </div>
-                      <div className="stack-row">
+                      <div className="stack-row checkout-confirmation-form__actions">
                         <button type="submit" className="button button--primary">
                           Redeem {selectedMascot.name}
                         </button>

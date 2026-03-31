@@ -936,25 +936,42 @@ export async function adjustCustomerPointsAction(formData: FormData) {
   await requireAdminSession();
 
   const customerId = toPlainString(formData.get("customerId"));
+  const customerEmail = toPlainString(formData.get("customerEmail")).toLowerCase();
   const points = toInt(formData.get("points"));
   const note = toPlainString(formData.get("note")) || "Manual loyalty adjustment";
+  const customer =
+    customerId
+      ? await prisma.customer.findUnique({
+          where: { id: customerId },
+          select: { id: true }
+        })
+      : customerEmail
+        ? await prisma.customer.findUnique({
+            where: { email: customerEmail },
+            select: { id: true }
+          })
+        : null;
+
+  if (!customer?.id) {
+    redirect("/admin/rewards?status=missing-customer");
+  }
 
   await prisma.$transaction([
     prisma.customer.update({
-      where: { id: customerId },
+      where: { id: customer.id },
       data: {
         loyaltyPoints: {
           increment: points
         }
       }
     }),
-    prisma.rewardEntry.create({
-      data: {
-        customerId,
-        type: "ADJUSTMENT",
-        points,
-        note
-      }
+      prisma.rewardEntry.create({
+        data: {
+          customerId: customer.id,
+          type: "ADJUSTMENT",
+          points,
+          note
+        }
     })
   ]);
 
