@@ -204,3 +204,25 @@ export async function sendSubscriptionCouponEmail(input: {
     `
   });
 }
+
+export async function sendRyoRewardApprovedEmail(input: {
+  email: string;
+  firstName?: string | null;
+  points: number;
+}) {
+  const name = input.firstName || "there";
+
+  return sendEmail({
+    to: input.email,
+    subject: "Your Neatique order registration was approved",
+    text: `Hi ${name}, we reviewed your Register Your Order submission and added ${input.points} points to your Neatique account. Visit https://neatiquebeauty.com/rd to redeem your mascot once your balance is ready.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
+        <h2 style="font-family:Georgia,serif;color:#ed7361">Your RYO submission was approved</h2>
+        <p>Hi ${name}, we reviewed your order registration and added <strong>${input.points} points</strong> to your Neatique account.</p>
+        <p>You can now visit <a href="https://neatiquebeauty.com/rd" style="color:#ed7361">neatiquebeauty.com/rd</a> to redeem your mascot once your balance is ready.</p>
+        <p>Thank you for supporting Neatique.</p>
+      </div>
+    `
+  });
+}

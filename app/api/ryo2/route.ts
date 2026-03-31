@@ -6,7 +6,7 @@ import {
   isHighRating,
   OMB_MIN_COMMENT_LENGTH
 } from "@/lib/order-match";
-import { completeRyoClaimWithPoints } from "@/lib/ryo-claims";
+import { completeRyoClaimSubmission } from "@/lib/ryo-claims";
 
 function redirectWithError(request: Request, claimId: string, platformKey: string, error: string) {
   return NextResponse.redirect(
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL(`/ryo3?claim=${claim.id}`, request.url), 303);
   }
 
-  const completionResult = await completeRyoClaimWithPoints({
+  const completionResult = await completeRyoClaimSubmission({
     claimId: claim.id,
     completionData: {
       purchasedProduct: product.productShortName,
@@ -112,8 +112,6 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/ryo2?error=claim", request.url), 303);
   }
 
-  revalidatePath("/account");
   revalidatePath("/admin/rewards");
-  revalidatePath("/rd");
   return NextResponse.redirect(new URL(`/ryo2/thank-you?claim=${claim.id}`, request.url), 303);
 }

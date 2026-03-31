@@ -49,8 +49,8 @@ export default async function MascotPage() {
             <h2>Purchase a product and register the order through RYO to receive another 500 points.</h2>
             <p>
               After your purchase, open the Register Your Order flow, verify the order, and submit
-              the short registration. Once it is completed, the reward points are added to your
-              account so you can move toward a mascot redemption.
+              the short registration. Once our team reviews and approves it, the reward points are
+              added to your account so you can move toward a mascot redemption.
             </p>
             <div className="stack-row">
               <ButtonLink href="/ryo" variant="primary">

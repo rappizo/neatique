@@ -66,8 +66,8 @@ export default async function RegisterOrderStepThreePage({
             destinationUrl={claim.reviewDestinationUrl}
             outboundButtonLabel={platform.outboundButtonLabel}
             eyebrow="Reward Points / Last Step"
-            title="One last step and we can credit your 500 points."
-            description={`Copy your review text, post it on ${platform.label}, then upload the proof if needed. Once this final step is submitted, your RYO registration is complete and the points can be added to your account.`}
+            title="One last step before your 500-point review goes to approval."
+            description={`Copy your review text, post it on ${platform.label}, then upload the proof if needed. Once this last step is submitted, your RYO registration is complete and our team can review it for approval.`}
             calloutText={`Copy the review text you already wrote, open the ${platform.label} review page, and paste the same text there before you finish the last registration step below.`}
             submitAction="/api/ryo3"
             submitLabel="Submit RYO Registration"

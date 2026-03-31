@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import type { MascotRewardRecord } from "@/lib/types";
 import { buildSiteImageUrl } from "@/lib/site-media";
@@ -61,6 +61,7 @@ function buildQrPlaceholderImage() {
 function findMascotQrImageUrl() {
   const root = path.join(process.cwd(), "images");
   const candidatePaths = [
+    path.join(root, "mascot", "TK QR Code.png"),
     path.join(root, "mascots", "tk QR Code.png"),
     path.join(root, "mascots", "TikTok QR Code.png"),
     path.join(root, "mascots", "tiktok-qr.png"),
@@ -139,8 +140,84 @@ const DEFAULT_MASCOT_SEEDS: DefaultMascotSeed[] = [
   }
 ];
 
+function getMascotImageRoot() {
+  const singular = path.join(process.cwd(), "images", "mascot");
+  const plural = path.join(process.cwd(), "images", "mascots");
+  return existsSync(singular) ? singular : plural;
+}
+
+function parseMascotFileName(fileName: string) {
+  const parsed = path.parse(fileName);
+
+  if (!/\.(png|jpe?g|webp|avif)$/i.test(fileName)) {
+    return null;
+  }
+
+  if (/qr\s*code/i.test(parsed.name)) {
+    return null;
+  }
+
+  const match = parsed.name.match(/^([A-Za-z0-9]+)\s+(.+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, sku, rawName] = match;
+  const name = rawName.trim();
+
+  return {
+    sku: sku.toUpperCase(),
+    name,
+    slug: `${sku}-${name}`.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+    fileName
+  };
+}
+
+function getMascotFileSeeds() {
+  const root = getMascotImageRoot();
+
+  if (!existsSync(root)) {
+    return [];
+  }
+
+  const folder = path.basename(root);
+  const fileSeeds = readdirSync(root)
+    .map(parseMascotFileName)
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .sort((left, right) => left.sku.localeCompare(right.sku, undefined, { numeric: true, sensitivity: "base" }))
+    .map((item, index) => ({
+      sku: item.sku,
+      name: item.name,
+      slug: item.slug,
+      description: `${item.name} is redeemable once your balance reaches ${MASCOT_REDEMPTION_POINTS.toLocaleString()} Neatique points.`,
+      imageUrl: buildSiteImageUrl(folder, item.fileName),
+      sortOrder: index + 1
+    }));
+
+  return fileSeeds;
+}
+
 export function getDefaultMascotRewards(): MascotRewardRecord[] {
   const createdAt = new Date("2026-03-31T08:00:00.000Z");
+  const fileBackedSeeds = getMascotFileSeeds();
+
+  if (fileBackedSeeds.length > 0) {
+    return fileBackedSeeds.map((seed) => ({
+      id: `mascot-${seed.slug}`,
+      sku: seed.sku,
+      name: seed.name,
+      slug: seed.slug,
+      description: seed.description,
+      imageUrl: seed.imageUrl,
+      pointsCost: MASCOT_REDEMPTION_POINTS,
+      active: true,
+      sortOrder: seed.sortOrder,
+      redemptionCount: 0,
+      createdAt,
+      updatedAt: createdAt
+    }));
+  }
 
   return DEFAULT_MASCOT_SEEDS.map((seed, index) => ({
     id: `mascot-${seed.slug}`,

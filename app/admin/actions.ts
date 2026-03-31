@@ -25,6 +25,7 @@ import {
 import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from "@/lib/coupons";
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
 import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
+import { approveRyoClaimReward } from "@/lib/ryo-claims";
 import type {
   CouponDiscountType,
   EmailAudienceType,
@@ -1031,6 +1032,41 @@ export async function updateMascotRedemptionAction(formData: FormData) {
 
   revalidatePath("/admin/rewards");
   redirect(buildRewardsRedirect("redemption-updated", redirectTo));
+}
+
+export async function approveRyoClaimRewardAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/rewards";
+  const adminNote = toPlainString(formData.get("adminNote")) || null;
+
+  if (!id) {
+    redirect(buildRewardsRedirect("missing-ryo-claim", redirectTo));
+  }
+
+  const result = await approveRyoClaimReward({
+    claimId: id,
+    adminNote
+  });
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/account");
+  revalidatePath("/rd");
+
+  if (result.status === "missing") {
+    redirect(buildRewardsRedirect("missing-ryo-claim", redirectTo));
+  }
+
+  if (result.status === "not-ready") {
+    redirect(buildRewardsRedirect("ryo-not-ready", redirectTo));
+  }
+
+  if (result.status === "already-approved") {
+    redirect(buildRewardsRedirect("ryo-already-approved", redirectTo));
+  }
+
+  redirect(buildRewardsRedirect("ryo-approved", redirectTo));
 }
 
 export async function updateCustomerAction(formData: FormData) {

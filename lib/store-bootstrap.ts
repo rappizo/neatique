@@ -113,30 +113,65 @@ async function seedSettingsIfEmpty() {
 }
 
 async function seedMascotsIfEmpty() {
-  const mascotCount = await prisma.mascotReward.count();
+  const defaultMascots = getDefaultMascotRewards();
+  const existingMascots = await prisma.mascotReward.findMany({
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+  });
 
-  if (mascotCount > 0) {
+  if (existingMascots.length === 0) {
+    await prisma.mascotReward.createMany({
+      data: defaultMascots.map((mascot) => ({
+        id: mascot.id,
+        sku: mascot.sku,
+        name: mascot.name,
+        slug: mascot.slug,
+        description: mascot.description,
+        imageUrl: mascot.imageUrl,
+        pointsCost: mascot.pointsCost,
+        active: mascot.active,
+        sortOrder: mascot.sortOrder,
+        createdAt: mascot.createdAt,
+        updatedAt: mascot.updatedAt
+      })),
+      skipDuplicates: true
+    });
+
     return;
   }
 
-  const defaultMascots = getDefaultMascotRewards();
+  const looksLikeLegacyMascotSet =
+    existingMascots.length === defaultMascots.length &&
+    existingMascots.every(
+      (mascot) =>
+        mascot.imageUrl.startsWith("data:image/svg+xml") || /^MSC\d+$/i.test(mascot.sku)
+    );
 
-  await prisma.mascotReward.createMany({
-    data: defaultMascots.map((mascot) => ({
-      id: mascot.id,
-      sku: mascot.sku,
-      name: mascot.name,
-      slug: mascot.slug,
-      description: mascot.description,
-      imageUrl: mascot.imageUrl,
-      pointsCost: mascot.pointsCost,
-      active: mascot.active,
-      sortOrder: mascot.sortOrder,
-      createdAt: mascot.createdAt,
-      updatedAt: mascot.updatedAt
-    })),
-    skipDuplicates: true
-  });
+  if (!looksLikeLegacyMascotSet) {
+    return;
+  }
+
+  for (let index = 0; index < existingMascots.length; index += 1) {
+    const existingMascot = existingMascots[index];
+    const nextMascot = defaultMascots[index];
+
+    if (!nextMascot) {
+      continue;
+    }
+
+    await prisma.mascotReward.update({
+      where: { id: existingMascot.id },
+      data: {
+        sku: nextMascot.sku,
+        name: nextMascot.name,
+        slug: nextMascot.slug,
+        description: nextMascot.description,
+        imageUrl: nextMascot.imageUrl,
+        pointsCost: nextMascot.pointsCost,
+        active: nextMascot.active,
+        sortOrder: nextMascot.sortOrder
+      }
+    });
+  }
 }
 
 async function seedReviewsIfEmpty() {

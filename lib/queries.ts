@@ -1238,7 +1238,7 @@ export async function getRyoClaims(limit = 50) {
     async () =>
       (
         await prisma.ryoClaim.findMany({
-          orderBy: [{ createdAt: "desc" }],
+          orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
           take: limit
         })
       ).map(mapRyoClaim),

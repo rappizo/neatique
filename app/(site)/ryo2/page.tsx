@@ -60,7 +60,7 @@ export default async function RegisterOrderStepTwoPage({
             }))}
             eyebrow="Reward Points / Step 2"
             title="Tell us what you purchased and how you feel about it."
-            description="Your order verification from step 1 is already saved. Share the product, rating, and comment so we can finish your registration and credit the right account."
+            description="Your order verification from step 1 is already saved. Share the product, rating, and comment so we can finish the registration and send it to our team for review."
             submitAction="/api/ryo2"
             submitLabel="Continue"
           />

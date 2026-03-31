@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getOrderMatchPlatform, isHighRating } from "@/lib/order-match";
 import { compressOmbScreenshot } from "@/lib/omb-screenshot";
-import { completeRyoClaimWithPoints } from "@/lib/ryo-claims";
+import { completeRyoClaimSubmission } from "@/lib/ryo-claims";
 
 export const runtime = "nodejs";
 
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const completionResult = await completeRyoClaimWithPoints({
+  const completionResult = await completeRyoClaimSubmission({
     claimId: claim.id,
     completionData: {
       screenshotName: screenshotPayload?.name ?? null,
@@ -79,8 +79,6 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/ryo2?error=claim", request.url), 303);
   }
 
-  revalidatePath("/account");
   revalidatePath("/admin/rewards");
-  revalidatePath("/rd");
   return NextResponse.redirect(new URL(`/ryo2/thank-you?claim=${claim.id}`, request.url), 303);
 }

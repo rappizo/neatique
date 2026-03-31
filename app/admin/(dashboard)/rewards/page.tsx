@@ -1,27 +1,33 @@
 import Image from "next/image";
 import Link from "next/link";
-import { adjustCustomerPointsAction, updateMascotRedemptionAction } from "@/app/admin/actions";
+import {
+  adjustCustomerPointsAction,
+  approveRyoClaimRewardAction,
+  updateMascotRedemptionAction
+} from "@/app/admin/actions";
 import { formatDate } from "@/lib/format";
-import { getCustomers, getMascotRedemptions, getMascotRewards, getRewards } from "@/lib/queries";
+import { getCustomers, getMascotRedemptions, getMascotRewards, getRewards, getRyoClaims } from "@/lib/queries";
 
 type AdminRewardsPageProps = {
   searchParams: Promise<{ status?: string }>;
 };
 
 export default async function AdminRewardsPage({ searchParams }: AdminRewardsPageProps) {
-  const [customers, rewards, mascots, redemptions, params] = await Promise.all([
+  const [customers, rewards, mascots, redemptions, ryoClaims, params] = await Promise.all([
     getCustomers(),
     getRewards(),
     getMascotRewards(),
     getMascotRedemptions(),
+    getRyoClaims(),
     searchParams
   ]);
+  const pendingRyoClaims = ryoClaims.filter((claim) => claim.completedAt && !claim.rewardGranted);
 
   return (
     <div className="admin-page">
       <div className="admin-page__header">
         <p className="eyebrow">Points</p>
-        <h1>Manage loyalty balances, mascot rewards, and redemption requests.</h1>
+        <h1>Manage loyalty balances, mascot rewards, redemption requests, and RYO approvals.</h1>
         <p>
           Reward points can be earned and adjusted here, but they are never used as cash discounts.
           They are reserved for mascot redemptions and future loyalty experiences.
@@ -42,6 +48,10 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         <div className="stat-card">
           <strong>{redemptions.filter((redemption) => redemption.status === "FULFILLED").length}</strong>
           <span>Fulfilled redemptions</span>
+        </div>
+        <div className="stat-card">
+          <strong>{pendingRyoClaims.length}</strong>
+          <span>RYO waiting for approval</span>
         </div>
       </div>
 
@@ -114,6 +124,112 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
             Apply adjustment
           </button>
         </form>
+      </section>
+
+      <section className="admin-table admin-table--scroll">
+        <h2>RYO approval queue</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Submitted</th>
+              <th>Platform / Order</th>
+              <th>Customer</th>
+              <th>Product</th>
+              <th>Rating</th>
+              <th>Comment</th>
+              <th>Proof</th>
+              <th>Status</th>
+              <th>Note</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ryoClaims.length > 0 ? (
+              ryoClaims.map((claim) => {
+                const formId = `ryo-claim-${claim.id}`;
+                const statusLabel = claim.rewardGranted
+                  ? "Approved"
+                  : claim.completedAt
+                    ? "Waiting for approval"
+                    : "In progress";
+                const statusClassName = claim.rewardGranted
+                  ? "admin-table__status-badge admin-table__status-badge--success"
+                  : "admin-table__status-badge admin-table__status-badge--warning";
+
+                return (
+                  <tr key={claim.id}>
+                    <td>{formatDate(claim.completedAt ?? claim.createdAt)}</td>
+                    <td>
+                      <div className="admin-table__cell-stack">
+                        <strong>{claim.platformLabel}</strong>
+                        <span>{claim.orderId}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="admin-table__cell-stack">
+                        <strong>{claim.name}</strong>
+                        <span>{claim.email}</span>
+                      </div>
+                    </td>
+                    <td>
+                      {claim.purchasedProduct ? (
+                        claim.purchasedProduct
+                      ) : (
+                        <span className="admin-table__empty">Not submitted yet</span>
+                      )}
+                    </td>
+                    <td>{claim.reviewRating ? `${claim.reviewRating}/5` : <span className="admin-table__empty">No rating</span>}</td>
+                    <td className="admin-table__clip">
+                      {claim.commentText ? claim.commentText : <span className="admin-table__empty">No comment yet.</span>}
+                    </td>
+                    <td>
+                      {claim.screenshotName ? (
+                        <Link
+                          href={`/api/ryo-claims/${claim.id}/image`}
+                          target="_blank"
+                          className="link-inline"
+                        >
+                          View image
+                        </Link>
+                      ) : (
+                        <span className="admin-table__empty">No image</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={statusClassName}>{statusLabel}</span>
+                    </td>
+                    <td>
+                      <textarea
+                        className="admin-table__textarea"
+                        name="adminNote"
+                        defaultValue={claim.adminNote || ""}
+                        form={formId}
+                      />
+                    </td>
+                    <td className="admin-table__actions">
+                      <form id={formId} action={approveRyoClaimRewardAction}>
+                        <input type="hidden" name="id" value={claim.id} />
+                        <input type="hidden" name="redirectTo" value="/admin/rewards" />
+                      </form>
+                      <button
+                        type="submit"
+                        className="button button--primary"
+                        form={formId}
+                        disabled={!claim.completedAt}
+                      >
+                        {claim.rewardGranted ? "Save note" : `Approve + add ${claim.pointsAwarded} pts`}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={10}>No RYO registrations yet.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </section>
 
       <section className="admin-table admin-table--scroll">
