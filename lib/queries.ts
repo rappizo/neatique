@@ -1269,6 +1269,27 @@ export async function getPublishedReviewsByProductId(productId: string) {
   );
 }
 
+export async function getPublishedReviewById(id: string) {
+  return withFallback<ProductReviewRecord | null>(
+    async () => {
+      const review = await prisma.productReview.findFirst({
+        where: {
+          id,
+          status: "PUBLISHED"
+        },
+        include: {
+          product: true,
+          customer: true
+        }
+      });
+
+      return review ? mapReview(review) : null;
+    },
+    fallbackReviews.find((review) => review.id === id && review.status === "PUBLISHED") ?? null,
+    { allowFallbackOnDatabaseError: true }
+  );
+}
+
 export async function getAllReviews() {
   return withFallback(
     async () =>

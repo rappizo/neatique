@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { formatDate } from "@/lib/format";
+import { getReviewPath } from "@/lib/review-links";
 import type { ProductReviewRecord } from "@/lib/types";
 
 type ProductReviewsShowcaseProps = {
@@ -44,7 +46,12 @@ export function ProductReviewsShowcase({
 
       <div className="review-showcase">
         {visibleReviews.map((review) => (
-          <article key={review.id} className="review-card">
+          <Link
+            key={review.id}
+            href={getReviewPath(review.id)}
+            className="review-card review-card--link"
+            aria-label={`Open review from ${review.displayName} for ${review.productName ?? "this product"}`}
+          >
             <div className="review-card__meta">
               <strong>{review.displayName}</strong>
               {review.verifiedPurchase ? <span>Verified purchase</span> : null}
@@ -53,7 +60,7 @@ export function ProductReviewsShowcase({
             <RatingStars rating={review.rating} size="sm" />
             <h4>{review.title}</h4>
             <p>{review.content}</p>
-          </article>
+          </Link>
         ))}
       </div>
 

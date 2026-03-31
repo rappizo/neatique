@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
-import { siteConfig } from "@/lib/site-config";
+import { getReviewUrl } from "@/lib/review-links";
 
 type ReviewExportRouteProps = {
   params: Promise<{ slug: string }>;
@@ -52,6 +52,7 @@ export async function GET(_request: Request, { params }: ReviewExportRouteProps)
     },
     orderBy: [{ reviewDate: "desc" }, { createdAt: "desc" }],
     select: {
+      id: true,
       title: true,
       content: true,
       rating: true,
@@ -60,7 +61,6 @@ export async function GET(_request: Request, { params }: ReviewExportRouteProps)
     }
   });
 
-  const reviewLink = `${siteConfig.url}/shop/${product.slug}`;
   const header = [
     "Review Title",
     "Review Body",
@@ -77,7 +77,7 @@ export async function GET(_request: Request, { params }: ReviewExportRouteProps)
       review.rating,
       formatCsvDate(review.reviewDate),
       review.displayName,
-      reviewLink
+      getReviewUrl(review.id)
     ]
       .map((value) => escapeCsvValue(value))
       .join(",")
