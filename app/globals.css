@@ -89,7 +89,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 10px 14px;
   flex-wrap: wrap;
   width: 100%;
 }
@@ -97,6 +97,14 @@ main {
 .announcement-bar__copy p {
   margin: 0;
   line-height: 1.5;
+}
+
+.announcement-bar__links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .announcement-bar__copy a {
@@ -3227,6 +3235,10 @@ main {
     text-align: center;
     font-size: 0.82rem;
     line-height: 1.4;
+  }
+
+  .announcement-bar__links {
+    gap: 6px 10px;
   }
 
   .announcement-bar__copy a {

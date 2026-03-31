@@ -497,7 +497,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       <section className="section section--deferred">
         <div className="container">
-          <div className="subscribe-panel">
+          <div className="subscribe-panel" id="subscribe-offer">
             <div className="subscribe-panel__copy">
               <p className="eyebrow">Subscriber Welcome Offer</p>
               <h2>Subscribe and get {SUBSCRIBE_COUPON_PERCENT_OFF}% off your first purchase.</h2>
