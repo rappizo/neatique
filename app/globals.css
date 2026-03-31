@@ -275,6 +275,11 @@ main {
   padding: clamp(42px, 5vw, 56px) 0;
 }
 
+.section--deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: 960px;
+}
+
 .section--product {
   padding-top: clamp(18px, 2.8vw, 30px);
 }
@@ -2442,6 +2447,19 @@ main {
   gap: 16px;
 }
 
+.social-proof--placeholder {
+  min-height: 460px;
+}
+
+.social-proof__player--placeholder {
+  min-height: 100%;
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(252, 241, 237, 0.9)),
+    rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(237, 115, 97, 0.12);
+}
+
 .social-proof__embed {
   overflow: hidden;
   border-radius: 26px;
@@ -3261,8 +3279,12 @@ main {
     padding: 28px 22px 16px;
   }
 
+  .custom-slide {
+    min-height: auto;
+  }
+
   .image-part {
-    min-height: 320px;
+    min-height: 280px;
   }
 
   .right-img {

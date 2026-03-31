@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HomeBannerSlider } from "@/components/home/home-banner-slider";
-import { SocialProofSlider } from "@/components/home/social-proof-slider";
+import { SocialProofSliderDeferred } from "@/components/home/social-proof-slider-deferred";
 import { PostCard } from "@/components/ui/post-card";
 import { ProductCard } from "@/components/ui/product-card";
 import { ResponsiveSitePicture } from "@/components/ui/responsive-site-picture";
@@ -297,6 +297,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 alt={homeImages.signature.alt}
                 width={homeImages.signature.width}
                 height={homeImages.signature.height}
+                fetchPriority="low"
               />
             </div>
           </div>
@@ -318,7 +319,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--deferred">
         <div className="container">
           <div className="philosophy-band">
             <div className="philosophy-band__hero">
@@ -340,6 +341,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     alt={homeImages.morning.alt}
                     width={homeImages.morning.width}
                     height={homeImages.morning.height}
+                    fetchPriority="low"
                   />
                 </div>
               </div>
@@ -358,7 +360,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--deferred">
         <div className="container">
           <div className="ritual-spotlight">
             <div className="ritual-spotlight__hero">
@@ -377,6 +379,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     alt={homeImages.ritual.alt}
                     width={homeImages.ritual.width}
                     height={homeImages.ritual.height}
+                    fetchPriority="low"
                   />
                 </div>
                 <div className="home-image home-image--square">
@@ -386,6 +389,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     alt={homeImages.application.alt}
                     width={homeImages.application.width}
                     height={homeImages.application.height}
+                    fetchPriority="low"
                   />
                 </div>
               </div>
@@ -404,18 +408,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--deferred">
         <div className="container">
           <SectionHeading
             eyebrow="Loved Online"
             title="Real creator moments that help shoppers picture the texture, glow, and finish."
             description="See the formulas in motion, then move straight into the products that match the skin feel you want to build into your routine."
           />
-          <SocialProofSlider />
+          <SocialProofSliderDeferred />
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--deferred">
         <div className="container ingredient-story-grid">
           {ingredientStories.map((story) => (
             <article key={story.eyebrow} className="ingredient-story panel">
@@ -426,6 +430,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   alt={story.image.alt}
                   width={story.image.width}
                   height={story.image.height}
+                  fetchPriority="low"
                 />
               </div>
               <div className="ingredient-story__copy">
@@ -441,7 +446,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--deferred">
         <div className="container">
           <SectionHeading
             eyebrow="Beauty Tips"
@@ -456,7 +461,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--deferred">
         <div className="container">
           <div className="home-cta">
             <div className="home-cta__copy">
@@ -483,13 +488,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 alt={homeImages.evening.alt}
                 width={homeImages.evening.width}
                 height={homeImages.evening.height}
+                fetchPriority="low"
               />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section--deferred">
         <div className="container">
           <div className="subscribe-panel">
             <div className="subscribe-panel__copy">
