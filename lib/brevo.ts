@@ -1,5 +1,6 @@
 import { siteConfig } from "@/lib/site-config";
 import type {
+  BrevoCampaignReportRecord,
   BrevoListRecord,
   EmailAudienceType,
   EmailCampaignRecord,
@@ -209,6 +210,35 @@ type RawBrevoSender = {
   active?: boolean;
 };
 
+type RawBrevoCampaignGlobalStats = {
+  sent?: number;
+  delivered?: number;
+  uniqueViews?: number;
+  uniqueClicks?: number;
+  unsubscriptions?: number;
+  hardBounces?: number;
+  softBounces?: number;
+  complaints?: number;
+  opensRate?: number;
+  clickers?: number;
+  clicksRate?: number;
+};
+
+type RawBrevoCampaign = {
+  id?: number;
+  status?: string;
+  name?: string;
+  subject?: string;
+  sender?: {
+    email?: string;
+  } | null;
+  createdAt?: string;
+  sentDate?: string;
+  statistics?: {
+    globalStats?: RawBrevoCampaignGlobalStats | null;
+  } | null;
+};
+
 type RawBrevoContact = {
   id?: number;
   email?: string;
@@ -307,6 +337,143 @@ export async function fetchBrevoSenders(settings: BrevoSettings) {
     return {
       senders: [] as BrevoSenderRecord[],
       error: error instanceof Error ? error.message : "Unable to load Brevo senders."
+    };
+  }
+}
+
+function toOptionalDate(value: string | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function mapBrevoCampaignReport(campaign: RawBrevoCampaign): BrevoCampaignReportRecord | null {
+  if (typeof campaign.id !== "number") {
+    return null;
+  }
+
+  const stats = campaign.statistics?.globalStats || null;
+  const delivered = stats?.delivered ?? 0;
+  const uniqueClicks = stats?.uniqueClicks ?? 0;
+
+  return {
+    id: campaign.id,
+    status: campaign.status ?? null,
+    name: (campaign.name || "").trim() || `Brevo campaign ${campaign.id}`,
+    subject: campaign.subject ?? null,
+    senderEmail: campaign.sender?.email?.trim().toLowerCase() || null,
+    createdAt: toOptionalDate(campaign.createdAt),
+    sentDate: toOptionalDate(campaign.sentDate),
+    stats: stats
+      ? {
+          sent: stats.sent ?? 0,
+          delivered,
+          uniqueViews: stats.uniqueViews ?? 0,
+          uniqueClicks,
+          unsubscriptions: stats.unsubscriptions ?? 0,
+          hardBounces: stats.hardBounces ?? 0,
+          softBounces: stats.softBounces ?? 0,
+          complaints: stats.complaints ?? 0,
+          opensRate:
+            typeof stats.opensRate === "number"
+              ? stats.opensRate
+              : delivered > 0
+                ? (stats.uniqueViews ?? 0) / delivered
+                : null,
+          clickRate:
+            typeof stats.clicksRate === "number"
+              ? stats.clicksRate
+              : delivered > 0
+                ? uniqueClicks / delivered
+                : null
+        }
+      : null
+  };
+}
+
+export async function fetchBrevoCampaignReports(settings: BrevoSettings) {
+  if (!settings.enabled || !settings.apiKeyConfigured) {
+    return {
+      reports: [] as BrevoCampaignReportRecord[],
+      error: null as string | null
+    };
+  }
+
+  try {
+    const pageSize = 100;
+    let offset = 0;
+    let totalCount = Number.POSITIVE_INFINITY;
+    const reports: BrevoCampaignReportRecord[] = [];
+
+    while (offset < totalCount) {
+      const response = await brevoRequest<{ count?: number; campaigns?: RawBrevoCampaign[] }>(
+        settings,
+        `/emailCampaigns?limit=${pageSize}&offset=${offset}&sort=desc&statistics=globalStats&excludeHtmlContent=true`,
+        {
+          method: "GET"
+        }
+      );
+
+      const pageItems = (response.campaigns || [])
+        .map(mapBrevoCampaignReport)
+        .filter((campaign): campaign is BrevoCampaignReportRecord => Boolean(campaign));
+
+      reports.push(...pageItems);
+      totalCount =
+        typeof response.count === "number"
+          ? response.count
+          : offset + pageItems.length + (pageItems.length === pageSize ? 1 : 0);
+
+      if (pageItems.length < pageSize) {
+        break;
+      }
+
+      offset += pageSize;
+    }
+
+    return {
+      reports,
+      error: null as string | null
+    };
+  } catch (error) {
+    return {
+      reports: [] as BrevoCampaignReportRecord[],
+      error: error instanceof Error ? error.message : "Unable to load Brevo campaign reports."
+    };
+  }
+}
+
+export async function fetchBrevoCampaignReportById(input: {
+  settings: BrevoSettings;
+  brevoCampaignId: number;
+}) {
+  if (!input.settings.enabled || !input.settings.apiKeyConfigured) {
+    return {
+      report: null as BrevoCampaignReportRecord | null,
+      error: null as string | null
+    };
+  }
+
+  try {
+    const response = await brevoRequest<RawBrevoCampaign>(
+      input.settings,
+      `/emailCampaigns/${input.brevoCampaignId}?statistics=globalStats&excludeHtmlContent=true`,
+      {
+        method: "GET"
+      }
+    );
+
+    return {
+      report: mapBrevoCampaignReport(response),
+      error: null as string | null
+    };
+  } catch (error) {
+    return {
+      report: null as BrevoCampaignReportRecord | null,
+      error: error instanceof Error ? error.message : "Unable to load Brevo campaign report."
     };
   }
 }

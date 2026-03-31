@@ -5,7 +5,7 @@ import {
   syncBrevoAudienceAction
 } from "@/app/admin/actions";
 import { fetchBrevoSenders, getBrevoSettings } from "@/lib/brevo";
-import { formatDate, formatNumber } from "@/lib/format";
+import { formatDate, formatNumber, formatPercent } from "@/lib/format";
 import { getEmailMarketingOverview, getStoreSettings } from "@/lib/queries";
 
 type AdminEmailMarketingPageProps = {
@@ -26,6 +26,10 @@ const STATUS_MESSAGES: Record<string, string> = {
   "missing-list": "This audience does not have a Brevo list ID configured yet.",
   "missing-fields": "Please complete the required campaign fields before saving."
 };
+
+function formatRateChip(value: number | null) {
+  return value === null ? "Not available" : formatPercent(value);
+}
 
 export default async function AdminEmailMarketingPage({
   searchParams
@@ -50,14 +54,13 @@ export default async function AdminEmailMarketingPage({
   );
 
   return (
-    <div className="admin-page">
+    <div className="admin-page admin-page--email-marketing">
       <div className="admin-page__header">
         <p className="eyebrow">Email Marketing</p>
-        <h1>Run Brevo-powered campaigns from one workspace, with AI-ready drafting built into the flow.</h1>
+        <h1>Operate Brevo campaigns from one workspace, with reporting, audience sync, and AI drafting in the same flow.</h1>
         <p>
-          Version one now covers both directions: import existing Brevo contacts into the local
-          backend, keep site audiences in sync, and generate campaign drafts with AI before the
-          team reviews and sends them.
+          The page is organized for daily use: check performance first, move into campaigns, keep
+          audiences in sync, then manage connection details and AI tooling when you need them.
         </p>
       </div>
 
@@ -65,45 +68,166 @@ export default async function AdminEmailMarketingPage({
         <p className="notice">{STATUS_MESSAGES[params.status] || `Email marketing action completed: ${params.status}.`}</p>
       ) : null}
 
-      <div className="stats-grid">
-        <div className="stat-card">
-          <strong>{formatNumber(overview.newsletterCount)}</strong>
-          <span>Newsletter subscribers</span>
+      <section className="admin-form">
+        <div className="admin-review-pagination">
+          <div>
+            <h2>Campaign report</h2>
+            <p className="form-note">
+              Live summary from Brevo for campaigns that already have reporting data.
+            </p>
+          </div>
+          <div className="stack-row">
+            <span className="pill">{formatNumber(overview.campaignReport.trackedCampaignCount)} tracked</span>
+            <span className="pill">{formatNumber(overview.campaignReport.sentCampaignCount)} with sends</span>
+          </div>
         </div>
-        <div className="stat-card">
-          <strong>{formatNumber(overview.optedInCustomerCount)}</strong>
-          <span>Opted-in customers</span>
+
+        <div className="stats-grid">
+          <div className="stat-card">
+            <strong>{formatNumber(overview.campaignReport.totalDelivered)}</strong>
+            <span>Delivered</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatNumber(overview.campaignReport.totalUniqueViews)}</strong>
+            <span>Unique opens</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatNumber(overview.campaignReport.totalUniqueClicks)}</strong>
+            <span>Unique clicks</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatRateChip(overview.campaignReport.overallOpenRate)}</strong>
+            <span>Overall open rate</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatRateChip(overview.campaignReport.overallClickRate)}</strong>
+            <span>Overall click rate</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatNumber(overview.campaignReport.totalUnsubscriptions)}</strong>
+            <span>Unsubscribes</span>
+          </div>
         </div>
-        <div className="stat-card">
-          <strong>{formatNumber(overview.leadCount)}</strong>
-          <span>Contact leads</span>
+      </section>
+
+      <section className="admin-form">
+        <div className="admin-review-pagination">
+          <div>
+            <h2>Campaigns</h2>
+            <p className="form-note">
+              Open a draft to edit, preview, sync, send a test, or send through Brevo.
+            </p>
+          </div>
+          <Link href="/admin/email-marketing/new" className="button button--primary">
+            Create campaign
+          </Link>
         </div>
-        <div className="stat-card">
-          <strong>{formatNumber(overview.importedContactCount)}</strong>
-          <span>Imported from Brevo</span>
+
+        {overview.campaigns.length > 0 ? (
+          <div className="admin-product-grid">
+            {overview.campaigns.map((campaign) => (
+              <article key={campaign.id} className="admin-product-card">
+                <div className="admin-product-card__body">
+                  <div className="product-card__meta">
+                    <span>{campaign.status}</span>
+                    <span>{campaign.brevoCampaignId ? `Brevo #${campaign.brevoCampaignId}` : "Local draft"}</span>
+                  </div>
+                  <h3>{campaign.name}</h3>
+                  <p>{campaign.subject}</p>
+                  <ul className="admin-list">
+                    <li>Audience: {campaign.audienceType}</li>
+                    <li>Updated: {formatDate(campaign.updatedAt)}</li>
+                    <li>Last sync: {campaign.lastSyncedAt ? formatDate(campaign.lastSyncedAt) : "Not synced yet"}</li>
+                    <li>Scheduled: {campaign.scheduledAt ? formatDate(campaign.scheduledAt) : "Send manually"}</li>
+                    <li>
+                      Delivered: {campaign.brevoReport?.stats ? formatNumber(campaign.brevoReport.stats.delivered) : "Not available"}
+                    </li>
+                    <li>
+                      Open rate: {campaign.brevoReport?.stats ? formatRateChip(campaign.brevoReport.stats.opensRate) : "Not available"}
+                    </li>
+                    <li>
+                      Click rate: {campaign.brevoReport?.stats ? formatRateChip(campaign.brevoReport.stats.clickRate) : "Not available"}
+                    </li>
+                  </ul>
+                  <div className="stack-row">
+                    <Link href={`/admin/email-marketing/${campaign.id}`} className="button button--primary">
+                      Open draft
+                    </Link>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="admin-card">
+            <h3>No campaigns yet</h3>
+            <p>Create the first draft and the team can use AI generation or manual writing before sending through Brevo.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="admin-form">
+        <h2>Audience sync</h2>
+        <p className="form-note">
+          Import existing contacts from Brevo into the local backend, or push the combined site
+          audience back to Brevo when new subscribers and customers come in.
+        </p>
+
+        <div className="admin-product-grid">
+          {audienceCards.map((audience) => (
+            <article key={audience.key} className="admin-product-card">
+              <div className="admin-product-card__body">
+                <div className="product-card__meta">
+                  <span>{formatNumber(audience.availableCount)} tracked contacts</span>
+                  <span>{audience.targetListId ? `List ${audience.targetListId}` : "List not configured"}</span>
+                </div>
+                <h3>{audience.label}</h3>
+                <p>{audience.description}</p>
+                <ul className="admin-list">
+                  <li>Site contacts: {formatNumber(audience.localCount)}</li>
+                  <li>Imported from Brevo: {formatNumber(audience.importedCount)}</li>
+                  <li>
+                    Remote Brevo count:{" "}
+                    {typeof audience.remoteCount === "number" ? formatNumber(audience.remoteCount) : "Unknown"}
+                  </li>
+                </ul>
+
+                <div className="stack-row">
+                  <Link
+                    href={`/admin/email-marketing/audience/${audience.key}`}
+                    className="button button--ghost"
+                  >
+                    View emails
+                  </Link>
+                  <form action={importBrevoAudienceAction}>
+                    <input type="hidden" name="audienceType" value={audience.key} />
+                    <input type="hidden" name="redirectTo" value="/admin/email-marketing" />
+                    <button type="submit" className="button button--secondary">
+                      Import from Brevo
+                    </button>
+                  </form>
+
+                  <form action={syncBrevoAudienceAction}>
+                    <input type="hidden" name="audienceType" value={audience.key} />
+                    <input type="hidden" name="redirectTo" value="/admin/email-marketing" />
+                    <button type="submit" className="button button--primary">
+                      Sync to Brevo
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
-        <div className="stat-card">
-          <strong>{formatNumber(overview.campaignCount)}</strong>
-          <span>Campaign drafts</span>
-          <span>
-            Synced {formatNumber(overview.syncedCampaignCount)} | Scheduled{" "}
-            {formatNumber(overview.scheduledCampaignCount)} | Sent {formatNumber(overview.sentCampaignCount)}
-          </span>
-        </div>
-        <div className="stat-card">
-          <strong>{overview.aiReady ? "Ready" : "Not ready"}</strong>
-          <span>AI drafting</span>
-          <span>{overview.aiModel ? `Model ${overview.aiModel}` : "Set OPENAI_API_KEY"}</span>
-        </div>
-      </div>
+      </section>
 
       <section className="admin-form">
         <div className="admin-review-pagination">
           <div>
             <h2>Brevo connection</h2>
             <p className="form-note">
-              Keep transactional SMTP on the separate Email page. This section controls marketing
-              audiences and campaign delivery through Brevo.
+              Keep transactional SMTP on the Email page. This section controls marketing senders,
+              list IDs, and Brevo campaign delivery settings.
             </p>
           </div>
           <div className="stack-row">
@@ -256,11 +380,15 @@ export default async function AdminEmailMarketingPage({
         {senderSnapshot.senders.length > 0 ? (
           <div className="admin-product-grid admin-product-grid--compact">
             {senderSnapshot.senders.map((sender) => (
-              <article key={sender.id} className="admin-product-card">
+              <article key={sender.id} className="admin-product-card admin-email-sender-card">
                 <div className="admin-product-card__body">
-                  <div className="product-card__meta">
-                    <span>Sender ID {sender.id}</span>
-                    <span>{sender.active ? "Active" : "Inactive"}</span>
+                  <div className="admin-email-sender-card__meta">
+                    <span className="eyebrow">Sender ID {sender.id}</span>
+                    <span
+                      className={`admin-table__status-badge ${sender.active ? "admin-table__status-badge--success" : "admin-table__status-badge--warning"}`}
+                    >
+                      {sender.active ? "Active" : "Inactive"}
+                    </span>
                   </div>
                   <h3>{sender.name}</h3>
                   <p>{sender.email}</p>
@@ -276,9 +404,8 @@ export default async function AdminEmailMarketingPage({
           <div>
             <h2>AI drafting</h2>
             <p className="form-note">
-              AI now lives inside each campaign draft. Create a shell campaign, write the strategy
-              brief, then open the draft and generate polished subject lines and content before your
-              manual review.
+              Build the local campaign shell first, then let AI draft subject lines and body copy
+              before your manual review.
             </p>
           </div>
           <div className="stack-row">
@@ -291,7 +418,7 @@ export default async function AdminEmailMarketingPage({
           <h3>Recommended workflow</h3>
           <p>
             Create campaign shell, write the strategy brief, generate with AI, review the copy,
-            sync to Brevo, send a test, then send or schedule.
+            preview the email, sync to Brevo, send a test, then send or schedule.
           </p>
         </div>
       </section>
@@ -299,8 +426,8 @@ export default async function AdminEmailMarketingPage({
       <section className="admin-form">
         <h2>Brevo lists</h2>
         <p className="form-note">
-          Use these IDs in the fields above. If no lists appear, either the key is missing or the
-          Brevo account does not have lists created yet.
+          Use these IDs in the connection section above. This is reference data only, so it lives
+          after the operational sections.
         </p>
 
         {overview.brevoError ? (
@@ -314,9 +441,9 @@ export default async function AdminEmailMarketingPage({
             {overview.brevoLists.map((list) => (
               <article key={list.id} className="admin-product-card">
                 <div className="admin-product-card__body">
-                  <div className="product-card__meta">
-                    <span>List ID {list.id}</span>
-                    <span>{formatNumber(list.totalSubscribers)} contacts</span>
+                  <div className="admin-email-sender-card__meta">
+                    <span className="eyebrow">List ID {list.id}</span>
+                    <span className="pill">{formatNumber(list.totalSubscribers)} contacts</span>
                   </div>
                   <h3>{list.name}</h3>
                   <p>{list.folderName ? `Folder: ${list.folderName}` : "No folder assigned in Brevo."}</p>
@@ -328,112 +455,6 @@ export default async function AdminEmailMarketingPage({
           <div className="admin-card">
             <h3>No Brevo lists loaded</h3>
             <p>Add the API key and sender details, then save the settings to let the admin load your Brevo lists.</p>
-          </div>
-        )}
-      </section>
-
-      <section className="admin-form">
-        <h2>Audience sync</h2>
-        <p className="form-note">
-          Import existing contacts from Brevo into the local backend whenever you need visibility
-          here, or push the combined site audience back to Brevo after your store captures new
-          subscribers and customers.
-        </p>
-
-        <div className="admin-product-grid">
-          {audienceCards.map((audience) => (
-            <article key={audience.key} className="admin-product-card">
-              <div className="admin-product-card__body">
-                <div className="product-card__meta">
-                  <span>{formatNumber(audience.availableCount)} tracked contacts</span>
-                  <span>{audience.targetListId ? `List ${audience.targetListId}` : "List not configured"}</span>
-                </div>
-                <h3>{audience.label}</h3>
-                <p>{audience.description}</p>
-                <ul className="admin-list">
-                  <li>Site contacts: {formatNumber(audience.localCount)}</li>
-                  <li>Imported from Brevo: {formatNumber(audience.importedCount)}</li>
-                  <li>
-                    Remote Brevo count:{" "}
-                    {typeof audience.remoteCount === "number" ? formatNumber(audience.remoteCount) : "Unknown"}
-                  </li>
-                </ul>
-
-                <div className="stack-row">
-                  <Link
-                    href={`/admin/email-marketing/audience/${audience.key}`}
-                    className="button button--ghost"
-                  >
-                    View emails
-                  </Link>
-                  <form action={importBrevoAudienceAction}>
-                    <input type="hidden" name="audienceType" value={audience.key} />
-                    <input type="hidden" name="redirectTo" value="/admin/email-marketing" />
-                    <button type="submit" className="button button--secondary">
-                      Import from Brevo
-                    </button>
-                  </form>
-
-                  <form action={syncBrevoAudienceAction}>
-                    <input type="hidden" name="audienceType" value={audience.key} />
-                    <input type="hidden" name="redirectTo" value="/admin/email-marketing" />
-                    <button type="submit" className="button button--primary">
-                      Sync to Brevo
-                    </button>
-                  </form>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="admin-form">
-        <div className="admin-review-pagination">
-          <div>
-            <h2>Campaigns</h2>
-            <p className="form-note">
-              Campaigns are stored locally first. Open any draft to edit HTML, generate with AI,
-              test it, sync it to Brevo, or schedule/send it manually.
-            </p>
-          </div>
-          <Link href="/admin/email-marketing/new" className="button button--primary">
-            Create campaign
-          </Link>
-        </div>
-
-        {overview.campaigns.length > 0 ? (
-          <div className="admin-product-grid">
-            {overview.campaigns.map((campaign) => (
-              <article key={campaign.id} className="admin-product-card">
-                <div className="admin-product-card__body">
-                  <div className="product-card__meta">
-                    <span>{campaign.status}</span>
-                    <span>{campaign.brevoCampaignId ? `Brevo #${campaign.brevoCampaignId}` : "Local draft"}</span>
-                  </div>
-                  <h3>{campaign.name}</h3>
-                  <p>{campaign.subject}</p>
-                  <ul className="admin-list">
-                    <li>Audience: {campaign.audienceType}</li>
-                    <li>Updated: {formatDate(campaign.updatedAt)}</li>
-                    <li>Last sync: {campaign.lastSyncedAt ? formatDate(campaign.lastSyncedAt) : "Not synced yet"}</li>
-                    <li>
-                      Scheduled: {campaign.scheduledAt ? formatDate(campaign.scheduledAt) : "Send manually"}
-                    </li>
-                  </ul>
-                  <div className="stack-row">
-                    <Link href={`/admin/email-marketing/${campaign.id}`} className="button button--primary">
-                      Open draft
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="admin-card">
-            <h3>No campaigns yet</h3>
-            <p>Create the first draft and the team can use AI generation or manual writing before sending through Brevo.</p>
           </div>
         )}
       </section>

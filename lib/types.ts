@@ -414,6 +414,46 @@ export type BrevoListRecord = {
   folderName: string | null;
 };
 
+export type BrevoCampaignGlobalStatsRecord = {
+  sent: number;
+  delivered: number;
+  uniqueViews: number;
+  uniqueClicks: number;
+  unsubscriptions: number;
+  hardBounces: number;
+  softBounces: number;
+  complaints: number;
+  opensRate: number | null;
+  clickRate: number | null;
+};
+
+export type BrevoCampaignReportRecord = {
+  id: number;
+  status: string | null;
+  name: string;
+  subject: string | null;
+  senderEmail: string | null;
+  createdAt: Date | null;
+  sentDate: Date | null;
+  stats: BrevoCampaignGlobalStatsRecord | null;
+};
+
+export type EmailCampaignWithReportRecord = EmailCampaignRecord & {
+  brevoReport: BrevoCampaignReportRecord | null;
+};
+
+export type EmailCampaignSummaryReportRecord = {
+  trackedCampaignCount: number;
+  sentCampaignCount: number;
+  totalSent: number;
+  totalDelivered: number;
+  totalUniqueViews: number;
+  totalUniqueClicks: number;
+  totalUnsubscriptions: number;
+  overallOpenRate: number | null;
+  overallClickRate: number | null;
+};
+
 export type EmailCampaignRecord = {
   id: string;
   name: string;
@@ -452,5 +492,6 @@ export type EmailMarketingOverviewRecord = {
   audiences: EmailMarketingAudienceSummaryRecord[];
   brevoLists: BrevoListRecord[];
   brevoError: string | null;
-  campaigns: EmailCampaignRecord[];
+  campaignReport: EmailCampaignSummaryReportRecord;
+  campaigns: EmailCampaignWithReportRecord[];
 };

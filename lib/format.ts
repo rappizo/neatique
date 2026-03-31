@@ -79,3 +79,15 @@ export function getDateKeyInTimeZone(
 export function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
 }
+
+export function formatPercent(value: number | null | undefined, fractionDigits = 1) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "Not available";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "percent",
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
+  }).format(value);
+}

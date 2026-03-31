@@ -6,6 +6,7 @@ import type {
   AdminReviewProductSummary,
   AdminFormSubmissionPageRecord,
   BeautyPostRecord,
+  BrevoCampaignReportRecord,
   BrevoListRecord,
   CouponRecord,
   CustomerAccountRecord,
@@ -14,6 +15,8 @@ import type {
   EmailContactRecord,
   EmailAudienceType,
   EmailCampaignRecord,
+  EmailCampaignSummaryReportRecord,
+  EmailCampaignWithReportRecord,
   EmailMarketingOverviewRecord,
   FormSubmissionRecord,
   FormSubmissionSummaryRecord,
@@ -28,7 +31,12 @@ import type {
   StoreSettingsRecord
 } from "@/lib/types";
 import { unstable_cache } from "next/cache";
-import { EMAIL_AUDIENCE_OPTIONS, fetchBrevoLists, getBrevoSettings } from "@/lib/brevo";
+import {
+  EMAIL_AUDIENCE_OPTIONS,
+  fetchBrevoCampaignReports,
+  fetchBrevoLists,
+  getBrevoSettings
+} from "@/lib/brevo";
 import { expireCouponsIfNeeded } from "@/lib/coupon-expiration";
 import { parseStoredCouponProductCodes } from "@/lib/coupons";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
@@ -499,6 +507,31 @@ function mapEmailCampaign(campaign: any): EmailCampaignRecord {
     createdAt: new Date(campaign.createdAt),
     updatedAt: new Date(campaign.updatedAt)
   };
+}
+
+function buildCampaignSummaryReport(reports: Array<BrevoCampaignReportRecord | null | undefined>) {
+  const activeReports = reports.filter((report): report is BrevoCampaignReportRecord => Boolean(report));
+  const sentReports = activeReports.filter((report) => (report.stats?.sent ?? 0) > 0);
+  const totalSent = sentReports.reduce((sum, report) => sum + (report.stats?.sent ?? 0), 0);
+  const totalDelivered = sentReports.reduce((sum, report) => sum + (report.stats?.delivered ?? 0), 0);
+  const totalUniqueViews = sentReports.reduce((sum, report) => sum + (report.stats?.uniqueViews ?? 0), 0);
+  const totalUniqueClicks = sentReports.reduce((sum, report) => sum + (report.stats?.uniqueClicks ?? 0), 0);
+  const totalUnsubscriptions = sentReports.reduce(
+    (sum, report) => sum + (report.stats?.unsubscriptions ?? 0),
+    0
+  );
+
+  return {
+    trackedCampaignCount: activeReports.length,
+    sentCampaignCount: sentReports.length,
+    totalSent,
+    totalDelivered,
+    totalUniqueViews,
+    totalUniqueClicks,
+    totalUnsubscriptions,
+    overallOpenRate: totalDelivered > 0 ? totalUniqueViews / totalDelivered : null,
+    overallClickRate: totalDelivered > 0 ? totalUniqueClicks / totalDelivered : null
+  } satisfies EmailCampaignSummaryReportRecord;
 }
 
 const getFeaturedProductsFromDatabase = unstable_cache(
@@ -1653,8 +1686,22 @@ export async function getEmailMarketingOverview() {
 
       const brevoSettings = getBrevoSettings(settings);
       const openAiSettings = getOpenAiEmailSettings();
-      const brevoListsResult = await fetchBrevoLists(brevoSettings);
-      const campaignsMapped = campaigns.map(mapEmailCampaign);
+      const [brevoListsResult, brevoReportsResult] = await Promise.all([
+        fetchBrevoLists(brevoSettings),
+        fetchBrevoCampaignReports(brevoSettings)
+      ]);
+      const brevoReportLookup = new Map(
+        brevoReportsResult.reports.map((report) => [report.id, report] satisfies [number, BrevoCampaignReportRecord])
+      );
+      const campaignsMapped = campaigns.map((campaign) => {
+        const mappedCampaign = mapEmailCampaign(campaign);
+        return {
+          ...mappedCampaign,
+          brevoReport: mappedCampaign.brevoCampaignId
+            ? brevoReportLookup.get(mappedCampaign.brevoCampaignId) ?? null
+            : null
+        } satisfies EmailCampaignWithReportRecord;
+      });
       const brevoListLookup = new Map(brevoListsResult.lists.map((list) => [list.id, list]));
       const newsletterEmailSet = new Set(newsletterRows.map((row) => row.email));
       const leadEmailSet = new Set(leadRows.map((row) => row.email));
@@ -1676,6 +1723,7 @@ export async function getEmailMarketingOverview() {
       const syncedCampaignCount = campaignsMapped.filter((campaign) => campaign.status === "SYNCED").length;
       const scheduledCampaignCount = campaignsMapped.filter((campaign) => campaign.status === "SCHEDULED").length;
       const sentCampaignCount = campaignsMapped.filter((campaign) => campaign.status === "SENT").length;
+      const campaignReport = buildCampaignSummaryReport(campaignsMapped.map((campaign) => campaign.brevoReport));
       const audiences = EMAIL_AUDIENCE_OPTIONS.map((option) => ({
         key: option.value,
         label: option.label,
@@ -1748,7 +1796,8 @@ export async function getEmailMarketingOverview() {
         aiModel: openAiSettings.model,
         audiences,
         brevoLists: brevoListsResult.lists,
-        brevoError: brevoListsResult.error,
+        brevoError: brevoListsResult.error || brevoReportsResult.error,
+        campaignReport,
         campaigns: campaignsMapped
       } satisfies EmailMarketingOverviewRecord;
     },
@@ -1763,6 +1812,17 @@ export async function getEmailMarketingOverview() {
       sentCampaignCount: 0,
       aiReady: false,
       aiModel: null,
+      campaignReport: {
+        trackedCampaignCount: 0,
+        sentCampaignCount: 0,
+        totalSent: 0,
+        totalDelivered: 0,
+        totalUniqueViews: 0,
+        totalUniqueClicks: 0,
+        totalUnsubscriptions: 0,
+        overallOpenRate: null,
+        overallClickRate: null
+      },
       audiences: EMAIL_AUDIENCE_OPTIONS.map((option) => ({
         key: option.value,
         label: option.label,
@@ -1775,7 +1835,7 @@ export async function getEmailMarketingOverview() {
       })),
       brevoLists: [] as BrevoListRecord[],
       brevoError: null,
-      campaigns: []
+      campaigns: [] as EmailCampaignWithReportRecord[]
     }
   );
 }

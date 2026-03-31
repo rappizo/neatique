@@ -3048,6 +3048,36 @@ main {
   gap: 20px;
 }
 
+.admin-page--email-marketing {
+  gap: 24px;
+}
+
+.admin-page--email-marketing .admin-page__header p:not(.eyebrow),
+.admin-page--email-marketing .form-note,
+.admin-page--email-marketing .admin-card p,
+.admin-page--email-marketing .admin-product-card__body p:not(.eyebrow) {
+  line-height: 1.7;
+}
+
+.admin-page--email-marketing .admin-form h2 {
+  margin: 0 0 8px;
+}
+
+.admin-page--email-marketing .admin-product-card__body {
+  gap: 12px;
+}
+
+.admin-email-sender-card__meta {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  justify-items: start;
+}
+
+.admin-email-sender-card__meta .pill {
+  min-height: 32px;
+}
+
 .admin-email-preview {
   display: grid;
   gap: 20px;

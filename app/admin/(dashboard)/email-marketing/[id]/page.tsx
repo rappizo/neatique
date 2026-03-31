@@ -9,9 +9,9 @@ import {
   updateEmailCampaignAction
 } from "@/app/admin/actions";
 import { EmailCampaignEditorForm } from "@/components/admin/email-campaign-editor-form";
-import { fetchBrevoSenders, getBrevoSettings } from "@/lib/brevo";
+import { fetchBrevoCampaignReportById, fetchBrevoSenders, getBrevoSettings } from "@/lib/brevo";
 import { getOpenAiEmailSettings } from "@/lib/openai-email";
-import { formatDate, formatTime } from "@/lib/format";
+import { formatDate, formatNumber, formatPercent, formatTime } from "@/lib/format";
 import { getEmailCampaignById, getStoreSettings } from "@/lib/queries";
 
 type AdminEmailCampaignDetailPageProps = {
@@ -56,6 +56,13 @@ export default async function AdminEmailCampaignDetailPage({
       : { senders: [], error: null };
   const activeSenders = senderSnapshot.senders.filter((sender) => sender.active);
   const senderIsActive = senderEmail ? activeSenders.some((sender) => sender.email === senderEmail) : false;
+  const reportSnapshot =
+    campaign.brevoCampaignId && brevoSettings.enabled && brevoSettings.apiKeyConfigured
+      ? await fetchBrevoCampaignReportById({
+          settings: brevoSettings,
+          brevoCampaignId: campaign.brevoCampaignId
+        })
+      : { report: null, error: null };
 
   return (
     <div className="admin-page">
@@ -66,6 +73,56 @@ export default async function AdminEmailCampaignDetailPage({
       </div>
 
       {query.status ? <p className="notice">{STATUS_MESSAGES[query.status] || `Campaign action completed: ${query.status}.`}</p> : null}
+
+      <section className="admin-form">
+        <div className="admin-review-pagination">
+          <div>
+            <h2>Campaign report</h2>
+            <p className="form-note">
+              Live Brevo metrics for this campaign whenever reporting data is available.
+            </p>
+          </div>
+          <div className="stack-row">
+            <span className="pill">
+              Remote: {campaign.brevoCampaignId ? `Brevo #${campaign.brevoCampaignId}` : "Not synced yet"}
+            </span>
+            <span className="pill">
+              Sent at: {reportSnapshot.report?.sentDate ? `${formatDate(reportSnapshot.report.sentDate)} ${formatTime(reportSnapshot.report.sentDate)}` : "Not sent"}
+            </span>
+          </div>
+        </div>
+
+        {reportSnapshot.error ? (
+          <p className="form-note">Campaign report is temporarily unavailable: {reportSnapshot.error}</p>
+        ) : null}
+
+        <div className="stats-grid">
+          <div className="stat-card">
+            <strong>{formatNumber(reportSnapshot.report?.stats?.delivered ?? 0)}</strong>
+            <span>Delivered</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatNumber(reportSnapshot.report?.stats?.uniqueViews ?? 0)}</strong>
+            <span>Unique opens</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatNumber(reportSnapshot.report?.stats?.uniqueClicks ?? 0)}</strong>
+            <span>Unique clicks</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatPercent(reportSnapshot.report?.stats?.opensRate ?? null)}</strong>
+            <span>Open rate</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatPercent(reportSnapshot.report?.stats?.clickRate ?? null)}</strong>
+            <span>Click rate</span>
+          </div>
+          <div className="stat-card">
+            <strong>{formatNumber(reportSnapshot.report?.stats?.unsubscriptions ?? 0)}</strong>
+            <span>Unsubscribes</span>
+          </div>
+        </div>
+      </section>
 
       <EmailCampaignEditorForm
         action={updateEmailCampaignAction}
