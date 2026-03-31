@@ -1,5 +1,24 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  images: {
+    localPatterns: [
+      {
+        pathname: "/media/site/**"
+      },
+      {
+        pathname: "/media/product/**"
+      },
+      {
+        pathname: "/products/**"
+      }
+    ],
+    minimumCacheTTL: 2_678_400,
+    qualities: [75],
+    formats: ["image/webp"],
+    deviceSizes: [640, 768, 960, 1200, 1536],
+    imageSizes: [96, 160, 180, 220, 320, 420, 520]
+  }
+};
 
 export default nextConfig;

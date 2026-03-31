@@ -34,7 +34,7 @@ export async function GET(_: Request, { params }: ProductMediaRouteProps) {
     return new NextResponse(file, {
       headers: {
         "Content-Type": contentTypes[extension] || "application/octet-stream",
-        "Cache-Control": "public, max-age=3600"
+        "Cache-Control": "public, max-age=2592000, stale-while-revalidate=86400"
       }
     });
   } catch {

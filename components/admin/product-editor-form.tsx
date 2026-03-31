@@ -28,7 +28,7 @@ export function ProductEditorForm({ action, mode, product }: ProductEditorFormPr
         {product ? (
           <article className="admin-product-card admin-product-card--preview">
             <div className="admin-product-card__media">
-              <Image src={product.imageUrl} alt={product.name} width={420} height={420} />
+              <Image src={product.imageUrl} alt={product.name} width={420} height={420} unoptimized />
             </div>
             <div className="admin-product-card__body">
               <p className="eyebrow">{product.category}</p>
@@ -224,7 +224,7 @@ export function ProductEditorForm({ action, mode, product }: ProductEditorFormPr
         <div className="admin-product-editor__gallery">
           {product.galleryImages.map((imageUrl, index) => (
             <div key={`${product.id}-${imageUrl}`} className="admin-product-editor__thumb">
-              <Image src={imageUrl} alt={`${product.name} ${index + 1}`} width={180} height={180} />
+              <Image src={imageUrl} alt={`${product.name} ${index + 1}`} width={180} height={180} unoptimized />
               <span>{index === 0 ? "Main" : `Image ${index + 1}`}</span>
             </div>
           ))}

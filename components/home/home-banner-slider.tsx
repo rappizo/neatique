@@ -79,7 +79,8 @@ export function HomeBannerSlider() {
                     width={560}
                     height={760}
                     sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 26vw"
-                    quality={82}
+                    quality={75}
+                    unoptimized
                     priority={index === 0}
                   />
                 </div>
@@ -90,7 +91,8 @@ export function HomeBannerSlider() {
                     width={560}
                     height={760}
                     sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 26vw"
-                    quality={82}
+                    quality={75}
+                    unoptimized
                     priority={index === 0}
                   />
                 </div>

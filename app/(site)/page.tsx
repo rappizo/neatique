@@ -283,7 +283,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 width={homeImages.signature.width}
                 height={homeImages.signature.height}
                 sizes="(max-width: 1080px) 100vw, 44vw"
-                quality={84}
+                quality={75}
                 priority
               />
             </div>
@@ -328,7 +328,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     width={homeImages.morning.width}
                     height={homeImages.morning.height}
                     sizes="(max-width: 720px) 100vw, (max-width: 1080px) 58vw, 36vw"
-                    quality={82}
+                    quality={75}
                   />
                 </div>
               </div>
@@ -366,7 +366,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     width={homeImages.ritual.width}
                     height={homeImages.ritual.height}
                     sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 24vw"
-                    quality={82}
+                    quality={75}
                   />
                 </div>
                 <div className="home-image home-image--square">
@@ -376,7 +376,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     width={homeImages.application.width}
                     height={homeImages.application.height}
                     sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 20vw"
-                    quality={82}
+                    quality={75}
                   />
                 </div>
               </div>
@@ -417,7 +417,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   width={story.image.width}
                   height={story.image.height}
                   sizes="(max-width: 1080px) 100vw, 44vw"
-                  quality={82}
+                  quality={75}
                 />
               </div>
               <div className="ingredient-story__copy">
@@ -475,7 +475,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 width={homeImages.evening.width}
                 height={homeImages.evening.height}
                 sizes="(max-width: 1080px) 100vw, 48vw"
-                quality={84}
+                quality={75}
               />
             </div>
           </div>

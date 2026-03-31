@@ -33,7 +33,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
         {products.map((product) => (
           <article key={product.id} className="admin-product-card">
             <div className="admin-product-card__media">
-              <Image src={product.imageUrl} alt={product.name} width={420} height={420} />
+              <Image src={product.imageUrl} alt={product.name} width={420} height={420} unoptimized />
             </div>
             <div className="admin-product-card__body">
               <div className="product-card__meta">

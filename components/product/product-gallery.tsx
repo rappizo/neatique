@@ -39,7 +39,15 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
   return (
     <div className="product-detail__media-wrap">
       <div className="product-detail__media product-detail__media--square">
-        <Image src={activeImage} alt={alt} width={900} height={900} className="product-detail__media-image" />
+        <Image
+          src={activeImage}
+          alt={alt}
+          width={900}
+          height={900}
+          sizes="(max-width: 720px) 100vw, (max-width: 1080px) 86vw, 42vw"
+          quality={75}
+          className="product-detail__media-image"
+        />
         {images.length > 1 ? (
           <div className="product-detail__media-nav">
             <button
@@ -84,7 +92,14 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
                 aria-label={`View image ${index + 1}`}
                 aria-pressed={activeIndex === index}
               >
-                <Image src={imagePath} alt={`${alt} thumbnail ${index + 1}`} width={220} height={220} />
+                <Image
+                  src={imagePath}
+                  alt={`${alt} thumbnail ${index + 1}`}
+                  width={220}
+                  height={220}
+                  sizes="(max-width: 720px) 78px, 96px"
+                  quality={75}
+                />
               </button>
             ))}
           </div>

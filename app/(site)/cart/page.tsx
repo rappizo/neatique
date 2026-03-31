@@ -111,7 +111,14 @@ export default async function CartPage({ searchParams }: CartPageProps) {
                 {lines.map((line) => (
                   <article key={line.product.id} className="cart-line">
                     <div className="cart-line__media">
-                      <Image src={line.product.imageUrl} alt={line.product.name} width={220} height={220} />
+                      <Image
+                        src={line.product.imageUrl}
+                        alt={line.product.name}
+                        width={220}
+                        height={220}
+                        sizes="(max-width: 720px) 96px, 160px"
+                        quality={75}
+                      />
                     </div>
                     <div className="cart-line__content">
                       <div>

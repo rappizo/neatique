@@ -77,7 +77,14 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
             </div>
           </div>
           <div className="panel">
-            <Image src={post.coverImageUrl} alt={post.title} width={1200} height={740} />
+            <Image
+              src={post.coverImageUrl}
+              alt={post.title}
+              width={1200}
+              height={740}
+              sizes="(max-width: 720px) 100vw, (max-width: 1200px) 92vw, 1200px"
+              quality={75}
+            />
           </div>
           <div className="article-content">
             {paragraphs.map((paragraph) => (
