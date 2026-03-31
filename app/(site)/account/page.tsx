@@ -17,9 +17,9 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   }
 
   return (
-    <section className="section">
+    <section className="section section--account">
       <div className="container">
-        <div className="page-hero">
+        <div className="page-hero account-page-hero">
           <p className="eyebrow">My Account</p>
           <h1>
             Welcome back, {account.customer.firstName || account.customer.email.split("@")[0]}.
@@ -35,11 +35,15 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
           </div>
         </div>
 
-        {params.status === "password-updated" ? (
-          <p className="notice">Your password was updated.</p>
-        ) : null}
-        {params.error === "password" ? (
-          <p className="notice">Your current password was incorrect.</p>
+        {params.status === "password-updated" || params.error === "password" ? (
+          <div className="account-page-notices">
+            {params.status === "password-updated" ? (
+              <p className="notice">Your password was updated.</p>
+            ) : null}
+            {params.error === "password" ? (
+              <p className="notice">Your current password was incorrect.</p>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="account-dashboard">
