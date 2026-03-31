@@ -140,6 +140,7 @@ export type CouponRecord = {
   code: string;
   content: string;
   active: boolean;
+  expired: boolean;
   combinable: boolean;
   appliesToAll: boolean;
   productCodes: string[];
@@ -148,9 +149,24 @@ export type CouponRecord = {
   amountOffCents: number | null;
   usageMode: CouponUsageMode;
   usageCount: number;
+  expiresAt: Date | null;
   orderCount?: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type AdminEmailAudiencePageRecord = {
+  audienceType: EmailAudienceType;
+  audienceLabel: string;
+  audienceDescription: string;
+  contacts: EmailContactRecord[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  searchEmail: string;
+  targetListId: number | null;
+  remoteCount: number | null;
 };
 
 export type RewardEntryRecord = {

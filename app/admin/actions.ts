@@ -10,6 +10,7 @@ import {
   getBrevoSettings,
   parseBrevoListIds,
   pushCampaignToBrevo,
+  removeBrevoContactFromLists,
   resolveAudienceListIds,
   sendBrevoCampaignNow,
   sendBrevoCampaignTest,
@@ -105,6 +106,16 @@ function buildOmbClaimRedirect(status: string, redirectTo?: string) {
 
 function buildEmailMarketingRedirect(status: string, campaignId?: string, redirectTo?: string) {
   const fallbackPath = campaignId ? `/admin/email-marketing/${campaignId}` : "/admin/email-marketing";
+  const basePath = redirectTo || fallbackPath;
+  const [pathname, queryString = ""] = basePath.split("?");
+  const params = new URLSearchParams(queryString);
+  params.set("status", status);
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function buildEmailAudienceRedirect(status: string, audienceType: EmailAudienceType, redirectTo?: string) {
+  const fallbackPath = `/admin/email-marketing/audience/${audienceType}`;
   const basePath = redirectTo || fallbackPath;
   const [pathname, queryString = ""] = basePath.split("?");
   const params = new URLSearchParams(queryString);
@@ -243,6 +254,7 @@ async function importAudienceContactsFromBrevo(input: {
 }) {
   const importedEmails = new Set<string>();
   let imported = 0;
+  let failed = 0;
 
   for (const listId of input.listIds) {
     const contacts = await fetchBrevoContactsFromList({
@@ -251,42 +263,47 @@ async function importAudienceContactsFromBrevo(input: {
     });
 
     for (const contact of contacts) {
-      importedEmails.add(contact.email);
+      try {
+        importedEmails.add(contact.email);
 
-      await prisma.emailContact.upsert({
-        where: {
-          email_audienceType: {
+        await prisma.emailContact.upsert({
+          where: {
+            email_audienceType: {
+              email: contact.email,
+              audienceType: input.audienceType
+            }
+          },
+          update: {
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            source: "BREVO_IMPORT",
+            brevoContactId: contact.brevoContactId,
+            brevoListId: listId,
+            listName: input.listNameById?.get(listId) || `Brevo list ${listId}`,
+            emailBlacklisted: contact.emailBlacklisted,
+            metadata: contact.metadata,
+            lastSyncedAt: new Date()
+          },
+          create: {
             email: contact.email,
-            audienceType: input.audienceType
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            audienceType: input.audienceType,
+            source: "BREVO_IMPORT",
+            brevoContactId: contact.brevoContactId,
+            brevoListId: listId,
+            listName: input.listNameById?.get(listId) || `Brevo list ${listId}`,
+            emailBlacklisted: contact.emailBlacklisted,
+            metadata: contact.metadata,
+            lastSyncedAt: new Date()
           }
-        },
-        update: {
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          source: "BREVO_IMPORT",
-          brevoContactId: contact.brevoContactId,
-          brevoListId: listId,
-          listName: input.listNameById?.get(listId) || `Brevo list ${listId}`,
-          emailBlacklisted: contact.emailBlacklisted,
-          metadata: contact.metadata,
-          lastSyncedAt: new Date()
-        },
-        create: {
-          email: contact.email,
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          audienceType: input.audienceType,
-          source: "BREVO_IMPORT",
-          brevoContactId: contact.brevoContactId,
-          brevoListId: listId,
-          listName: input.listNameById?.get(listId) || `Brevo list ${listId}`,
-          emailBlacklisted: contact.emailBlacklisted,
-          metadata: contact.metadata,
-          lastSyncedAt: new Date()
-        }
-      });
+        });
 
-      imported += 1;
+        imported += 1;
+      } catch (error) {
+        failed += 1;
+        console.error("Brevo audience contact import failed:", error);
+      }
     }
   }
 
@@ -307,7 +324,8 @@ async function importAudienceContactsFromBrevo(input: {
 
   return {
     imported,
-    uniqueImported: importedEmails.size
+    uniqueImported: importedEmails.size,
+    failed
   };
 }
 
@@ -395,6 +413,7 @@ type CouponPayloadResult =
         percentOff: number | null;
         amountOffCents: number | null;
         usageMode: CouponUsageMode;
+        expiresAt: Date | null;
       };
     };
 
@@ -406,6 +425,7 @@ function buildCouponPayload(formData: FormData): CouponPayloadResult {
   const discountType = parseCouponDiscountType(toPlainString(formData.get("discountType")));
   const usageMode = parseCouponUsageMode(toPlainString(formData.get("usageMode")));
   const scope = parseCouponScopeInput(toPlainString(formData.get("scope")));
+  const expiresAt = parseDateTimeInput(toPlainString(formData.get("expiresAt")));
   const percentOff =
     discountType === "PERCENT" ? Math.max(0, Math.min(100, toInt(formData.get("percentOff")))) : null;
   const amountOffCents =
@@ -439,14 +459,15 @@ function buildCouponPayload(formData: FormData): CouponPayloadResult {
     data: {
       code,
       content,
-      active,
       combinable,
       appliesToAll: scope.appliesToAll,
       productCodes: scope.appliesToAll ? null : serializeCouponScope(scope.codes),
       discountType,
       percentOff,
       amountOffCents,
-      usageMode
+      usageMode,
+      expiresAt,
+      active: active && !(expiresAt && expiresAt.getTime() <= Date.now())
     }
   };
 }
@@ -713,18 +734,25 @@ export async function toggleCouponStatusAction(formData: FormData) {
 
   const id = toPlainString(formData.get("id"));
   const nextActive = toPlainString(formData.get("nextActive")) === "true";
+  const existingCoupon = await prisma.coupon.findUnique({
+    where: { id },
+    select: {
+      expiresAt: true
+    }
+  });
+  const canActivate = !existingCoupon?.expiresAt || existingCoupon.expiresAt.getTime() > Date.now();
 
   await prisma.coupon.update({
     where: { id },
     data: {
-      active: nextActive
+      active: nextActive ? canActivate : false
     }
   });
 
   revalidatePath("/admin");
   revalidatePath("/admin/coupons");
   revalidatePath(`/admin/coupons/${id}`);
-  redirect(buildCouponRedirect(nextActive ? "activated" : "deactivated", id));
+  redirect(buildCouponRedirect(nextActive ? (canActivate ? "activated" : "expired") : "deactivated", id));
 }
 
 export async function toggleFormSubmissionHandledAction(formData: FormData) {
@@ -1228,7 +1256,13 @@ export async function importBrevoAudienceAction(formData: FormData) {
     revalidatePath("/admin/email-marketing");
     redirect(
       buildEmailMarketingRedirect(
-        result.uniqueImported > 0 ? "audience-import-complete" : "audience-import-empty",
+        result.failed > 0
+          ? result.uniqueImported > 0
+            ? "audience-import-partial"
+            : "audience-import-failed"
+          : result.uniqueImported > 0
+            ? "audience-import-complete"
+            : "audience-import-empty",
         undefined,
         redirectTo
       )
@@ -1236,6 +1270,45 @@ export async function importBrevoAudienceAction(formData: FormData) {
   } catch (error) {
     console.error("Brevo audience import failed:", error);
     redirect(buildEmailMarketingRedirect("audience-import-failed", undefined, redirectTo));
+  }
+}
+
+export async function deleteEmailAudienceContactAction(formData: FormData) {
+  await requireAdminSession();
+
+  const email = toPlainString(formData.get("email")).toLowerCase();
+  const audienceType = parseEmailAudienceType(toPlainString(formData.get("audienceType")));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+  const settingsMap = await loadStoreSettingsMap();
+  const brevoSettings = getBrevoSettings(settingsMap);
+  const targetListIds = resolveAudienceListIds(audienceType, brevoSettings, null);
+
+  if (!email) {
+    redirect(buildEmailAudienceRedirect("missing-email", audienceType, redirectTo));
+  }
+
+  try {
+    if (targetListIds.length > 0 && brevoSettings.enabled && brevoSettings.apiKeyConfigured) {
+      await removeBrevoContactFromLists({
+        settings: brevoSettings,
+        email,
+        listIds: targetListIds
+      });
+    }
+
+    await prisma.emailContact.deleteMany({
+      where: {
+        email,
+        audienceType
+      }
+    });
+
+    revalidatePath("/admin/email-marketing");
+    revalidatePath(`/admin/email-marketing/audience/${audienceType}`);
+    redirect(buildEmailAudienceRedirect("contact-removed", audienceType, redirectTo));
+  } catch (error) {
+    console.error("Brevo audience contact removal failed:", error);
+    redirect(buildEmailAudienceRedirect("remove-failed", audienceType, redirectTo));
   }
 }
 

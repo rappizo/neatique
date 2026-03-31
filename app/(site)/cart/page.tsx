@@ -59,6 +59,9 @@ export default async function CartPage({ searchParams }: CartPageProps) {
         {params.error === "coupon-invalid" ? (
           <p className="notice">That coupon code is not active or could not be found.</p>
         ) : null}
+        {params.error === "coupon-expired" ? (
+          <p className="notice">That coupon has expired and can no longer be applied.</p>
+        ) : null}
         {params.error === "coupon-not-eligible" ? (
           <p className="notice">That coupon does not apply to the product IDs currently in your cart.</p>
         ) : null}

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type { CouponRecord, ProductRecord } from "@/lib/types";
+import { expireCouponsIfNeeded } from "@/lib/coupon-expiration";
 import { prisma } from "@/lib/db";
 import { getProducts } from "@/lib/queries";
 import {
@@ -34,6 +35,7 @@ type AppliedCartCoupon = Pick<
   | "discountType"
   | "percentOff"
   | "amountOffCents"
+  | "expiresAt"
   | "usageMode"
   | "usageCount"
   | "createdAt"
@@ -132,6 +134,7 @@ function mapCouponRecord(coupon: any): AppliedCartCoupon {
     discountType: coupon.discountType,
     percentOff: coupon.percentOff ?? null,
     amountOffCents: coupon.amountOffCents ?? null,
+    expiresAt: coupon.expiresAt ?? null,
     usageMode: coupon.usageMode,
     usageCount: coupon.usageCount,
     createdAt: coupon.createdAt,
@@ -150,6 +153,8 @@ async function resolveAppliedCoupons(lines: Array<{ product: ProductRecord; quan
     };
   }
 
+  await expireCouponsIfNeeded();
+
   const couponRows = await prisma.coupon.findMany({
     where: {
       code: {
@@ -162,6 +167,21 @@ async function resolveAppliedCoupons(lines: Array<{ product: ProductRecord; quan
     .map((code) => couponRowMap.get(code))
     .filter((coupon): coupon is NonNullable<typeof coupon> => Boolean(coupon))
     .map(mapCouponRecord);
+
+  if (
+    couponCodes.some((code) => {
+      const coupon = couponRowMap.get(code);
+      return Boolean(coupon?.expiresAt && new Date(coupon.expiresAt).getTime() <= Date.now());
+    })
+  ) {
+    return {
+      enteredCouponCodes: couponCodes,
+      appliedCoupons: [] as AppliedCartCoupon[],
+      appliedCouponCodes: [] as string[],
+      discountCents: 0,
+      couponError: "coupon-expired" as const
+    };
+  }
 
   if (
     resolvedCoupons.length !== couponCodes.length ||

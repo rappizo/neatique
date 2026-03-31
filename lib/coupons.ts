@@ -71,6 +71,14 @@ export function formatCouponValue(coupon: Pick<CouponRecord, "discountType" | "p
   return `$${((coupon.amountOffCents ?? 0) / 100).toFixed(2)} off`;
 }
 
+export function isCouponExpired(coupon: Pick<CouponRecord, "expiresAt"> | { expiresAt: Date | null | undefined }) {
+  return Boolean(coupon.expiresAt && new Date(coupon.expiresAt).getTime() <= Date.now());
+}
+
+export function isCouponCurrentlyActive(coupon: Pick<CouponRecord, "active" | "expiresAt">) {
+  return coupon.active && !isCouponExpired(coupon);
+}
+
 export function formatCouponScopeSummary(coupon: Pick<CouponRecord, "appliesToAll" | "productCodes">) {
   if (coupon.appliesToAll) {
     return "ALL orders";
@@ -85,6 +93,20 @@ export function formatCouponScopeSummary(coupon: Pick<CouponRecord, "appliesToAl
 
 export function formatCouponCombinationSummary(coupon: Pick<CouponRecord, "combinable">) {
   return coupon.combinable ? "Can combine with other coupons" : "Must be used alone";
+}
+
+export function formatCouponExpirySummary(coupon: Pick<CouponRecord, "expiresAt">) {
+  if (!coupon.expiresAt) {
+    return "No expiration";
+  }
+
+  return isCouponExpired(coupon) ? "Expired" : `Valid until ${new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(coupon.expiresAt))}`;
 }
 
 export function calculateCouponDiscount(

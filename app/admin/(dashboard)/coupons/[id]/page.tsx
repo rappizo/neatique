@@ -29,8 +29,8 @@ export default async function AdminCouponDetailPage({
         <form action={toggleCouponStatusAction}>
           <input type="hidden" name="id" value={coupon.id} />
           <input type="hidden" name="nextActive" value={coupon.active ? "false" : "true"} />
-          <button type="submit" className="button button--ghost">
-            {coupon.active ? "Mark inactive" : "Activate coupon"}
+          <button type="submit" className="button button--ghost" disabled={!coupon.active && coupon.expired}>
+            {coupon.active ? "Mark inactive" : coupon.expired ? "Expired coupon" : "Activate coupon"}
           </button>
         </form>
       </div>

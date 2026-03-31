@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/format";
 import { getCoupons } from "@/lib/queries";
 import {
   formatCouponCombinationSummary,
+  formatCouponExpirySummary,
   formatCouponScopeSummary,
   formatCouponValue
 } from "@/lib/coupons";
@@ -36,7 +37,7 @@ export default async function AdminCouponsPage({ searchParams }: AdminCouponsPag
           <article key={coupon.id} className="admin-product-card">
             <div className="admin-product-card__body">
               <div className="product-card__meta">
-                <span>{coupon.active ? "Active" : "Inactive"}</span>
+                <span>{coupon.expired ? "Expired" : coupon.active ? "Active" : "Inactive"}</span>
                 <span>{formatCouponValue(coupon)}</span>
                 <span>{coupon.usageMode === "SINGLE_USE" ? "Single use" : "Unlimited"}</span>
                 <span>{coupon.combinable ? "Combinable" : "Standalone"}</span>
@@ -46,6 +47,7 @@ export default async function AdminCouponsPage({ searchParams }: AdminCouponsPag
               <ul className="admin-list">
                 <li>Scope: {formatCouponScopeSummary(coupon)}</li>
                 <li>Combination: {formatCouponCombinationSummary(coupon)}</li>
+                <li>Validity: {formatCouponExpirySummary(coupon)}</li>
                 <li>Used {coupon.usageCount} time(s)</li>
                 <li>Updated {formatDate(coupon.updatedAt)}</li>
               </ul>

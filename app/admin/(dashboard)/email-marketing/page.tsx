@@ -19,6 +19,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   "audience-sync-complete": "Audience sync completed.",
   "audience-sync-partial": "Audience sync finished with some skipped or failed contacts.",
   "audience-import-complete": "Brevo contacts were imported into the local email audience.",
+  "audience-import-partial": "Most Brevo contacts were imported, but a few could not be saved locally.",
   "audience-import-empty": "That Brevo list is empty, so nothing new was imported.",
   "audience-import-failed": "Brevo import failed. Check the API key and list ID, then try again.",
   "brevo-not-configured": "Add a Brevo API key, enable the module, and set a sender before syncing.",
@@ -246,8 +247,8 @@ export default async function AdminEmailMarketingPage({
         <div className="admin-card">
           <h3>Recommended workflow</h3>
           <p>
-            Create campaign shell → write strategy brief → generate with AI → review and tweak →
-            sync to Brevo → send test → send or schedule.
+            Create campaign shell, write the strategy brief, generate with AI, review the copy,
+            sync to Brevo, send a test, then send or schedule.
           </p>
         </div>
       </section>
@@ -259,7 +260,11 @@ export default async function AdminEmailMarketingPage({
           Brevo account does not have lists created yet.
         </p>
 
-        {overview.brevoError ? <p className="notice">{overview.brevoError}</p> : null}
+        {overview.brevoError ? (
+          <p className="form-note">
+            Brevo list preview is temporarily unavailable: {overview.brevoError}
+          </p>
+        ) : null}
 
         {overview.brevoLists.length > 0 ? (
           <div className="admin-product-grid">
@@ -312,6 +317,12 @@ export default async function AdminEmailMarketingPage({
                 </ul>
 
                 <div className="stack-row">
+                  <Link
+                    href={`/admin/email-marketing/audience/${audience.key}`}
+                    className="button button--ghost"
+                  >
+                    View emails
+                  </Link>
                   <form action={importBrevoAudienceAction}>
                     <input type="hidden" name="audienceType" value={audience.key} />
                     <input type="hidden" name="redirectTo" value="/admin/email-marketing" />

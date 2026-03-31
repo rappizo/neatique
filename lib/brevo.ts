@@ -269,7 +269,7 @@ export async function fetchBrevoContactsFromList(input: {
     emailBlacklisted: boolean;
     metadata: string | null;
   }> = [];
-  const pageSize = 500;
+  const pageSize = 50;
   let offset = 0;
   let totalCount = Number.POSITIVE_INFINITY;
 
@@ -422,6 +422,39 @@ export async function syncBrevoAudienceEmails(input: {
     synced,
     skipped,
     failed
+  };
+}
+
+export async function removeBrevoContactFromLists(input: {
+  settings: BrevoSettings;
+  email: string;
+  listIds: number[];
+}) {
+  const email = input.email.trim().toLowerCase();
+  const listIds = Array.from(new Set(input.listIds.filter((value) => Number.isFinite(value) && value > 0)));
+
+  if (!email || !input.settings.enabled || !input.settings.apiKeyConfigured || listIds.length === 0) {
+    return {
+      removed: false,
+      skipped: true
+    };
+  }
+
+  for (const listId of listIds) {
+    await brevoRequest(input.settings, `/contacts/lists/${listId}/contacts/remove`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        emails: [email]
+      })
+    });
+  }
+
+  return {
+    removed: true,
+    skipped: false
   };
 }
 

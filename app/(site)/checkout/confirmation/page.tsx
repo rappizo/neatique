@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default async function CheckoutConfirmationPage({
   searchParams
 }: CheckoutConfirmationPageProps) {
-  const [{ lines, subtotalCents, discountedSubtotalCents, discountCents, appliedCoupons }, draft, currentCustomer, params] =
+  const [{ lines, subtotalCents, discountedSubtotalCents, discountCents, appliedCoupons, couponError }, draft, currentCustomer, params] =
     await Promise.all([getCartDetails(), getCheckoutDraft(), getCurrentCustomer(), searchParams]);
 
   if (lines.length === 0) {
@@ -71,6 +71,11 @@ export default async function CheckoutConfirmationPage({
           <p className="notice">
             One of the coupon combinations makes the payable amount invalid for Stripe. Please go
             back to cart and use a lower discount coupon.
+          </p>
+        ) : null}
+        {couponError === "coupon-expired" ? (
+          <p className="notice">
+            One of your coupons has expired. Please return to the cart to review the updated total.
           </p>
         ) : null}
         {params.status === "canceled" ? (

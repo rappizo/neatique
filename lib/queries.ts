@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type {
+  AdminEmailAudiencePageRecord,
   AdminOmbClaimPageRecord,
   AdminProductReviewPageRecord,
   AdminReviewProductSummary,
@@ -10,6 +11,8 @@ import type {
   CustomerAccountRecord,
   CustomerRecord,
   DashboardSummary,
+  EmailContactRecord,
+  EmailAudienceType,
   EmailCampaignRecord,
   EmailMarketingOverviewRecord,
   FormSubmissionRecord,
@@ -23,6 +26,7 @@ import type {
 } from "@/lib/types";
 import { unstable_cache } from "next/cache";
 import { EMAIL_AUDIENCE_OPTIONS, fetchBrevoLists, getBrevoSettings } from "@/lib/brevo";
+import { expireCouponsIfNeeded } from "@/lib/coupon-expiration";
 import { parseStoredCouponProductCodes } from "@/lib/coupons";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { prisma } from "@/lib/db";
@@ -221,6 +225,25 @@ function mapCustomer(customer: any): CustomerRecord {
   };
 }
 
+function mapEmailContact(contact: any): EmailContactRecord {
+  return {
+    id: contact.id,
+    email: contact.email,
+    firstName: contact.firstName ?? null,
+    lastName: contact.lastName ?? null,
+    audienceType: contact.audienceType,
+    source: contact.source,
+    brevoContactId: contact.brevoContactId ?? null,
+    brevoListId: contact.brevoListId ?? null,
+    listName: contact.listName ?? null,
+    emailBlacklisted: contact.emailBlacklisted,
+    metadata: contact.metadata ?? null,
+    lastSyncedAt: new Date(contact.lastSyncedAt),
+    createdAt: new Date(contact.createdAt),
+    updatedAt: new Date(contact.updatedAt)
+  };
+}
+
 function mapOrder(order: any): OrderRecord {
   return {
     id: order.id,
@@ -270,11 +293,15 @@ function mapOrder(order: any): OrderRecord {
 }
 
 function mapCoupon(coupon: any): CouponRecord {
+  const expiresAt = coupon.expiresAt ? new Date(coupon.expiresAt) : null;
+  const expired = Boolean(expiresAt && expiresAt.getTime() <= Date.now());
+
   return {
     id: coupon.id,
     code: coupon.code,
     content: coupon.content,
-    active: coupon.active,
+    active: coupon.active && !expired,
+    expired,
     combinable: coupon.combinable,
     appliesToAll: coupon.appliesToAll,
     productCodes: parseStoredCouponProductCodes(coupon.productCodes),
@@ -283,6 +310,7 @@ function mapCoupon(coupon: any): CouponRecord {
     amountOffCents: coupon.amountOffCents ?? null,
     usageMode: coupon.usageMode,
     usageCount: coupon.usageCount,
+    expiresAt,
     orderCount: coupon._count?.orders,
     createdAt: new Date(coupon.createdAt),
     updatedAt: new Date(coupon.updatedAt)
@@ -614,8 +642,10 @@ export async function getOrders() {
 
 export async function getCoupons() {
   return withFallback(
-    async () =>
-      (
+    async () => {
+      await expireCouponsIfNeeded();
+
+      return (
         await prisma.coupon.findMany({
           include: {
             _count: {
@@ -626,7 +656,8 @@ export async function getCoupons() {
           },
           orderBy: [{ active: "desc" }, { updatedAt: "desc" }]
         })
-      ).map(mapCoupon),
+      ).map(mapCoupon);
+    },
     []
   );
 }
@@ -634,6 +665,8 @@ export async function getCoupons() {
 export async function getCouponById(id: string) {
   return withFallback(
     async () => {
+      await expireCouponsIfNeeded();
+
       const coupon = await prisma.coupon.findUnique({
         where: { id },
         include: {
@@ -1529,6 +1562,94 @@ export async function getEmailMarketingOverview() {
       brevoLists: [] as BrevoListRecord[],
       brevoError: null,
       campaigns: []
+    }
+  );
+}
+
+export async function getEmailAudienceContactsPage(
+  audienceType: EmailAudienceType,
+  page = 1,
+  pageSize = 50,
+  searchEmail = ""
+) {
+  const audienceMeta = EMAIL_AUDIENCE_OPTIONS.find((option) => option.value === audienceType);
+  const managedAudience =
+    audienceType === "NEWSLETTER" || audienceType === "CUSTOMERS" || audienceType === "LEADS"
+      ? audienceType
+      : null;
+
+  if (!managedAudience || !audienceMeta) {
+    return null;
+  }
+
+  const normalizedSearchEmail = searchEmail.trim().toLowerCase();
+
+  return withFallback<AdminEmailAudiencePageRecord | null>(
+    async () => {
+      const settings = getBrevoSettings(await getStoreSettings());
+      const targetListId =
+        managedAudience === "NEWSLETTER"
+          ? settings.subscribersListId
+          : managedAudience === "CUSTOMERS"
+            ? settings.customersListId
+            : settings.contactListId;
+
+      const where = {
+        audienceType: managedAudience,
+        ...(normalizedSearchEmail
+          ? {
+              email: {
+                contains: normalizedSearchEmail,
+                mode: "insensitive" as const
+              }
+            }
+          : {})
+      };
+
+      const [totalCount, brevoListsResult] = await Promise.all([
+        prisma.emailContact.count({ where }),
+        fetchBrevoLists(settings)
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      const currentPage = Math.min(Math.max(1, page), totalPages);
+      const contacts = await prisma.emailContact.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+        skip: (currentPage - 1) * pageSize,
+        take: pageSize
+      });
+      const remoteCount =
+        targetListId && !brevoListsResult.error
+          ? brevoListsResult.lists.find((list) => list.id === targetListId)?.totalSubscribers ?? null
+          : null;
+
+      return {
+        audienceType: managedAudience,
+        audienceLabel: audienceMeta.label,
+        audienceDescription: audienceMeta.description,
+        contacts: contacts.map(mapEmailContact),
+        totalCount,
+        currentPage,
+        totalPages,
+        pageSize,
+        searchEmail: normalizedSearchEmail,
+        targetListId,
+        remoteCount
+      } satisfies AdminEmailAudiencePageRecord;
+    },
+    {
+      audienceType: managedAudience,
+      audienceLabel: audienceMeta.label,
+      audienceDescription: audienceMeta.description,
+      contacts: [],
+      totalCount: 0,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize,
+      searchEmail: normalizedSearchEmail,
+      targetListId: null,
+      remoteCount: null
     }
   );
 }

@@ -2,6 +2,7 @@ import type { CouponRecord } from "@/lib/types";
 import { formatCurrency, formatCurrencyInput } from "@/lib/format";
 import {
   formatCouponCombinationSummary,
+  formatCouponExpirySummary,
   formatCouponScopeSummary,
   formatCouponValue
 } from "@/lib/coupons";
@@ -14,6 +15,13 @@ type CouponEditorFormProps = {
 
 export function CouponEditorForm({ action, mode, coupon }: CouponEditorFormProps) {
   const scopeValue = coupon?.appliesToAll ? "ALL" : coupon?.productCodes.join("\n") ?? "";
+  const expiresAtValue = coupon?.expiresAt
+    ? (() => {
+        const date = new Date(coupon.expiresAt);
+        const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+        return localDate.toISOString().slice(0, 16);
+      })()
+    : "";
 
   return (
     <section className="admin-form">
@@ -29,7 +37,7 @@ export function CouponEditorForm({ action, mode, coupon }: CouponEditorFormProps
       {coupon ? (
         <article className="admin-card">
           <div className="product-card__meta">
-            <span>{coupon.active ? "Active" : "Inactive"}</span>
+            <span>{coupon.expired ? "Expired" : coupon.active ? "Active" : "Inactive"}</span>
             <span>{formatCouponValue(coupon)}</span>
             <span>{coupon.usageMode === "SINGLE_USE" ? "Single use" : "Unlimited"}</span>
             <span>{coupon.combinable ? "Combinable" : "Standalone"}</span>
@@ -39,6 +47,7 @@ export function CouponEditorForm({ action, mode, coupon }: CouponEditorFormProps
           <ul className="admin-list">
             <li>Scope: {formatCouponScopeSummary(coupon)}</li>
             <li>Combination: {formatCouponCombinationSummary(coupon)}</li>
+            <li>Validity: {formatCouponExpirySummary(coupon)}</li>
             <li>Used {coupon.usageCount} time(s)</li>
           </ul>
         </article>
@@ -104,6 +113,15 @@ export function CouponEditorForm({ action, mode, coupon }: CouponEditorFormProps
               <option value="SINGLE_USE">Single use</option>
             </select>
           </div>
+          <div className="field">
+            <label htmlFor="expiresAt">Valid until</label>
+            <input
+              id="expiresAt"
+              name="expiresAt"
+              type="datetime-local"
+              defaultValue={expiresAtValue}
+            />
+          </div>
           <label className="field field--checkbox">
             <input type="checkbox" name="combinable" defaultChecked={coupon?.combinable ?? false} />
             Can combine with other coupons
@@ -151,6 +169,11 @@ export function CouponEditorForm({ action, mode, coupon }: CouponEditorFormProps
             example {formatCurrency(500)} for five dollars off.
           </p>
         )}
+
+        <p className="form-note">
+          If you set a validity deadline, the coupon will automatically stop working once that time
+          has passed and the admin will show it as expired.
+        </p>
 
         <p className="form-note">
           New coupons default to standalone use. If this switch stays off, the checkout will reject
