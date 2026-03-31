@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { HomeBannerSlider } from "@/components/home/home-banner-slider";
 import { SocialProofSlider } from "@/components/home/social-proof-slider";
 import { PostCard } from "@/components/ui/post-card";
 import { ProductCard } from "@/components/ui/product-card";
+import { ResponsiveSitePicture } from "@/components/ui/responsive-site-picture";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { getFeaturedProducts, getPublishedPosts } from "@/lib/queries";
 import { siteConfig } from "@/lib/site-config";
@@ -22,12 +22,16 @@ const homePageDescription =
 const homeImages = {
   signature: {
     src: buildSiteImageUrl("home", "Signature Brand Campaign.png"),
+    desktopSrc: buildSiteImageUrl("home", "Signature Brand Campaign-desktop.webp"),
+    mobileSrc: buildSiteImageUrl("home", "Signature Brand Campaign-mobile.webp"),
     alt: "Neatique skincare arranged in a warm signature campaign still life.",
     width: 800,
     height: 800
   },
   morning: {
     src: buildSiteImageUrl("home", "Morning Vanity Scene.png"),
+    desktopSrc: buildSiteImageUrl("home", "Morning Vanity Scene-desktop.webp"),
+    mobileSrc: buildSiteImageUrl("home", "Morning Vanity Scene-mobile.webp"),
     alt: "Neatique products styled on a vanity for a bright morning skincare ritual.",
     width: 800,
     height: 800
@@ -46,30 +50,40 @@ const homeImages = {
   },
   ritual: {
     src: buildSiteImageUrl("home", "Refined Sink-Side Ritual.png"),
+    desktopSrc: buildSiteImageUrl("home", "Refined Sink-Side Ritual-desktop.webp"),
+    mobileSrc: buildSiteImageUrl("home", "Refined Sink-Side Ritual-mobile.webp"),
     alt: "Neatique skincare arranged beside a sink for an elevated daily ritual.",
     width: 800,
     height: 800
   },
   application: {
     src: buildSiteImageUrl("home", "Application Close-UP.png"),
+    desktopSrc: buildSiteImageUrl("home", "Application Close-UP-desktop.webp"),
+    mobileSrc: buildSiteImageUrl("home", "Application Close-UP-mobile.webp"),
     alt: "Close-up of Neatique skincare application for a soft, hydrated finish.",
     width: 800,
     height: 800
   },
   pdrn: {
     src: buildSiteImageUrl("home", "PDRN Editorial Still Life.png"),
+    desktopSrc: buildSiteImageUrl("home", "PDRN Editorial Still Life-desktop.webp"),
+    mobileSrc: buildSiteImageUrl("home", "PDRN Editorial Still Life-mobile.webp"),
     alt: "PDRN skincare products styled in a polished editorial still life.",
     width: 800,
     height: 800
   },
   snail: {
     src: buildSiteImageUrl("home", "Snail Mucin Texture Story.png"),
+    desktopSrc: buildSiteImageUrl("home", "Snail Mucin Texture Story-desktop.webp"),
+    mobileSrc: buildSiteImageUrl("home", "Snail Mucin Texture Story-mobile.webp"),
     alt: "Snail mucin skincare styled to highlight a dewy, replenishing texture story.",
     width: 800,
     height: 800
   },
   evening: {
     src: buildSiteImageUrl("home", "Soft Evening Brand Moment.png"),
+    desktopSrc: buildSiteImageUrl("home", "Soft Evening Brand Moment-desktop.webp"),
+    mobileSrc: buildSiteImageUrl("home", "Soft Evening Brand Moment-mobile.webp"),
     alt: "Neatique skincare styled in a soft evening brand moment with a calm glow.",
     width: 1071,
     height: 800
@@ -277,14 +291,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
 
             <div className="home-image home-image--square home-image--hero">
-              <Image
-                src={homeImages.signature.src}
+              <ResponsiveSitePicture
+                desktopSrc={homeImages.signature.desktopSrc}
+                mobileSrc={homeImages.signature.mobileSrc}
                 alt={homeImages.signature.alt}
                 width={homeImages.signature.width}
                 height={homeImages.signature.height}
-                sizes="(max-width: 1080px) 100vw, 44vw"
-                quality={75}
-                priority
               />
             </div>
           </div>
@@ -322,13 +334,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
               <div className="philosophy-band__media">
                 <div className="home-image home-image--landscape philosophy-band__feature">
-                  <Image
-                    src={homeImages.morning.src}
+                  <ResponsiveSitePicture
+                    desktopSrc={homeImages.morning.desktopSrc}
+                    mobileSrc={homeImages.morning.mobileSrc}
                     alt={homeImages.morning.alt}
                     width={homeImages.morning.width}
                     height={homeImages.morning.height}
-                    sizes="(max-width: 720px) 100vw, (max-width: 1080px) 58vw, 36vw"
-                    quality={75}
                   />
                 </div>
               </div>
@@ -360,23 +371,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </div>
               <div className="ritual-spotlight__media">
                 <div className="home-image home-image--square">
-                  <Image
-                    src={homeImages.ritual.src}
+                  <ResponsiveSitePicture
+                    desktopSrc={homeImages.ritual.desktopSrc}
+                    mobileSrc={homeImages.ritual.mobileSrc}
                     alt={homeImages.ritual.alt}
                     width={homeImages.ritual.width}
                     height={homeImages.ritual.height}
-                    sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 24vw"
-                    quality={75}
                   />
                 </div>
                 <div className="home-image home-image--square">
-                  <Image
-                    src={homeImages.application.src}
+                  <ResponsiveSitePicture
+                    desktopSrc={homeImages.application.desktopSrc}
+                    mobileSrc={homeImages.application.mobileSrc}
                     alt={homeImages.application.alt}
                     width={homeImages.application.width}
                     height={homeImages.application.height}
-                    sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 20vw"
-                    quality={75}
                   />
                 </div>
               </div>
@@ -411,13 +420,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           {ingredientStories.map((story) => (
             <article key={story.eyebrow} className="ingredient-story panel">
               <div className="home-image home-image--square">
-                <Image
-                  src={story.image.src}
+                <ResponsiveSitePicture
+                  desktopSrc={story.image.desktopSrc}
+                  mobileSrc={story.image.mobileSrc}
                   alt={story.image.alt}
                   width={story.image.width}
                   height={story.image.height}
-                  sizes="(max-width: 1080px) 100vw, 44vw"
-                  quality={75}
                 />
               </div>
               <div className="ingredient-story__copy">
@@ -469,13 +477,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
 
             <div className="home-image home-image--landscape">
-              <Image
-                src={homeImages.evening.src}
+              <ResponsiveSitePicture
+                desktopSrc={homeImages.evening.desktopSrc}
+                mobileSrc={homeImages.evening.mobileSrc}
                 alt={homeImages.evening.alt}
                 width={homeImages.evening.width}
                 height={homeImages.evening.height}
-                sizes="(max-width: 1080px) 100vw, 48vw"
-                quality={75}
               />
             </div>
           </div>
