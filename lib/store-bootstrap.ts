@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { getDefaultMascotRewards } from "@/lib/mascot-program";
 import { ensureProductCodes } from "@/lib/product-codes";
-import { samplePosts, sampleProducts, sampleReviews, sampleStoreSettings } from "@/lib/sample-store-data";
+import { samplePosts, sampleProducts, sampleStoreSettings } from "@/lib/sample-store-data";
 
 let bootstrapState: "idle" | "running" | "ready" = "idle";
 let bootstrapPromise: Promise<void> | null = null;
@@ -174,73 +174,6 @@ async function seedMascotsIfEmpty() {
   }
 }
 
-async function seedReviewsIfEmpty() {
-  const products = await prisma.product.findMany({
-    select: {
-      id: true,
-      slug: true,
-      name: true
-    }
-  });
-
-  const productIdBySlug = new Map(products.map((product) => [product.slug, product.id]));
-  const sampleReviewIds = sampleReviews.map((review) => review.id);
-  const existingSampleReviews = await prisma.productReview.findMany({
-    where: {
-      id: {
-        in: sampleReviewIds
-      }
-    },
-    select: {
-      id: true
-    }
-  });
-  const existingReviewIds = new Set(existingSampleReviews.map((review) => review.id));
-  const missingReviews = sampleReviews
-    .map((review) => {
-      const productSlug = review.productSlug;
-
-      if (!productSlug || existingReviewIds.has(review.id)) {
-        return null;
-      }
-
-      const productId = productIdBySlug.get(productSlug);
-
-      if (!productId) {
-        return null;
-      }
-
-      return {
-        id: review.id,
-        rating: review.rating,
-        title: review.title,
-        content: review.content,
-        displayName: review.displayName,
-        status: review.status,
-        verifiedPurchase: review.verifiedPurchase,
-        adminNotes: review.adminNotes,
-        source: review.source,
-        productId,
-        customerId: null,
-        orderId: null,
-        reviewDate: review.reviewDate,
-        publishedAt: review.publishedAt
-      };
-    })
-    .filter((review): review is NonNullable<typeof review> => Boolean(review));
-
-  if (missingReviews.length === 0) {
-    return;
-  }
-
-  for (let index = 0; index < missingReviews.length; index += 100) {
-    await prisma.productReview.createMany({
-      data: missingReviews.slice(index, index + 100),
-      skipDuplicates: true
-    });
-  }
-}
-
 async function runBootstrap() {
   if (!usesRemoteDatabase()) {
     bootstrapState = "ready";
@@ -252,7 +185,6 @@ async function runBootstrap() {
   await seedPostsIfEmpty();
   await seedSettingsIfEmpty();
   await seedMascotsIfEmpty();
-  await seedReviewsIfEmpty();
   bootstrapState = "ready";
 }
 
