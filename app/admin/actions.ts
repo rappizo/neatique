@@ -27,8 +27,12 @@ import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
 import { normalizeArticleContent } from "@/lib/article-format";
 import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
-import { generateSeoPostImageWithAi } from "@/lib/openai-posts";
+import {
+  generateSeoPostImageFromProductReferenceWithAi,
+  generateSeoPostImageWithAi
+} from "@/lib/openai-posts";
 import { generateAiReviewDrafts, getOpenAiReviewSettings } from "@/lib/openai-reviews";
+import { getDefaultProductImageReferenceAsset } from "@/lib/product-media";
 import { parseReviewReferenceFile } from "@/lib/review-reference-file";
 import { approveRyoClaimReward } from "@/lib/ryo-claims";
 import type {
@@ -957,7 +961,8 @@ export async function regeneratePostImageAction(formData: FormData) {
         select: {
           name: true,
           productCode: true,
-          productShortName: true
+          productShortName: true,
+          slug: true
         }
       }
     }
@@ -983,7 +988,12 @@ export async function regeneratePostImageAction(formData: FormData) {
     "If any product appears, it must clearly read as Neatique-branded.",
     "No text, no watermark, no collage, and no competitor branding."
   ].join(" ");
-  const imageAsset = await generateSeoPostImageWithAi(finalPrompt);
+  const referenceImage = post.sourceProduct?.slug
+    ? getDefaultProductImageReferenceAsset(post.sourceProduct.slug)
+    : null;
+  const imageAsset = referenceImage
+    ? await generateSeoPostImageFromProductReferenceWithAi(finalPrompt, referenceImage)
+    : await generateSeoPostImageWithAi(finalPrompt);
 
   await prisma.post.update({
     where: { id },

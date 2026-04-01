@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const PRODUCT_MEDIA_FOLDERS: Record<string, string> = {
@@ -38,24 +38,73 @@ function sortProductMediaFileNames(fileNames: string[]) {
   });
 }
 
-export function getLocalProductGallery(slug: string) {
+function getProductMediaDirectoryAndFiles(slug: string, options?: { supportedReferenceOnly?: boolean }) {
   const folder = getProductMediaFolder(slug);
 
   if (!folder) {
-    return [];
+    return null;
   }
 
   const directory = path.join(getProductImageRoot(), folder);
 
   if (!existsSync(directory)) {
+    return null;
+  }
+
+  const fileNames = readdirSync(directory).filter((fileName) => {
+    if (options?.supportedReferenceOnly) {
+      return /\.(png|jpe?g|webp)$/i.test(fileName);
+    }
+
+    return /\.(png|jpe?g|webp|avif)$/i.test(fileName);
+  });
+
+  return {
+    folder,
+    directory,
+    fileNames: sortProductMediaFileNames(fileNames)
+  };
+}
+
+function getMimeTypeForFileName(fileName: string) {
+  if (/\.png$/i.test(fileName)) {
+    return "image/png";
+  }
+
+  if (/\.webp$/i.test(fileName)) {
+    return "image/webp";
+  }
+
+  return "image/jpeg";
+}
+
+export function getLocalProductGallery(slug: string) {
+  const media = getProductMediaDirectoryAndFiles(slug);
+
+  if (!media) {
     return [];
   }
 
-  const fileNames = readdirSync(directory).filter((fileName) => /\.(png|jpe?g|webp|avif)$/i.test(fileName));
-
-  return sortProductMediaFileNames(fileNames).map((fileName) => buildProductMediaUrl(folder, fileName));
+  return media.fileNames.map((fileName) => buildProductMediaUrl(media.folder, fileName));
 }
 
 export function getDefaultProductImageUrl(slug: string) {
   return getLocalProductGallery(slug)[0] ?? null;
+}
+
+export function getDefaultProductImageReferenceAsset(slug: string) {
+  const media = getProductMediaDirectoryAndFiles(slug, { supportedReferenceOnly: true });
+
+  if (!media || media.fileNames.length === 0) {
+    return null;
+  }
+
+  const fileName = media.fileNames[0];
+  const absolutePath = path.join(media.directory, fileName);
+
+  return {
+    fileName,
+    mimeType: getMimeTypeForFileName(fileName),
+    data: readFileSync(absolutePath)
+  };
 }

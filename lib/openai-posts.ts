@@ -61,6 +61,12 @@ export type GeneratedPostImageAsset = {
   base64Data: string;
 };
 
+export type PostImageReferenceAsset = {
+  fileName: string;
+  mimeType: string;
+  data: Buffer;
+};
+
 function getOpenAiApiKey() {
   return (process.env.OPENAI_API_KEY || "").trim();
 }
@@ -476,6 +482,65 @@ export async function generateSeoPostImageWithAi(prompt: string): Promise<Genera
 
   if (!base64Data) {
     throw new Error("OpenAI did not return a cover image.");
+  }
+
+  return {
+    mimeType: "image/png",
+    base64Data
+  };
+}
+
+export async function generateSeoPostImageFromProductReferenceWithAi(
+  prompt: string,
+  referenceImage: PostImageReferenceAsset
+): Promise<GeneratedPostImageAsset> {
+  const apiKey = getOpenAiApiKey();
+
+  if (!apiKey) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
+  const formData = new FormData();
+  formData.append("model", DEFAULT_OPENAI_POST_IMAGE_MODEL);
+  formData.append("prompt", [
+    prompt,
+    "Use the supplied product image as the reference for packaging shape, label placement, brand palette, and overall product identity.",
+    "Turn that core product into a premium editorial scene image rather than returning a simple cutout or plain product packshot."
+  ].join(" "));
+  formData.append("size", "1536x1024");
+  formData.append("quality", "medium");
+  formData.append(
+    "image",
+    new Blob([new Uint8Array(referenceImage.data)], { type: referenceImage.mimeType }),
+    referenceImage.fileName
+  );
+
+  const response = await fetch(`${OPENAI_API_BASE_URL}/images/edits`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: formData
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `OpenAI image edit failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
+  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
+
+  if (!base64Data) {
+    throw new Error("OpenAI did not return a cover image from the product reference.");
   }
 
   return {

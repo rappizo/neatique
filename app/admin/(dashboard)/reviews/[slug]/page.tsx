@@ -240,7 +240,8 @@ export default async function AdminProductReviewsPage({
           <p className="form-note">
             Supported reference columns: review title, review body/content, rating, and reviewer
             name. Uploading a file is optional. If you upload 20 examples and generate 40 drafts,
-            the AI will keep rotating through the same style signals without copying wording.
+            the AI will keep rotating through those examples as style references without copying
+            wording, and generated reviewer names will stay as full names instead of initials.
           </p>
 
           <PendingSubmitButton

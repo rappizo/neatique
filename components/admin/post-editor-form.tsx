@@ -42,7 +42,8 @@ export function PostEditorForm({
           </h1>
           <p>
             Edit the article fields, keep the current alt description in sync, and manage a safer
-            preview-to-approve image workflow for fresher branded visuals.
+            preview-to-approve image workflow for fresher branded visuals based on the linked
+            product&apos;s main image whenever a source product is available.
           </p>
         </div>
 
@@ -220,8 +221,9 @@ export function PostEditorForm({
             <h3>Generate and approve a new post image</h3>
             <p>
               Generate a preview first, review it on the right, then approve it to replace the
-              live post image. The current alt description stays in place unless you edit it in the
-              main form above.
+              live post image. When the post is linked to a product, AI will use that product&apos;s
+              main image as the reference before building a richer scene image. The current alt
+              description stays in place unless you edit it in the main form above.
             </p>
             {post.previewImagePrompt || post.imagePrompt ? (
               <div className="admin-post-editor__prompt">

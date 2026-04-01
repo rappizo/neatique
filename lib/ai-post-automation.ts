@@ -3,9 +3,11 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import {
   generateSeoPostDraftWithAi,
+  generateSeoPostImageFromProductReferenceWithAi,
   generateSeoPostImageWithAi,
   getOpenAiPostSettings
 } from "@/lib/openai-posts";
+import { getDefaultProductImageReferenceAsset } from "@/lib/product-media";
 import type { AiPostAutomationOverviewRecord, StoreSettingsRecord } from "@/lib/types";
 
 const AI_POST_SETTING_KEYS = [
@@ -276,7 +278,10 @@ export async function runAiPostAutomation(
       includeExternalLinks: settings.includeExternalLinks
     });
     const uniqueSlug = await ensureUniquePostSlug(draft.slug);
-    const imageAsset = await generateSeoPostImageWithAi(draft.imagePrompt);
+    const referenceImage = getDefaultProductImageReferenceAsset(sourceProduct.slug);
+    const imageAsset = referenceImage
+      ? await generateSeoPostImageFromProductReferenceWithAi(draft.imagePrompt, referenceImage)
+      : await generateSeoPostImageWithAi(draft.imagePrompt);
     const postId = randomUUID();
     const now = new Date();
     const published = settings.autoPublish;

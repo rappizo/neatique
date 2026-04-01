@@ -45,6 +45,52 @@ type GenerateAiReviewDraftsInput = {
   referenceReviews?: ReviewReferenceExample[];
 };
 
+const reviewFirstNames = [
+  "Olivia",
+  "Emma",
+  "Sophia",
+  "Ava",
+  "Isabella",
+  "Mia",
+  "Charlotte",
+  "Amelia",
+  "Harper",
+  "Evelyn",
+  "Abigail",
+  "Ella",
+  "Scarlett",
+  "Grace",
+  "Lily",
+  "Chloe",
+  "Victoria",
+  "Layla",
+  "Nora",
+  "Zoey"
+];
+
+const reviewLastNames = [
+  "Parker",
+  "Bennett",
+  "Hayes",
+  "Coleman",
+  "Brooks",
+  "Morgan",
+  "Foster",
+  "Reed",
+  "Bryant",
+  "Powell",
+  "Ward",
+  "Price",
+  "Kelly",
+  "Russell",
+  "Diaz",
+  "Rivera",
+  "Hughes",
+  "Jenkins",
+  "Long",
+  "Myers"
+];
+
 function getOpenAiApiKey() {
   return (process.env.OPENAI_API_KEY || "").trim();
 }
@@ -136,12 +182,57 @@ function buildReferenceSummary(reviews: ReviewReferenceExample[]) {
     .join("\n\n");
 }
 
+function buildFallbackFullName(index: number) {
+  const firstName = reviewFirstNames[index % reviewFirstNames.length];
+  const lastName = reviewLastNames[(index * 7 + 5) % reviewLastNames.length];
+  return `${firstName} ${lastName}`;
+}
+
+function looksLikeAbbreviatedName(name: string) {
+  const trimmed = name.trim();
+
+  if (!trimmed) {
+    return true;
+  }
+
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+
+  if (parts.length < 2) {
+    return true;
+  }
+
+  return parts.some((part) => {
+    if (part.length <= 1) {
+      return true;
+    }
+
+    if (/^[A-Z]\.?$/i.test(part)) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
+function normalizeDisplayName(value: unknown, index: number) {
+  const displayName = typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+
+  if (!displayName || looksLikeAbbreviatedName(displayName)) {
+    return buildFallbackFullName(index);
+  }
+
+  return displayName
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function normalizeGeneratedDraft(draft: any, index: number): GeneratedAiReviewDraft | null {
   if (!draft || typeof draft !== "object") {
     return null;
   }
 
-  const displayName = typeof draft.displayName === "string" ? draft.displayName.trim() : "";
+  const displayName = normalizeDisplayName(draft.displayName, index);
   const title = typeof draft.title === "string" ? draft.title.trim() : "";
   const content = typeof draft.content === "string" ? draft.content.replace(/\s+\n/g, "\n").trim() : "";
   const ratingNumber =
@@ -184,7 +275,7 @@ async function generateAiReviewBatch(
           type: "object",
           additionalProperties: false,
           properties: {
-            displayName: { type: "string", minLength: 2, maxLength: 40 },
+            displayName: { type: "string", minLength: 5, maxLength: 40 },
             rating: { type: "integer", minimum: 1, maximum: 5 },
             title: { type: "string", minLength: 4, maxLength: 110 },
             content: { type: "string", minLength: 18, maxLength: 1400 }
@@ -217,6 +308,7 @@ async function generateAiReviewBatch(
                 "Vary sentence openings, rhythm, length, vocabulary, tone, and structure.",
                 "Avoid repetitive openings such as 'I have been using', 'First impression', 'Short version', 'Routine note', and 'Honestly'.",
                 "Do not copy phrases from reference reviews or existing reviews.",
+                "Reviewer names must be full names only, with a first name and last name. Do not use initials, abbreviations, or shortened last names.",
                 "Keep claims cosmetic and experience-based. Avoid medical claims, diagnosis language, cure language, or guaranteed outcomes.",
                 "Keep the reviews realistic, specific, and natural for a skincare product page."
               ].join(" ")
@@ -252,13 +344,16 @@ async function generateAiReviewBatch(
                 "Generation requirements:",
                 "- Use a realistic mix of short, medium, and longer reviews.",
                 hasReferenceReviews
-                  ? "- Match the uploaded reference file's general style and rating feel without copying wording."
+                  ? "- Match the uploaded reference file closely in tone, sentence length, title/body pattern, punctuation feel, and rating balance without copying wording."
                   : "- No reference file is being used, so create your own mix of varied, natural-sounding customer styles from scratch.",
+                hasReferenceReviews
+                  ? "- Treat the uploaded reference set as the style source. For each new review, stay close to one of those examples in feel and structure, then rewrite it into a fresh original review."
+                  : "- Build each review from the product context rather than trying to imitate any outside sample.",
                 "- Without a reference file, skew naturally positive with mostly 4-5 star reviews and an occasional 3-star review.",
                 "- The title should look like a real review heading, not a marketing headline.",
                 "- The body should read like a customer comment, not like a blog post or ad.",
                 "- No markdown, no bullet points, no emojis, no hashtags, no all-caps titles.",
-                "- Keep display names human and varied."
+                "- Every display name must be a full human name like 'Olivia Parker' or 'Emma Brooks'. No initials such as 'Emma R.' or single names."
               ].join("\n")
             }
           ]
@@ -303,7 +398,7 @@ async function generateAiReviewBatch(
   const rows = Array.isArray(normalizedOutput?.reviews) ? normalizedOutput.reviews : [];
 
   const drafts = rows
-    .map((row, index) => normalizeGeneratedDraft(row, index))
+    .map((row, index) => normalizeGeneratedDraft(row, previousDrafts.length + index))
     .filter((row): row is GeneratedAiReviewDraft => Boolean(row));
 
   if (drafts.length !== quantity) {
