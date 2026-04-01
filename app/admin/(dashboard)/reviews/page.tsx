@@ -17,7 +17,7 @@ export default async function AdminReviewsPage({ searchParams }: AdminReviewsPag
         <h1>Open a product to manage its reviews.</h1>
         <p>
           Start from the product card, then review that product&apos;s comments with pagination, editing,
-          and CSV import tools inside its own workspace.
+          CSV import tools, and the AI review generator inside its own workspace.
         </p>
       </div>
 
@@ -27,7 +27,8 @@ export default async function AdminReviewsPage({ searchParams }: AdminReviewsPag
         <h2>Review workflow</h2>
         <p className="form-note">
           Step 1: choose a product. Step 2: edit or moderate reviews 50 at a time. Step 3: import
-          more reviews with a CSV that belongs only to that product.
+          more reviews with a CSV that belongs only to that product, or generate AI drafts from
+          scratch or from your own Excel examples.
         </p>
       </section>
 

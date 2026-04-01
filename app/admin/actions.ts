@@ -28,6 +28,8 @@ import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
 import { normalizeArticleContent } from "@/lib/article-format";
 import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
 import { generateSeoPostImageWithAi } from "@/lib/openai-posts";
+import { generateAiReviewDrafts, getOpenAiReviewSettings } from "@/lib/openai-reviews";
+import { parseReviewReferenceFile } from "@/lib/review-reference-file";
 import { approveRyoClaimReward } from "@/lib/ryo-claims";
 import type {
   CouponDiscountType,
@@ -607,6 +609,10 @@ function parseReviewDateInput(value: string | undefined | null) {
   const normalized = raw.length === 10 ? `${raw}T12:00:00.000Z` : raw;
   const parsed = new Date(normalized);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseAiReviewQuantity(value: FormDataEntryValue | null) {
+  return Math.max(1, Math.min(100, toInt(value, 10)));
 }
 
 export async function loginAction(formData: FormData) {
@@ -1320,11 +1326,46 @@ export async function deleteReviewAction(formData: FormData) {
   redirect(buildReviewRedirect("deleted", redirectTo, productSlug));
 }
 
-export async function bulkDeleteReviewsAction(formData: FormData) {
+export async function approveReviewAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const productSlug = toPlainString(formData.get("productSlug"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+
+  if (!id) {
+    redirect(buildReviewRedirect("missing-review", redirectTo, productSlug));
+  }
+
+  const existingReview = await prisma.productReview.findUnique({
+    where: { id },
+    select: {
+      publishedAt: true
+    }
+  });
+
+  await prisma.productReview.update({
+    where: { id },
+    data: {
+      status: "PUBLISHED",
+      publishedAt: existingReview?.publishedAt ?? new Date()
+    }
+  });
+
+  revalidatePath("/admin/reviews");
+  if (productSlug) {
+    revalidatePath(`/admin/reviews/${productSlug}`);
+  }
+  refreshStorefront(productSlug ? [productSlug] : []);
+  redirect(buildReviewRedirect("approved", redirectTo, productSlug));
+}
+
+export async function bulkModerateReviewsAction(formData: FormData) {
   await requireAdminSession();
 
   const productSlug = toPlainString(formData.get("productSlug"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
+  const intent = toPlainString(formData.get("intent")) || "delete";
   const reviewIds = Array.from(
     new Set(
       formData
@@ -1338,20 +1379,128 @@ export async function bulkDeleteReviewsAction(formData: FormData) {
     redirect(buildReviewRedirect("no-selection", redirectTo, productSlug));
   }
 
-  await prisma.productReview.deleteMany({
-    where: {
-      id: {
-        in: reviewIds
+  if (intent === "approve") {
+    await prisma.productReview.updateMany({
+      where: {
+        id: {
+          in: reviewIds
+        }
+      },
+      data: {
+        status: "PUBLISHED",
+        publishedAt: new Date()
       }
-    }
-  });
+    });
+  } else {
+    await prisma.productReview.deleteMany({
+      where: {
+        id: {
+          in: reviewIds
+        }
+      }
+    });
+  }
 
   revalidatePath("/admin/reviews");
   if (productSlug) {
     revalidatePath(`/admin/reviews/${productSlug}`);
   }
   refreshStorefront(productSlug ? [productSlug] : []);
-  redirect(buildReviewRedirect("bulk-deleted", redirectTo, productSlug));
+  redirect(buildReviewRedirect(intent === "approve" ? "bulk-approved" : "bulk-deleted", redirectTo, productSlug));
+}
+
+export async function generateAiReviewsAction(formData: FormData) {
+  await requireAdminSession();
+
+  const productSlug = toPlainString(formData.get("productSlug"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
+  const quantity = parseAiReviewQuantity(formData.get("quantity"));
+  const referenceFile = formData.get("referenceFile");
+  const openAiSettings = getOpenAiReviewSettings();
+
+  if (!openAiSettings.ready) {
+    redirect(buildReviewRedirect("ai-not-configured", redirectTo, productSlug));
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { slug: productSlug },
+    select: {
+      id: true,
+      productCode: true,
+      productShortName: true,
+      name: true,
+      slug: true,
+      tagline: true,
+      category: true,
+      shortDescription: true,
+      description: true,
+      details: true
+    }
+  });
+
+  if (!product) {
+    redirect(buildReviewRedirect("missing-product", redirectTo, productSlug));
+  }
+
+  const referenceReviews = await parseReviewReferenceFile(referenceFile);
+  const hasUploadedReferenceFile =
+    referenceFile && typeof referenceFile !== "string" && typeof referenceFile.name === "string" && referenceFile.name.trim().length > 0;
+
+  if (hasUploadedReferenceFile && referenceReviews.length === 0) {
+    redirect(buildReviewRedirect("invalid-reference-file", redirectTo, productSlug));
+  }
+
+  const existingReviews = await prisma.productReview.findMany({
+    where: { productId: product.id },
+    orderBy: [{ reviewDate: "desc" }, { createdAt: "desc" }],
+    take: 20,
+    select: {
+      rating: true,
+      title: true,
+      content: true,
+      displayName: true
+    }
+  });
+
+  try {
+    const drafts = await generateAiReviewDrafts({
+      product,
+      quantity,
+      existingReviews,
+      referenceReviews
+    });
+
+    const now = new Date();
+    let createIndex = 0;
+
+    for (const draft of drafts) {
+      const createdAt = new Date(now.getTime() + createIndex * 1000);
+      await prisma.productReview.create({
+        data: {
+          productId: product.id,
+          rating: draft.rating,
+          title: draft.title,
+          content: draft.content,
+          displayName: draft.displayName,
+          reviewDate: createdAt,
+          status: "PENDING",
+          verifiedPurchase: false,
+          adminNotes: referenceReviews.length
+            ? `AI generated with ${referenceReviews.length} uploaded reference reviews.`
+            : "AI generated without reference file.",
+          source: "AI_GENERATED",
+          createdAt
+        }
+      });
+      createIndex += 1;
+    }
+  } catch {
+    redirect(buildReviewRedirect("ai-failed", redirectTo, product.slug));
+  }
+
+  revalidatePath("/admin/reviews");
+  revalidatePath(`/admin/reviews/${product.slug}`);
+  redirect(buildReviewRedirect("ai-generated", redirectTo, product.slug));
 }
 
 export async function bulkImportReviewsAction(formData: FormData) {
