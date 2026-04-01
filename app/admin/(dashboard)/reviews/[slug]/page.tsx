@@ -77,8 +77,10 @@ export default async function AdminProductReviewsPage({
             ? "Select at least one review before using a bulk action."
             : query.status === "ai-generated"
               ? "AI review drafts were generated and placed into the pending list."
-              : query.status === "ai-failed"
+            : query.status === "ai-failed"
                 ? "AI review generation failed. Please try again in a moment."
+                : query.status === "missing-reference-file"
+                  ? "Choose a reference review file, or switch the generator to Direct generate."
                 : query.status === "invalid-reference-file"
                   ? "The uploaded reference file could not be read. Use a CSV, XLSX, or XLS file with title and body columns."
                   : query.status === "ai-not-configured"
@@ -198,9 +200,8 @@ export default async function AdminProductReviewsPage({
             <h2>AI review generator</h2>
             <p className="form-note">
               Create pending AI review drafts for this product, then approve them one by one or in
-              bulk. Leave the reference file empty to let AI create a wide mix of styles on its
-              own, or upload a CSV, XLSX, or XLS file if you want the drafts to follow your own
-              review examples more closely.
+              bulk. Choose whether the model should create varied reviews from scratch, or stay
+              closer to the tone and structure in your uploaded review examples.
             </p>
           </div>
           <div className="stack-row">
@@ -226,8 +227,30 @@ export default async function AdminProductReviewsPage({
                 required
               />
             </div>
+            <fieldset className="field">
+              <legend>Generation mode</legend>
+              <div className="stack-row stack-row--wrap">
+                <label className="choice-pill">
+                  <input
+                    type="radio"
+                    name="generationMode"
+                    value="direct"
+                    defaultChecked
+                  />
+                  <span>Direct generate</span>
+                </label>
+                <label className="choice-pill">
+                  <input
+                    type="radio"
+                    name="generationMode"
+                    value="reference"
+                  />
+                  <span>Reference review file</span>
+                </label>
+              </div>
+            </fieldset>
             <div className="field">
-              <label htmlFor={`referenceFile-${product.id}`}>Reference review file (optional)</label>
+              <label htmlFor={`referenceFile-${product.id}`}>Reference review file</label>
               <input
                 id={`referenceFile-${product.id}`}
                 name="referenceFile"
@@ -238,10 +261,12 @@ export default async function AdminProductReviewsPage({
           </div>
 
           <p className="form-note">
-            Supported reference columns: review title, review body/content, rating, and reviewer
-            name. Uploading a file is optional. If you upload 20 examples and generate 40 drafts,
-            the AI will keep rotating through those examples as style references without copying
-            wording, and generated reviewer names will stay as full names instead of initials.
+            Direct generate creates product-related reviews in a wide mix of styles with no file
+            required. Reference review file uses your uploaded CSV, XLSX, or XLS examples as the
+            style source. Supported reference columns: review title, review body/content, rating,
+            and reviewer name. If you upload 20 examples and generate 40 drafts, the AI will keep
+            rotating through those examples as style references without copying wording, and
+            generated reviewer names will stay as full names instead of initials.
           </p>
 
           <PendingSubmitButton

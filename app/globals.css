@@ -527,6 +527,31 @@ main {
   font-size: 0.92rem;
 }
 
+.choice-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(237, 115, 97, 0.22);
+  color: var(--text);
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+.choice-pill input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.field > legend {
+  padding: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1508,14 +1533,26 @@ main {
 }
 
 .product-editorial--gallery {
-  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+  grid-template-columns: 1fr;
   align-items: start;
+}
+
+.product-editorial--story {
+  grid-template-columns: 1fr;
 }
 
 .product-editorial__copy,
 .product-routine__copy {
   display: grid;
   gap: 14px;
+}
+
+.product-editorial__copy--story {
+  gap: 18px;
+}
+
+.product-editorial__copy--wide {
+  max-width: 980px;
 }
 
 .product-editorial__copy h2,
@@ -1553,6 +1590,38 @@ main {
   gap: 16px;
 }
 
+.product-editorial__gallery--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.product-editorial__story-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.78fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.product-editorial__story-grid--left {
+  grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.1fr);
+}
+
+.product-editorial__story-grid--left > .product-editorial__story-aside {
+  order: 1;
+}
+
+.product-editorial__story-grid--left > .product-editorial__story-copy {
+  order: 2;
+}
+
+.product-editorial__story-copy {
+  display: grid;
+  gap: 16px;
+}
+
+.product-editorial__story-aside {
+  position: relative;
+}
+
 .product-editorial__image {
   overflow: hidden;
   border-radius: 26px;
@@ -1570,6 +1639,10 @@ main {
 
 .product-editorial__image--landscape {
   aspect-ratio: 16 / 11;
+}
+
+.product-editorial__image--four-three {
+  aspect-ratio: 4 / 3;
 }
 
 .product-editorial__image-media {
@@ -3415,8 +3488,22 @@ main {
     grid-template-columns: 1fr;
   }
 
+  .product-editorial__gallery--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .product-editorial--reverse > .product-editorial__copy,
   .product-editorial--reverse > .product-editorial__image {
+    order: initial;
+  }
+
+  .product-editorial__story-grid,
+  .product-editorial__story-grid--left {
+    grid-template-columns: 1fr;
+  }
+
+  .product-editorial__story-grid--left > .product-editorial__story-aside,
+  .product-editorial__story-grid--left > .product-editorial__story-copy {
     order: initial;
   }
 

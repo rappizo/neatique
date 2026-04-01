@@ -540,11 +540,6 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                     A PDRN serum for face routines that want deep hydration, daily repair, and a
                     smooth fresh finish.
                   </h2>
-                  <p className="section-heading__description">
-                    This landing-page layout is built around the phrases shoppers actually search,
-                    while still keeping the page useful, readable, and easy to browse before adding
-                    the serum to cart.
-                  </p>
                 </div>
                 <div className="product-highlight-grid">
                   {pdrnSerumHeroCards.map((card) => (
@@ -577,13 +572,13 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                     </ul>
                   </div>
                   {section.image.src ? (
-                    <div className="product-editorial__image product-editorial__image--landscape">
+                    <div className="product-editorial__image product-editorial__image--four-three">
                       <LandingImage
                         src={section.image.src}
                         alt={section.image.alt}
                         width={section.image.width}
                         height={section.image.height}
-                        sizes="(max-width: 720px) 100vw, (max-width: 1080px) 84vw, 42vw"
+                        sizes="(max-width: 720px) 100vw, (max-width: 1080px) 80vw, 42vw"
                         className="product-editorial__image-media"
                       />
                     </div>
@@ -631,22 +626,22 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
               </section>
 
               <section className="product-page-section product-editorial product-editorial--gallery">
-                <div className="product-editorial__copy">
+                <div className="product-editorial__copy product-editorial__copy--wide">
                   <p className="eyebrow">{pdrnSerumGallery.eyebrow}</p>
                   <h2>{pdrnSerumGallery.title}</h2>
                   <div className="product-editorial__body">
                     <p>{pdrnSerumGallery.description}</p>
                   </div>
                 </div>
-                <div className="product-editorial__gallery">
+                <div className="product-editorial__gallery product-editorial__gallery--three">
                   {pdrnSerumGallery.images.map((image) => (
-                    <div key={image.src} className="product-editorial__image product-editorial__image--landscape">
+                    <div key={image.src} className="product-editorial__image product-editorial__image--four-three">
                       <LandingImage
                         src={image.src}
                         alt={image.alt}
                         width={image.width}
                         height={image.height}
-                        sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 26vw"
+                        sizes="(max-width: 720px) 100vw, (max-width: 1080px) 44vw, 28vw"
                         className="product-editorial__image-media"
                       />
                     </div>

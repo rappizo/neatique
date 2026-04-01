@@ -1477,6 +1477,7 @@ export async function generateAiReviewsAction(formData: FormData) {
   const productSlug = toPlainString(formData.get("productSlug"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
   const quantity = parseAiReviewQuantity(formData.get("quantity"));
+  const generationMode = toPlainString(formData.get("generationMode")) === "reference" ? "reference" : "direct";
   const referenceFile = formData.get("referenceFile");
   const openAiSettings = getOpenAiReviewSettings();
 
@@ -1504,11 +1505,20 @@ export async function generateAiReviewsAction(formData: FormData) {
     redirect(buildReviewRedirect("missing-product", redirectTo, productSlug));
   }
 
-  const referenceReviews = await parseReviewReferenceFile(referenceFile);
   const hasUploadedReferenceFile =
-    referenceFile && typeof referenceFile !== "string" && typeof referenceFile.name === "string" && referenceFile.name.trim().length > 0;
+    referenceFile &&
+    typeof referenceFile !== "string" &&
+    typeof referenceFile.name === "string" &&
+    referenceFile.name.trim().length > 0;
 
-  if (hasUploadedReferenceFile && referenceReviews.length === 0) {
+  if (generationMode === "reference" && !hasUploadedReferenceFile) {
+    redirect(buildReviewRedirect("missing-reference-file", redirectTo, productSlug));
+  }
+
+  const referenceReviews =
+    generationMode === "reference" ? await parseReviewReferenceFile(referenceFile) : [];
+
+  if (generationMode === "reference" && hasUploadedReferenceFile && referenceReviews.length === 0) {
     redirect(buildReviewRedirect("invalid-reference-file", redirectTo, productSlug));
   }
 
@@ -1549,7 +1559,7 @@ export async function generateAiReviewsAction(formData: FormData) {
           verifiedPurchase: false,
           adminNotes: referenceReviews.length
             ? `AI generated with ${referenceReviews.length} uploaded reference reviews.`
-            : "AI generated from product context only, with no uploaded reference file.",
+            : "AI generated directly from product context, with no reference file.",
           source: "AI_GENERATED",
           createdAt
         }
