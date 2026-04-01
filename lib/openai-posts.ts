@@ -216,6 +216,20 @@ function normalizeExternalLinks(
     .filter((link) => Boolean(link.label) && Boolean(link.url));
 }
 
+function buildBrandedPostImagePrompt(basePrompt: string, product: ProductContext) {
+  const productReference = product.productShortName || product.productCode || product.name;
+
+  return [
+    basePrompt.trim(),
+    `Editorial direction: center the visual around Neatique ${productReference}.`,
+    "Preferred scenes are either a premium Neatique product lifestyle composition with clearly branded packaging or a polished model application image where no product is visible at all.",
+    "Do not show generic unlabeled skincare bottles, jars, tubes, droppers, or packaging from any other brand.",
+    "If a product appears, it must look like authentic Neatique packaging in a refined vanity or skincare setting.",
+    "If the image uses a model, keep the focus on texture, routine, and skin feel without showing unbranded products.",
+    "No text, no watermark, no collage, no floating stock product packshots, and no competitor branding."
+  ].join(" ");
+}
+
 export async function generateSeoPostDraftWithAi(
   input: GenerateSeoPostInput
 ): Promise<GeneratedSeoPostDraft> {
@@ -410,7 +424,7 @@ export async function generateSeoPostDraftWithAi(
       .filter(Boolean)
       .slice(0, 6),
     coverImageAlt: normalizedOutput.coverImageAlt.trim(),
-    imagePrompt: normalizedOutput.imagePrompt.trim(),
+    imagePrompt: buildBrandedPostImagePrompt(normalizedOutput.imagePrompt.trim(), input.product),
     content: normalizedOutput.content.trim(),
     externalLinks: normalizeExternalLinks(
       Array.isArray(normalizedOutput.externalLinks)

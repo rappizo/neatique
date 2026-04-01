@@ -9,6 +9,7 @@ import {
   updateEmailCampaignAction
 } from "@/app/admin/actions";
 import { EmailCampaignEditorForm } from "@/components/admin/email-campaign-editor-form";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { fetchBrevoCampaignReportById, fetchBrevoSenders, getBrevoSettings } from "@/lib/brevo";
 import { getOpenAiEmailSettings } from "@/lib/openai-email";
 import { formatDate, formatNumber, formatPercent, formatTime } from "@/lib/format";
@@ -154,9 +155,14 @@ export default async function AdminEmailCampaignDetailPage({
           </p>
           <input type="hidden" name="id" value={campaign.id} />
           <input type="hidden" name="redirectTo" value={`/admin/email-marketing/${campaign.id}`} />
-          <button type="submit" className="button button--primary" disabled={!openAiSettings.ready}>
-            Generate AI draft
-          </button>
+          <PendingSubmitButton
+            idleLabel="Generate AI draft"
+            pendingLabel="Generating draft..."
+            className="button button--primary"
+            modalTitle="Generating your campaign draft"
+            modalDescription="The subject line, preview text, HTML, and plain-text fallback are being drafted now."
+            disabled={!openAiSettings.ready}
+          />
         </form>
       </section>
 

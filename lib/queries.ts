@@ -775,10 +775,24 @@ export async function getAllPosts() {
       (
         await prisma.post.findMany({
           select: postSelect,
-          orderBy: [{ published: "desc" }, { updatedAt: "desc" }]
+          orderBy: [{ createdAt: "desc" }]
         })
       ).map(mapPost),
-    fallbackPosts
+    [...fallbackPosts].sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+  );
+}
+
+export async function getPostById(id: string) {
+  return withFallback(
+    async () => {
+      const post = await prisma.post.findUnique({
+        where: { id },
+        select: postSelect
+      });
+
+      return post ? mapPost(post) : null;
+    },
+    fallbackPosts.find((post) => post.id === id) ?? null
   );
 }
 

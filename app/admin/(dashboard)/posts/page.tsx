@@ -1,15 +1,28 @@
+import Link from "next/link";
 import {
-  createPostAction,
-  deletePostAction,
   generateAiPostNowAction,
-  saveAiPostAutomationSettingsAction,
-  updatePostAction
+  saveAiPostAutomationSettingsAction
 } from "@/app/admin/actions";
-import { formatDate } from "@/lib/format";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
+import { formatDate, formatTime } from "@/lib/format";
 import { getAiPostAutomationOverview, getAllPosts } from "@/lib/queries";
 
 type AdminPostsPageProps = {
   searchParams: Promise<{ status?: string }>;
+};
+
+const STATUS_MESSAGES: Record<string, string> = {
+  created: "Post created.",
+  updated: "Post updated.",
+  deleted: "Post deleted.",
+  "image-regenerated": "A fresh cover image was generated for this post.",
+  "missing-post": "That post could not be found.",
+  "automation-settings-saved": "AI post automation settings were saved.",
+  "ai-post-draft-created": "AI created a new draft post.",
+  "ai-post-published": "AI created and published a new post.",
+  "ai-failed-failed": "AI post generation failed. Review the latest status card for the exact OpenAI or database error.",
+  "ai-skipped-not-due": "The next scheduled run is not due yet.",
+  "ai-skipped-draft-pending": "An unpublished AI draft already exists, so the automation skipped creating another one."
 };
 
 export default async function AdminPostsPage({ searchParams }: AdminPostsPageProps) {
@@ -25,13 +38,16 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
         <p className="eyebrow">Posts</p>
         <h1>Run AI-assisted SEO publishing from the same editorial backend you already use.</h1>
         <p>
-          Set the cadence, rotate automatically through active products, generate a Beauty Tips post
-          with an AI cover image, and choose whether the system creates drafts or publishes right
-          away.
+          Review automation status, trigger the next AI draft, and manage every Beauty Tips article
+          from a clean post library sorted by newest first.
         </p>
       </div>
 
-      {params.status ? <p className="notice">Post action completed: {params.status}.</p> : null}
+      {params.status ? (
+        <p className="notice">
+          {STATUS_MESSAGES[params.status] || `Post action completed: ${params.status}.`}
+        </p>
+      ) : null}
 
       <div className="cards-3">
         <section className="admin-card">
@@ -121,166 +137,105 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
       </section>
 
       <section className="admin-form">
-        <h2>Generate the next AI post now</h2>
-        <p>
-          Use this to test the automation immediately. The system will choose the next product in
-          the rotation, generate the article and cover image, then create a draft or publish it
-          depending on the current automation settings.
-        </p>
+        <div className="admin-review-pagination">
+          <div>
+            <h2>Generate the next AI post now</h2>
+            <p className="form-note">
+              The system will pick the next product in the rotation, generate the article and cover
+              image, then create a draft or publish it based on your automation settings.
+            </p>
+          </div>
+          <div className="stack-row">
+            <Link href="/admin/posts/new" className="button button--secondary">
+              Create manual post
+            </Link>
+          </div>
+        </div>
         <form action={generateAiPostNowAction}>
           <input type="hidden" name="redirectTo" value="/admin/posts" />
-          <button type="submit" className="button button--primary">
-            Generate next AI post
-          </button>
+          <PendingSubmitButton
+            idleLabel="Generate next AI post"
+            pendingLabel="Generating AI post..."
+            modalTitle="Generating the next AI SEO post"
+            modalDescription="The article and cover image are being created now. This can take a little while, so the page will update when everything is ready."
+          />
         </form>
       </section>
 
-      <section className="admin-form">
-        <h2>Create manual SEO post</h2>
-        <form action={createPostAction}>
-          <div className="admin-form__grid">
-            <div className="field">
-              <label htmlFor="title">Title</label>
-              <input id="title" name="title" required />
-            </div>
-            <div className="field">
-              <label htmlFor="slug">Slug</label>
-              <input id="slug" name="slug" required />
-            </div>
-            <div className="field">
-              <label htmlFor="category">Category</label>
-              <input id="category" name="category" required />
-            </div>
-            <div className="field">
-              <label htmlFor="readTime">Read time</label>
-              <input id="readTime" name="readTime" type="number" defaultValue="4" required />
-            </div>
-            <div className="field">
-              <label htmlFor="coverImageUrl">Cover image URL</label>
-              <input id="coverImageUrl" name="coverImageUrl" required />
-            </div>
-            <div className="field">
-              <label htmlFor="coverImageAlt">Cover image alt</label>
-              <input id="coverImageAlt" name="coverImageAlt" />
-            </div>
-            <div className="field">
-              <label htmlFor="publishedAt">Published at</label>
-              <input id="publishedAt" name="publishedAt" type="datetime-local" />
-            </div>
-            <div className="field">
-              <label htmlFor="seoTitle">SEO title</label>
-              <input id="seoTitle" name="seoTitle" required />
-            </div>
-            <div className="field">
-              <label htmlFor="seoDescription">SEO description</label>
-              <input id="seoDescription" name="seoDescription" required />
-            </div>
-            <label className="field field--checkbox">
-              <input type="checkbox" name="published" />
-              Publish immediately
-            </label>
-          </div>
-          <div className="field">
-            <label htmlFor="excerpt">Excerpt</label>
-            <textarea id="excerpt" name="excerpt" required />
-          </div>
-          <div className="field">
-            <label htmlFor="content">Post content</label>
-            <textarea id="content" name="content" required />
-          </div>
-          <button type="submit" className="button button--primary">
-            Create post
-          </button>
-        </form>
-      </section>
-
-      <div className="cards-2">
-        {posts.map((post) => (
-          <section key={post.id} className="admin-form">
-            <div className="stack-row">
-              <span className="pill">{post.category}</span>
-              <span className="pill">{post.published ? "Published" : "Draft"}</span>
-              {post.aiGenerated ? <span className="pill">AI generated</span> : null}
-              {post.focusKeyword ? <span className="pill">{post.focusKeyword}</span> : null}
-            </div>
-            <h2>{post.title}</h2>
-            <p>
-              {post.sourceProductName
-                ? `Linked to ${post.sourceProductName}. `
-                : "Manual or editorial post. "}
-              {formatDate(post.publishedAt)}
+      <section className="admin-form admin-table">
+        <div className="admin-review-pagination">
+          <div>
+            <h2>Post library</h2>
+            <p className="form-note">
+              Newest entries appear first, including drafts. Open any item to edit the full post,
+              update the image URL, or regenerate the cover image.
             </p>
-            <form action={updatePostAction}>
-              <input type="hidden" name="id" value={post.id} />
-              <div className="admin-form__grid">
-                <div className="field">
-                  <label>Title</label>
-                  <input name="title" defaultValue={post.title} />
-                </div>
-                <div className="field">
-                  <label>Slug</label>
-                  <input name="slug" defaultValue={post.slug} />
-                </div>
-                <div className="field">
-                  <label>Category</label>
-                  <input name="category" defaultValue={post.category} />
-                </div>
-                <div className="field">
-                  <label>Read time</label>
-                  <input name="readTime" type="number" defaultValue={post.readTime} />
-                </div>
-                <div className="field">
-                  <label>Cover image URL</label>
-                  <input name="coverImageUrl" defaultValue={post.coverImageUrl} />
-                </div>
-                <div className="field">
-                  <label>Cover image alt</label>
-                  <input name="coverImageAlt" defaultValue={post.coverImageAlt || ""} />
-                </div>
-                <div className="field">
-                  <label>Published at</label>
-                  <input
-                    name="publishedAt"
-                    type="datetime-local"
-                    defaultValue={
-                      post.publishedAt ? new Date(post.publishedAt).toISOString().slice(0, 16) : ""
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label>SEO title</label>
-                  <input name="seoTitle" defaultValue={post.seoTitle} />
-                </div>
-                <div className="field">
-                  <label>SEO description</label>
-                  <input name="seoDescription" defaultValue={post.seoDescription} />
-                </div>
-                <label className="field field--checkbox">
-                  <input type="checkbox" name="published" defaultChecked={post.published} />
-                  Published
-                </label>
-              </div>
-              <div className="field">
-                <label>Excerpt</label>
-                <textarea name="excerpt" defaultValue={post.excerpt} />
-              </div>
-              <div className="field">
-                <label>Content</label>
-                <textarea name="content" defaultValue={post.content} />
-              </div>
-              <button type="submit" className="button button--primary">
-                Save changes
-              </button>
-            </form>
-            <form action={deletePostAction}>
-              <input type="hidden" name="id" value={post.id} />
-              <button type="submit" className="button button--ghost">
-                Delete post
-              </button>
-            </form>
-          </section>
-        ))}
-      </div>
+          </div>
+          <div className="stack-row">
+            <span className="pill">{posts.length} total posts</span>
+            <span className="pill">{posts.filter((post) => !post.published).length} drafts</span>
+          </div>
+        </div>
+
+        <div className="admin-table--scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Post</th>
+                <th>Status</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Keyword</th>
+                <th>Created</th>
+                <th>Updated</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {posts.map((post) => (
+                <tr key={post.id}>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      <strong>{post.title}</strong>
+                      <span className="form-note">{post.slug}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      className={`admin-table__status-badge ${
+                        post.published
+                          ? "admin-table__status-badge--success"
+                          : "admin-table__status-badge--warning"
+                      }`}
+                    >
+                      {post.published ? "Published" : "Draft"}
+                    </span>
+                  </td>
+                  <td>{post.aiGenerated ? "AI generated" : "Manual"}</td>
+                  <td>{post.sourceProductName || "Editorial"}</td>
+                  <td>{post.focusKeyword || "Not set"}</td>
+                  <td>
+                    {formatDate(post.createdAt)} {formatTime(post.createdAt)}
+                  </td>
+                  <td>
+                    {formatDate(post.updatedAt)} {formatTime(post.updatedAt)}
+                  </td>
+                  <td>
+                    <div className="admin-table__actions">
+                      <Link href={`/admin/posts/${post.id}`} className="button button--primary">
+                        Edit
+                      </Link>
+                      <Link href={`/beauty-tips/${post.slug}`} className="button button--ghost">
+                        View
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

@@ -18,6 +18,15 @@ import {
   pdrnCreamSeo,
   pdrnCreamTextureGallery
 } from "@/lib/pdrn-cream-page";
+import {
+  pdrnSerumBenefitCards,
+  pdrnSerumEditorialSections,
+  pdrnSerumFaqs,
+  pdrnSerumGallery,
+  pdrnSerumHeroCards,
+  pdrnSerumIngredientCards,
+  pdrnSerumSeo
+} from "@/lib/pdrn-serum-page";
 import { getProductStory } from "@/lib/product-content";
 import {
   getCustomerAccountById,
@@ -34,6 +43,31 @@ type ProductPageProps = {
   searchParams: Promise<{ review?: string; error?: string }>;
 };
 
+type LandingImageProps = {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+  sizes: string;
+  className?: string;
+};
+
+function LandingImage({ src, alt, width, height, sizes, className }: LandingImageProps) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      sizes={sizes}
+      loading="lazy"
+      decoding="async"
+      className={className}
+    />
+  );
+}
+
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
@@ -49,6 +83,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     product.slug === "nt16-niacinamide-tranexamic-serum"
       ? nt16SerumSeo.title
       : 
+    product.slug === "pdrn-serum"
+      ? pdrnSerumSeo.title
+      :
     product.slug === "pdrn-cream"
       ? pdrnCreamSeo.title
       : product.slug === "tnv3-tranexamic-nicotinamide-serum"
@@ -58,6 +95,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     product.slug === "nt16-niacinamide-tranexamic-serum"
       ? nt16SerumSeo.description
       : 
+    product.slug === "pdrn-serum"
+      ? pdrnSerumSeo.description
+      :
     product.slug === "pdrn-cream"
       ? pdrnCreamSeo.description
       : product.slug === "tnv3-tranexamic-nicotinamide-serum"
@@ -97,6 +137,34 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
       title,
       description,
       keywords: pdrnCreamSeo.keywords,
+      alternates: {
+        canonical: `/shop/${product.slug}`
+      },
+      openGraph: {
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        url: `${siteConfig.url}/shop/${product.slug}`,
+        images: [
+          {
+            url: absoluteImageUrl,
+            alt: product.name
+          }
+        ]
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        images: [absoluteImageUrl]
+      }
+    };
+  }
+
+  if (product.slug === "pdrn-serum") {
+    return {
+      title,
+      description,
+      keywords: pdrnSerumSeo.keywords,
       alternates: {
         canonical: `/shop/${product.slug}`
       },
@@ -204,9 +272,12 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const canReview = Boolean(account?.purchasedProductIds.includes(product.id));
   const savingsCents = getSavingsCents(product.compareAtPriceCents, product.priceCents);
   const isPdrnCream = product.slug === "pdrn-cream";
+  const isPdrnSerum = product.slug === "pdrn-serum";
   const seoDescription =
     product.slug === "pdrn-cream"
       ? pdrnCreamSeo.description
+      : product.slug === "pdrn-serum"
+        ? pdrnSerumSeo.description
       : product.slug === "tnv3-tranexamic-nicotinamide-serum"
         ? tnv3SerumSeo.description
         : product.slug === "nt16-niacinamide-tranexamic-serum"
@@ -460,7 +531,151 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
             </>
           ) : null}
 
-          {!isPdrnCream && story.sections.length > 0 ? (
+          {isPdrnSerum ? (
+            <>
+              <section className="product-page-section product-highlight-section">
+                <div className="section-heading">
+                  <p className="section-heading__eyebrow">Salmon PDRN pink serum</p>
+                  <h2>
+                    A PDRN serum for face routines that want deep hydration, daily repair, and a
+                    smooth fresh finish.
+                  </h2>
+                  <p className="section-heading__description">
+                    This landing-page layout is built around the phrases shoppers actually search,
+                    while still keeping the page useful, readable, and easy to browse before adding
+                    the serum to cart.
+                  </p>
+                </div>
+                <div className="product-highlight-grid">
+                  {pdrnSerumHeroCards.map((card) => (
+                    <article key={card.title} className="product-highlight-card">
+                      <p className="eyebrow">{card.eyebrow}</p>
+                      <h3>{card.title}</h3>
+                      <p>{card.body}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              {pdrnSerumEditorialSections.map((section) => (
+                <section
+                  key={section.id}
+                  className={`product-page-section product-editorial ${section.imagePosition === "left" ? "product-editorial--reverse" : ""}`}
+                >
+                  <div className="product-editorial__copy">
+                    <p className="eyebrow">{section.eyebrow}</p>
+                    <h2>{section.title}</h2>
+                    <div className="product-editorial__body">
+                      {section.paragraphs.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
+                      ))}
+                    </div>
+                    <ul className="product-editorial__bullets">
+                      {section.bullets.map((bullet) => (
+                        <li key={bullet}>{bullet}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  {section.image.src ? (
+                    <div className="product-editorial__image product-editorial__image--landscape">
+                      <LandingImage
+                        src={section.image.src}
+                        alt={section.image.alt}
+                        width={section.image.width}
+                        height={section.image.height}
+                        sizes="(max-width: 720px) 100vw, (max-width: 1080px) 84vw, 42vw"
+                        className="product-editorial__image-media"
+                      />
+                    </div>
+                  ) : null}
+                </section>
+              ))}
+
+              <section className="product-page-section product-highlight-section">
+                <div className="section-heading">
+                  <p className="section-heading__eyebrow">Ingredient focus</p>
+                  <h2>Built around Salmon PDRN, Sodium DNA, peptides, and the pink serum identity shoppers remember.</h2>
+                  <p className="section-heading__description">
+                    These ingredient cues help the page rank for the right search intent while
+                    making the formula story easier to understand at a glance.
+                  </p>
+                </div>
+                <div className="product-highlight-grid product-highlight-grid--four">
+                  {pdrnSerumIngredientCards.map((card) => (
+                    <article key={card.title} className="product-highlight-card">
+                      <p className="eyebrow">{card.title}</p>
+                      <h3>{card.title}</h3>
+                      <p>{card.body}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="product-page-section product-highlight-section">
+                <div className="section-heading">
+                  <p className="section-heading__eyebrow">What it helps with</p>
+                  <h2>
+                    A hydrating serum, skin renewal serum, and daily repair layer for skin that
+                    wants to look softer and more refined.
+                  </h2>
+                </div>
+                <div className="product-highlight-grid product-highlight-grid--four">
+                  {pdrnSerumBenefitCards.map((card) => (
+                    <article key={card.title} className="product-highlight-card">
+                      <p className="eyebrow">{card.title}</p>
+                      <h3>{card.title}</h3>
+                      <p>{card.body}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="product-page-section product-editorial product-editorial--gallery">
+                <div className="product-editorial__copy">
+                  <p className="eyebrow">{pdrnSerumGallery.eyebrow}</p>
+                  <h2>{pdrnSerumGallery.title}</h2>
+                  <div className="product-editorial__body">
+                    <p>{pdrnSerumGallery.description}</p>
+                  </div>
+                </div>
+                <div className="product-editorial__gallery">
+                  {pdrnSerumGallery.images.map((image) => (
+                    <div key={image.src} className="product-editorial__image product-editorial__image--landscape">
+                      <LandingImage
+                        src={image.src}
+                        alt={image.alt}
+                        width={image.width}
+                        height={image.height}
+                        sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 26vw"
+                        className="product-editorial__image-media"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="product-page-section">
+                <div className="section-heading">
+                  <p className="section-heading__eyebrow">FAQ</p>
+                  <h2>Answers to the search questions shoppers ask before choosing a PDRN serum.</h2>
+                  <p className="section-heading__description">
+                    These are written to match real shopping questions while keeping the page
+                    useful, natural, and easy for Google to understand.
+                  </p>
+                </div>
+                <div className="story-sections">
+                  {pdrnSerumFaqs.map((faq) => (
+                    <article key={faq.question} className="panel">
+                      <h3>{faq.question}</h3>
+                      <p>{faq.answer}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </>
+          ) : null}
+
+          {!isPdrnCream && !isPdrnSerum && story.sections.length > 0 ? (
             <section className="product-page-section">
               <div className="section-heading">
                 <p className="section-heading__eyebrow">Product details</p>

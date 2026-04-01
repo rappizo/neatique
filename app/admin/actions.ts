@@ -26,6 +26,7 @@ import {
 import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from "@/lib/coupons";
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
 import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
+import { generateSeoPostImageWithAi } from "@/lib/openai-posts";
 import { approveRyoClaimReward } from "@/lib/ryo-claims";
 import type {
   CouponDiscountType,
@@ -861,6 +862,7 @@ export async function createPostAction(formData: FormData) {
   await requireAdminSession();
 
   const published = toBool(formData.get("published"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
 
   await prisma.post.create({
     data: {
@@ -881,7 +883,7 @@ export async function createPostAction(formData: FormData) {
 
   revalidatePath("/beauty-tips");
   revalidatePath("/admin/posts");
-  redirect("/admin/posts?status=created");
+  redirect(buildPostsRedirect("created", redirectTo));
 }
 
 export async function updatePostAction(formData: FormData) {
@@ -889,8 +891,9 @@ export async function updatePostAction(formData: FormData) {
 
   const published = toBool(formData.get("published"));
   const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
 
-  await prisma.post.update({
+  const updatedPost = await prisma.post.update({
     where: { id },
     data: {
       title: toPlainString(formData.get("title")),
@@ -905,23 +908,94 @@ export async function updatePostAction(formData: FormData) {
       seoDescription: toPlainString(formData.get("seoDescription")),
       published,
       publishedAt: buildPublishedDate(formData, published)
+    },
+    select: {
+      slug: true
     }
   });
 
   revalidatePath("/beauty-tips");
   revalidatePath("/admin/posts");
-  redirect("/admin/posts?status=updated");
+  revalidatePath(`/beauty-tips/${updatedPost.slug}`);
+  revalidatePath(`/admin/posts/${id}`);
+  redirect(buildPostsRedirect("updated", redirectTo));
 }
 
 export async function deletePostAction(formData: FormData) {
   await requireAdminSession();
 
   const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo"));
   await prisma.post.delete({ where: { id } });
 
   revalidatePath("/beauty-tips");
   revalidatePath("/admin/posts");
-  redirect("/admin/posts?status=deleted");
+  redirect(buildPostsRedirect("deleted", redirectTo));
+}
+
+export async function regeneratePostImageAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo")) || `/admin/posts/${id}`;
+
+  if (!id) {
+    redirect(buildPostsRedirect("missing-post", redirectTo));
+  }
+
+  const post = await prisma.post.findUnique({
+    where: { id },
+    include: {
+      sourceProduct: {
+        select: {
+          name: true,
+          productCode: true,
+          productShortName: true
+        }
+      }
+    }
+  });
+
+  if (!post) {
+    redirect(buildPostsRedirect("missing-post", redirectTo));
+  }
+
+  const productReference =
+    post.sourceProduct?.productShortName ||
+    post.sourceProduct?.productCode ||
+    post.sourceProduct?.name ||
+    post.title;
+  const basePrompt =
+    toPlainString(formData.get("imagePrompt")) ||
+    post.imagePrompt ||
+    `Create a premium editorial skincare image for Neatique around ${productReference}.`;
+  const finalPrompt = [
+    basePrompt.trim(),
+    "Preferred scenes are either a branded Neatique product setting or a polished model-use visual with no product visible.",
+    "Do not show generic or unlabeled skincare packaging.",
+    "If any product appears, it must clearly read as Neatique-branded.",
+    "No text, no watermark, no collage, and no competitor branding."
+  ].join(" ");
+  const imageAsset = await generateSeoPostImageWithAi(finalPrompt);
+
+  await prisma.post.update({
+    where: { id },
+    data: {
+      coverImageUrl: `/media/post/${id}`,
+      coverImageData: imageAsset.base64Data,
+      coverImageMimeType: imageAsset.mimeType,
+      imagePrompt: finalPrompt,
+      updatedAt: new Date()
+    }
+  });
+
+  revalidatePath("/beauty-tips");
+  revalidatePath("/admin/posts");
+  revalidatePath(`/admin/posts/${id}`);
+  if (post.slug) {
+    revalidatePath(`/beauty-tips/${post.slug}`);
+  }
+  redirect(buildPostsRedirect("image-regenerated", redirectTo));
 }
 
 export async function saveAiPostAutomationSettingsAction(formData: FormData) {
