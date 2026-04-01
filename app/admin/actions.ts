@@ -25,6 +25,7 @@ import {
 } from "@/lib/admin-auth";
 import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from "@/lib/coupons";
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
+import { normalizeArticleContent } from "@/lib/article-format";
 import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
 import { generateSeoPostImageWithAi } from "@/lib/openai-posts";
 import { approveRyoClaimReward } from "@/lib/ryo-claims";
@@ -873,7 +874,7 @@ export async function createPostAction(formData: FormData) {
       readTime: toInt(formData.get("readTime"), 4),
       coverImageUrl: toPlainString(formData.get("coverImageUrl")),
       coverImageAlt: toPlainString(formData.get("coverImageAlt")) || null,
-      content: toPlainString(formData.get("content")),
+      content: normalizeArticleContent(toPlainString(formData.get("content"))),
       seoTitle: toPlainString(formData.get("seoTitle")),
       seoDescription: toPlainString(formData.get("seoDescription")),
       published,
@@ -903,7 +904,7 @@ export async function updatePostAction(formData: FormData) {
       readTime: toInt(formData.get("readTime"), 4),
       coverImageUrl: toPlainString(formData.get("coverImageUrl")),
       coverImageAlt: toPlainString(formData.get("coverImageAlt")) || null,
-      content: toPlainString(formData.get("content")),
+      content: normalizeArticleContent(toPlainString(formData.get("content"))),
       seoTitle: toPlainString(formData.get("seoTitle")),
       seoDescription: toPlainString(formData.get("seoDescription")),
       published,

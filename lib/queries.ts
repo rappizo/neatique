@@ -822,11 +822,28 @@ export async function getAiPostAutomationOverview() {
 }
 
 export async function getPostBySlug(slug: string) {
-  return withFallback(
-    async () => getPostBySlugFromDatabase(slug),
-    fallbackPosts.find((post) => post.slug === slug) ?? null,
-    { allowFallbackOnDatabaseError: true }
-  );
+  const staticFallbackPost = fallbackPosts.find((post) => post.slug === slug) ?? null;
+
+  try {
+    return await getPostBySlugFromDatabase(slug);
+  } catch (error) {
+    if (isTransientDatabaseError(error)) {
+      try {
+        const cachedPublishedPosts = await getPublishedPostsFromDatabase();
+        const cachedPost = cachedPublishedPosts.find((post) => post.slug === slug) ?? null;
+
+        if (cachedPost) {
+          return cachedPost;
+        }
+      } catch {
+        // Fall through to the static fallback below when the cached list is unavailable.
+      }
+
+      return staticFallbackPost;
+    }
+
+    throw error;
+  }
 }
 
 export async function getCustomers() {

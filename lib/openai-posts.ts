@@ -1,3 +1,4 @@
+import { normalizeArticleContent } from "@/lib/article-format";
 import { siteConfig } from "@/lib/site-config";
 import { slugify } from "@/lib/utils";
 
@@ -425,7 +426,7 @@ export async function generateSeoPostDraftWithAi(
       .slice(0, 6),
     coverImageAlt: normalizedOutput.coverImageAlt.trim(),
     imagePrompt: buildBrandedPostImagePrompt(normalizedOutput.imagePrompt.trim(), input.product),
-    content: normalizedOutput.content.trim(),
+    content: normalizeArticleContent(normalizedOutput.content),
     externalLinks: normalizeExternalLinks(
       Array.isArray(normalizedOutput.externalLinks)
         ? (normalizedOutput.externalLinks as Array<{ label: string; url: string }>)
