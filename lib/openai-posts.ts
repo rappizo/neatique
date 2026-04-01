@@ -439,7 +439,7 @@ export async function generateSeoPostImageWithAi(prompt: string): Promise<Genera
       model: DEFAULT_OPENAI_POST_IMAGE_MODEL,
       prompt,
       size: "1536x1024",
-      response_format: "b64_json"
+      quality: "medium"
     })
   });
 
