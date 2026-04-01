@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDate } from "@/lib/format";
 import { getPostBySlug } from "@/lib/queries";
@@ -9,6 +10,40 @@ import { siteConfig } from "@/lib/site-config";
 type PostPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+type ArticleBlock =
+  | { type: "h2"; text: string }
+  | { type: "h3"; text: string }
+  | { type: "list"; items: string[] }
+  | { type: "paragraph"; text: string };
+
+function parseArticleContent(content: string): ArticleBlock[] {
+  return content
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .flatMap<ArticleBlock>((block) => {
+      if (block.startsWith("## ")) {
+        return [{ type: "h2", text: block.replace(/^##\s+/, "").trim() }];
+      }
+
+      if (block.startsWith("### ")) {
+        return [{ type: "h3", text: block.replace(/^###\s+/, "").trim() }];
+      }
+
+      const lines = block.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (lines.length > 0 && lines.every((line) => line.startsWith("- "))) {
+        return [
+          {
+            type: "list",
+            items: lines.map((line) => line.replace(/^-\s+/, "").trim())
+          }
+        ];
+      }
+
+      return [{ type: "paragraph", text: block.replace(/\n+/g, " ").trim() }];
+    });
+}
 
 export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -30,7 +65,12 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
     alternates: {
       canonical: `/beauty-tips/${post.slug}`
     },
-    keywords: [post.title, post.category, "skincare tips", "Neatique Beauty Tips"],
+    keywords: [
+      post.title,
+      post.category,
+      post.focusKeyword || "skincare tips",
+      ...post.secondaryKeywords
+    ],
     openGraph: {
       type: "article",
       title: `${title} | ${siteConfig.title}`,
@@ -40,7 +80,7 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
       images: [
         {
           url: absoluteImageUrl,
-          alt: post.title
+          alt: post.coverImageAlt || post.title
         }
       ]
     },
@@ -61,11 +101,35 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
     notFound();
   }
 
-  const paragraphs = post.content.split("\n\n");
+  const articleBlocks = parseArticleContent(post.content);
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.seoDescription || post.excerpt,
+    image: [toAbsoluteUrl(post.coverImageUrl)],
+    datePublished: post.publishedAt?.toISOString(),
+    dateModified: post.updatedAt.toISOString(),
+    articleSection: post.category,
+    keywords: [post.focusKeyword, ...post.secondaryKeywords].filter(Boolean).join(", "),
+    author: {
+      "@type": "Organization",
+      name: siteConfig.title
+    },
+    publisher: {
+      "@type": "Organization",
+      name: siteConfig.title
+    },
+    mainEntityOfPage: `${siteConfig.url}/beauty-tips/${post.slug}`
+  };
 
   return (
     <section className="section">
       <div className="container">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
         <div className="article-shell">
           <div className="article-hero">
             <p className="eyebrow">{post.category}</p>
@@ -74,12 +138,13 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
             <div className="article-meta">
               <span>{formatDate(post.publishedAt)}</span>
               <span>{post.readTime} min read</span>
+              {post.focusKeyword ? <span>Keyword: {post.focusKeyword}</span> : null}
             </div>
           </div>
           <div className="panel">
             <Image
               src={post.coverImageUrl}
-              alt={post.title}
+              alt={post.coverImageAlt || post.title}
               width={1200}
               height={740}
               sizes="(max-width: 720px) 100vw, (max-width: 1200px) 92vw, 1200px"
@@ -87,10 +152,58 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
             />
           </div>
           <div className="article-content">
-            {paragraphs.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
+            {articleBlocks.map((block, index) => {
+              if (block.type === "h2") {
+                return <h2 key={`h2-${index}`}>{block.text}</h2>;
+              }
+
+              if (block.type === "h3") {
+                return <h3 key={`h3-${index}`}>{block.text}</h3>;
+              }
+
+              if (block.type === "list") {
+                return (
+                  <ul key={`list-${index}`}>
+                    {block.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                );
+              }
+
+              return <p key={`p-${index}`}>{block.text}</p>;
+            })}
           </div>
+
+          {post.externalLinks.length > 0 ? (
+            <div className="panel article-links">
+              <p className="eyebrow">Helpful references</p>
+              <h2>Further reading</h2>
+              <ul>
+                {post.externalLinks.map((link) => (
+                  <li key={link.url}>
+                    <a href={link.url} target="_blank" rel="noopener noreferrer">
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {post.sourceProductSlug && post.sourceProductName ? (
+            <div className="panel article-related-product">
+              <p className="eyebrow">Related product</p>
+              <h2>Explore the formula mentioned in this article.</h2>
+              <p>
+                Continue from this guide into the matching product page to see the texture, price,
+                and routine fit for {post.sourceProductName}.
+              </p>
+              <Link href={`/shop/${post.sourceProductSlug}`} className="button button--primary">
+                Shop {post.sourceProductName}
+              </Link>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

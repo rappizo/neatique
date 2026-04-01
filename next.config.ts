@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
         pathname: "/media/product/**"
       },
       {
+        pathname: "/media/post/**"
+      },
+      {
         pathname: "/products/**"
       }
     ],

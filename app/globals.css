@@ -1632,6 +1632,48 @@ main {
   font-size: 1.6rem;
 }
 
+.article-content h3 {
+  margin: 2px 0 0;
+  font-family: Baskerville, "Palatino Linotype", serif;
+  font-size: 1.28rem;
+}
+
+.article-content ul,
+.article-links ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.article-links {
+  display: grid;
+  gap: 14px;
+}
+
+.article-links h2,
+.article-related-product h2 {
+  margin: 0;
+}
+
+.article-links li,
+.article-related-product p {
+  margin: 0;
+}
+
+.article-links a {
+  color: var(--brand-deep);
+  font-weight: 700;
+}
+
+.article-related-product {
+  display: grid;
+  gap: 14px;
+  align-items: start;
+}
+
 .site-footer {
   margin-top: 88px;
   padding: 38px 0 22px;

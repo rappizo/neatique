@@ -13,7 +13,7 @@ export function PostCard({ post }: PostCardProps) {
       <div className="post-card__image-wrap">
         <Image
           src={post.coverImageUrl}
-          alt={post.title}
+          alt={post.coverImageAlt || post.title}
           width={640}
           height={420}
           className="post-card__image"

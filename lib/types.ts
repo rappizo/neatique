@@ -9,6 +9,11 @@ export type CouponUsageMode = "SINGLE_USE" | "UNLIMITED";
 export type EmailCampaignStatus = "DRAFT" | "SYNCED" | "SCHEDULED" | "SENT" | "FAILED";
 export type EmailAudienceType = "NEWSLETTER" | "CUSTOMERS" | "LEADS" | "ALL_MARKETING" | "CUSTOM";
 
+export type PostExternalLinkRecord = {
+  label: string;
+  url: string;
+};
+
 export type ProductRecord = {
   id: string;
   productCode: string;
@@ -45,13 +50,43 @@ export type BeautyPostRecord = {
   category: string;
   readTime: number;
   coverImageUrl: string;
+  coverImageAlt: string | null;
   content: string;
   seoTitle: string;
   seoDescription: string;
+  aiGenerated: boolean;
+  focusKeyword: string | null;
+  secondaryKeywords: string[];
+  imagePrompt: string | null;
+  externalLinks: PostExternalLinkRecord[];
+  generatedAt: Date | null;
+  sourceProductId: string | null;
+  sourceProductName: string | null;
+  sourceProductSlug: string | null;
   published: boolean;
   publishedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type AiPostAutomationOverviewRecord = {
+  enabled: boolean;
+  cadenceDays: number;
+  autoPublish: boolean;
+  includeExternalLinks: boolean;
+  lastRunAt: Date | null;
+  lastStatus: string | null;
+  lastPostId: string | null;
+  lastPostTitle: string | null;
+  rotationCursor: string | null;
+  nextProductId: string | null;
+  nextProductName: string | null;
+  nextProductCode: string | null;
+  aiPostCount: number;
+  publishedAiPostCount: number;
+  draftAiPostCount: number;
+  model: string | null;
+  imageModel: string | null;
 };
 
 export type CustomerRecord = {

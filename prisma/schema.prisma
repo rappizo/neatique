@@ -97,6 +97,7 @@ model Product {
   stripePriceId       String?
   orderItems          OrderItem[]
   reviews             ProductReview[]
+  posts               Post[]
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 }
@@ -109,13 +110,29 @@ model Post {
   category       String
   readTime       Int      @default(4)
   coverImageUrl  String
+  coverImageAlt  String?
+  coverImageData String?
+  coverImageMimeType String?
   content        String
   seoTitle       String
   seoDescription String
+  aiGenerated    Boolean  @default(false)
+  focusKeyword   String?
+  secondaryKeywords String?
+  imagePrompt    String?
+  externalLinks  String?
+  generatedAt    DateTime?
+  sourceProductId String?
   published      Boolean  @default(false)
   publishedAt    DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  sourceProduct  Product? @relation(fields: [sourceProductId], references: [id], onDelete: SetNull)
+
+  @@index([published, publishedAt])
+  @@index([aiGenerated, createdAt])
+  @@index([sourceProductId, createdAt])
 }
 
 model Customer {

@@ -3,6 +3,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { runAiPostAutomation } from "@/lib/ai-post-automation";
 import { prisma } from "@/lib/db";
 import {
   fetchBrevoContactsFromList,
@@ -133,6 +134,15 @@ function buildEmailMarketingRedirect(status: string, campaignId?: string, redire
 function buildEmailAudienceRedirect(status: string, audienceType: EmailAudienceType, redirectTo?: string) {
   const fallbackPath = `/admin/email-marketing/audience/${audienceType}`;
   const basePath = redirectTo || fallbackPath;
+  const [pathname, queryString = ""] = basePath.split("?");
+  const params = new URLSearchParams(queryString);
+  params.set("status", status);
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function buildPostsRedirect(status: string, redirectTo?: string) {
+  const basePath = redirectTo || "/admin/posts";
   const [pathname, queryString = ""] = basePath.split("?");
   const params = new URLSearchParams(queryString);
   params.set("status", status);
@@ -860,6 +870,7 @@ export async function createPostAction(formData: FormData) {
       category: toPlainString(formData.get("category")),
       readTime: toInt(formData.get("readTime"), 4),
       coverImageUrl: toPlainString(formData.get("coverImageUrl")),
+      coverImageAlt: toPlainString(formData.get("coverImageAlt")) || null,
       content: toPlainString(formData.get("content")),
       seoTitle: toPlainString(formData.get("seoTitle")),
       seoDescription: toPlainString(formData.get("seoDescription")),
@@ -888,6 +899,7 @@ export async function updatePostAction(formData: FormData) {
       category: toPlainString(formData.get("category")),
       readTime: toInt(formData.get("readTime"), 4),
       coverImageUrl: toPlainString(formData.get("coverImageUrl")),
+      coverImageAlt: toPlainString(formData.get("coverImageAlt")) || null,
       content: toPlainString(formData.get("content")),
       seoTitle: toPlainString(formData.get("seoTitle")),
       seoDescription: toPlainString(formData.get("seoDescription")),
@@ -910,6 +922,59 @@ export async function deletePostAction(formData: FormData) {
   revalidatePath("/beauty-tips");
   revalidatePath("/admin/posts");
   redirect("/admin/posts?status=deleted");
+}
+
+export async function saveAiPostAutomationSettingsAction(formData: FormData) {
+  await requireAdminSession();
+
+  const settings = [
+    ["ai_post_enabled", toBool(formData.get("ai_post_enabled")) ? "true" : "false"],
+    ["ai_post_cadence_days", String(Math.max(1, toInt(formData.get("ai_post_cadence_days"), 2)))],
+    ["ai_post_auto_publish", toBool(formData.get("ai_post_auto_publish")) ? "true" : "false"],
+    [
+      "ai_post_include_external_links",
+      toBool(formData.get("ai_post_include_external_links")) ? "true" : "false"
+    ]
+  ];
+
+  await Promise.all(
+    settings.map(([key, value]) =>
+      prisma.storeSetting.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value }
+      })
+    )
+  );
+
+  revalidatePath("/admin/posts");
+  redirect(buildPostsRedirect("automation-settings-saved"));
+}
+
+export async function generateAiPostNowAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/posts";
+  const result = await runAiPostAutomation({
+    trigger: "manual"
+  });
+
+  revalidatePath("/admin/posts");
+
+  if (!result.ok) {
+    redirect(buildPostsRedirect(`ai-failed-${slugify(result.status)}`, redirectTo));
+  }
+
+  if (!result.created) {
+    redirect(buildPostsRedirect(`ai-skipped-${slugify(result.status)}`, redirectTo));
+  }
+
+  redirect(
+    buildPostsRedirect(
+      result.published ? "ai-post-published" : "ai-post-draft-created",
+      redirectTo
+    )
+  );
 }
 
 export async function updateOrderAction(formData: FormData) {
