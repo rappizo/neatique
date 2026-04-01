@@ -7,6 +7,7 @@ import type { BeautyPostRecord } from "@/lib/types";
 type PostEditorFormProps = {
   action: (formData: FormData) => Promise<void>;
   regenerateImageAction?: (formData: FormData) => Promise<void>;
+  approveImagePreviewAction?: (formData: FormData) => Promise<void>;
   mode: "create" | "edit";
   post?: BeautyPostRecord | null;
 };
@@ -22,6 +23,7 @@ function toDateTimeLocalValue(value: Date | null | undefined) {
 export function PostEditorForm({
   action,
   regenerateImageAction,
+  approveImagePreviewAction,
   mode,
   post
 }: PostEditorFormProps) {
@@ -39,21 +41,57 @@ export function PostEditorForm({
               : `Update ${post?.title}.`}
           </h1>
           <p>
-            Edit the article fields, update the image URL when needed, or regenerate the AI cover
-            image for a fresher branded visual.
+            Edit the article fields, keep the current alt description in sync, and manage a safer
+            preview-to-approve image workflow for fresher branded visuals.
           </p>
         </div>
 
         {post ? (
           <article className="admin-product-card admin-product-card--preview">
-            <div className="admin-product-card__media admin-post-card__media">
-              <Image
-                src={post.coverImageUrl}
-                alt={post.coverImageAlt || post.title}
-                width={720}
-                height={480}
-                unoptimized
-              />
+            <div className="admin-post-card__image-grid">
+              <div className="admin-post-card__image-panel">
+                <div className="admin-post-card__image-meta">
+                  <span className="pill">Current live image</span>
+                </div>
+                <div className="admin-product-card__media admin-post-card__media">
+                  <Image
+                    src={post.coverImageUrl}
+                    alt={post.coverImageAlt || post.title}
+                    width={720}
+                    height={480}
+                    unoptimized
+                  />
+                </div>
+              </div>
+
+              <div className="admin-post-card__image-panel">
+                <div className="admin-post-card__image-meta">
+                  <span className="pill">
+                    {post.previewImageUrl ? "New preview ready" : "No preview yet"}
+                  </span>
+                  {post.previewImageGeneratedAt ? (
+                    <span className="pill">
+                      {formatDate(post.previewImageGeneratedAt)} {formatTime(post.previewImageGeneratedAt)}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="admin-product-card__media admin-post-card__media">
+                  {post.previewImageUrl ? (
+                    <Image
+                      src={post.previewImageUrl}
+                      alt={post.coverImageAlt || post.title}
+                      width={720}
+                      height={480}
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="admin-post-card__placeholder">
+                      <strong>Preview will appear here</strong>
+                      <p>Generate a new post image to review it before making it live.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="admin-product-card__body">
               <div className="product-card__meta">
@@ -178,30 +216,40 @@ export function PostEditorForm({
       {isEdit ? (
         <div className="admin-post-editor__secondary">
           <section className="admin-card">
-            <p className="eyebrow">Image controls</p>
-            <h3>Refresh the cover image</h3>
+          <p className="eyebrow">Image controls</p>
+            <h3>Generate and approve a new post image</h3>
             <p>
-              Replace the AI image while keeping the same post. Regeneration will prioritize a
-              Neatique-branded scene or a model-use visual with no generic product shown.
+              Generate a preview first, review it on the right, then approve it to replace the
+              live post image. The current alt description stays in place unless you edit it in the
+              main form above.
             </p>
-            {post.imagePrompt ? (
+            {post.previewImagePrompt || post.imagePrompt ? (
               <div className="admin-post-editor__prompt">
-                <strong>Current image prompt</strong>
-                <p>{post.imagePrompt}</p>
+                <strong>{post.previewImagePrompt ? "Preview image prompt" : "Current image prompt"}</strong>
+                <p>{post.previewImagePrompt || post.imagePrompt}</p>
               </div>
             ) : null}
             {regenerateImageAction ? (
               <form action={regenerateImageAction}>
                 <input type="hidden" name="id" value={post.id} />
                 <input type="hidden" name="redirectTo" value={redirectTo} />
-                <input type="hidden" name="imagePrompt" value={post.imagePrompt || ""} />
+                <input type="hidden" name="imagePrompt" value={post.previewImagePrompt || post.imagePrompt || ""} />
                 <PendingSubmitButton
-                  idleLabel="Regenerate cover image"
-                  pendingLabel="Regenerating image..."
+                  idleLabel={post.previewImageUrl ? "Regenerate preview image" : "Generate preview image"}
+                  pendingLabel={post.previewImageUrl ? "Regenerating preview..." : "Generating preview..."}
                   className="button button--secondary"
-                  modalTitle="Generating a fresh cover image"
-                  modalDescription="This can take a little while while the new branded visual is generated and saved."
+                  modalTitle="Generating a new post image preview"
+                  modalDescription="A fresh preview image is being created now. Once it appears, you can approve it to replace the live post image."
                 />
+              </form>
+            ) : null}
+            {approveImagePreviewAction && post.previewImageUrl ? (
+              <form action={approveImagePreviewAction}>
+                <input type="hidden" name="id" value={post.id} />
+                <input type="hidden" name="redirectTo" value={redirectTo} />
+                <button type="submit" className="button button--primary">
+                  Approve preview and replace live image
+                </button>
               </form>
             ) : null}
           </section>

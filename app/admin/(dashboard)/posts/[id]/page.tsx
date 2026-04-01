@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  approvePostImagePreviewAction,
   deletePostAction,
   regeneratePostImageAction,
   updatePostAction
@@ -15,7 +16,9 @@ type AdminPostDetailPageProps = {
 
 const STATUS_MESSAGES: Record<string, string> = {
   updated: "Post saved.",
-  "image-regenerated": "Cover image regenerated.",
+  "image-preview-generated": "A new post image preview is ready to review.",
+  "image-preview-approved": "The preview image is now live on the post.",
+  "missing-image-preview": "Generate a preview first, then approve it when you are happy with the image.",
   deleted: "Post deleted.",
   "missing-post": "That post could not be found."
 };
@@ -48,6 +51,7 @@ export default async function AdminPostDetailPage({
       <PostEditorForm
         action={updatePostAction}
         regenerateImageAction={regeneratePostImageAction}
+        approveImagePreviewAction={approvePostImagePreviewAction}
         mode="edit"
         post={post}
       />

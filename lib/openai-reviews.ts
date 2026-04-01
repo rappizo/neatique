@@ -42,7 +42,7 @@ type GenerateAiReviewDraftsInput = {
   product: ProductReviewContext;
   quantity: number;
   existingReviews: ExistingReviewContext[];
-  referenceReviews: ReviewReferenceExample[];
+  referenceReviews?: ReviewReferenceExample[];
 };
 
 function getOpenAiApiKey() {
@@ -170,6 +170,8 @@ async function generateAiReviewBatch(
     throw new Error("OpenAI API key is not configured.");
   }
 
+  const referenceReviews = input.referenceReviews ?? [];
+  const hasReferenceReviews = referenceReviews.length > 0;
   const schema = {
     type: "object",
     additionalProperties: false,
@@ -235,9 +237,9 @@ async function generateAiReviewBatch(
                 "Existing reviews to avoid echoing too closely:",
                 buildExistingReviewSummary(input.existingReviews),
                 "",
-                "Reference review examples uploaded by the team:",
-                buildReferenceSummary(input.referenceReviews),
-                "",
+                hasReferenceReviews
+                  ? `Reference review examples uploaded by the team:\n${buildReferenceSummary(referenceReviews)}\n`
+                  : "No reference review file was uploaded for this run. Generate varied review voices directly from the product context instead of leaning on any outside examples.\n",
                 previousDrafts.length > 0
                   ? `Drafts already generated in this run that must not be repeated:\n${previousDrafts
                       .map(
@@ -249,8 +251,10 @@ async function generateAiReviewBatch(
                 "",
                 "Generation requirements:",
                 "- Use a realistic mix of short, medium, and longer reviews.",
-                "- If no reference file is provided, skew naturally positive with mostly 4-5 star reviews and an occasional 3-star review.",
-                "- If a reference file is provided, match its general style and rating feel without copying wording.",
+                hasReferenceReviews
+                  ? "- Match the uploaded reference file's general style and rating feel without copying wording."
+                  : "- No reference file is being used, so create your own mix of varied, natural-sounding customer styles from scratch.",
+                "- Without a reference file, skew naturally positive with mostly 4-5 star reviews and an occasional 3-star review.",
                 "- The title should look like a real review heading, not a marketing headline.",
                 "- The body should read like a customer comment, not like a blog post or ad.",
                 "- No markdown, no bullet points, no emojis, no hashtags, no all-caps titles.",

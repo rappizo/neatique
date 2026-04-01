@@ -233,6 +233,10 @@ function parseStoredExternalLinks(value: string | null | undefined) {
 }
 
 function mapPost(post: any): BeautyPostRecord {
+  const previewImageGeneratedAt = post.previewImageGeneratedAt
+    ? new Date(post.previewImageGeneratedAt)
+    : null;
+
   return {
     id: post.id,
     title: post.title,
@@ -242,6 +246,9 @@ function mapPost(post: any): BeautyPostRecord {
     readTime: post.readTime,
     coverImageUrl: post.coverImageUrl,
     coverImageAlt: post.coverImageAlt ?? null,
+    previewImageUrl: previewImageGeneratedAt ? `/media/post/${post.id}?preview=1&v=${previewImageGeneratedAt.getTime()}` : null,
+    previewImageGeneratedAt,
+    previewImagePrompt: post.previewImagePrompt ?? null,
     content: post.content,
     seoTitle: post.seoTitle,
     seoDescription: post.seoDescription,
@@ -271,6 +278,8 @@ const postSelect = {
   coverImageUrl: true,
   coverImageAlt: true,
   content: true,
+  previewImageGeneratedAt: true,
+  previewImagePrompt: true,
   seoTitle: true,
   seoDescription: true,
   aiGenerated: true,

@@ -988,10 +988,10 @@ export async function regeneratePostImageAction(formData: FormData) {
   await prisma.post.update({
     where: { id },
     data: {
-      coverImageUrl: `/media/post/${id}`,
-      coverImageData: imageAsset.base64Data,
-      coverImageMimeType: imageAsset.mimeType,
-      imagePrompt: finalPrompt,
+      previewImageData: imageAsset.base64Data,
+      previewImageMimeType: imageAsset.mimeType,
+      previewImagePrompt: finalPrompt,
+      previewImageGeneratedAt: new Date(),
       updatedAt: new Date()
     }
   });
@@ -1002,7 +1002,59 @@ export async function regeneratePostImageAction(formData: FormData) {
   if (post.slug) {
     revalidatePath(`/beauty-tips/${post.slug}`);
   }
-  redirect(buildPostsRedirect("image-regenerated", redirectTo));
+  redirect(buildPostsRedirect("image-preview-generated", redirectTo));
+}
+
+export async function approvePostImagePreviewAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = toPlainString(formData.get("redirectTo")) || `/admin/posts/${id}`;
+
+  if (!id) {
+    redirect(buildPostsRedirect("missing-post", redirectTo));
+  }
+
+  const post = await prisma.post.findUnique({
+    where: { id },
+    select: {
+      slug: true,
+      previewImageData: true,
+      previewImageMimeType: true,
+      previewImagePrompt: true
+    }
+  });
+
+  if (!post) {
+    redirect(buildPostsRedirect("missing-post", redirectTo));
+  }
+
+  if (!post.previewImageData) {
+    redirect(buildPostsRedirect("missing-image-preview", redirectTo));
+  }
+
+  await prisma.post.update({
+    where: { id },
+    data: {
+      coverImageUrl: `/media/post/${id}?v=${Date.now()}`,
+      coverImageData: post.previewImageData,
+      coverImageMimeType: post.previewImageMimeType || "image/png",
+      imagePrompt: post.previewImagePrompt || undefined,
+      previewImageData: null,
+      previewImageMimeType: null,
+      previewImagePrompt: null,
+      previewImageGeneratedAt: null,
+      updatedAt: new Date()
+    }
+  });
+
+  revalidatePath("/beauty-tips");
+  revalidatePath("/admin/posts");
+  revalidatePath(`/admin/posts/${id}`);
+  if (post.slug) {
+    revalidatePath(`/beauty-tips/${post.slug}`);
+  }
+  redirect(buildPostsRedirect("image-preview-approved", redirectTo));
 }
 
 export async function saveAiPostAutomationSettingsAction(formData: FormData) {
@@ -1487,7 +1539,7 @@ export async function generateAiReviewsAction(formData: FormData) {
           verifiedPurchase: false,
           adminNotes: referenceReviews.length
             ? `AI generated with ${referenceReviews.length} uploaded reference reviews.`
-            : "AI generated without reference file.",
+            : "AI generated from product context only, with no uploaded reference file.",
           source: "AI_GENERATED",
           createdAt
         }

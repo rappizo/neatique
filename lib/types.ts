@@ -51,6 +51,9 @@ export type BeautyPostRecord = {
   readTime: number;
   coverImageUrl: string;
   coverImageAlt: string | null;
+  previewImageUrl: string | null;
+  previewImageGeneratedAt: Date | null;
+  previewImagePrompt: string | null;
   content: string;
   seoTitle: string;
   seoDescription: string;

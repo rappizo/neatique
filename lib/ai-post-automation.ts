@@ -289,7 +289,7 @@ export async function runAiPostAutomation(
         excerpt: draft.excerpt,
         category: draft.category,
         readTime: draft.readTime,
-        coverImageUrl: `/media/post/${postId}`,
+        coverImageUrl: `/media/post/${postId}?v=${now.getTime()}`,
         coverImageAlt: draft.coverImageAlt,
         coverImageData: imageAsset.base64Data,
         coverImageMimeType: imageAsset.mimeType,

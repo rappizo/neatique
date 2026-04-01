@@ -46,9 +46,32 @@ function isTransientPostImageError(error: unknown) {
 }
 
 export async function GET(_: Request, { params }: PostMediaRouteProps) {
+  const requestUrl = new URL(_.url);
   const { id } = await params;
+  const isPreview = requestUrl.searchParams.get("preview") === "1";
 
   try {
+    if (isPreview) {
+      const previewAsset = await prisma.post.findUnique({
+        where: { id },
+        select: {
+          previewImageData: true,
+          previewImageMimeType: true
+        }
+      });
+
+      if (!previewAsset?.previewImageData) {
+        return new NextResponse("Preview image not found.", { status: 404 });
+      }
+
+      return new NextResponse(Buffer.from(previewAsset.previewImageData, "base64"), {
+        headers: {
+          "Content-Type": previewAsset.previewImageMimeType || "image/png",
+          "Cache-Control": "private, no-store"
+        }
+      });
+    }
+
     const postImage = await getPostImageAsset(id);
 
     if (!postImage?.coverImageData) {

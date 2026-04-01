@@ -857,6 +857,9 @@ export const samplePosts: BeautyPostRecord[] = [
     readTime: 5,
     coverImageUrl: buildSiteImageUrl("blog", "PDRN Guide.png"),
     coverImageAlt: "Editorial skincare image introducing PDRN ingredients and routine layering.",
+    previewImageUrl: null,
+    previewImageGeneratedAt: null,
+    previewImagePrompt: null,
     content:
       "PDRN has quickly become one of the most talked-about skin support ingredients in advanced routines. In topical skincare, people reach for PDRN-focused formulas when they want a routine that feels restorative, modern, and glow-forward.\n\nThe easiest way to use PDRN is by layering it after cleansing and before moisturizer. A serum gives quick hydration and slip, while a cream helps hold moisture in place.\n\nFor dry or tired-looking skin, pairing a PDRN serum with a richer cream can create a soft, supported finish. If your skin is easily overwhelmed, keep the rest of the routine simple and focus on hydration, barrier support, and sunscreen during the day.",
     seoTitle: "What Is PDRN Skincare? Benefits, Texture, and Routine Tips",
@@ -886,6 +889,9 @@ export const samplePosts: BeautyPostRecord[] = [
     readTime: 4,
     coverImageUrl: buildSiteImageUrl("blog", "Snail Routine.png"),
     coverImageAlt: "Snail mucin skincare routine editorial image with serum and cream styling.",
+    previewImageUrl: null,
+    previewImageGeneratedAt: null,
+    previewImagePrompt: null,
     content:
       "Snail mucin routines are loved for their comforting, replenishing feel. If your skin often feels tight or flaky, start with a gentle cleanser, then apply a hydrating serum while the skin is still slightly damp.\n\nFollow with a cream that helps seal in moisture and reduce that dry, stretched feeling. During the day, finish with a sunscreen you enjoy wearing.\n\nAt night, you can keep the same steps and apply a slightly fuller layer of cream for extra comfort. The goal is consistency, not complexity.",
     seoTitle: "Snail Mucin Routine for Dry Skin: A Simple Layering Guide",
@@ -915,6 +921,9 @@ export const samplePosts: BeautyPostRecord[] = [
     readTime: 3,
     coverImageUrl: "/posts/serum-vs-cream.svg",
     coverImageAlt: "Minimal editorial image comparing serum and cream layering order.",
+    previewImageUrl: null,
+    previewImageGeneratedAt: null,
+    previewImagePrompt: null,
     content:
       "Serums usually go on first because they are lighter and designed to sit closer to the skin. Creams come after, creating a more comforting outer layer.\n\nIf your skin feels dehydrated, a serum can bring slip and lightweight moisture, while a cream helps the routine last longer. When in doubt, go from thinnest to richest texture.",
     seoTitle: "Serum vs Cream: The Best Layering Order for Healthy-Looking Skin",

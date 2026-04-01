@@ -198,8 +198,9 @@ export default async function AdminProductReviewsPage({
             <h2>AI review generator</h2>
             <p className="form-note">
               Create pending AI review drafts for this product, then approve them one by one or in
-              bulk. Upload a CSV, XLSX, or XLS file if you want the new drafts to follow the tone
-              and style of your own review examples.
+              bulk. Leave the reference file empty to let AI create a wide mix of styles on its
+              own, or upload a CSV, XLSX, or XLS file if you want the drafts to follow your own
+              review examples more closely.
             </p>
           </div>
           <div className="stack-row">
@@ -238,8 +239,8 @@ export default async function AdminProductReviewsPage({
 
           <p className="form-note">
             Supported reference columns: review title, review body/content, rating, and reviewer
-            name. If you upload 20 examples and generate 40 drafts, the AI will keep rotating
-            through the same style signals without copying wording.
+            name. Uploading a file is optional. If you upload 20 examples and generate 40 drafts,
+            the AI will keep rotating through the same style signals without copying wording.
           </p>
 
           <PendingSubmitButton

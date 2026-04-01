@@ -113,6 +113,10 @@ model Post {
   coverImageAlt  String?
   coverImageData String?
   coverImageMimeType String?
+  previewImageData String?
+  previewImageMimeType String?
+  previewImagePrompt String?
+  previewImageGeneratedAt DateTime?
   content        String
   seoTitle       String
   seoDescription String

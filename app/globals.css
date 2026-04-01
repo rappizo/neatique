@@ -2585,6 +2585,41 @@ main {
   aspect-ratio: 16 / 10;
 }
 
+.admin-post-card__image-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 18px 18px 0;
+}
+
+.admin-post-card__image-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-post-card__image-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-post-card__placeholder {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  min-height: 100%;
+  padding: 24px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(252, 241, 237, 0.9));
+  color: var(--muted);
+}
+
+.admin-post-card__placeholder strong,
+.admin-post-card__placeholder p {
+  margin: 0;
+}
+
 .admin-review-group {
   gap: 0;
 }
@@ -3345,6 +3380,7 @@ main {
   .post-grid,
   .story-sections,
   .product-highlight-grid,
+  .admin-post-card__image-grid,
   .admin-product-grid,
   .admin-post-editor__secondary,
   .admin-product-editor__gallery,
