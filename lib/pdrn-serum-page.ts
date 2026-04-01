@@ -118,7 +118,8 @@ export const pdrnSerumEditorialSections = [
     bullets: [
       "Lightweight pink serum texture that layers easily",
       "Fits routines focused on deep hydration and daily repair",
-      "Leaves skin looking softly fresh rather than overly glossy"
+      "Leaves skin looking softly fresh rather than overly glossy",
+      "Sits comfortably as the first serum step before cream"
     ],
     image: landingAsset(
       "LP1.jpg",
@@ -137,7 +138,8 @@ export const pdrnSerumEditorialSections = [
     bullets: [
       "Salmon PDRN anchors the formula identity",
       "Sodium DNA supports the repair-focused routine story",
-      "Peptides help the serum feel smoother and more refined in daily use"
+      "Peptides help the serum feel smoother and more refined in daily use",
+      "Keeps the formula story centered on softness, renewal, and ease"
     ],
     image: landingAsset(
       "LP2.jpg",
@@ -156,7 +158,8 @@ export const pdrnSerumEditorialSections = [
     bullets: [
       "Useful for dry, dehydrated, or visually tired-looking skin",
       "Comfortable under moisturizer and SPF",
-      "Helps support a radiant, soft, fresh-looking finish"
+      "Helps support a radiant, soft, fresh-looking finish",
+      "Easy to keep in rotation for both morning and night routines"
     ],
     image: landingAsset(
       "LP3.jpg",
@@ -175,7 +178,8 @@ export const pdrnSerumEditorialSections = [
     bullets: [
       "Use morning and night after cleansing",
       "Follow with cream for a more cushioned finish",
-      "A simple answer for shoppers asking whether a peptide serum can be used daily"
+      "A simple answer for shoppers asking whether a peptide serum can be used daily",
+      "Pairs naturally with PDRN Cream for a fuller final layer"
     ],
     image: landingAsset(
       "LP4.jpg",

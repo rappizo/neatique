@@ -555,34 +555,38 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
               {pdrnSerumEditorialSections.map((section) => (
                 <section
                   key={section.id}
-                  className={`product-page-section product-editorial ${section.imagePosition === "left" ? "product-editorial--reverse" : ""}`}
+                  className="product-page-section product-editorial product-editorial--balanced"
                 >
-                  <div className="product-editorial__copy">
-                    <p className="eyebrow">{section.eyebrow}</p>
-                    <h2>{section.title}</h2>
-                    <div className="product-editorial__body">
-                      {section.paragraphs.map((paragraph) => (
-                        <p key={paragraph}>{paragraph}</p>
-                      ))}
+                  <div
+                    className={`product-editorial__top ${section.imagePosition === "left" ? "product-editorial__top--reverse" : ""}`}
+                  >
+                    <div className="product-editorial__copy product-editorial__copy--balanced">
+                      <p className="eyebrow">{section.eyebrow}</p>
+                      <h2>{section.title}</h2>
+                      <div className="product-editorial__body">
+                        {section.paragraphs.map((paragraph) => (
+                          <p key={paragraph}>{paragraph}</p>
+                        ))}
+                      </div>
                     </div>
-                    <ul className="product-editorial__bullets">
-                      {section.bullets.map((bullet) => (
-                        <li key={bullet}>{bullet}</li>
-                      ))}
-                    </ul>
+                    {section.image.src ? (
+                      <div className="product-editorial__image product-editorial__image--four-three">
+                        <LandingImage
+                          src={section.image.src}
+                          alt={section.image.alt}
+                          width={section.image.width}
+                          height={section.image.height}
+                          sizes="(max-width: 720px) 100vw, (max-width: 1080px) 80vw, 42vw"
+                          className="product-editorial__image-media"
+                        />
+                      </div>
+                    ) : null}
                   </div>
-                  {section.image.src ? (
-                    <div className="product-editorial__image product-editorial__image--four-three">
-                      <LandingImage
-                        src={section.image.src}
-                        alt={section.image.alt}
-                        width={section.image.width}
-                        height={section.image.height}
-                        sizes="(max-width: 720px) 100vw, (max-width: 1080px) 80vw, 42vw"
-                        className="product-editorial__image-media"
-                      />
-                    </div>
-                  ) : null}
+                  <ul className="product-editorial__bullets">
+                    {section.bullets.map((bullet) => (
+                      <li key={bullet}>{bullet}</li>
+                    ))}
+                  </ul>
                 </section>
               ))}
 
