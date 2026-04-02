@@ -16,6 +16,7 @@ function isAuthorized(request: Request) {
 }
 
 export async function GET(request: Request) {
+  // Vercel cron jobs call this endpoint with the shared bearer secret.
   if (!isAuthorized(request)) {
     return NextResponse.json(
       {
