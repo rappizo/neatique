@@ -31,6 +31,7 @@ import {
   FOLLOW_EMAIL_STAGE_ORDER,
   getEnabledAtKey
 } from "@/lib/follow-emails";
+import { sendConfiguredEmail } from "@/lib/email";
 import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
 import {
   generateSeoPostImageFromProductReferenceWithAi,
@@ -137,6 +138,15 @@ function buildMascotRedirect(status: string, mascotId?: string) {
 function buildEmailMarketingRedirect(status: string, campaignId?: string, redirectTo?: string) {
   const fallbackPath = campaignId ? `/admin/email-marketing/${campaignId}` : "/admin/email-marketing";
   const basePath = redirectTo || fallbackPath;
+  const [pathname, queryString = ""] = basePath.split("?");
+  const params = new URLSearchParams(queryString);
+  params.set("status", status);
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function buildEmailRedirect(status: string, redirectTo?: string) {
+  const basePath = redirectTo || "/admin/email";
   const [pathname, queryString = ""] = basePath.split("?");
   const params = new URLSearchParams(queryString);
   params.set("status", status);
@@ -1717,7 +1727,13 @@ export async function saveEmailSettingsAction(formData: FormData) {
     ["smtp_pass", toPlainString(formData.get("smtp_pass"))],
     ["email_from_name", toPlainString(formData.get("email_from_name")) || "Neatique Beauty"],
     ["email_from_address", toPlainString(formData.get("email_from_address"))],
-    ["contact_recipient", toPlainString(formData.get("contact_recipient"))]
+    ["contact_recipient", toPlainString(formData.get("contact_recipient"))],
+    ["imap_host", toPlainString(formData.get("imap_host"))],
+    ["imap_port", toPlainString(formData.get("imap_port")) || "993"],
+    ["imap_secure", toBool(formData.get("imap_secure")) ? "true" : "false"],
+    ["imap_user", toPlainString(formData.get("imap_user"))],
+    ["imap_pass", toPlainString(formData.get("imap_pass"))],
+    ["imap_mailbox", toPlainString(formData.get("imap_mailbox")) || "INBOX"]
   ];
 
   await Promise.all(
@@ -1732,6 +1748,44 @@ export async function saveEmailSettingsAction(formData: FormData) {
 
   revalidatePath("/admin/email");
   redirect("/admin/email?status=saved");
+}
+
+export async function sendAdminMailboxEmailAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
+  const to = toPlainString(formData.get("to"));
+  const subject = toPlainString(formData.get("subject"));
+  const body = toPlainString(formData.get("body"));
+  const replyTo = toPlainString(formData.get("replyTo")) || undefined;
+
+  if (!to || !subject || !body) {
+    redirect(buildEmailRedirect("send-missing-fields", redirectTo));
+  }
+
+  try {
+    const html = `
+      <div style="font-family:Arial,sans-serif;line-height:1.8;color:#2e2825;white-space:pre-wrap">
+        ${body
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")}
+      </div>
+    `;
+
+    const result = await sendConfiguredEmail({
+      to,
+      subject,
+      text: body,
+      html,
+      replyTo
+    });
+
+    redirect(buildEmailRedirect(result.delivered ? "mail-sent" : "mail-send-failed", redirectTo));
+  } catch (error) {
+    console.error("Admin mailbox send failed:", error);
+    redirect(buildEmailRedirect("mail-send-failed", redirectTo));
+  }
 }
 
 export async function saveEmailMarketingSettingsAction(formData: FormData) {

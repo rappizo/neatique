@@ -3405,6 +3405,164 @@ main {
   gap: 24px;
 }
 
+.admin-page--email {
+  gap: 24px;
+}
+
+.admin-page--email .admin-page__header {
+  max-width: 880px;
+}
+
+.admin-page--email .admin-page__header p:not(.eyebrow),
+.admin-page--email .admin-form p:not(.eyebrow) {
+  line-height: 1.75;
+}
+
+.admin-mailbox-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.admin-mailbox-settings__card {
+  display: grid;
+  gap: 16px;
+  min-height: 100%;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.admin-mailbox-shell {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.78fr) minmax(0, 1.22fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.admin-mailbox-panel {
+  display: grid;
+  gap: 16px;
+  min-height: 100%;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.admin-mailbox-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-mailbox-item {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.admin-mailbox-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(237, 115, 97, 0.2);
+  box-shadow: 0 14px 28px rgba(237, 115, 97, 0.12);
+}
+
+.admin-mailbox-item--active {
+  border-color: rgba(237, 115, 97, 0.3);
+  background: rgba(253, 240, 235, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(237, 115, 97, 0.08);
+}
+
+.admin-mailbox-item strong,
+.admin-mailbox-item span {
+  min-width: 0;
+}
+
+.admin-mailbox-item__subject {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.admin-mailbox-item span {
+  color: var(--muted);
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.admin-mailbox-message {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-mailbox-message__meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-mailbox-message__meta > div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.admin-mailbox-message__meta strong,
+.admin-mailbox-message__meta span {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.admin-mailbox-message__meta span:not(.eyebrow) {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.admin-mailbox-message__body,
+.admin-mailbox-message__html,
+.admin-mailbox-message__attachments {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.admin-mailbox-message__body pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+  font-family: inherit;
+  line-height: 1.8;
+}
+
+.admin-mailbox-message__html iframe {
+  width: 100%;
+  min-height: 620px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  border-radius: 16px;
+  background: white;
+}
+
+.admin-mailbox-message__attachments {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-mailbox-message__attachments strong {
+  font-family: Baskerville, "Palatino Linotype", serif;
+  font-size: 1.2rem;
+}
+
 .admin-page--email-marketing .admin-page__header p:not(.eyebrow),
 .admin-page--email-marketing .form-note,
 .admin-page--email-marketing .admin-card p,
@@ -3519,6 +3677,12 @@ main {
 
   .site-footer__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-mailbox-settings,
+  .admin-mailbox-shell,
+  .admin-mailbox-message__meta {
+    grid-template-columns: 1fr;
   }
 
   .site-footer__brand {

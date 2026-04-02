@@ -16,6 +16,12 @@ type EmailSettings = {
   fromName: string;
   fromEmail: string;
   contactRecipient: string;
+  imapHost: string;
+  imapPort: number;
+  imapSecure: boolean;
+  imapUser: string;
+  imapPass: string;
+  imapMailbox: string;
 };
 
 function parseBool(value: string | undefined) {
@@ -32,7 +38,13 @@ function toEmailSettings(record: Record<string, string>): EmailSettings {
     smtpPass: record.smtp_pass || "",
     fromName: record.email_from_name || "Neatique Beauty",
     fromEmail: record.email_from_address || "",
-    contactRecipient: record.contact_recipient || record.email_from_address || ""
+    contactRecipient: record.contact_recipient || record.email_from_address || "",
+    imapHost: record.imap_host || "",
+    imapPort: Number.parseInt(record.imap_port || "993", 10),
+    imapSecure: parseBool(record.imap_secure),
+    imapUser: record.imap_user || record.smtp_user || "",
+    imapPass: record.imap_pass || record.smtp_pass || "",
+    imapMailbox: record.imap_mailbox || "INBOX"
   };
 }
 
@@ -49,7 +61,13 @@ export async function getEmailSettings() {
           "smtp_pass",
           "email_from_name",
           "email_from_address",
-          "contact_recipient"
+          "contact_recipient",
+          "imap_host",
+          "imap_port",
+          "imap_secure",
+          "imap_user",
+          "imap_pass",
+          "imap_mailbox"
         ]
       }
     }
@@ -79,6 +97,7 @@ export async function sendConfiguredEmail(input: {
   subject: string;
   html: string;
   text: string;
+  replyTo?: string;
 }) {
   const settings = await getEmailSettings();
 
@@ -99,6 +118,7 @@ export async function sendConfiguredEmail(input: {
   await transporter.sendMail({
     from: `"${settings.fromName}" <${settings.fromEmail}>`,
     to: input.to,
+    replyTo: input.replyTo || undefined,
     subject: input.subject,
     text: input.text,
     html: input.html

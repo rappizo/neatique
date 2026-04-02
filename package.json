@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
+    "imapflow": "^1.2.18",
+    "mailparser": "^3.9.6",
     "next": "^15.0.0",
     "nodemailer": "^7.0.3",
     "react": "^19.0.0",
