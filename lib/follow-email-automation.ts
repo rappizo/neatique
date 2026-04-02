@@ -115,6 +115,11 @@ export async function runFollowEmailAutomation(): Promise<FollowEmailAutomationS
   ]);
 
   for (const claim of ombClaims) {
+    if (ombEnabledAt && claim.createdAt.getTime() < ombEnabledAt.getTime()) {
+      summary.omb.skipped += 1;
+      continue;
+    }
+
     const stageKey = getOmbFollowStage(claim);
     const template = ombOverview.templates.find((item) => item.stageKey === stageKey);
 
@@ -185,6 +190,11 @@ export async function runFollowEmailAutomation(): Promise<FollowEmailAutomationS
   }
 
   for (const claim of ryoClaims) {
+    if (ryoEnabledAt && claim.createdAt.getTime() < ryoEnabledAt.getTime()) {
+      summary.ryo.skipped += 1;
+      continue;
+    }
+
     const stageKey = getRyoFollowStage(claim);
     const template = ryoOverview.templates.find((item) => item.stageKey === stageKey);
 
