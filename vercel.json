@@ -4,10 +4,6 @@
     {
       "path": "/api/cron/ai-posts",
       "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/cron/follow-emails",
-      "schedule": "*/30 * * * *"
     }
   ]
 }
