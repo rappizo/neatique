@@ -32,8 +32,11 @@ import {
   getEnabledAtKey
 } from "@/lib/follow-emails";
 import { sendConfiguredEmail } from "@/lib/email";
-import { updateMailboxReadState } from "@/lib/admin-mailbox";
-import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
+import { getMailboxOverview, updateMailboxReadState } from "@/lib/admin-mailbox";
+import {
+  generateEmailCampaignDraftWithAi,
+  generateMailboxReplyWithAi
+} from "@/lib/openai-email";
 import {
   generateSeoPostImageFromProductReferenceWithAi,
   generateSeoPostImageWithAi
@@ -151,6 +154,44 @@ function buildEmailRedirect(status: string, redirectTo?: string) {
   const [pathname, queryString = ""] = basePath.split("?");
   const params = new URLSearchParams(queryString);
   params.set("status", status);
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function buildEmailComposeRedirect(input: {
+  status: string;
+  redirectTo?: string;
+  uid?: number | null;
+  reply?: boolean;
+  composeTo?: string;
+  composeSubject?: string;
+  composeBody?: string;
+}) {
+  const basePath = input.redirectTo || "/admin/email";
+  const [pathname, queryString = ""] = basePath.split("?");
+  const params = new URLSearchParams(queryString);
+  params.set("status", input.status);
+
+  if (input.uid && input.uid > 0) {
+    params.set("uid", String(input.uid));
+  }
+
+  if (input.reply) {
+    params.set("reply", "1");
+  }
+
+  if (input.composeTo) {
+    params.set("composeTo", input.composeTo);
+  }
+
+  if (input.composeSubject) {
+    params.set("composeSubject", input.composeSubject);
+  }
+
+  if (input.composeBody) {
+    params.set("composeBody", input.composeBody.slice(0, 1600));
+  }
+
   const nextQuery = params.toString();
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
 }
@@ -1759,6 +1800,10 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
   const subject = toPlainString(formData.get("subject"));
   const body = toPlainString(formData.get("body"));
   const replyTo = toPlainString(formData.get("replyTo")) || undefined;
+  const sourceSenderName = toPlainString(formData.get("sourceSenderName")) || null;
+  const sourceSenderEmail = toPlainString(formData.get("sourceSenderEmail")) || null;
+  const sourceSubject = toPlainString(formData.get("sourceSubject")) || null;
+  const sourceSnippet = clipMailboxSourceSnippet(toPlainString(formData.get("sourceSnippet"))) || null;
 
   if (!to || !subject || !body) {
     redirect(buildEmailRedirect("send-missing-fields", redirectTo));
@@ -1781,6 +1826,25 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
       html,
       replyTo
     });
+
+    if (result.delivered) {
+      const recipientEmails = parseMailboxRecipientList(to);
+
+      if (recipientEmails.length > 0) {
+        await prisma.mailboxReplyExample.createMany({
+          data: recipientEmails.map((email) => ({
+            toEmail: email,
+            subject,
+            bodyText: body,
+            replyTo: replyTo || null,
+            sourceSenderName,
+            sourceSenderEmail,
+            sourceSubject,
+            sourceSnippet
+          }))
+        });
+      }
+    }
 
     redirect(buildEmailRedirect(result.delivered ? "mail-sent" : "mail-send-failed", redirectTo));
   } catch (error) {
@@ -1806,6 +1870,113 @@ export async function updateMailboxReadStateAction(formData: FormData) {
   } catch (error) {
     console.error("Mailbox read state update failed:", error);
     redirect(buildEmailRedirect("mailbox-update-failed", redirectTo));
+  }
+}
+
+function buildReplySubjectForMailbox(subject: string) {
+  const trimmed = subject.trim();
+  return /^re:/i.test(trimmed) ? trimmed : `Re: ${trimmed}`;
+}
+
+function parseMailboxRecipientList(rawTo: string) {
+  return rawTo
+    .split(/[,;\n]+/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function clipMailboxSourceSnippet(value: string, maxLength = 420) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed.length <= maxLength ? trimmed : `${trimmed.slice(0, maxLength)}...`;
+}
+
+async function loadMailboxReplyStyleExamples(targetEmail: string | null) {
+  const normalizedTarget = (targetEmail || "").trim().toLowerCase();
+
+  const [targetRows, recentRows] = await Promise.all([
+    normalizedTarget
+      ? prisma.mailboxReplyExample.findMany({
+          where: { toEmail: normalizedTarget },
+          orderBy: { createdAt: "desc" },
+          take: 4
+        })
+      : Promise.resolve([]),
+    prisma.mailboxReplyExample.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 8
+    })
+  ]);
+
+  const merged = [...targetRows, ...recentRows];
+  const unique = new Map<string, (typeof merged)[number]>();
+  for (const row of merged) {
+    if (!unique.has(row.id)) {
+      unique.set(row.id, row);
+    }
+  }
+
+  return Array.from(unique.values())
+    .slice(0, 6)
+    .map((row) => ({
+      subject: row.subject,
+      bodyText: row.bodyText,
+      sourceSubject: row.sourceSubject,
+      sourceSnippet: row.sourceSnippet
+    }));
+}
+
+export async function generateAdminMailboxReplyAiAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
+  const uid = toInt(formData.get("uid"));
+  const senderName = toPlainString(formData.get("senderName")) || "Tracy";
+  const senderEmail = toPlainString(formData.get("senderEmail")) || "support@neatiquebeauty.com";
+
+  if (!uid || uid <= 0) {
+    redirect(buildEmailRedirect("mailbox-message-missing", redirectTo));
+  }
+
+  try {
+    const mailbox = await getMailboxOverview(uid, 1);
+    const message = mailbox.selectedMessage;
+
+    if (!message) {
+      redirect(buildEmailRedirect("mailbox-message-missing", redirectTo));
+    }
+
+    const targetEmail = (message.replyToEmail || message.fromEmail || "").trim().toLowerCase() || null;
+    const styleExamples = await loadMailboxReplyStyleExamples(targetEmail);
+
+    const result = await generateMailboxReplyWithAi({
+      senderName,
+      senderEmail,
+      customerName: message.fromName,
+      customerEmail: message.fromEmail,
+      subject: message.subject,
+      messageText: message.textBody || message.htmlBody || "",
+      receivedAt: message.receivedAt,
+      styleExamples
+    });
+
+    redirect(
+      buildEmailComposeRedirect({
+        status: "ai-reply-generated",
+        redirectTo,
+        uid,
+        reply: true,
+        composeTo: message.replyToEmail || message.fromEmail || "",
+        composeSubject: buildReplySubjectForMailbox(message.subject),
+        composeBody: result.replyText
+      })
+    );
+  } catch (error) {
+    console.error("AI mailbox reply generation failed:", error);
+    redirect(buildEmailRedirect("ai-reply-failed", redirectTo));
   }
 }
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   saveEmailSettingsAction,
   sendAdminMailboxEmailAction,
+  generateAdminMailboxReplyAiAction,
   updateMailboxReadStateAction
 } from "@/app/admin/actions";
 import { getMailboxOverview } from "@/lib/admin-mailbox";
@@ -26,7 +27,9 @@ const STATUS_MESSAGES: Record<string, string> = {
   "mail-marked-read": "Message marked as read.",
   "mail-marked-unread": "Message marked as unread.",
   "mailbox-message-missing": "Select a message before changing its read state.",
-  "mailbox-update-failed": "Mailbox status could not be updated. Please check the IMAP connection."
+  "mailbox-update-failed": "Mailbox status could not be updated. Please check the IMAP connection.",
+  "ai-reply-generated": "AI reply draft was generated and added to the message box.",
+  "ai-reply-failed": "AI reply generation failed. Please try again."
 };
 
 function toInt(value: string | undefined) {
@@ -403,16 +406,48 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
             <h2>{selectedMessage ? "Reply from Tracy&apos;s mailbox" : "Compose from Tracy&apos;s mailbox"}</h2>
             <p className="admin-table__empty">
               This uses the same SMTP sender you already configured for the site. Reply-to stays on the mailbox so responses keep coming back here.
+              AI-generated replies also reference your recent sent replies to keep tone and structure consistent.
             </p>
           </div>
           {selectedMessage ? (
-            <Link href={replyHref || buildAdminEmailHref({ uid: selectedMessage.uid })} className="button button--secondary">
-              Prefill from selected email
-            </Link>
+            <div className="stack-row">
+              <Link href={replyHref || buildAdminEmailHref({ uid: selectedMessage.uid })} className="button button--secondary">
+                Prefill from selected email
+              </Link>
+              <form action={generateAdminMailboxReplyAiAction} className="admin-mailbox-ai-form">
+                <input type="hidden" name="uid" value={selectedMessage.uid} />
+                <input type="hidden" name="redirectTo" value={currentViewHref} />
+                <input
+                  type="hidden"
+                  name="senderName"
+                  value={(settings.email_from_name || "Tracy").trim() || "Tracy"}
+                />
+                <input
+                  type="hidden"
+                  name="senderEmail"
+                  value={(settings.email_from_address || "support@neatiquebeauty.com").trim() || "support@neatiquebeauty.com"}
+                />
+                <button type="submit" className="button button--ghost">
+                  AI Generated Reply Content
+                </button>
+              </form>
+            </div>
           ) : null}
         </div>
         <form action={sendAdminMailboxEmailAction}>
           <input type="hidden" name="redirectTo" value={currentViewHref} />
+          {selectedMessage ? (
+            <>
+              <input type="hidden" name="sourceSenderName" value={selectedMessage.fromName || ""} />
+              <input type="hidden" name="sourceSenderEmail" value={selectedMessage.fromEmail || ""} />
+              <input type="hidden" name="sourceSubject" value={selectedMessage.subject} />
+              <input
+                type="hidden"
+                name="sourceSnippet"
+                value={(selectedMessage.textBody || selectedMessage.htmlBody || "").slice(0, 2000)}
+              />
+            </>
+          ) : null}
           <div className="admin-form__grid">
             <div className="field">
               <label htmlFor="compose_to">To</label>
@@ -426,7 +461,7 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
                 defaultValue={settings.email_from_address || ""}
               />
             </div>
-            <div className="field field--full">
+            <div className="field field--full field--label-tight">
               <label htmlFor="compose_subject">Subject</label>
               <input id="compose_subject" name="subject" defaultValue={composeSubject} />
             </div>

@@ -30,6 +30,26 @@ type GeneratedEmailCampaignDraft = {
   contentText: string;
 };
 
+type GenerateMailboxReplyInput = {
+  senderName: string;
+  senderEmail: string;
+  customerName: string | null;
+  customerEmail: string | null;
+  subject: string;
+  messageText: string;
+  receivedAt: Date | null;
+  styleExamples?: Array<{
+    subject: string;
+    bodyText: string;
+    sourceSubject?: string | null;
+    sourceSnippet?: string | null;
+  }>;
+};
+
+type GeneratedMailboxReply = {
+  replyText: string;
+};
+
 function getOpenAiApiKey() {
   return (process.env.OPENAI_API_KEY || "").trim();
 }
@@ -42,6 +62,14 @@ export function getOpenAiEmailSettings() {
     model: DEFAULT_OPENAI_EMAIL_MODEL,
     apiKeyConfigured: Boolean(apiKey)
   };
+}
+
+function clipText(value: string, maxLength: number) {
+  const trimmed = value.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, maxLength)}...`;
 }
 
 function formatCurrency(cents: number) {
@@ -108,6 +136,27 @@ function getResponseOutputText(response: any) {
   }
 
   return "";
+}
+
+function buildMailboxStyleExamplesSummary(
+  examples: NonNullable<GenerateMailboxReplyInput["styleExamples"]>
+) {
+  if (!examples.length) {
+    return "No historical reply samples are available.";
+  }
+
+  return examples
+    .slice(0, 6)
+    .map((example, index) =>
+      [
+        `Example ${index + 1}:`,
+        `- Reply subject: ${example.subject}`,
+        `- Reply body: ${clipText(example.bodyText, 900)}`,
+        `- Source subject: ${example.sourceSubject || "Unknown"}`,
+        `- Source message snippet: ${clipText(example.sourceSnippet || "", 420)}`
+      ].join("\n")
+    )
+    .join("\n\n");
 }
 
 export async function generateEmailCampaignDraftWithAi(
@@ -248,6 +297,124 @@ export async function generateEmailCampaignDraftWithAi(
     previewText: normalizedOutput.previewText.trim(),
     contentHtml: normalizedOutput.contentHtml.trim(),
     contentText: normalizedOutput.contentText.trim()
+  };
+}
+
+export async function generateMailboxReplyWithAi(
+  input: GenerateMailboxReplyInput
+): Promise<GeneratedMailboxReply> {
+  const apiKey = getOpenAiApiKey();
+
+  if (!apiKey) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
+  const schema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      replyText: {
+        type: "string",
+        minLength: 40,
+        maxLength: 1400
+      }
+    },
+    required: ["replyText"]
+  };
+
+  const styleExamplesSummary = buildMailboxStyleExamplesSummary(input.styleExamples || []);
+
+  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: DEFAULT_OPENAI_EMAIL_MODEL,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                "You are Tracy from Neatique Beauty writing customer support replies.",
+                "Write warm, concise, professional email replies in plain text.",
+                "Never invent order status, shipping updates, refunds, or promises that are not present in the customer message.",
+                "If missing context is required, ask one short clarification question politely.",
+                "Use the historical reply samples only as tone and structure references, not as factual sources.",
+                "Do not output a subject line. Return only the reply body."
+              ].join(" ")
+            }
+          ]
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                `Brand: ${siteConfig.name}`,
+                `Sender name: ${input.senderName}`,
+                `Sender email: ${input.senderEmail}`,
+                `Customer name: ${input.customerName || "Unknown"}`,
+                `Customer email: ${input.customerEmail || "Unknown"}`,
+                `Inbound subject: ${input.subject}`,
+                `Inbound received: ${input.receivedAt ? input.receivedAt.toISOString() : "Unknown"}`,
+                "Customer message:",
+                clipText(input.messageText, 5000),
+                "Historical Neatique reply samples:",
+                styleExamplesSummary,
+                "Write a complete reply with greeting and signature as Tracy / Neatique Team."
+              ].join("\n\n")
+            }
+          ]
+        }
+      ],
+      reasoning: {
+        effort: "low"
+      },
+      text: {
+        format: {
+          type: "json_schema",
+          name: "mailbox_reply",
+          strict: true,
+          schema
+        }
+      }
+    })
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `OpenAI request failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const outputText = getResponseOutputText(parsed);
+
+  if (!outputText) {
+    throw new Error("OpenAI did not return reply content.");
+  }
+
+  const output = safeJsonParse(outputText);
+  const normalizedOutput =
+    output && typeof output === "object" ? (output as Record<string, unknown>) : null;
+
+  if (!normalizedOutput || typeof normalizedOutput.replyText !== "string") {
+    throw new Error("OpenAI returned an invalid reply payload.");
+  }
+
+  return {
+    replyText: normalizedOutput.replyText.trim()
   };
 }
 

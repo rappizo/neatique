@@ -1412,6 +1412,10 @@ main {
   gap: 8px;
 }
 
+.field--label-tight {
+  gap: 4px;
+}
+
 .field label {
   font-size: 0.92rem;
   font-weight: 700;
@@ -3433,6 +3437,10 @@ main {
   border-radius: 22px;
   border: 1px solid rgba(46, 40, 37, 0.08);
   background: rgba(255, 255, 255, 0.8);
+}
+
+.admin-mailbox-ai-form {
+  margin: 0;
 }
 
 .admin-mailbox-table tbody tr {
