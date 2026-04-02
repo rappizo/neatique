@@ -32,6 +32,7 @@ import {
   getEnabledAtKey
 } from "@/lib/follow-emails";
 import { sendConfiguredEmail } from "@/lib/email";
+import { updateMailboxReadState } from "@/lib/admin-mailbox";
 import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
 import {
   generateSeoPostImageFromProductReferenceWithAi,
@@ -1785,6 +1786,26 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
   } catch (error) {
     console.error("Admin mailbox send failed:", error);
     redirect(buildEmailRedirect("mail-send-failed", redirectTo));
+  }
+}
+
+export async function updateMailboxReadStateAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
+  const uid = toInt(formData.get("uid"));
+  const unread = toBool(formData.get("unread"));
+
+  if (!uid || uid <= 0) {
+    redirect(buildEmailRedirect("mailbox-message-missing", redirectTo));
+  }
+
+  try {
+    await updateMailboxReadState({ uid, unread });
+    redirect(buildEmailRedirect(unread ? "mail-marked-unread" : "mail-marked-read", redirectTo));
+  } catch (error) {
+    console.error("Mailbox read state update failed:", error);
+    redirect(buildEmailRedirect("mailbox-update-failed", redirectTo));
   }
 }
 

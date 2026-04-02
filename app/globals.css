@@ -3435,6 +3435,18 @@ main {
   background: rgba(255, 255, 255, 0.8);
 }
 
+.admin-mailbox-table tbody tr {
+  transition: background 180ms ease;
+}
+
+.admin-mailbox-table tbody tr:hover {
+  background: rgba(253, 240, 235, 0.34);
+}
+
+.admin-mailbox-table__row--active {
+  background: rgba(253, 240, 235, 0.5);
+}
+
 .admin-mailbox-shell {
   display: grid;
   grid-template-columns: minmax(300px, 0.78fr) minmax(0, 1.22fr);

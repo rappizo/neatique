@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { saveEmailSettingsAction, sendAdminMailboxEmailAction } from "@/app/admin/actions";
+import {
+  saveEmailSettingsAction,
+  sendAdminMailboxEmailAction,
+  updateMailboxReadStateAction
+} from "@/app/admin/actions";
 import { getMailboxOverview } from "@/lib/admin-mailbox";
 import { getStoreSettings } from "@/lib/queries";
 
@@ -18,7 +22,11 @@ const STATUS_MESSAGES: Record<string, string> = {
   saved: "Email settings were saved.",
   "mail-sent": "Email was sent successfully.",
   "mail-send-failed": "Email could not be sent. Please review the mailbox or SMTP settings.",
-  "send-missing-fields": "To, subject, and message body are required before sending."
+  "send-missing-fields": "To, subject, and message body are required before sending.",
+  "mail-marked-read": "Message marked as read.",
+  "mail-marked-unread": "Message marked as unread.",
+  "mailbox-message-missing": "Select a message before changing its read state.",
+  "mailbox-update-failed": "Mailbox status could not be updated. Please check the IMAP connection."
 };
 
 function toInt(value: string | undefined) {
@@ -102,6 +110,7 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
           textBody: selectedMessage.textBody
         })
       : "");
+  const listHref = buildAdminEmailHref({});
   const currentViewHref = buildAdminEmailHref({ uid: selectedMessage?.uid ?? selectedUid ?? null });
   const replyHref = selectedMessage
     ? buildAdminEmailHref({
@@ -248,121 +257,150 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
           <div>
             <h2>Mailbox workspace</h2>
             <p className="admin-table__empty">
-              Read the inbox live over IMAP, then send or reply through the configured Tracy mailbox.
+              Review the inbox in a familiar list view, then open a message only when you want to see the full detail or send a reply.
             </p>
           </div>
           <div className="stack-row">
             <span className="pill">{mailbox.mailboxName}</span>
             <span className="pill">{mailbox.totalMessages} loaded</span>
             <span className="pill">{mailbox.unreadMessages} unread</span>
-            <Link href={currentViewHref} className="button button--secondary">
+            <Link href={selectedMessage ? currentViewHref : listHref} className="button button--secondary">
               Refresh inbox
             </Link>
           </div>
         </div>
 
         {!mailbox.available ? <p className="notice notice--warning">{mailbox.reason || "Mailbox is not available yet."}</p> : null}
-
-        <div className="admin-mailbox-shell">
-          <section className="admin-mailbox-panel">
-            <div className="stack-row">
-              <h3>Inbox</h3>
-              <span className="pill">Latest 30 messages</span>
-            </div>
-            {mailbox.messages.length > 0 ? (
-              <div className="admin-mailbox-list">
+        <div className="admin-table admin-table--scroll">
+          <div className="stack-row">
+            <h3>Inbox list</h3>
+            <span className="pill">Latest 30 messages</span>
+          </div>
+          {mailbox.messages.length > 0 ? (
+            <table className="admin-mailbox-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>From</th>
+                  <th>Email</th>
+                  <th>Subject</th>
+                  <th>Received</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
                 {mailbox.messages.map((message) => {
-                  const active = selectedMessage?.uid === message.uid || (!selectedMessage && message.uid === mailbox.messages[0]?.uid);
+                  const active = selectedMessage?.uid === message.uid;
                   return (
-                    <Link
-                      key={message.uid}
-                      href={buildAdminEmailHref({ uid: message.uid })}
-                      className={`admin-mailbox-item${active ? " admin-mailbox-item--active" : ""}`}
-                    >
-                      <div className="stack-row">
-                        <strong>{message.fromName || message.fromEmail || "Unknown sender"}</strong>
-                        {message.unread ? <span className="pill">Unread</span> : null}
-                      </div>
-                      <strong className="admin-mailbox-item__subject">{message.subject}</strong>
-                      <span>{message.fromEmail || "No sender email"}</span>
-                      <span>{message.receivedAt ? message.receivedAt.toLocaleString("en-US") : "No date"}</span>
-                    </Link>
+                    <tr key={message.uid} className={active ? "admin-mailbox-table__row--active" : undefined}>
+                      <td>
+                        <span className={`admin-table__status-badge ${message.unread ? "admin-table__status-badge--warning" : "admin-table__status-badge--success"}`}>
+                          {message.unread ? "Unread" : "Read"}
+                        </span>
+                      </td>
+                      <td>{message.fromName || message.fromEmail || "Unknown sender"}</td>
+                      <td>{message.fromEmail || "No sender email"}</td>
+                      <td className="admin-table__clip">{message.subject}</td>
+                      <td>{message.receivedAt ? message.receivedAt.toLocaleString("en-US") : "No date"}</td>
+                      <td>
+                        <div className="admin-table__actions">
+                          <Link href={buildAdminEmailHref({ uid: message.uid })} className="button button--secondary">
+                            Open
+                          </Link>
+                          <form action={updateMailboxReadStateAction}>
+                            <input type="hidden" name="uid" value={message.uid} />
+                            <input type="hidden" name="unread" value={message.unread ? "false" : "true"} />
+                            <input type="hidden" name="redirectTo" value={currentViewHref} />
+                            <button type="submit" className="button button--ghost">
+                              {message.unread ? "Mark read" : "Mark unread"}
+                            </button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
-              </div>
-            ) : (
-              <div className="admin-table__empty">No mailbox messages loaded yet.</div>
-            )}
-          </section>
-
-          <section className="admin-mailbox-panel">
-            <div className="stack-row">
-              <h3>Selected message</h3>
-              {replyHref ? (
-                <Link href={replyHref} className="button button--secondary">
-                  Reply to this email
-                </Link>
-              ) : null}
-            </div>
-            {selectedMessage ? (
-              <div className="admin-mailbox-message">
-                <div className="admin-mailbox-message__meta">
-                  <div>
-                    <span className="eyebrow">From</span>
-                    <strong>{selectedMessage.fromName || selectedMessage.fromEmail || "Unknown sender"}</strong>
-                    <span>{selectedMessage.fromEmail || "No sender email"}</span>
-                  </div>
-                  <div>
-                    <span className="eyebrow">Received</span>
-                    <strong>{selectedMessage.receivedAt ? selectedMessage.receivedAt.toLocaleString("en-US") : "No date"}</strong>
-                    <span>{selectedMessage.subject}</span>
-                  </div>
-                  <div>
-                    <span className="eyebrow">Reply-to</span>
-                    <strong>{selectedMessage.replyToEmail || "Not set"}</strong>
-                    <span>To: {selectedMessage.toEmails.join(", ") || "Not captured"}</span>
-                    {selectedMessage.ccEmails.length > 0 ? <span>CC: {selectedMessage.ccEmails.join(", ")}</span> : null}
-                  </div>
-                </div>
-
-                {selectedMessage.textBody ? (
-                  <article className="admin-mailbox-message__body">
-                    <pre>{selectedMessage.textBody}</pre>
-                  </article>
-                ) : selectedMessage.htmlBody ? (
-                  <div className="admin-mailbox-message__html">
-                    <iframe title={`Email ${selectedMessage.uid}`} srcDoc={selectedMessage.htmlBody} sandbox="" />
-                  </div>
-                ) : (
-                  <div className="admin-table__empty">This message does not include a readable body.</div>
-                )}
-
-                {selectedMessage.attachments.length > 0 ? (
-                  <div className="admin-mailbox-message__attachments">
-                    <strong>Attachments</strong>
-                    <div className="stack-row">
-                      {selectedMessage.attachments.map((attachment, index) => (
-                        <span key={`${attachment.filename || "attachment"}-${index}`} className="pill">
-                          {attachment.filename || "Unnamed attachment"}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="admin-table__empty">
-                Select an email from the inbox list after the IMAP connection is available.
-              </div>
-            )}
-          </section>
+              </tbody>
+            </table>
+          ) : (
+            <div className="admin-table__empty">No mailbox messages loaded yet.</div>
+          )}
         </div>
       </section>
+
+      {selectedMessage ? (
+      <section className="admin-form">
+        <div className="stack-row">
+          <div>
+            <h2>Selected message</h2>
+            <p className="admin-table__empty">
+              Opened from the inbox list. Review the message details here, then reply using Tracy&apos;s mailbox below.
+            </p>
+          </div>
+          <div className="stack-row">
+            {replyHref ? (
+              <Link href={replyHref} className="button button--secondary">
+                Reply to this email
+              </Link>
+            ) : null}
+            <Link href={listHref} className="button button--ghost">
+              Back to inbox only
+            </Link>
+          </div>
+        </div>
+
+        <div className="admin-mailbox-message">
+          <div className="admin-mailbox-message__meta">
+            <div>
+              <span className="eyebrow">From</span>
+              <strong>{selectedMessage.fromName || selectedMessage.fromEmail || "Unknown sender"}</strong>
+              <span>{selectedMessage.fromEmail || "No sender email"}</span>
+            </div>
+            <div>
+              <span className="eyebrow">Received</span>
+              <strong>{selectedMessage.receivedAt ? selectedMessage.receivedAt.toLocaleString("en-US") : "No date"}</strong>
+              <span>{selectedMessage.subject}</span>
+            </div>
+            <div>
+              <span className="eyebrow">Reply-to</span>
+              <strong>{selectedMessage.replyToEmail || "Not set"}</strong>
+              <span>To: {selectedMessage.toEmails.join(", ") || "Not captured"}</span>
+              {selectedMessage.ccEmails.length > 0 ? <span>CC: {selectedMessage.ccEmails.join(", ")}</span> : null}
+            </div>
+          </div>
+
+          {selectedMessage.textBody ? (
+            <article className="admin-mailbox-message__body">
+              <pre>{selectedMessage.textBody}</pre>
+            </article>
+          ) : selectedMessage.htmlBody ? (
+            <div className="admin-mailbox-message__html">
+              <iframe title={`Email ${selectedMessage.uid}`} srcDoc={selectedMessage.htmlBody} sandbox="" />
+            </div>
+          ) : (
+            <div className="admin-table__empty">This message does not include a readable body.</div>
+          )}
+
+          {selectedMessage.attachments.length > 0 ? (
+            <div className="admin-mailbox-message__attachments">
+              <strong>Attachments</strong>
+              <div className="stack-row">
+                {selectedMessage.attachments.map((attachment, index) => (
+                  <span key={`${attachment.filename || "attachment"}-${index}`} className="pill">
+                    {attachment.filename || "Unnamed attachment"}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
+      ) : null}
 
       <section className="admin-form">
         <div className="stack-row">
           <div>
-            <h2>Compose from Tracy&apos;s mailbox</h2>
+            <h2>{selectedMessage ? "Reply from Tracy&apos;s mailbox" : "Compose from Tracy&apos;s mailbox"}</h2>
             <p className="admin-table__empty">
               This uses the same SMTP sender you already configured for the site. Reply-to stays on the mailbox so responses keep coming back here.
             </p>

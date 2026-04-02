@@ -34,6 +34,18 @@ export type MailboxOverview = {
   selectedMessage: MailboxMessageDetail | null;
 };
 
+function normalizeAddressEntries(addressObject: any): Array<{ name?: string | null; address?: string | null }> {
+  if (Array.isArray(addressObject)) {
+    return addressObject;
+  }
+
+  if (Array.isArray(addressObject?.value)) {
+    return addressObject.value;
+  }
+
+  return [];
+}
+
 function canReadMailbox(settings: Awaited<ReturnType<typeof getEmailSettings>>) {
   return Boolean(
     settings.enabled &&
@@ -65,7 +77,7 @@ function buildImapClient(settings: Awaited<ReturnType<typeof getEmailSettings>>)
 }
 
 function getPrimaryAddress(addressObject: any): { name: string | null; email: string | null } {
-  const firstValue = Array.isArray(addressObject?.value) ? addressObject.value[0] : null;
+  const firstValue = normalizeAddressEntries(addressObject)[0] || null;
   return {
     name: firstValue?.name || null,
     email: firstValue?.address || null
@@ -73,16 +85,14 @@ function getPrimaryAddress(addressObject: any): { name: string | null; email: st
 }
 
 function getAddressList(addressObject: any): string[] {
-  return Array.isArray(addressObject?.value)
-    ? addressObject.value
-        .map((item: any) => item?.address || "")
-        .map((value: string) => value.trim())
-        .filter(Boolean)
-    : [];
+  return normalizeAddressEntries(addressObject)
+    .map((item: any) => item?.address || "")
+    .map((value: string) => value.trim())
+    .filter(Boolean);
 }
 
 function mapSummary(message: any): MailboxMessageSummary {
-  const from = getPrimaryAddress(message?.envelope?.from);
+  const from = getPrimaryAddress(message?.envelope?.from || message?.envelope?.sender);
   const replyTo = getPrimaryAddress(message?.envelope?.replyTo);
 
   return {
@@ -161,7 +171,7 @@ export async function getMailboxOverview(selectedUid?: number | null, limit = 25
         messages.sort((left, right) => right.uid - left.uid);
 
         let selectedMessage: MailboxMessageDetail | null = null;
-        const targetUid = selectedUid && selectedUid > 0 ? selectedUid : messages[0]?.uid;
+        const targetUid = selectedUid && selectedUid > 0 ? selectedUid : null;
 
         if (targetUid) {
           const message = (await client.fetchOne(
@@ -219,4 +229,30 @@ export async function getMailboxOverview(selectedUid?: number | null, limit = 25
       selectedMessage: null
     };
   }
+}
+
+export async function updateMailboxReadState(input: { uid: number; unread: boolean }) {
+  const settings = await getEmailSettings();
+
+  if (!canReadMailbox(settings)) {
+    throw new Error("Add IMAP settings before updating mailbox read state.");
+  }
+
+  if (!input.uid || input.uid <= 0) {
+    throw new Error("Mailbox message UID is required.");
+  }
+
+  await withMailboxClient(settings, async (client) => {
+    const lock = await client.getMailboxLock(settings.imapMailbox);
+
+    try {
+      if (input.unread) {
+        await client.messageFlagsRemove(input.uid, ["\\Seen"], { uid: true });
+      } else {
+        await client.messageFlagsAdd(input.uid, ["\\Seen"], { uid: true });
+      }
+    } finally {
+      lock.release();
+    }
+  });
 }
