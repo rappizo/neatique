@@ -193,11 +193,6 @@ export async function runFollowEmailAutomation(): Promise<FollowEmailAutomationS
       continue;
     }
 
-    if (stageKey === "COMPLETED" && claim.rewardGranted) {
-      summary.ryo.skipped += 1;
-      continue;
-    }
-
     if (claim.followEmails.some((log) => log.stageKey === stageKey)) {
       summary.ryo.skipped += 1;
       continue;
