@@ -19,6 +19,9 @@ import type {
   EmailCampaignSummaryReportRecord,
   EmailCampaignWithReportRecord,
   EmailMarketingOverviewRecord,
+  FollowEmailLogRecord,
+  FollowEmailOverviewRecord,
+  FollowEmailProcessKey,
   FormSubmissionRecord,
   FormSubmissionSummaryRecord,
   MascotRedemptionRecord,
@@ -45,6 +48,7 @@ import { prisma } from "@/lib/db";
 import { getOpenAiEmailSettings } from "@/lib/openai-email";
 import { getAiPostAutomationOverview as loadAiPostAutomationOverview } from "@/lib/ai-post-automation";
 import { getOpenAiPostSettings } from "@/lib/openai-posts";
+import { getFollowEmailOverview as buildFollowEmailOverview } from "@/lib/follow-emails";
 import { getDateKeyInTimeZone, LOS_ANGELES_TIME_ZONE } from "@/lib/format";
 import {
   ensureLegacyContactFormBackfill,
@@ -514,6 +518,19 @@ function mapFormSubmission(submission: any): FormSubmissionRecord {
   };
 }
 
+function mapFollowEmailLog(log: any): FollowEmailLogRecord {
+  return {
+    id: log.id,
+    processKey: log.processKey,
+    stageKey: log.stageKey,
+    recipientEmail: log.recipientEmail,
+    recipientName: log.recipientName ?? null,
+    subject: log.subject,
+    bodyText: log.bodyText,
+    createdAt: new Date(log.createdAt)
+  };
+}
+
 function mapOmbClaim(claim: any): OmbClaimRecord {
   return {
     id: claim.id,
@@ -535,6 +552,7 @@ function mapOmbClaim(claim: any): OmbClaimRecord {
     giftSentAt: claim.giftSentAt ? new Date(claim.giftSentAt) : null,
     adminNote: claim.adminNote ?? null,
     completedAt: claim.completedAt ? new Date(claim.completedAt) : null,
+    followEmails: Array.isArray(claim.followEmails) ? claim.followEmails.map(mapFollowEmailLog) : [],
     createdAt: new Date(claim.createdAt),
     updatedAt: new Date(claim.updatedAt)
   };
@@ -562,6 +580,7 @@ function mapRyoClaim(claim: any): RyoClaimRecord {
     rewardGrantedAt: claim.rewardGrantedAt ? new Date(claim.rewardGrantedAt) : null,
     adminNote: claim.adminNote ?? null,
     completedAt: claim.completedAt ? new Date(claim.completedAt) : null,
+    followEmails: Array.isArray(claim.followEmails) ? claim.followEmails.map(mapFollowEmailLog) : [],
     createdAt: new Date(claim.createdAt),
     updatedAt: new Date(claim.updatedAt)
   };
@@ -1110,6 +1129,11 @@ export async function getOmbClaims(searchEmail = "") {
                 }
               }
             : undefined,
+          include: {
+            followEmails: {
+              orderBy: [{ createdAt: "desc" }]
+            }
+          },
           orderBy: [{ createdAt: "desc" }]
         })
       ).map(mapOmbClaim),
@@ -1174,6 +1198,11 @@ export async function getOmbClaimPage(
         prisma.ombClaim.count({ where }),
         prisma.ombClaim.findMany({
           where,
+          include: {
+            followEmails: {
+              orderBy: [{ createdAt: "desc" }]
+            }
+          },
           orderBy: [{ createdAt: "desc" }],
           skip: Math.max(0, page - 1) * pageSize,
           take: pageSize
@@ -1234,6 +1263,11 @@ export async function getOmbClaimPage(
           ? claims
           : await prisma.ombClaim.findMany({
               where,
+              include: {
+                followEmails: {
+                  orderBy: [{ createdAt: "desc" }]
+                }
+              },
               orderBy: [{ createdAt: "desc" }],
               skip: (currentPage - 1) * pageSize,
               take: pageSize
@@ -1279,7 +1313,12 @@ export async function getOmbClaimById(id: string) {
   return withFallback(
     async () => {
       const claim = await prisma.ombClaim.findUnique({
-        where: { id }
+        where: { id },
+        include: {
+          followEmails: {
+            orderBy: [{ createdAt: "desc" }]
+          }
+        }
       });
 
       return claim ? mapOmbClaim(claim) : null;
@@ -1414,11 +1453,51 @@ export async function getRyoClaims(limit = 50) {
     async () =>
       (
         await prisma.ryoClaim.findMany({
+          include: {
+            followEmails: {
+              orderBy: [{ createdAt: "desc" }]
+            }
+          },
           orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
           take: limit
         })
       ).map(mapRyoClaim),
     [] as RyoClaimRecord[]
+  );
+}
+
+export async function getFollowEmailOverview(processKey: FollowEmailProcessKey) {
+  return withFallback<FollowEmailOverviewRecord>(
+    async () => {
+      const [settings, logs] = await Promise.all([
+        getStoreSettings(),
+        prisma.followEmailLog.findMany({
+          where: {
+            processKey
+          },
+          select: {
+            stageKey: true,
+            createdAt: true
+          }
+        })
+      ]);
+
+      const todayKey = getDateKeyInTimeZone(new Date(), LOS_ANGELES_TIME_ZONE);
+      const sentCounts = logs.reduce<Partial<Record<FollowEmailLogRecord["stageKey"], number>>>(
+        (accumulator, log) => {
+          if (getDateKeyInTimeZone(log.createdAt, LOS_ANGELES_TIME_ZONE) !== todayKey) {
+            return accumulator;
+          }
+
+          accumulator[log.stageKey] = (accumulator[log.stageKey] ?? 0) + 1;
+          return accumulator;
+        },
+        {}
+      );
+
+      return buildFollowEmailOverview(processKey, settings, sentCounts);
+    },
+    buildFollowEmailOverview(processKey, fallbackSettings, {})
   );
 }
 

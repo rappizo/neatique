@@ -8,6 +8,8 @@ export type CouponDiscountType = "PERCENT" | "FIXED_AMOUNT";
 export type CouponUsageMode = "SINGLE_USE" | "UNLIMITED";
 export type EmailCampaignStatus = "DRAFT" | "SYNCED" | "SCHEDULED" | "SENT" | "FAILED";
 export type EmailAudienceType = "NEWSLETTER" | "CUSTOMERS" | "LEADS" | "ALL_MARKETING" | "CUSTOM";
+export type FollowEmailProcessKey = "OMB" | "RYO";
+export type FollowEmailStageKey = "WAITING_STEP_2" | "WAITING_LAST_STEP" | "COMPLETED";
 
 export type PostExternalLinkRecord = {
   label: string;
@@ -391,6 +393,7 @@ export type OmbClaimRecord = {
   giftSentAt: Date | null;
   adminNote: string | null;
   completedAt: Date | null;
+  followEmails: FollowEmailLogRecord[];
   createdAt: Date;
   updatedAt: Date;
 };
@@ -416,8 +419,37 @@ export type RyoClaimRecord = {
   rewardGrantedAt: Date | null;
   adminNote: string | null;
   completedAt: Date | null;
+  followEmails: FollowEmailLogRecord[];
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type FollowEmailLogRecord = {
+  id: string;
+  processKey: FollowEmailProcessKey;
+  stageKey: FollowEmailStageKey;
+  recipientEmail: string;
+  recipientName: string | null;
+  subject: string;
+  bodyText: string;
+  createdAt: Date;
+};
+
+export type FollowEmailTemplateRecord = {
+  stageKey: FollowEmailStageKey;
+  stageLabel: string;
+  subject: string;
+  bodyText: string;
+  sentTodayCount: number;
+};
+
+export type FollowEmailOverviewRecord = {
+  processKey: FollowEmailProcessKey;
+  processLabel: string;
+  enabled: boolean;
+  delayMinutes: number;
+  totalSentToday: number;
+  templates: FollowEmailTemplateRecord[];
 };
 
 export type AdminOmbClaimPageRecord = {

@@ -74,7 +74,7 @@ function canSendEmail(settings: EmailSettings) {
   );
 }
 
-async function sendEmail(input: {
+export async function sendConfiguredEmail(input: {
   to: string;
   subject: string;
   html: string;
@@ -114,7 +114,7 @@ export async function sendCustomerWelcomeEmail(input: {
 }) {
   const name = input.firstName || "there";
 
-  return sendEmail({
+  return sendConfiguredEmail({
     to: input.email,
     subject: "Your Neatique account is ready",
     text: `Hi ${name}, your Neatique account has been created. You can sign in with ${input.email} and temporary password ${input.password}.`,
@@ -189,7 +189,7 @@ export async function sendContactSubmissionEmails(input: {
 export async function sendSubscriptionCouponEmail(input: {
   email: string;
 }) {
-  return sendEmail({
+  return sendConfiguredEmail({
     to: input.email,
     subject: `${SUBSCRIBE_COUPON_PERCENT_OFF}% off your first Neatique purchase`,
     text: `Welcome to Neatique. Your subscriber offer is ${SUBSCRIBE_COUPON_CODE}. Apply it at checkout for ${getSubscribeCouponDescription()}. If you do not see this email in your inbox, please check your spam or promotions folder.`,
@@ -212,7 +212,7 @@ export async function sendRyoRewardApprovedEmail(input: {
 }) {
   const name = input.firstName || "there";
 
-  return sendEmail({
+  return sendConfiguredEmail({
     to: input.email,
     subject: "Your Neatique order registration was approved",
     text: `Hi ${name}, we reviewed your Register Your Order submission and added ${input.points} points to your Neatique account. Visit https://neatiquebeauty.com/rd to redeem your mascot once your balance is ready.`,

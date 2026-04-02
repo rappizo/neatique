@@ -112,6 +112,7 @@ export async function POST(request: Request) {
       reviewRating: rating,
       commentText,
       reviewDestinationUrl,
+      reviewStepSubmittedAt: new Date(),
       screenshotName: null,
       screenshotMimeType: null,
       screenshotBase64: null,

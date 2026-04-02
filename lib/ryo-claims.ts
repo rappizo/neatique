@@ -8,6 +8,7 @@ type RyoCompletionData = {
   reviewRating?: number | null;
   commentText?: string | null;
   reviewDestinationUrl?: string | null;
+  reviewStepSubmittedAt?: Date | null;
   screenshotName?: string | null;
   screenshotMimeType?: string | null;
   screenshotBase64?: string | null;

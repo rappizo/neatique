@@ -73,6 +73,17 @@ enum EmailAudienceType {
   CUSTOM
 }
 
+enum FollowEmailProcess {
+  OMB
+  RYO
+}
+
+enum FollowEmailStage {
+  WAITING_STEP_2
+  WAITING_LAST_STEP
+  COMPLETED
+}
+
 model Product {
   id                  String        @id @default(cuid())
   productCode         String?       @unique
@@ -309,9 +320,11 @@ model RyoClaim {
   pointsAwarded        Int       @default(500)
   rewardGranted        Boolean   @default(false)
   rewardGrantedAt      DateTime?
+  reviewStepSubmittedAt DateTime?
   adminNote            String?
   completedAt          DateTime?
   customer             Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  followEmails         FollowEmailLog[]
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -456,8 +469,10 @@ model OmbClaim {
   extraBottleAddress   String?
   giftSent             Boolean  @default(false)
   giftSentAt           DateTime?
+  reviewStepSubmittedAt DateTime?
   adminNote            String?
   completedAt          DateTime?
+  followEmails         FollowEmailLog[]
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -465,4 +480,24 @@ model OmbClaim {
   @@index([email])
   @@index([giftSent])
   @@index([completedAt])
+}
+
+model FollowEmailLog {
+  id             String             @id @default(cuid())
+  processKey     FollowEmailProcess
+  stageKey       FollowEmailStage
+  recipientEmail String
+  recipientName  String?
+  subject        String
+  bodyText       String
+  ombClaimId     String?
+  ryoClaimId     String?
+  ombClaim       OmbClaim?          @relation(fields: [ombClaimId], references: [id], onDelete: Cascade)
+  ryoClaim       RyoClaim?          @relation(fields: [ryoClaimId], references: [id], onDelete: Cascade)
+  createdAt      DateTime           @default(now())
+
+  @@unique([ombClaimId, stageKey])
+  @@unique([ryoClaimId, stageKey])
+  @@index([processKey, createdAt])
+  @@index([stageKey, createdAt])
 }

@@ -26,6 +26,11 @@ import {
 import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from "@/lib/coupons";
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
 import { normalizeArticleContent } from "@/lib/article-format";
+import {
+  buildFollowEmailSettingsEntries,
+  FOLLOW_EMAIL_STAGE_ORDER,
+  getEnabledAtKey
+} from "@/lib/follow-emails";
 import { generateEmailCampaignDraftWithAi } from "@/lib/openai-email";
 import {
   generateSeoPostImageFromProductReferenceWithAi,
@@ -1761,6 +1766,61 @@ export async function saveEmailMarketingSettingsAction(formData: FormData) {
 
   revalidatePath("/admin/email-marketing");
   redirect("/admin/email-marketing?status=settings-saved");
+}
+
+export async function saveFollowEmailSettingsAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/omb-claims";
+  const processKey = toPlainString(formData.get("processKey")) === "RYO" ? "RYO" : "OMB";
+  const delayMinutes = Math.max(1, toInt(formData.get("delayMinutes"), 30));
+  const enabled = toBool(formData.get("enabled"));
+  const existingSettings = await loadStoreSettingsMap();
+  const enabledAtKey = getEnabledAtKey(processKey);
+  const wasEnabled =
+    existingSettings[processKey === "OMB" ? "omb_follow_enabled" : "ryo_follow_enabled"] === "true";
+
+  const subjects = Object.fromEntries(
+    FOLLOW_EMAIL_STAGE_ORDER.map((stageKey) => [
+      stageKey,
+      toPlainString(formData.get(`subject_${stageKey}`))
+    ])
+  );
+  const bodies = Object.fromEntries(
+    FOLLOW_EMAIL_STAGE_ORDER.map((stageKey) => [
+      stageKey,
+      toPlainString(formData.get(`body_${stageKey}`))
+    ])
+  );
+
+  const settings = buildFollowEmailSettingsEntries(processKey, {
+    enabled,
+    delayMinutes,
+    subjects,
+    bodies
+  });
+
+  if (enabled && !wasEnabled) {
+    settings.push([enabledAtKey, new Date().toISOString()]);
+  }
+
+  await Promise.all(
+    settings.map(([key, value]) =>
+      prisma.storeSetting.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value }
+      })
+    )
+  );
+
+  revalidatePath("/admin/omb-claims");
+  revalidatePath("/admin/rewards");
+  redirect(
+    processKey === "OMB"
+      ? buildOmbClaimRedirect("follow-email-settings-saved", redirectTo)
+      : buildRewardsRedirect("follow-email-settings-saved", redirectTo)
+  );
 }
 
 export async function importBrevoAudienceAction(formData: FormData) {

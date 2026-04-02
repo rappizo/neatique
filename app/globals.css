@@ -2890,6 +2890,54 @@ main {
   margin-top: 8px;
 }
 
+.admin-follow-email-form {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-follow-email-form__controls {
+  display: grid;
+  grid-template-columns: minmax(260px, max-content) minmax(180px, 260px);
+  gap: 16px;
+  align-items: end;
+}
+
+.admin-follow-email-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-follow-email-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(237, 115, 97, 0.14);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.admin-follow-email-card strong {
+  font-size: 1.02rem;
+}
+
+.admin-follow-email-log {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-follow-email-log summary {
+  cursor: pointer;
+  color: var(--brand-deep);
+  font-weight: 700;
+}
+
+.admin-follow-email-log p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.65;
+}
+
 .admin-review-item {
   display: grid;
   gap: 16px;
@@ -3444,6 +3492,11 @@ main {
 }
 
 @media (max-width: 1080px) {
+  .admin-follow-email-form__controls,
+  .admin-follow-email-grid {
+    grid-template-columns: 1fr;
+  }
+
   .hero__grid,
   .product-detail,
   .admin-shell,

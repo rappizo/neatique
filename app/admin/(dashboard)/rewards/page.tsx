@@ -3,22 +3,33 @@ import Link from "next/link";
 import {
   adjustCustomerPointsAction,
   approveRyoClaimRewardAction,
+  saveFollowEmailSettingsAction,
   updateMascotRedemptionAction
 } from "@/app/admin/actions";
+import { RatingStars } from "@/components/ui/rating-stars";
+import { FOLLOW_EMAIL_PROCESS_LABELS, FOLLOW_EMAIL_STAGE_LABELS } from "@/lib/follow-emails";
 import { formatDate } from "@/lib/format";
-import { getCustomers, getMascotRedemptions, getMascotRewards, getRewards, getRyoClaims } from "@/lib/queries";
+import {
+  getCustomers,
+  getFollowEmailOverview,
+  getMascotRedemptions,
+  getMascotRewards,
+  getRewards,
+  getRyoClaims
+} from "@/lib/queries";
 
 type AdminRewardsPageProps = {
   searchParams: Promise<{ status?: string }>;
 };
 
 export default async function AdminRewardsPage({ searchParams }: AdminRewardsPageProps) {
-  const [customers, rewards, mascots, redemptions, ryoClaims, params] = await Promise.all([
+  const [customers, rewards, mascots, redemptions, ryoClaims, followOverview, params] = await Promise.all([
     getCustomers(),
     getRewards(),
     getMascotRewards(),
     getMascotRedemptions(),
     getRyoClaims(),
+    getFollowEmailOverview("RYO"),
     searchParams
   ]);
   const pendingRyoClaims = ryoClaims.filter((claim) => claim.completedAt && !claim.rewardGranted);
@@ -54,6 +65,77 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
           <span>RYO waiting for approval</span>
         </div>
       </div>
+
+      <section className="admin-form">
+        <div className="stack-row">
+          <div>
+            <h2>Email Following</h2>
+            <p className="form-note">
+              Automatically follow up with RYO customers after the selected delay. Shortcodes:
+              {" "}
+              <code>[Customer Name]</code>
+              {" "}
+              and
+              {" "}
+              <code>[Customer Email]</code>.
+            </p>
+          </div>
+          <div className="stack-row">
+            <span className="pill">{FOLLOW_EMAIL_PROCESS_LABELS.RYO}</span>
+            <span className="pill">{followOverview.totalSentToday} sent today</span>
+          </div>
+        </div>
+        <form action={saveFollowEmailSettingsAction} className="admin-follow-email-form">
+          <input type="hidden" name="processKey" value="RYO" />
+          <input type="hidden" name="redirectTo" value="/admin/rewards" />
+          <div className="admin-follow-email-form__controls">
+            <label className="admin-table__checkbox-label">
+              <input type="checkbox" name="enabled" defaultChecked={followOverview.enabled} />
+              <span>Enable automatic RYO follow emails</span>
+            </label>
+            <div className="field">
+              <label htmlFor="ryo-delay-minutes">Send after (minutes)</label>
+              <input
+                id="ryo-delay-minutes"
+                name="delayMinutes"
+                type="number"
+                min={1}
+                defaultValue={followOverview.delayMinutes}
+              />
+            </div>
+          </div>
+          <div className="admin-follow-email-grid">
+            {followOverview.templates.map((template) => (
+              <article key={template.stageKey} className="admin-follow-email-card">
+                <div className="stack-row">
+                  <strong>{template.stageLabel}</strong>
+                  <span className="pill">{template.sentTodayCount} sent today</span>
+                </div>
+                <div className="field">
+                  <label htmlFor={`ryo-subject-${template.stageKey}`}>Subject</label>
+                  <input
+                    id={`ryo-subject-${template.stageKey}`}
+                    name={`subject_${template.stageKey}`}
+                    defaultValue={template.subject}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor={`ryo-body-${template.stageKey}`}>Body</label>
+                  <textarea
+                    id={`ryo-body-${template.stageKey}`}
+                    name={`body_${template.stageKey}`}
+                    rows={8}
+                    defaultValue={template.bodyText}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+          <button type="submit" className="button button--primary">
+            Save email following settings
+          </button>
+        </form>
+      </section>
 
       <section className="admin-form">
         <div className="stack-row">
@@ -173,6 +255,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
               <th>Comment</th>
               <th>Proof</th>
               <th>Status</th>
+              <th>Follow Email Sent</th>
               <th>Note</th>
               <th>Action</th>
             </tr>
@@ -189,6 +272,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
                 const statusClassName = claim.rewardGranted
                   ? "admin-table__status-badge admin-table__status-badge--success"
                   : "admin-table__status-badge admin-table__status-badge--warning";
+                const latestFollowEmail = claim.followEmails[0] ?? null;
 
                 return (
                   <tr key={claim.id}>
@@ -212,7 +296,13 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
                         <span className="admin-table__empty">Not submitted yet</span>
                       )}
                     </td>
-                    <td>{claim.reviewRating ? `${claim.reviewRating}/5` : <span className="admin-table__empty">No rating</span>}</td>
+                    <td>
+                      {claim.reviewRating ? (
+                        <RatingStars rating={claim.reviewRating} size="sm" />
+                      ) : (
+                        <span className="admin-table__empty">No rating</span>
+                      )}
+                    </td>
                     <td className="admin-table__clip">
                       {claim.commentText ? claim.commentText : <span className="admin-table__empty">No comment yet.</span>}
                     </td>
@@ -231,6 +321,25 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
                     </td>
                     <td>
                       <span className={statusClassName}>{statusLabel}</span>
+                    </td>
+                    <td>
+                      {latestFollowEmail ? (
+                        <details className="admin-follow-email-log">
+                          <summary>Follow email sent</summary>
+                          <div className="admin-table__cell-stack">
+                            {claim.followEmails.map((emailLog) => (
+                              <div key={emailLog.id} className="admin-table__cell-stack">
+                                <span className="pill">{FOLLOW_EMAIL_STAGE_LABELS[emailLog.stageKey]}</span>
+                                <strong>{emailLog.subject}</strong>
+                                <span>{formatDate(emailLog.createdAt)}</span>
+                                <p>{emailLog.bodyText}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      ) : (
+                        <span className="admin-table__empty">No follow email sent</span>
+                      )}
                     </td>
                     <td>
                       <textarea
@@ -259,7 +368,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
               })
             ) : (
               <tr>
-                <td colSpan={10}>No RYO registrations yet.</td>
+                <td colSpan={11}>No RYO registrations yet.</td>
               </tr>
             )}
           </tbody>

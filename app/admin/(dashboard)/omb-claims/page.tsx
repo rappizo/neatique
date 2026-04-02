@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { updateOmbClaimAction } from "@/app/admin/actions";
+import { saveFollowEmailSettingsAction, updateOmbClaimAction } from "@/app/admin/actions";
 import { RatingStars } from "@/components/ui/rating-stars";
+import { FOLLOW_EMAIL_PROCESS_LABELS, FOLLOW_EMAIL_STAGE_LABELS } from "@/lib/follow-emails";
 import { formatDate, formatNumber, formatTime, LOS_ANGELES_TIME_ZONE } from "@/lib/format";
-import { getOmbClaimPage } from "@/lib/queries";
+import { getFollowEmailOverview, getOmbClaimPage } from "@/lib/queries";
 
 const OMB_UNSUBMITTED_PRODUCT_FILTER = "__NOT_SUBMITTED__";
 
@@ -19,13 +20,16 @@ type AdminOmbClaimsPageProps = {
 export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaimsPageProps) {
   const params = await searchParams;
   const requestedPage = Number.parseInt(params.page || "1", 10);
-  const claimPage = await getOmbClaimPage(
-    Number.isFinite(requestedPage) ? requestedPage : 1,
-    50,
-    params.email || "",
-    params.platform || "",
-    params.product || ""
-  );
+  const [claimPage, followOverview] = await Promise.all([
+    getOmbClaimPage(
+      Number.isFinite(requestedPage) ? requestedPage : 1,
+      50,
+      params.email || "",
+      params.platform || "",
+      params.product || ""
+    ),
+    getFollowEmailOverview("OMB")
+  ]);
   const {
     claims,
     totalCount,
@@ -78,6 +82,77 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
       </div>
 
       {params.status ? <p className="notice">OMB claim action completed: {params.status}.</p> : null}
+
+      <section className="admin-form">
+        <div className="stack-row">
+          <div>
+            <h2>Email Following</h2>
+            <p className="form-note">
+              Automatically follow up with OMB customers after the selected delay. Shortcodes:
+              {" "}
+              <code>[Customer Name]</code>
+              {" "}
+              and
+              {" "}
+              <code>[Customer Email]</code>.
+            </p>
+          </div>
+          <div className="stack-row">
+            <span className="pill">{FOLLOW_EMAIL_PROCESS_LABELS.OMB}</span>
+            <span className="pill">{formatNumber(followOverview.totalSentToday)} sent today</span>
+          </div>
+        </div>
+        <form action={saveFollowEmailSettingsAction} className="admin-follow-email-form">
+          <input type="hidden" name="processKey" value="OMB" />
+          <input type="hidden" name="redirectTo" value="/admin/omb-claims" />
+          <div className="admin-follow-email-form__controls">
+            <label className="admin-table__checkbox-label">
+              <input type="checkbox" name="enabled" defaultChecked={followOverview.enabled} />
+              <span>Enable automatic OMB follow emails</span>
+            </label>
+            <div className="field">
+              <label htmlFor="omb-delay-minutes">Send after (minutes)</label>
+              <input
+                id="omb-delay-minutes"
+                name="delayMinutes"
+                type="number"
+                min={1}
+                defaultValue={followOverview.delayMinutes}
+              />
+            </div>
+          </div>
+          <div className="admin-follow-email-grid">
+            {followOverview.templates.map((template) => (
+              <article key={template.stageKey} className="admin-follow-email-card">
+                <div className="stack-row">
+                  <strong>{template.stageLabel}</strong>
+                  <span className="pill">{formatNumber(template.sentTodayCount)} sent today</span>
+                </div>
+                <div className="field">
+                  <label htmlFor={`omb-subject-${template.stageKey}`}>Subject</label>
+                  <input
+                    id={`omb-subject-${template.stageKey}`}
+                    name={`subject_${template.stageKey}`}
+                    defaultValue={template.subject}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor={`omb-body-${template.stageKey}`}>Body</label>
+                  <textarea
+                    id={`omb-body-${template.stageKey}`}
+                    name={`body_${template.stageKey}`}
+                    rows={8}
+                    defaultValue={template.bodyText}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+          <button type="submit" className="button button--primary">
+            Save email following settings
+          </button>
+        </form>
+      </section>
 
       <section className="admin-form">
         <div className="admin-review-pagination">
@@ -157,7 +232,7 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                 <th>Comment</th>
                 <th>Extra Bottle Address</th>
                 <th>Screenshot</th>
-                <th>Gift Sent</th>
+                <th>Gift/Email Sent</th>
                 <th>Note</th>
                 <th>Action</th>
               </tr>
@@ -175,6 +250,7 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                   ? "admin-table__status-badge admin-table__status-badge--success"
                   : "admin-table__status-badge admin-table__status-badge--warning";
                 const submittedAt = claim.completedAt ?? claim.createdAt;
+                const latestFollowEmail = claim.followEmails[0] ?? null;
 
                 return (
                   <tr key={claim.id}>
@@ -242,15 +318,40 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                       )}
                     </td>
                     <td>
-                      <label className="admin-table__checkbox-label">
-                        <input
-                          type="checkbox"
-                          name="giftSent"
-                          defaultChecked={claim.giftSent}
-                          form={formId}
-                        />
-                        <span>{claim.giftSent ? "Sent" : "Pending"}</span>
-                      </label>
+                      <div className="admin-table__cell-stack">
+                        <label className="admin-table__checkbox-label">
+                          <input
+                            type="checkbox"
+                            name="giftSent"
+                            defaultChecked={claim.giftSent}
+                            form={formId}
+                          />
+                          <span>{claim.giftSent ? "Gift sent" : "Gift pending"}</span>
+                        </label>
+                        {latestFollowEmail ? (
+                          <details className="admin-follow-email-log">
+                            <summary>Follow email sent</summary>
+                            <div className="admin-table__cell-stack">
+                              {claim.followEmails.map((emailLog) => (
+                                <div key={emailLog.id} className="admin-table__cell-stack">
+                                  <span className="pill">
+                                    {FOLLOW_EMAIL_STAGE_LABELS[emailLog.stageKey]}
+                                  </span>
+                                  <strong>{emailLog.subject}</strong>
+                                  <span>
+                                    {formatDate(emailLog.createdAt, LOS_ANGELES_TIME_ZONE)}
+                                    {" "}
+                                    {formatTime(emailLog.createdAt, LOS_ANGELES_TIME_ZONE, true)}
+                                  </span>
+                                  <p>{emailLog.bodyText}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        ) : (
+                          <span className="admin-table__empty">No follow email sent</span>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <textarea
