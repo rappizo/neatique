@@ -24,6 +24,18 @@ type EmailSettings = {
   imapMailbox: string;
 };
 
+type EmailSendResult =
+  | {
+      delivered: true;
+      accepted?: string[];
+      rejected?: string[];
+    }
+  | {
+      delivered: false;
+      reason: string;
+      stage?: "config" | "verify" | "send";
+    };
+
 function parseBool(value: string | undefined) {
   return value === "true" || value === "1" || value === "on";
 }
@@ -92,20 +104,8 @@ function canSendEmail(settings: EmailSettings) {
   );
 }
 
-export async function sendConfiguredEmail(input: {
-  to: string;
-  subject: string;
-  html: string;
-  text: string;
-  replyTo?: string;
-}) {
-  const settings = await getEmailSettings();
-
-  if (!canSendEmail(settings)) {
-    return { delivered: false, reason: "Email configuration is incomplete." };
-  }
-
-  const transporter = nodemailer.createTransport({
+function createEmailTransport(settings: EmailSettings) {
+  return nodemailer.createTransport({
     host: settings.smtpHost,
     port: settings.smtpPort,
     secure: settings.smtpSecure,
@@ -114,17 +114,153 @@ export async function sendConfiguredEmail(input: {
       pass: settings.smtpPass
     }
   });
+}
 
-  await transporter.sendMail({
-    from: `"${settings.fromName}" <${settings.fromEmail}>`,
-    to: input.to,
-    replyTo: input.replyTo || undefined,
-    subject: input.subject,
-    text: input.text,
-    html: input.html
+function sanitizeEmailDiagnosticValue(value: string, maxLength = 220) {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  return cleaned.length <= maxLength ? cleaned : `${cleaned.slice(0, maxLength)}...`;
+}
+
+function formatEmailTransportError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return "Unknown SMTP error.";
+  }
+
+  const candidate = error as {
+    code?: string;
+    message?: string;
+    response?: string;
+    responseCode?: number;
+    command?: string;
+  };
+
+  const parts: string[] = [];
+  if (candidate.code) {
+    parts.push(candidate.code);
+  }
+  if (typeof candidate.responseCode === "number") {
+    parts.push(String(candidate.responseCode));
+  }
+  if (candidate.command) {
+    parts.push(candidate.command);
+  }
+  if (candidate.response) {
+    parts.push(candidate.response);
+  } else if (candidate.message) {
+    parts.push(candidate.message);
+  }
+
+  if (parts.length === 0) {
+    return "Unknown SMTP error.";
+  }
+
+  return sanitizeEmailDiagnosticValue(parts.join(" | "));
+}
+
+async function sendEmailWithTransport(input: {
+  settings: EmailSettings;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+}): Promise<EmailSendResult> {
+  const transporter = createEmailTransport(input.settings);
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"${input.settings.fromName}" <${input.settings.fromEmail}>`,
+      to: input.to,
+      replyTo: input.replyTo || undefined,
+      subject: input.subject,
+      text: input.text,
+      html: input.html
+    });
+
+    const accepted = Array.isArray(info.accepted) ? info.accepted.map(String) : [];
+    const rejected = Array.isArray(info.rejected) ? info.rejected.map(String) : [];
+
+    if (rejected.length > 0 && accepted.length === 0) {
+      return {
+        delivered: false,
+        stage: "send",
+        reason: sanitizeEmailDiagnosticValue(`Recipient rejected: ${rejected.join(", ")}`)
+      };
+    }
+
+    return {
+      delivered: true,
+      accepted,
+      rejected
+    };
+  } catch (error) {
+    return {
+      delivered: false,
+      stage: "send",
+      reason: formatEmailTransportError(error)
+    };
+  }
+}
+
+export async function sendConfiguredEmail(input: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+}): Promise<EmailSendResult> {
+  const settings = await getEmailSettings();
+
+  if (!canSendEmail(settings)) {
+    return { delivered: false, stage: "config", reason: "Email configuration is incomplete." };
+  }
+
+  return sendEmailWithTransport({
+    settings,
+    ...input
+  });
+}
+
+export async function sendSmtpDiagnosticEmail(input: {
+  to: string;
+}): Promise<EmailSendResult> {
+  const settings = await getEmailSettings();
+
+  if (!canSendEmail(settings)) {
+    return { delivered: false, stage: "config", reason: "Email configuration is incomplete." };
+  }
+
+  const transporter = createEmailTransport(settings);
+
+  try {
+    await transporter.verify();
+  } catch (error) {
+    return {
+      delivered: false,
+      stage: "verify",
+      reason: formatEmailTransportError(error)
+    };
+  }
+
+  const sentAt = new Date().toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short"
   });
 
-  return { delivered: true };
+  return sendEmailWithTransport({
+    settings,
+    to: input.to,
+    subject: "Neatique SMTP test email",
+    text: `This is a test email from the Neatique admin SMTP diagnostic tool.\n\nSent at: ${sentAt}\nFrom: ${settings.fromEmail}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.8;color:#2e2825">
+        <h2 style="font-family:Georgia,serif;color:#ed7361">Neatique SMTP test email</h2>
+        <p>This confirms that the saved SMTP settings can authenticate and send a message from the admin panel.</p>
+        <p><strong>Sent at:</strong> ${sentAt}</p>
+        <p><strong>From:</strong> ${settings.fromEmail}</p>
+      </div>
+    `
+  });
 }
 
 export async function sendCustomerWelcomeEmail(input: {
@@ -162,15 +298,7 @@ export async function sendContactSubmissionEmails(input: {
     return { delivered: false, reason: "Email configuration is incomplete." };
   }
 
-  const transporter = nodemailer.createTransport({
-    host: settings.smtpHost,
-    port: settings.smtpPort,
-    secure: settings.smtpSecure,
-    auth: {
-      user: settings.smtpUser,
-      pass: settings.smtpPass
-    }
-  });
+  const transporter = createEmailTransport(settings);
 
   await transporter.sendMail({
     from: `"${settings.fromName}" <${settings.fromEmail}>`,

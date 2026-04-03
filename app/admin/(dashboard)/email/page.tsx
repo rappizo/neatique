@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   saveEmailSettingsAction,
   sendAdminMailboxEmailAction,
+  sendAdminSmtpTestEmailAction,
   generateAdminMailboxReplyAiAction,
   updateMailboxReadStateAction
 } from "@/app/admin/actions";
@@ -17,13 +18,14 @@ type AdminEmailPageProps = {
     composeTo?: string;
     composeSubject?: string;
     composeBody?: string;
+    detail?: string;
   }>;
 };
 
 const STATUS_MESSAGES: Record<string, string> = {
   saved: "Email settings were saved.",
   "mail-sent": "Email was sent successfully.",
-  "mail-send-failed": "Email could not be sent. Please review the mailbox or SMTP settings.",
+  "mail-send-failed": "Email could not be sent. Review the diagnostic note below.",
   "send-missing-fields": "To, subject, and message body are required before sending.",
   "mail-marked-read": "Message marked as read.",
   "mail-marked-unread": "Message marked as unread.",
@@ -31,7 +33,10 @@ const STATUS_MESSAGES: Record<string, string> = {
   "mailbox-update-failed": "Mailbox status could not be updated. Please check the IMAP connection.",
   "ai-reply-generated": "AI reply draft was generated and added to the message box.",
   "ai-reply-failed": "AI reply generation failed. Please try again.",
-  "mail-sent-contact-handled": "Email was sent successfully and the contact form was marked as handled."
+  "mail-sent-contact-handled": "Email was sent successfully and the contact form was marked as handled.",
+  "smtp-test-sent": "SMTP test email was sent successfully.",
+  "smtp-test-failed": "SMTP test email failed. Review the diagnostic note below.",
+  "smtp-test-missing-email": "Enter a destination email before sending a test message."
 };
 
 function toInt(value: string | undefined) {
@@ -178,6 +183,10 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
       })
     : null;
   const hasReplySource = Boolean(selectedMessage || contactSubmission);
+  const detailNoticeClass =
+    params.status && (params.status.includes("failed") || params.status.includes("missing"))
+      ? "notice notice--warning"
+      : "notice";
 
   return (
     <div className="admin-page admin-page--email">
@@ -191,6 +200,7 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
       </div>
 
       {params.status && STATUS_MESSAGES[params.status] ? <p className="notice">{STATUS_MESSAGES[params.status]}</p> : null}
+      {params.detail ? <p className={detailNoticeClass}>{params.detail}</p> : null}
 
       <section className="admin-form">
         <h2>Email delivery and mailbox settings</h2>
@@ -310,6 +320,36 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
             Save email settings
           </button>
         </form>
+        <div className="admin-mailbox-settings" style={{ marginTop: "1.25rem" }}>
+          <div className="admin-mailbox-settings__card">
+            <div className="stack-row">
+              <strong>SMTP diagnostic test</strong>
+              <span className="pill">Saved settings</span>
+            </div>
+            <p className="admin-table__empty">
+              Send a quick test email using the SMTP configuration already saved above. If the send fails,
+              the exact SMTP reason will be shown here so you can diagnose auth, host, port, or sender issues.
+            </p>
+            <form action={sendAdminSmtpTestEmailAction}>
+              <input type="hidden" name="redirectTo" value={currentViewHref} />
+              <div className="admin-form__grid">
+                <div className="field field--full">
+                  <label htmlFor="smtp_test_email">Test recipient email</label>
+                  <input
+                    id="smtp_test_email"
+                    name="testEmail"
+                    type="email"
+                    defaultValue={settings.email_from_address || settings.smtp_user || ""}
+                    placeholder="Enter the inbox you want to test"
+                  />
+                </div>
+              </div>
+              <button type="submit" className="button button--secondary">
+                Send test email
+              </button>
+            </form>
+          </div>
+        </div>
       </section>
 
       <section className="admin-form">

@@ -32,7 +32,7 @@ import {
   FOLLOW_EMAIL_STAGE_ORDER,
   getEnabledAtKey
 } from "@/lib/follow-emails";
-import { sendConfiguredEmail } from "@/lib/email";
+import { sendConfiguredEmail, sendSmtpDiagnosticEmail } from "@/lib/email";
 import { getMailboxOverview, updateMailboxReadState } from "@/lib/admin-mailbox";
 import {
   generateEmailCampaignDraftWithAi,
@@ -150,13 +150,23 @@ function buildEmailMarketingRedirect(status: string, campaignId?: string, redire
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
 }
 
-function buildEmailRedirect(status: string, redirectTo?: string) {
+function buildEmailRedirect(status: string, redirectTo?: string, detail?: string) {
   const basePath = redirectTo || "/admin/email";
   const [pathname, queryString = ""] = basePath.split("?");
   const params = new URLSearchParams(queryString);
   params.set("status", status);
+
+  if (detail) {
+    params.set("detail", sanitizeEmailAdminDetail(detail));
+  }
+
   const nextQuery = params.toString();
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function sanitizeEmailAdminDetail(value: string, maxLength = 240) {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  return cleaned.length <= maxLength ? cleaned : `${cleaned.slice(0, maxLength)}...`;
 }
 
 function buildEmailComposeRedirect(input: {
@@ -168,6 +178,7 @@ function buildEmailComposeRedirect(input: {
   composeTo?: string;
   composeSubject?: string;
   composeBody?: string;
+  detail?: string;
 }) {
   const basePath = input.redirectTo || "/admin/email";
   const [pathname, queryString = ""] = basePath.split("?");
@@ -196,6 +207,10 @@ function buildEmailComposeRedirect(input: {
 
   if (input.composeBody) {
     params.set("composeBody", input.composeBody.slice(0, 1600));
+  }
+
+  if (input.detail) {
+    params.set("detail", sanitizeEmailAdminDetail(input.detail));
   }
 
   const nextQuery = params.toString();
@@ -1994,19 +2009,71 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
       }
     }
 
+    if (!result.delivered) {
+      redirect(
+        buildEmailComposeRedirect({
+          status: "mail-send-failed",
+          redirectTo,
+          contactSubmissionId,
+          composeTo: to,
+          composeSubject: subject,
+          composeBody: body,
+          detail: result.reason
+        })
+      );
+    }
+
     redirect(
       buildEmailRedirect(
-        result.delivered
-          ? contactSubmissionId
-            ? "mail-sent-contact-handled"
-            : "mail-sent"
-          : "mail-send-failed",
+        contactSubmissionId ? "mail-sent-contact-handled" : "mail-sent",
         redirectTo
       )
     );
   } catch (error) {
     console.error("Admin mailbox send failed:", error);
-    redirect(buildEmailRedirect("mail-send-failed", redirectTo));
+    redirect(
+      buildEmailComposeRedirect({
+        status: "mail-send-failed",
+        redirectTo,
+        contactSubmissionId,
+        composeTo: to,
+        composeSubject: subject,
+        composeBody: body,
+        detail: error instanceof Error ? error.message : "Unknown email send error."
+      })
+    );
+  }
+}
+
+export async function sendAdminSmtpTestEmailAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
+  const testEmail = toPlainString(formData.get("testEmail"));
+
+  if (!testEmail) {
+    redirect(buildEmailRedirect("smtp-test-missing-email", redirectTo));
+  }
+
+  try {
+    const result = await sendSmtpDiagnosticEmail({
+      to: testEmail
+    });
+
+    if (!result.delivered) {
+      redirect(buildEmailRedirect("smtp-test-failed", redirectTo, result.reason));
+    }
+
+    redirect(buildEmailRedirect("smtp-test-sent", redirectTo, `Test email sent to ${testEmail}.`));
+  } catch (error) {
+    console.error("SMTP diagnostic send failed:", error);
+    redirect(
+      buildEmailRedirect(
+        "smtp-test-failed",
+        redirectTo,
+        error instanceof Error ? error.message : "Unknown SMTP test error."
+      )
+    );
   }
 }
 
