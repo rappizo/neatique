@@ -1510,6 +1510,28 @@ export async function bulkModerateReviewsAction(formData: FormData) {
         publishedAt: new Date()
       }
     });
+  } else if (intent === "mark-verified") {
+    await prisma.productReview.updateMany({
+      where: {
+        id: {
+          in: reviewIds
+        }
+      },
+      data: {
+        verifiedPurchase: true
+      }
+    });
+  } else if (intent === "mark-unverified") {
+    await prisma.productReview.updateMany({
+      where: {
+        id: {
+          in: reviewIds
+        }
+      },
+      data: {
+        verifiedPurchase: false
+      }
+    });
   } else {
     await prisma.productReview.deleteMany({
       where: {
@@ -1525,7 +1547,19 @@ export async function bulkModerateReviewsAction(formData: FormData) {
     revalidatePath(`/admin/reviews/${productSlug}`);
   }
   refreshStorefront(productSlug ? [productSlug] : []);
-  redirect(buildReviewRedirect(intent === "approve" ? "bulk-approved" : "bulk-deleted", redirectTo, productSlug));
+  redirect(
+    buildReviewRedirect(
+      intent === "approve"
+        ? "bulk-approved"
+        : intent === "mark-verified"
+          ? "bulk-verified"
+          : intent === "mark-unverified"
+            ? "bulk-unverified"
+            : "bulk-deleted",
+      redirectTo,
+      productSlug
+    )
+  );
 }
 
 export async function generateAiReviewsAction(formData: FormData) {
@@ -1613,7 +1647,7 @@ export async function generateAiReviewsAction(formData: FormData) {
           displayName: draft.displayName,
           reviewDate: createdAt,
           status: "PENDING",
-          verifiedPurchase: false,
+          verifiedPurchase: true,
           adminNotes: referenceReviews.length
             ? `AI generated with ${referenceReviews.length} uploaded reference reviews.`
             : "AI generated directly from product context, with no reference file.",
@@ -1714,9 +1748,10 @@ export async function bulkImportReviewsAction(formData: FormData) {
         title: row[titleIndex] || "",
         content: row[contentIndex] || "",
         displayName: row[displayNameIndex] || customer?.email || "Verified customer",
-        verifiedPurchase: parseCsvBoolean(
-          verifiedPurchaseIndex !== undefined ? row[verifiedPurchaseIndex] : undefined
-        ),
+        verifiedPurchase:
+          verifiedPurchaseIndex !== undefined
+            ? parseCsvBoolean(row[verifiedPurchaseIndex])
+            : true,
         reviewDate: parsedReviewDate ?? new Date(),
         status: nextStatus,
         publishedAt: nextStatus === "PUBLISHED" ? parsedReviewDate ?? new Date() : null,

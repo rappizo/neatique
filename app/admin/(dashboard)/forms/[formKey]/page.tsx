@@ -22,6 +22,30 @@ function buildPageHref(formKey: string, page: number, searchEmail: string) {
   return `/admin/forms/${formKey}?${params.toString()}`;
 }
 
+function buildReplyEmailHref(input: {
+  email: string;
+  subject?: string | null;
+  name?: string | null;
+}) {
+  const params = new URLSearchParams();
+  params.set("composeTo", input.email);
+  const subject = input.subject?.trim();
+  params.set(
+    "composeSubject",
+    subject ? (/^re:/i.test(subject) ? subject : `Re: ${subject}`) : "Re: Your message to Neatique"
+  );
+
+  const greetingName = input.name?.trim() || "there";
+  params.set(
+    "composeBody",
+    [`Hi ${greetingName},`, "", "Thanks for reaching out to Neatique.", "", "Best regards,", "Tracy", "Neatique Team"].join(
+      "\n"
+    )
+  );
+
+  return `/admin/email?${params.toString()}`;
+}
+
 export default async function AdminFormSubmissionListPage({
   params,
   searchParams
@@ -119,6 +143,18 @@ export default async function AdminFormSubmissionListPage({
                 <Link href={`/admin/forms/${formKey}/${submission.id}`} className="button button--primary">
                   View details
                 </Link>
+                {formKey === "contact" ? (
+                  <Link
+                    href={buildReplyEmailHref({
+                      email: submission.email,
+                      subject: submission.subject,
+                      name: submission.name
+                    })}
+                    className="button button--secondary"
+                  >
+                    Reply
+                  </Link>
+                ) : null}
                 <form action={toggleFormSubmissionHandledAction}>
                   <input type="hidden" name="id" value={submission.id} />
                   <input type="hidden" name="formKey" value={formKey} />

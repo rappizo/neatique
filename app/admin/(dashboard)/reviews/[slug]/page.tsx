@@ -71,6 +71,10 @@ export default async function AdminProductReviewsPage({
       ? "Selected reviews were deleted."
       : query.status === "bulk-approved"
         ? "Selected reviews were approved."
+        : query.status === "bulk-verified"
+          ? "Selected reviews were marked as verified."
+          : query.status === "bulk-unverified"
+            ? "Selected reviews were marked as not verified."
         : query.status === "approved"
           ? "Review approved."
           : query.status === "no-selection"
@@ -176,7 +180,8 @@ export default async function AdminProductReviewsPage({
                 />
               </div>
               <p className="form-note">
-                CSV columns: <code>{csvColumns}</code>
+                CSV columns: <code>{csvColumns}</code>. Imported reviews default to verified unless
+                the file explicitly sets <code>verifiedPurchase</code> to a false-style value.
               </p>
               <div className="stack-row">
                 <button type="submit" className="button button--primary">
@@ -266,7 +271,8 @@ export default async function AdminProductReviewsPage({
             style source. Supported reference columns: review title, review body/content, rating,
             and reviewer name. If you upload 20 examples and generate 40 drafts, the AI will keep
             rotating through those examples as style references without copying wording, and
-            generated reviewer names will stay as full names instead of initials.
+            generated reviewer names will stay as full names instead of initials. AI-generated
+            drafts are added as pending and marked verified by default.
           </p>
 
           <PendingSubmitButton
@@ -301,6 +307,24 @@ export default async function AdminProductReviewsPage({
               value="approve"
             >
               Approve selected
+            </button>
+            <button
+              type="submit"
+              className="button button--secondary"
+              form={bulkModerationFormId}
+              name="intent"
+              value="mark-verified"
+            >
+              Mark verified
+            </button>
+            <button
+              type="submit"
+              className="button button--secondary"
+              form={bulkModerationFormId}
+              name="intent"
+              value="mark-unverified"
+            >
+              Mark unverified
             </button>
             <button
               type="submit"
