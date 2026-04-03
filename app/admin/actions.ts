@@ -3,7 +3,7 @@
 import { randomInt } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { runAiPostAutomation } from "@/lib/ai-post-automation";
 import { prisma } from "@/lib/db";
 import {
@@ -2030,6 +2030,7 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
       )
     );
   } catch (error) {
+    unstable_rethrow(error);
     console.error("Admin mailbox send failed:", error);
     redirect(
       buildEmailComposeRedirect({
@@ -2066,6 +2067,7 @@ export async function sendAdminSmtpTestEmailAction(formData: FormData) {
 
     redirect(buildEmailRedirect("smtp-test-sent", redirectTo, `Test email sent to ${testEmail}.`));
   } catch (error) {
+    unstable_rethrow(error);
     console.error("SMTP diagnostic send failed:", error);
     redirect(
       buildEmailRedirect(
@@ -2092,6 +2094,7 @@ export async function updateMailboxReadStateAction(formData: FormData) {
     await updateMailboxReadState({ uid, unread });
     redirect(buildEmailRedirect(unread ? "mail-marked-unread" : "mail-marked-read", redirectTo));
   } catch (error) {
+    unstable_rethrow(error);
     console.error("Mailbox read state update failed:", error);
     redirect(buildEmailRedirect("mailbox-update-failed", redirectTo));
   }
@@ -2266,6 +2269,7 @@ export async function generateAdminMailboxReplyAiAction(formData: FormData) {
       })
     );
   } catch (error) {
+    unstable_rethrow(error);
     console.error("AI mailbox reply generation failed:", error);
     redirect(buildEmailRedirect("ai-reply-failed", redirectTo));
   }
