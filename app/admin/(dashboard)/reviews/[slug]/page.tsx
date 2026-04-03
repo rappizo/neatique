@@ -32,6 +32,14 @@ function toDateInputValue(value: Date) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
+function toDefaultAiStartDate() {
+  return new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function toDefaultAiEndDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default async function AdminProductReviewsPage({
   params,
   searchParams
@@ -77,6 +85,10 @@ export default async function AdminProductReviewsPage({
             ? "Selected reviews were marked as not verified."
         : query.status === "approved"
           ? "Review approved."
+          : query.status === "rating-distribution-mismatch"
+            ? "The 5-star through 1-star counts must add up exactly to the total draft quantity."
+            : query.status === "invalid-date-range"
+              ? "Choose a valid review date range with an end date on or after the start date."
           : query.status === "no-selection"
             ? "Select at least one review before using a bulk action."
             : query.status === "ai-generated"
@@ -265,6 +277,50 @@ export default async function AdminProductReviewsPage({
             </div>
           </div>
 
+          <div className="admin-form__grid">
+            <div className="field">
+              <label htmlFor={`ratingCount5-${product.id}`}>5-star count</label>
+              <input id={`ratingCount5-${product.id}`} name="ratingCount5" type="number" min="0" max="100" defaultValue="0" />
+            </div>
+            <div className="field">
+              <label htmlFor={`ratingCount4-${product.id}`}>4-star count</label>
+              <input id={`ratingCount4-${product.id}`} name="ratingCount4" type="number" min="0" max="100" defaultValue="0" />
+            </div>
+            <div className="field">
+              <label htmlFor={`ratingCount3-${product.id}`}>3-star count</label>
+              <input id={`ratingCount3-${product.id}`} name="ratingCount3" type="number" min="0" max="100" defaultValue="0" />
+            </div>
+            <div className="field">
+              <label htmlFor={`ratingCount2-${product.id}`}>2-star count</label>
+              <input id={`ratingCount2-${product.id}`} name="ratingCount2" type="number" min="0" max="100" defaultValue="0" />
+            </div>
+            <div className="field">
+              <label htmlFor={`ratingCount1-${product.id}`}>1-star count</label>
+              <input id={`ratingCount1-${product.id}`} name="ratingCount1" type="number" min="0" max="100" defaultValue="0" />
+            </div>
+          </div>
+
+          <div className="admin-form__grid">
+            <div className="field">
+              <label htmlFor={`reviewDateStart-${product.id}`}>Review date start</label>
+              <input
+                id={`reviewDateStart-${product.id}`}
+                name="reviewDateStart"
+                type="date"
+                defaultValue={toDefaultAiStartDate()}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor={`reviewDateEnd-${product.id}`}>Review date end</label>
+              <input
+                id={`reviewDateEnd-${product.id}`}
+                name="reviewDateEnd"
+                type="date"
+                defaultValue={toDefaultAiEndDate()}
+              />
+            </div>
+          </div>
+
           <p className="form-note">
             Direct generate creates product-related reviews in a wide mix of styles with no file
             required. Reference review file uses your uploaded CSV, XLSX, or XLS examples as the
@@ -272,7 +328,10 @@ export default async function AdminProductReviewsPage({
             and reviewer name. If you upload 20 examples and generate 40 drafts, the AI will keep
             rotating through those examples as style references without copying wording, and
             generated reviewer names will stay as full names instead of initials. AI-generated
-            drafts are added as pending and marked verified by default.
+            drafts are added as pending and marked verified by default. If you fill any star-count
+            boxes, the total across 5-star to 1-star must exactly match the draft quantity. The
+            selected review date window is used to write stronger randomized review dates across the
+            full range rather than clustering them near one day.
           </p>
 
           <PendingSubmitButton

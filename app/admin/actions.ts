@@ -1,5 +1,6 @@
 "use server";
 
+import { randomInt } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -679,6 +680,87 @@ function parseReviewDateInput(value: string | undefined | null) {
 
 function parseAiReviewQuantity(value: FormDataEntryValue | null) {
   return Math.max(1, Math.min(100, toInt(value, 10)));
+}
+
+function parseAiReviewStarCount(value: FormDataEntryValue | null) {
+  return Math.max(0, Math.min(100, toInt(value, 0)));
+}
+
+function shuffleNumbers(values: number[]) {
+  const copy = [...values];
+
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(index + 1);
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+
+  return copy;
+}
+
+function buildAiReviewRatingPlan(formData: FormData, quantity: number) {
+  const distribution = [
+    { rating: 5, count: parseAiReviewStarCount(formData.get("ratingCount5")) },
+    { rating: 4, count: parseAiReviewStarCount(formData.get("ratingCount4")) },
+    { rating: 3, count: parseAiReviewStarCount(formData.get("ratingCount3")) },
+    { rating: 2, count: parseAiReviewStarCount(formData.get("ratingCount2")) },
+    { rating: 1, count: parseAiReviewStarCount(formData.get("ratingCount1")) }
+  ];
+
+  const explicitTotal = distribution.reduce((sum, item) => sum + item.count, 0);
+
+  if (explicitTotal === 0) {
+    return null;
+  }
+
+  if (explicitTotal !== quantity) {
+    return { error: "mismatch", ratings: [] as number[] };
+  }
+
+  const ratings = distribution.flatMap((item) => Array.from({ length: item.count }, () => item.rating));
+  return { error: null, ratings: shuffleNumbers(ratings) };
+}
+
+function parseAiReviewDateRange(formData: FormData) {
+  const today = new Date();
+  const defaultEnd = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999)
+  );
+  const defaultStart = new Date(defaultEnd.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const rawStart = toPlainString(formData.get("reviewDateStart"));
+  const rawEnd = toPlainString(formData.get("reviewDateEnd"));
+  const start = rawStart
+    ? new Date(`${rawStart}T00:00:00.000Z`)
+    : defaultStart;
+  const end = rawEnd
+    ? new Date(`${rawEnd}T23:59:59.999Z`)
+    : defaultEnd;
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return null;
+  }
+
+  if (end.getTime() < start.getTime()) {
+    return null;
+  }
+
+  return { start, end };
+}
+
+function createRandomReviewDates(quantity: number, start: Date, end: Date) {
+  const startTime = start.getTime();
+  const endTime = end.getTime();
+  const span = Math.max(1, endTime - startTime + 1);
+  const timestamps = new Set<number>();
+
+  while (timestamps.size < quantity) {
+    const offset = randomInt(span);
+    timestamps.add(startTime + offset);
+  }
+
+  return shuffleNumbers(Array.from(timestamps)).map((timestamp, index) => {
+    const base = new Date(timestamp);
+    return new Date(base.getTime() + index);
+  });
 }
 
 export async function loginAction(formData: FormData) {
@@ -1573,9 +1655,19 @@ export async function generateAiReviewsAction(formData: FormData) {
   const productSlug = toPlainString(formData.get("productSlug"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
   const quantity = parseAiReviewQuantity(formData.get("quantity"));
+  const ratingPlanResult = buildAiReviewRatingPlan(formData, quantity);
+  const reviewDateRange = parseAiReviewDateRange(formData);
   const generationMode = toPlainString(formData.get("generationMode")) === "reference" ? "reference" : "direct";
   const referenceFile = formData.get("referenceFile");
   const openAiSettings = getOpenAiReviewSettings();
+
+  if (ratingPlanResult?.error === "mismatch") {
+    redirect(buildReviewRedirect("rating-distribution-mismatch", redirectTo, productSlug));
+  }
+
+  if (!reviewDateRange) {
+    redirect(buildReviewRedirect("invalid-date-range", redirectTo, productSlug));
+  }
 
   if (!openAiSettings.ready) {
     redirect(buildReviewRedirect("ai-not-configured", redirectTo, productSlug));
@@ -1635,14 +1727,14 @@ export async function generateAiReviewsAction(formData: FormData) {
       product,
       quantity,
       existingReviews,
-      referenceReviews
+      referenceReviews,
+      requiredRatings: ratingPlanResult?.ratings || undefined
     });
 
-    const now = new Date();
-    let createIndex = 0;
+    const reviewDates = createRandomReviewDates(quantity, reviewDateRange.start, reviewDateRange.end);
 
-    for (const draft of drafts) {
-      const createdAt = new Date(now.getTime() + createIndex * 1000);
+    for (const [index, draft] of drafts.entries()) {
+      const createdAt = reviewDates[index] || new Date();
       await prisma.productReview.create({
         data: {
           productId: product.id,
@@ -1660,7 +1752,6 @@ export async function generateAiReviewsAction(formData: FormData) {
           createdAt
         }
       });
-      createIndex += 1;
     }
   } catch {
     redirect(buildReviewRedirect("ai-failed", redirectTo, product.slug));

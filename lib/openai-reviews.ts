@@ -43,6 +43,7 @@ type GenerateAiReviewDraftsInput = {
   quantity: number;
   existingReviews: ExistingReviewContext[];
   referenceReviews?: ReviewReferenceExample[];
+  requiredRatings?: number[];
 };
 
 const reviewFirstNames = [
@@ -253,7 +254,8 @@ function normalizeGeneratedDraft(draft: any, index: number): GeneratedAiReviewDr
 async function generateAiReviewBatch(
   input: GenerateAiReviewDraftsInput,
   quantity: number,
-  previousDrafts: GeneratedAiReviewDraft[]
+  previousDrafts: GeneratedAiReviewDraft[],
+  requiredRatings: number[]
 ) {
   const apiKey = getOpenAiApiKey();
 
@@ -263,6 +265,10 @@ async function generateAiReviewBatch(
 
   const referenceReviews = input.referenceReviews ?? [];
   const hasReferenceReviews = referenceReviews.length > 0;
+  const normalizedRequiredRatings =
+    requiredRatings.length === quantity
+      ? requiredRatings.map((rating) => Math.max(1, Math.min(5, Math.round(rating))))
+      : [];
   const schema = {
     type: "object",
     additionalProperties: false,
@@ -342,6 +348,12 @@ async function generateAiReviewBatch(
                   : "No drafts have been generated yet in this run.",
                 "",
                 "Generation requirements:",
+                normalizedRequiredRatings.length > 0
+                  ? `- Use these exact star ratings in this exact review order: ${normalizedRequiredRatings.join(", ")}.`
+                  : "- Choose realistic ratings naturally.",
+                normalizedRequiredRatings.length > 0
+                  ? "- Match the emotional tone and detail level to each requested rating so the content feels believable for that score."
+                  : "- Match the emotional tone and detail level to the rating you choose.",
                 "- Use a realistic mix of short, medium, and longer reviews.",
                 hasReferenceReviews
                   ? "- Match the uploaded reference file closely in tone, sentence length, title/body pattern, punctuation feel, and rating balance without copying wording."
@@ -398,7 +410,15 @@ async function generateAiReviewBatch(
   const rows = Array.isArray(normalizedOutput?.reviews) ? normalizedOutput.reviews : [];
 
   const drafts = rows
-    .map((row, index) => normalizeGeneratedDraft(row, previousDrafts.length + index))
+    .map((row, index) => {
+      const normalized = normalizeGeneratedDraft(row, previousDrafts.length + index);
+      if (!normalized) {
+        return null;
+      }
+
+      const forcedRating = normalizedRequiredRatings[index];
+      return forcedRating ? { ...normalized, rating: forcedRating } : normalized;
+    })
     .filter((row): row is GeneratedAiReviewDraft => Boolean(row));
 
   if (drafts.length !== quantity) {
@@ -414,10 +434,20 @@ export async function generateAiReviewDrafts(
   const totalQuantity = Math.max(1, Math.min(100, Math.round(input.quantity)));
   const drafts: GeneratedAiReviewDraft[] = [];
   const batchSize = 20;
+  const requiredRatings = Array.isArray(input.requiredRatings)
+    ? input.requiredRatings
+        .map((rating) => Math.max(1, Math.min(5, Math.round(rating))))
+        .slice(0, totalQuantity)
+    : [];
 
   for (let offset = 0; offset < totalQuantity; offset += batchSize) {
     const currentBatchSize = Math.min(batchSize, totalQuantity - offset);
-    const batchDrafts = await generateAiReviewBatch(input, currentBatchSize, drafts);
+    const batchDrafts = await generateAiReviewBatch(
+      input,
+      currentBatchSize,
+      drafts,
+      requiredRatings.slice(offset, offset + currentBatchSize)
+    );
     drafts.push(...batchDrafts);
   }
 
