@@ -6,13 +6,14 @@ import {
   updateMailboxReadStateAction
 } from "@/app/admin/actions";
 import { getMailboxOverview } from "@/lib/admin-mailbox";
-import { getStoreSettings } from "@/lib/queries";
+import { getFormSubmissionById, getStoreSettings } from "@/lib/queries";
 
 type AdminEmailPageProps = {
   searchParams: Promise<{
     status?: string;
     uid?: string;
     reply?: string;
+    contactSubmissionId?: string;
     composeTo?: string;
     composeSubject?: string;
     composeBody?: string;
@@ -29,7 +30,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   "mailbox-message-missing": "Select a message before changing its read state.",
   "mailbox-update-failed": "Mailbox status could not be updated. Please check the IMAP connection.",
   "ai-reply-generated": "AI reply draft was generated and added to the message box.",
-  "ai-reply-failed": "AI reply generation failed. Please try again."
+  "ai-reply-failed": "AI reply generation failed. Please try again.",
+  "mail-sent-contact-handled": "Email was sent successfully and the contact form was marked as handled."
 };
 
 function toInt(value: string | undefined) {
@@ -40,6 +42,7 @@ function toInt(value: string | undefined) {
 function buildAdminEmailHref(input: {
   uid?: number | null;
   reply?: boolean;
+  contactSubmissionId?: string | null;
   composeTo?: string;
   composeSubject?: string;
   composeBody?: string;
@@ -52,6 +55,10 @@ function buildAdminEmailHref(input: {
 
   if (input.reply) {
     params.set("reply", "1");
+  }
+
+  if (input.contactSubmissionId) {
+    params.set("contactSubmissionId", input.contactSubmissionId);
   }
 
   if (input.composeTo) {
@@ -91,18 +98,56 @@ function buildQuotedReplyBody(input: {
     : `\n\n----- Original message from ${sender} (${timestamp}) -----\n`;
 }
 
+function buildContactReplyBody(input: {
+  name: string | null;
+  email: string;
+  subject: string | null;
+  message: string | null;
+  createdAt: Date;
+}) {
+  const greetingName = input.name?.trim() || "there";
+  const submittedAt = input.createdAt.toLocaleString("en-US");
+  const original = (input.message || "").trim();
+  const clipped = original.length > 3000 ? `${original.slice(0, 3000)}...` : original;
+
+  return [
+    `Hi ${greetingName},`,
+    "",
+    "Thanks for reaching out to Neatique.",
+    "",
+    "Best regards,",
+    "Tracy",
+    "Neatique Team",
+    "",
+    `----- Original contact message (${submittedAt}) -----`,
+    `Email: ${input.email}`,
+    `Subject: ${input.subject || "No subject"}`,
+    clipped || "No message body was provided."
+  ].join("\n");
+}
+
 export default async function AdminEmailPage({ searchParams }: AdminEmailPageProps) {
   const [settings, params] = await Promise.all([getStoreSettings(), searchParams]);
   const selectedUid = toInt(params.uid);
-  const mailbox = await getMailboxOverview(selectedUid, 30);
+  const contactSubmissionId = (params.contactSubmissionId || "").trim();
+  const [mailbox, contactSubmission] = await Promise.all([
+    getMailboxOverview(selectedUid, 30),
+    contactSubmissionId ? getFormSubmissionById("contact", contactSubmissionId) : Promise.resolve(null)
+  ]);
   const selectedMessage = mailbox.selectedMessage;
   const isReplying = params.reply === "1";
   const composeTo =
     params.composeTo ||
-    (isReplying ? selectedMessage?.replyToEmail || selectedMessage?.fromEmail || "" : "");
+    (isReplying
+      ? selectedMessage?.replyToEmail || selectedMessage?.fromEmail || ""
+      : contactSubmission?.email || "");
   const composeSubject =
     params.composeSubject ||
-    (isReplying && selectedMessage ? buildReplySubject(selectedMessage.subject) : "");
+    (isReplying && selectedMessage
+      ? buildReplySubject(selectedMessage.subject)
+      : contactSubmission?.subject?.trim()
+        ? buildReplySubject(contactSubmission.subject)
+        : "Re: Your message to Neatique");
   const composeBody =
     params.composeBody ||
     (isReplying && selectedMessage
@@ -112,15 +157,27 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
           receivedAt: selectedMessage.receivedAt,
           textBody: selectedMessage.textBody
         })
-      : "");
+      : contactSubmission
+        ? buildContactReplyBody({
+            name: contactSubmission.name,
+            email: contactSubmission.email,
+            subject: contactSubmission.subject,
+            message: contactSubmission.message,
+            createdAt: contactSubmission.createdAt
+          })
+        : "");
   const listHref = buildAdminEmailHref({});
-  const currentViewHref = buildAdminEmailHref({ uid: selectedMessage?.uid ?? selectedUid ?? null });
+  const currentViewHref = buildAdminEmailHref({
+    uid: selectedMessage?.uid ?? selectedUid ?? null,
+    contactSubmissionId: contactSubmission?.id ?? contactSubmissionId ?? null
+  });
   const replyHref = selectedMessage
     ? buildAdminEmailHref({
         uid: selectedMessage.uid,
         reply: true
       })
     : null;
+  const hasReplySource = Boolean(selectedMessage || contactSubmission);
 
   return (
     <div className="admin-page admin-page--email">
@@ -267,7 +324,7 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
             <span className="pill">{mailbox.mailboxName}</span>
             <span className="pill">{mailbox.totalMessages} loaded</span>
             <span className="pill">{mailbox.unreadMessages} unread</span>
-            <Link href={selectedMessage ? currentViewHref : listHref} className="button button--secondary">
+            <Link href={hasReplySource ? currentViewHref : listHref} className="button button--secondary">
               Refresh inbox
             </Link>
           </div>
@@ -400,6 +457,48 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
       </section>
       ) : null}
 
+      {contactSubmission ? (
+      <section className="admin-form">
+        <div className="stack-row">
+          <div>
+            <h2>Selected contact submission</h2>
+            <p className="admin-table__empty">
+              This reply was opened from the Contact form workspace. The original message is included below and in the compose box.
+            </p>
+          </div>
+          <div className="stack-row">
+            <Link href={`/admin/forms/contact/${contactSubmission.id}`} className="button button--secondary">
+              Back to contact submission
+            </Link>
+          </div>
+        </div>
+
+        <div className="admin-mailbox-message">
+          <div className="admin-mailbox-message__meta">
+            <div>
+              <span className="eyebrow">From</span>
+              <strong>{contactSubmission.name || contactSubmission.email}</strong>
+              <span>{contactSubmission.email}</span>
+            </div>
+            <div>
+              <span className="eyebrow">Submitted</span>
+              <strong>{contactSubmission.createdAt.toLocaleString("en-US")}</strong>
+              <span>{contactSubmission.subject || "No subject"}</span>
+            </div>
+            <div>
+              <span className="eyebrow">Status</span>
+              <strong>{contactSubmission.handled ? "Handled" : "New"}</strong>
+              <span>Contact form submission</span>
+            </div>
+          </div>
+
+          <article className="admin-mailbox-message__body">
+            <pre>{contactSubmission.message || "No message body was provided for this contact submission."}</pre>
+          </article>
+        </div>
+      </section>
+      ) : null}
+
       <section className="admin-form">
         <div className="stack-row">
           <div>
@@ -409,13 +508,23 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
               AI-generated replies also reference your recent sent replies to keep tone and structure consistent.
             </p>
           </div>
-          {selectedMessage ? (
+          {hasReplySource ? (
             <div className="stack-row">
-              <Link href={replyHref || buildAdminEmailHref({ uid: selectedMessage.uid })} className="button button--secondary">
-                Prefill from selected email
-              </Link>
+              {selectedMessage ? (
+                <Link href={replyHref || buildAdminEmailHref({ uid: selectedMessage.uid })} className="button button--secondary">
+                  Prefill from selected email
+                </Link>
+              ) : contactSubmission ? (
+                <Link
+                  href={buildAdminEmailHref({ contactSubmissionId: contactSubmission.id })}
+                  className="button button--secondary"
+                >
+                  Prefill from contact form
+                </Link>
+              ) : null}
               <form action={generateAdminMailboxReplyAiAction} className="admin-mailbox-ai-form">
-                <input type="hidden" name="uid" value={selectedMessage.uid} />
+                <input type="hidden" name="uid" value={selectedMessage?.uid || ""} />
+                <input type="hidden" name="contactSubmissionId" value={contactSubmission?.id || ""} />
                 <input type="hidden" name="redirectTo" value={currentViewHref} />
                 <input
                   type="hidden"
@@ -436,6 +545,7 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
         </div>
         <form action={sendAdminMailboxEmailAction}>
           <input type="hidden" name="redirectTo" value={currentViewHref} />
+          <input type="hidden" name="contactSubmissionId" value={contactSubmission?.id || ""} />
           {selectedMessage ? (
             <>
               <input type="hidden" name="sourceSenderName" value={selectedMessage.fromName || ""} />
@@ -445,6 +555,17 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
                 type="hidden"
                 name="sourceSnippet"
                 value={(selectedMessage.textBody || selectedMessage.htmlBody || "").slice(0, 2000)}
+              />
+            </>
+          ) : contactSubmission ? (
+            <>
+              <input type="hidden" name="sourceSenderName" value={contactSubmission.name || ""} />
+              <input type="hidden" name="sourceSenderEmail" value={contactSubmission.email} />
+              <input type="hidden" name="sourceSubject" value={contactSubmission.subject || ""} />
+              <input
+                type="hidden"
+                name="sourceSnippet"
+                value={(contactSubmission.message || "").slice(0, 2000)}
               />
             </>
           ) : null}

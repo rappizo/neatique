@@ -163,6 +163,7 @@ function buildEmailComposeRedirect(input: {
   redirectTo?: string;
   uid?: number | null;
   reply?: boolean;
+  contactSubmissionId?: string | null;
   composeTo?: string;
   composeSubject?: string;
   composeBody?: string;
@@ -178,6 +179,10 @@ function buildEmailComposeRedirect(input: {
 
   if (input.reply) {
     params.set("reply", "1");
+  }
+
+  if (input.contactSubmissionId) {
+    params.set("contactSubmissionId", input.contactSubmissionId);
   }
 
   if (input.composeTo) {
@@ -1831,6 +1836,7 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
   await requireAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
+  const contactSubmissionId = toPlainString(formData.get("contactSubmissionId")) || null;
   const to = toPlainString(formData.get("to"));
   const subject = toPlainString(formData.get("subject"));
   const body = toPlainString(formData.get("body"));
@@ -1879,9 +1885,34 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
           }))
         });
       }
+
+      if (contactSubmissionId) {
+        await prisma.formSubmission.updateMany({
+          where: {
+            id: contactSubmissionId,
+            formKey: "contact"
+          },
+          data: {
+            handled: true,
+            handledAt: new Date()
+          }
+        });
+        revalidatePath("/admin/forms");
+        revalidatePath("/admin/forms/contact");
+        revalidatePath(`/admin/forms/contact/${contactSubmissionId}`);
+      }
     }
 
-    redirect(buildEmailRedirect(result.delivered ? "mail-sent" : "mail-send-failed", redirectTo));
+    redirect(
+      buildEmailRedirect(
+        result.delivered
+          ? contactSubmissionId
+            ? "mail-sent-contact-handled"
+            : "mail-sent"
+          : "mail-send-failed",
+        redirectTo
+      )
+    );
   } catch (error) {
     console.error("Admin mailbox send failed:", error);
     redirect(buildEmailRedirect("mail-send-failed", redirectTo));
@@ -1929,6 +1960,23 @@ function clipMailboxSourceSnippet(value: string, maxLength = 420) {
   return trimmed.length <= maxLength ? trimmed : `${trimmed.slice(0, maxLength)}...`;
 }
 
+function buildQuotedContactSubmissionForCompose(input: {
+  email: string;
+  subject: string | null;
+  message: string | null;
+  createdAt: Date;
+}) {
+  const original = (input.message || "").trim();
+  const clipped = original.length > 3000 ? `${original.slice(0, 3000)}...` : original;
+
+  return [
+    `----- Original contact message (${input.createdAt.toLocaleString("en-US")}) -----`,
+    `Email: ${input.email}`,
+    `Subject: ${input.subject || "No subject"}`,
+    clipped || "No message body was provided."
+  ].join("\n");
+}
+
 async function loadMailboxReplyStyleExamples(targetEmail: string | null) {
   const normalizedTarget = (targetEmail || "").trim().toLowerCase();
 
@@ -1969,14 +2017,64 @@ export async function generateAdminMailboxReplyAiAction(formData: FormData) {
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
   const uid = toInt(formData.get("uid"));
+  const contactSubmissionId = toPlainString(formData.get("contactSubmissionId")) || null;
   const senderName = toPlainString(formData.get("senderName")) || "Tracy";
   const senderEmail = toPlainString(formData.get("senderEmail")) || "support@neatiquebeauty.com";
 
-  if (!uid || uid <= 0) {
+  if ((!uid || uid <= 0) && !contactSubmissionId) {
     redirect(buildEmailRedirect("mailbox-message-missing", redirectTo));
   }
 
   try {
+    if (contactSubmissionId) {
+      const submission = await prisma.formSubmission.findFirst({
+        where: {
+          id: contactSubmissionId,
+          formKey: "contact"
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          subject: true,
+          message: true,
+          createdAt: true
+        }
+      });
+
+      if (!submission) {
+        redirect(buildEmailRedirect("mailbox-message-missing", redirectTo));
+      }
+
+      const styleExamples = await loadMailboxReplyStyleExamples(submission.email);
+      const result = await generateMailboxReplyWithAi({
+        senderName,
+        senderEmail,
+        customerName: submission.name,
+        customerEmail: submission.email,
+        subject: submission.subject || "Contact form message",
+        messageText: submission.message || "",
+        receivedAt: submission.createdAt,
+        styleExamples
+      });
+
+      redirect(
+        buildEmailComposeRedirect({
+          status: "ai-reply-generated",
+          redirectTo,
+          contactSubmissionId: submission.id,
+          composeTo: submission.email,
+          composeSubject: buildReplySubjectForMailbox(submission.subject || "Your message to Neatique"),
+          composeBody: `${result.replyText}\n\n${buildQuotedContactSubmissionForCompose({
+            email: submission.email,
+            subject: submission.subject,
+            message: submission.message,
+            createdAt: submission.createdAt
+          })}`
+        })
+      );
+    }
+
     const mailbox = await getMailboxOverview(uid, 1);
     const message = mailbox.selectedMessage;
 

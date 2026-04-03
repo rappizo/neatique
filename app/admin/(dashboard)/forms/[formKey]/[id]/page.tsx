@@ -10,26 +10,12 @@ type AdminFormSubmissionDetailPageProps = {
 };
 
 function buildReplyEmailHref(input: {
+  submissionId: string;
   email: string;
   subject?: string | null;
-  name?: string | null;
 }) {
   const params = new URLSearchParams();
-  params.set("composeTo", input.email);
-  const subject = input.subject?.trim();
-  params.set(
-    "composeSubject",
-    subject ? (/^re:/i.test(subject) ? subject : `Re: ${subject}`) : "Re: Your message to Neatique"
-  );
-
-  const greetingName = input.name?.trim() || "there";
-  params.set(
-    "composeBody",
-    [`Hi ${greetingName},`, "", "Thanks for reaching out to Neatique.", "", "Best regards,", "Tracy", "Neatique Team"].join(
-      "\n"
-    )
-  );
-
+  params.set("contactSubmissionId", input.submissionId);
   return `/admin/email?${params.toString()}`;
 }
 
@@ -58,9 +44,9 @@ export default async function AdminFormSubmissionDetailPage({
         {formKey === "contact" ? (
           <Link
             href={buildReplyEmailHref({
+              submissionId: submission.id,
               email: submission.email,
-              subject: submission.subject,
-              name: submission.name
+              subject: submission.subject
             })}
             className="button button--secondary"
           >
