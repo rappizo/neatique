@@ -9,6 +9,25 @@ type PostPageProps = {
   params: Promise<{ slug: string }>;
 };
 
+function coerceIsoDate(value: Date | string | null | undefined, fallback: Date | string) {
+  const nextValue = value ?? fallback;
+  const parsed = new Date(nextValue);
+
+  return Number.isNaN(parsed.getTime()) ? new Date(fallback).toISOString() : parsed.toISOString();
+}
+
+function safeAbsoluteImageUrl(path: string | null | undefined) {
+  try {
+    return toAbsoluteUrl(path || defaultOgImage.url);
+  } catch {
+    return toAbsoluteUrl(defaultOgImage.url);
+  }
+}
+
+function normalizeKeywords(value: string[] | null | undefined) {
+  return Array.isArray(value) ? value.filter(Boolean) : [];
+}
+
 export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
@@ -21,8 +40,8 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
 
   const title = post.seoTitle || post.title;
   const description = post.seoDescription || post.excerpt;
-  const absoluteImageUrl = toAbsoluteUrl(post.coverImageUrl || defaultOgImage.url);
-  const publishedAt = post.publishedAt || post.createdAt;
+  const absoluteImageUrl = safeAbsoluteImageUrl(post.coverImageUrl);
+  const publishedTime = coerceIsoDate(post.publishedAt, post.createdAt);
 
   return {
     title,
@@ -34,14 +53,14 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
       post.title,
       post.category,
       post.focusKeyword || "skincare tips",
-      ...post.secondaryKeywords
+      ...normalizeKeywords(post.secondaryKeywords)
     ],
     openGraph: {
       type: "article",
       title: `${title} | ${siteConfig.title}`,
       description,
       url: `${siteConfig.url}/beauty-tips/${post.slug}`,
-      publishedTime: publishedAt.toISOString(),
+      publishedTime,
       images: [
         {
           url: absoluteImageUrl,
@@ -72,11 +91,11 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
     "@type": "Article",
     headline: post.title,
     description: post.seoDescription || post.excerpt,
-    image: [toAbsoluteUrl(post.coverImageUrl || defaultOgImage.url)],
-    datePublished: publishedAt.toISOString(),
-    dateModified: post.updatedAt.toISOString(),
+    image: [safeAbsoluteImageUrl(post.coverImageUrl)],
+    datePublished: coerceIsoDate(publishedAt, post.createdAt),
+    dateModified: coerceIsoDate(post.updatedAt, post.createdAt),
     articleSection: post.category,
-    keywords: [post.focusKeyword, ...post.secondaryKeywords].filter(Boolean).join(", "),
+    keywords: [post.focusKeyword, ...normalizeKeywords(post.secondaryKeywords)].filter(Boolean).join(", "),
     author: {
       "@type": "Organization",
       name: siteConfig.title
