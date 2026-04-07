@@ -88,16 +88,18 @@ export function PostArticleView({
             {previewNote ? <p className="form-note">{previewNote}</p> : null}
           </div>
 
-          <div className="panel">
-            <Image
-              src={imageUrl}
-              alt={imageAlt}
-              width={1200}
-              height={740}
-              sizes="(max-width: 720px) 100vw, (max-width: 1200px) 92vw, 1200px"
-              quality={75}
-              unoptimized
-            />
+          <div className="panel article-cover">
+            <div className="article-cover__media">
+              <Image
+                src={imageUrl}
+                alt={imageAlt}
+                fill
+                className="article-cover__image"
+                sizes="(max-width: 720px) 100vw, (max-width: 1200px) 92vw, 1200px"
+                quality={75}
+                unoptimized
+              />
+            </div>
           </div>
 
           <div className="article-content">

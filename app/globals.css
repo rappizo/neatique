@@ -1065,10 +1065,30 @@ main {
 
 .post-card__image-wrap {
   aspect-ratio: 16 / 10;
+  position: relative;
 }
 
 .post-card__image {
   display: block;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.article-cover {
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 247, 243, 0.92), rgba(249, 223, 213, 0.78));
+}
+
+.article-cover__media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+
+.article-cover__image {
+  object-fit: cover;
   object-position: center;
 }
 
