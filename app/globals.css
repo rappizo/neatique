@@ -1418,6 +1418,15 @@ main {
   gap: 14px;
 }
 
+.contact-form__honeypot {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .form-note {
   margin: 0;
   color: var(--muted);

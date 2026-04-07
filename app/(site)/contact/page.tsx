@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { ContactForm } from "@/components/site/contact-form";
 import { siteConfig } from "@/lib/site-config";
 import { defaultOgImage } from "@/lib/seo";
 
 type ContactPageProps = {
-  searchParams: Promise<{ sent?: string }>;
+  searchParams: Promise<{ sent?: string; status?: string }>;
 };
 
 export const metadata: Metadata = {
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ContactPage({ searchParams }: ContactPageProps) {
-  const { sent } = await searchParams;
+  const { sent, status } = await searchParams;
 
   return (
     <section className="section">
@@ -53,6 +54,11 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
         </div>
 
         {sent === "1" ? <p className="notice">Your message was received. We will be in touch soon.</p> : null}
+        {status === "invalid" ? (
+          <p className="notice notice--warning">
+            Please double-check your email, subject, and message, then try again.
+          </p>
+        ) : null}
 
         <div className="section cards-2">
           <div className="contact-card">
@@ -72,29 +78,7 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
             <p>
               Tell us what you need and our team will get back to you as soon as possible.
             </p>
-            <form action="/api/contact" method="post" className="contact-form">
-              <div className="form-row">
-                <div className="field">
-                  <label htmlFor="name">Name</label>
-                  <input id="name" name="name" required />
-                </div>
-                <div className="field">
-                  <label htmlFor="email">Email</label>
-                  <input id="email" name="email" type="email" required />
-                </div>
-              </div>
-              <div className="field">
-                <label htmlFor="subject">Subject</label>
-                <input id="subject" name="subject" required />
-              </div>
-              <div className="field">
-                <label htmlFor="message">Message</label>
-                <textarea id="message" name="message" required />
-              </div>
-              <button type="submit" className="button button--primary">
-                Send message
-              </button>
-            </form>
+            <ContactForm />
           </div>
         </div>
       </div>

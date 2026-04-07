@@ -43,6 +43,15 @@ function parseBool(value: string | undefined) {
   return value === "true" || value === "1" || value === "on";
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function toEmailSettings(record: Record<string, string>): EmailSettings {
   return {
     enabled: parseBool(record.email_enabled),
@@ -452,10 +461,10 @@ export async function sendContactSubmissionEmails(input: {
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
         <h2 style="font-family:Georgia,serif;color:#ed7361">New contact form submission</h2>
-        <p><strong>Name:</strong> ${input.name}</p>
-        <p><strong>Email:</strong> ${input.email}</p>
-        <p><strong>Subject:</strong> ${input.subject}</p>
-        <p>${input.message.replace(/\n/g, "<br />")}</p>
+        <p><strong>Name:</strong> ${escapeHtml(input.name)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(input.email)}</p>
+        <p><strong>Subject:</strong> ${escapeHtml(input.subject)}</p>
+        <p>${escapeHtml(input.message).replace(/\n/g, "<br />")}</p>
       </div>
     `
   });
@@ -468,8 +477,8 @@ export async function sendContactSubmissionEmails(input: {
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
         <h2 style="font-family:Georgia,serif;color:#ed7361">Thank you for contacting Neatique</h2>
-        <p>Hi ${input.name}, we received your message and our team will follow up soon.</p>
-        <p><strong>Your subject:</strong> ${input.subject}</p>
+        <p>Hi ${escapeHtml(input.name)}, we received your message and our team will follow up soon.</p>
+        <p><strong>Your subject:</strong> ${escapeHtml(input.subject)}</p>
       </div>
     `
   });
