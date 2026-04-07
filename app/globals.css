@@ -3190,6 +3190,11 @@ main {
   color: #9a6b0f;
 }
 
+.admin-table__status-badge--danger {
+  background: rgba(196, 76, 76, 0.14);
+  color: #b04141;
+}
+
 .admin-table__actions .button {
   min-height: 38px;
   padding: 0 14px;

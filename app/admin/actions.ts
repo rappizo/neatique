@@ -45,6 +45,11 @@ import {
   generateSeoPostImageFromProductReferenceWithAi,
   generateSeoPostImageWithAi
 } from "@/lib/openai-posts";
+import {
+  parseExternalLinksJson,
+  runPostExternalLinkAudit,
+  savePostExternalLinkAudit
+} from "@/lib/post-link-audit";
 import { generateAiReviewDrafts, getOpenAiReviewSettings } from "@/lib/openai-reviews";
 import { getDefaultProductImageReferenceAsset } from "@/lib/product-media";
 import { parseReviewReferenceFile } from "@/lib/review-reference-file";
@@ -1127,6 +1132,37 @@ export async function generateAiPostNowAction(formData: FormData) {
       redirectTo
     )
   );
+}
+
+export async function validatePostExternalLinksAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/posts";
+  const posts = await prisma.post.findMany({
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      published: true,
+      externalLinks: true
+    },
+    orderBy: [{ createdAt: "desc" }]
+  });
+
+  const audit = await runPostExternalLinkAudit(
+    posts.map((post) => ({
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      published: post.published,
+      externalLinks: parseExternalLinksJson(post.externalLinks)
+    }))
+  );
+
+  await savePostExternalLinkAudit(audit);
+
+  revalidatePath("/admin/posts");
+  redirect(buildPostsRedirect("external-links-validated", redirectTo));
 }
 
 export async function updateOrderAction(formData: FormData) {

@@ -16,6 +16,40 @@ export type PostExternalLinkRecord = {
   url: string;
 };
 
+export type PostExternalLinkAuditStatus = "HEALTHY" | "REDIRECTED" | "BROKEN";
+
+export type PostExternalLinkAuditResultRecord = {
+  label: string;
+  url: string;
+  finalUrl: string | null;
+  statusCode: number | null;
+  status: PostExternalLinkAuditStatus;
+  error: string | null;
+};
+
+export type PostExternalLinkAuditEntryRecord = {
+  postId: string;
+  postTitle: string;
+  postSlug: string;
+  published: boolean;
+  totalLinks: number;
+  healthyLinks: number;
+  redirectedLinks: number;
+  brokenLinks: number;
+  results: PostExternalLinkAuditResultRecord[];
+};
+
+export type PostExternalLinkAuditRecord = {
+  checkedAt: Date;
+  totalPostsChecked: number;
+  totalPostsWithLinks: number;
+  totalLinksChecked: number;
+  healthyLinks: number;
+  redirectedLinks: number;
+  brokenLinks: number;
+  entries: PostExternalLinkAuditEntryRecord[];
+};
+
 export type ProductRecord = {
   id: string;
   productCode: string;

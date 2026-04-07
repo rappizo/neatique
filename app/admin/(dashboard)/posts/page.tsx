@@ -1,11 +1,13 @@
 import Link from "next/link";
 import {
+  validatePostExternalLinksAction,
   generateAiPostNowAction,
   saveAiPostAutomationSettingsAction
 } from "@/app/admin/actions";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { formatDate, formatTime } from "@/lib/format";
 import { getAiPostAutomationOverview, getAllPosts } from "@/lib/queries";
+import { getStoredPostExternalLinkAudit } from "@/lib/post-link-audit";
 
 type AdminPostsPageProps = {
   searchParams: Promise<{ status?: string }>;
@@ -24,15 +26,18 @@ const STATUS_MESSAGES: Record<string, string> = {
   "ai-post-published": "AI created and published a new post.",
   "ai-failed-failed": "AI post generation failed. Review the latest status card for the exact OpenAI or database error.",
   "ai-skipped-not-due": "The next scheduled run is not due yet.",
-  "ai-skipped-draft-pending": "An unpublished AI draft already exists, so the automation skipped creating another one."
+  "ai-skipped-draft-pending": "An unpublished AI draft already exists, so the automation skipped creating another one.",
+  "external-links-validated": "External links were checked and the latest report is ready below."
 };
 
 export default async function AdminPostsPage({ searchParams }: AdminPostsPageProps) {
-  const [posts, automation, params] = await Promise.all([
+  const [posts, automation, audit, params] = await Promise.all([
     getAllPosts(),
     getAiPostAutomationOverview(),
+    getStoredPostExternalLinkAudit(),
     searchParams
   ]);
+  const auditByPostId = new Map((audit?.entries ?? []).map((entry) => [entry.postId, entry]));
 
   return (
     <div className="admin-page">
@@ -167,6 +172,118 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
       <section className="admin-form admin-table">
         <div className="admin-review-pagination">
           <div>
+            <h2>External link validation</h2>
+            <p className="form-note">
+              Check every <em>Further reading</em> link used across Beauty Tips posts, then review
+              which articles are fully healthy, redirected, or still need a replacement source.
+            </p>
+          </div>
+          <form action={validatePostExternalLinksAction}>
+            <input type="hidden" name="redirectTo" value="/admin/posts" />
+            <PendingSubmitButton
+              idleLabel="Validate external links"
+              pendingLabel="Checking links..."
+              className="button button--secondary"
+              modalTitle="Checking post external links"
+              modalDescription="Each article link is being tested now. The report will refresh as soon as the audit finishes."
+            />
+          </form>
+        </div>
+
+        {audit ? (
+          <>
+            <div className="stack-row">
+              <span className="pill">
+                Last checked {formatDate(audit.checkedAt)} {formatTime(audit.checkedAt)}
+              </span>
+              <span className="pill">{audit.totalPostsChecked} posts scanned</span>
+              <span className="pill">{audit.totalPostsWithLinks} posts with links</span>
+              <span className="pill">{audit.totalLinksChecked} links checked</span>
+              <span className="pill">{audit.healthyLinks} healthy</span>
+              <span className="pill">{audit.redirectedLinks} redirected</span>
+              <span className="pill">{audit.brokenLinks} broken</span>
+            </div>
+
+            {audit.entries.length > 0 ? (
+              <div className="admin-table--scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Post</th>
+                      <th>Summary</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {audit.entries.map((entry) => (
+                      <tr key={entry.postId}>
+                        <td>
+                          <div className="admin-table__cell-stack">
+                            <strong>{entry.postTitle}</strong>
+                            <span className="form-note">{entry.postSlug}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="admin-table__cell-stack">
+                            <span className="pill">{entry.totalLinks} total</span>
+                            <span className="pill">{entry.healthyLinks} healthy</span>
+                            <span className="pill">{entry.redirectedLinks} redirected</span>
+                            <span className="pill">{entry.brokenLinks} broken</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="admin-table__cell-stack">
+                            {entry.results.map((result) => (
+                              <div key={`${entry.postId}-${result.url}`}>
+                                <span
+                                  className={`admin-table__status-badge ${
+                                    result.status === "BROKEN"
+                                      ? "admin-table__status-badge--danger"
+                                      : result.status === "REDIRECTED"
+                                        ? "admin-table__status-badge--warning"
+                                        : "admin-table__status-badge--success"
+                                  }`}
+                                >
+                                  {result.status === "BROKEN"
+                                    ? "Broken"
+                                    : result.status === "REDIRECTED"
+                                      ? "Redirected"
+                                      : "Healthy"}
+                                </span>{" "}
+                                <strong>{result.label}</strong>
+                                <div className="form-note">
+                                  {result.error
+                                    ? result.error
+                                    : result.finalUrl && result.finalUrl !== result.url
+                                      ? result.finalUrl
+                                      : result.url}
+                                  {result.statusCode ? ` · HTTP ${result.statusCode}` : ""}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="form-note">
+                No posts currently include external article links, so there was nothing to validate.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="form-note">
+            Run the validator once to save a reusable report for your current article library.
+          </p>
+        )}
+      </section>
+
+      <section className="admin-form admin-table">
+        <div className="admin-review-pagination">
+          <div>
             <h2>Post library</h2>
             <p className="form-note">
               Newest entries appear first, including drafts. Open any item to edit the full post,
@@ -188,6 +305,7 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
                 <th>Type</th>
                 <th>Source</th>
                 <th>Keyword</th>
+                <th>Links</th>
                 <th>Created</th>
                 <th>Updated</th>
                 <th>Action</th>
@@ -216,6 +334,25 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
                   <td>{post.aiGenerated ? "AI generated" : "Manual"}</td>
                   <td>{post.sourceProductName || "Editorial"}</td>
                   <td>{post.focusKeyword || "Not set"}</td>
+                  <td>
+                    {post.externalLinks.length === 0 ? (
+                      <span className="form-note">No links</span>
+                    ) : auditByPostId.has(post.id) ? (
+                      <div className="admin-table__cell-stack">
+                        <span className="pill">
+                          {auditByPostId.get(post.id)?.healthyLinks ?? 0} healthy
+                        </span>
+                        <span className="pill">
+                          {auditByPostId.get(post.id)?.redirectedLinks ?? 0} redirected
+                        </span>
+                        <span className="pill">
+                          {auditByPostId.get(post.id)?.brokenLinks ?? 0} broken
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="form-note">Not checked yet</span>
+                    )}
+                  </td>
                   <td>
                     {formatDate(post.createdAt)} {formatTime(post.createdAt)}
                   </td>
