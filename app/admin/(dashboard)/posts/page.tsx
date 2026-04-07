@@ -227,8 +227,11 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
                       <Link href={`/admin/posts/${post.id}`} className="button button--primary">
                         Edit
                       </Link>
-                      <Link href={`/beauty-tips/${post.slug}`} className="button button--ghost">
-                        View
+                      <Link
+                        href={post.published ? `/beauty-tips/${post.slug}` : `/admin/posts/${post.id}/preview`}
+                        className="button button--ghost"
+                      >
+                        {post.published ? "View live" : "Preview draft"}
                       </Link>
                     </div>
                   </td>

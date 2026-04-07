@@ -113,11 +113,12 @@ export function PostEditorForm({
                 <Link href="/admin/posts" className="button button--secondary">
                   Back to list
                 </Link>
-                {post.published ? (
-                  <Link href={`/beauty-tips/${post.slug}`} className="button button--ghost">
-                    View live post
-                  </Link>
-                ) : null}
+                <Link
+                  href={post.published ? `/beauty-tips/${post.slug}` : `/admin/posts/${post.id}/preview`}
+                  className="button button--ghost"
+                >
+                  {post.published ? "View live post" : "Preview draft"}
+                </Link>
               </div>
             </div>
           </article>
