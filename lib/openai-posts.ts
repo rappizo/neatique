@@ -95,30 +95,30 @@ function getAllowedExternalReferences(product: ProductContext): AllowedExternalR
 
   const baseReferences: AllowedExternalReference[] = [
     {
-      label: "American Academy of Dermatology: skin care basics",
-      url: "https://www.aad.org/public/everyday-care/skin-care-basics",
-      reason: "Helpful people-first skin care basics reference from a recognized dermatology organization."
+      label: "American Academy of Dermatology: skin care products guide",
+      url: "https://www.aad.org/public/skin-hair-nails/skin-care/skin-care-products",
+      reason: "A live, article-level dermatologist resource that helps explain product types and routine fit."
     },
     {
-      label: "American Academy of Dermatology: how to apply skin care products",
-      url: "https://www.aad.org/public/everyday-care/skin-care-secrets/routine/apply-skin-care-products",
-      reason: "Useful layering and routine-order guidance when an article discusses how to use a product."
+      label: "Cleveland Clinic: proper skin care product order",
+      url: "https://health.clevelandclinic.org/proper-skin-care-product-order",
+      reason: "A live, article-level routine-order reference that works well when a post explains layering and timing."
     }
   ];
 
   if (isCream) {
     baseReferences.push({
-      label: "American Academy of Dermatology: moisturizer tips",
-      url: "https://www.aad.org/public/everyday-care/skin-care-secrets/routine/moisturizer",
-      reason: "Relevant when the post discusses cream textures, moisture support, or final-step routines."
+      label: "American Academy of Dermatology: how to pick a moisturizer for dry skin",
+      url: "https://www.aad.org/public/everyday-care/skin-care-basics/dry/pick-moisturizer",
+      reason: "A live, article-level moisturizer guide that fits cream, comfort, and barrier-support topics."
     });
   }
 
   if (isSerum) {
     baseReferences.push({
-      label: "American Academy of Dermatology: face serum guidance",
-      url: "https://www.aad.org/public/everyday-care/skin-care-secrets/routine/face-serum",
-      reason: "Relevant when the post explains serum texture, first-step treatment use, or layering."
+      label: "Cleveland Clinic: skin care ingredients explained",
+      url: "https://health.clevelandclinic.org/skin-care-ingredients-explained",
+      reason: "A live, article-level explainer that supports ingredient-led serum education without using vague category pages."
     });
   }
 
@@ -210,16 +210,23 @@ function normalizeExternalLinks(
     return [];
   }
 
-  const allowedUrlSet = new Set(allowedReferences.map((reference) => reference.url));
+  const allowedReferencesByUrl = new Map(
+    allowedReferences.map((reference) => [reference.url, reference])
+  );
 
   return links
     .filter((link) => link && typeof link.label === "string" && typeof link.url === "string")
-    .filter((link) => allowedUrlSet.has(link.url))
+    .filter((link) => allowedReferencesByUrl.has(link.url))
     .slice(0, 2)
-    .map((link) => ({
-      label: link.label.trim(),
-      url: link.url.trim()
-    }))
+    .map((link) => {
+      const normalizedUrl = link.url.trim();
+      const matchedReference = allowedReferencesByUrl.get(normalizedUrl);
+
+      return {
+        label: matchedReference?.label || link.label.trim(),
+        url: normalizedUrl
+      };
+    })
     .filter((link) => Boolean(link.label) && Boolean(link.url));
 }
 
