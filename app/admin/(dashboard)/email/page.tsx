@@ -3,9 +3,9 @@ import {
   saveEmailSettingsAction,
   sendAdminMailboxEmailAction,
   sendAdminSmtpTestEmailAction,
-  generateAdminMailboxReplyAiAction,
-  updateMailboxReadStateAction
+  generateAdminMailboxReplyAiAction
 } from "@/app/admin/actions";
+import { MailboxReadToggleButton } from "@/components/admin/mailbox-read-toggle-button";
 import { getMailboxOverview } from "@/lib/admin-mailbox";
 import { getFormSubmissionById, getStoreSettings } from "@/lib/queries";
 
@@ -407,14 +407,7 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
                           <Link href={buildAdminEmailHref({ uid: message.uid })} className="button button--secondary">
                             Open
                           </Link>
-                          <form action={updateMailboxReadStateAction}>
-                            <input type="hidden" name="uid" value={message.uid} />
-                            <input type="hidden" name="unread" value={message.unread ? "false" : "true"} />
-                            <input type="hidden" name="redirectTo" value={currentViewHref} />
-                            <button type="submit" className="button button--ghost">
-                              {message.unread ? "Mark read" : "Mark unread"}
-                            </button>
-                          </form>
+                          <MailboxReadToggleButton uid={message.uid} initialUnread={message.unread} />
                         </div>
                       </td>
                     </tr>

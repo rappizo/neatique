@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 import {
   getSubscribeCouponDescription,
@@ -60,7 +61,7 @@ function toEmailSettings(record: Record<string, string>): EmailSettings {
   };
 }
 
-export async function getEmailSettings() {
+const loadEmailSettings = cache(async () => {
   const settings = await prisma.storeSetting.findMany({
     where: {
       key: {
@@ -91,6 +92,10 @@ export async function getEmailSettings() {
   }, {});
 
   return toEmailSettings(record);
+});
+
+export async function getEmailSettings() {
+  return loadEmailSettings();
 }
 
 function canSendEmail(settings: EmailSettings) {

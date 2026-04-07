@@ -111,6 +111,8 @@ model Product {
   posts               Post[]
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+
+  @@index([status, featured, createdAt])
 }
 
 model Post {
@@ -272,6 +274,10 @@ model Order {
   reviews               ProductReview[]
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([customerId, createdAt])
 }
 
 model OrderItem {
@@ -298,6 +304,9 @@ model RewardEntry {
   customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   order      Order?     @relation(fields: [orderId], references: [id])
   createdAt  DateTime   @default(now())
+
+  @@index([customerId, createdAt])
+  @@index([type, createdAt])
 }
 
 model RyoClaim {
@@ -329,8 +338,8 @@ model RyoClaim {
   updatedAt            DateTime  @updatedAt
 
   @@index([platformKey, createdAt])
-  @@index([email])
-  @@index([completedAt])
+  @@index([email, createdAt])
+  @@index([completedAt, createdAt])
   @@index([rewardGranted])
 }
 
@@ -364,6 +373,11 @@ model ProductReview {
   order            Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+
+  @@index([productId, reviewDate])
+  @@index([productId, status, reviewDate])
+  @@index([customerId, reviewDate])
+  @@index([status, reviewDate])
 }
 
 model StoreSetting {
@@ -399,6 +413,8 @@ model Coupon {
   orders         Order[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
+
+  @@index([active, expiresAt])
 }
 
 model FormSubmission {
@@ -418,6 +434,8 @@ model FormSubmission {
   updatedAt                 DateTime @updatedAt
 
   @@index([formKey, createdAt])
+  @@index([formKey, handled, createdAt])
+  @@index([formKey, email, createdAt])
   @@index([email])
   @@index([handled])
 }
@@ -477,9 +495,10 @@ model OmbClaim {
   updatedAt            DateTime @updatedAt
 
   @@index([platformKey, createdAt])
-  @@index([email])
+  @@index([email, createdAt])
+  @@index([platformKey, purchasedProduct, createdAt])
   @@index([giftSent])
-  @@index([completedAt])
+  @@index([completedAt, createdAt])
 }
 
 model FollowEmailLog {

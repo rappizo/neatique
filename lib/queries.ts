@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { cache } from "react";
 import type {
   AiPostAutomationOverviewRecord,
   AdminEmailAudiencePageRecord,
@@ -1829,18 +1830,20 @@ export async function getAdminReviewPageByProductSlug(slug: string, page = 1, pa
   );
 }
 
+const loadStoreSettings = cache(async () => {
+  const settings = await prisma.storeSetting.findMany({
+    orderBy: { key: "asc" }
+  });
+
+  return settings.reduce<StoreSettingsRecord>((accumulator, setting) => {
+    accumulator[setting.key] = setting.value;
+    return accumulator;
+  }, {});
+});
+
 export async function getStoreSettings() {
   return withFallback(
-    async () => {
-      const settings = await prisma.storeSetting.findMany({
-        orderBy: { key: "asc" }
-      });
-
-      return settings.reduce<StoreSettingsRecord>((accumulator, setting) => {
-        accumulator[setting.key] = setting.value;
-        return accumulator;
-      }, {});
-    },
+    async () => loadStoreSettings(),
     fallbackSettings
   );
 }
@@ -2261,41 +2264,52 @@ export async function getDashboardSummary() {
         activeProductCount,
         publishedPostCount,
         customerCount,
-        orders,
-        rewards,
-        completedClaims,
-        contactFormDates,
+        orderCount,
+        paidRevenueAggregate,
+        pointsIssuedAggregate,
+        completedTodayRows,
+        contactTodayRows,
         contactFormUnhandledCount
       ] =
         await prisma.$transaction([
           prisma.product.count({ where: { status: "ACTIVE" } }),
           prisma.post.count({ where: { published: true } }),
           prisma.customer.count(),
-          prisma.order.findMany({
-            include: { items: true },
-            orderBy: { createdAt: "desc" }
-          }),
-          prisma.rewardEntry.findMany({
-            include: { customer: true }
-          }),
-          prisma.ombClaim.findMany({
+          prisma.order.count(),
+          prisma.order.aggregate({
             where: {
-              completedAt: {
-                not: null
+              status: {
+                in: ["PAID", "FULFILLED"]
               }
             },
-            select: {
-              completedAt: true
+            _sum: {
+              totalCents: true
             }
           }),
-          prisma.formSubmission.findMany({
+          prisma.rewardEntry.aggregate({
             where: {
-              formKey: "contact"
+              points: {
+                gt: 0
+              }
             },
-            select: {
-              createdAt: true
+            _sum: {
+              points: true
             }
           }),
+          prisma.$queryRaw<Array<{ count: number }>>`
+            SELECT COUNT(*)::int AS count
+            FROM "OmbClaim"
+            WHERE "completedAt" IS NOT NULL
+              AND ("completedAt" AT TIME ZONE ${LOS_ANGELES_TIME_ZONE})::date =
+                  (CURRENT_TIMESTAMP AT TIME ZONE ${LOS_ANGELES_TIME_ZONE})::date
+          `,
+          prisma.$queryRaw<Array<{ count: number }>>`
+            SELECT COUNT(*)::int AS count
+            FROM "FormSubmission"
+            WHERE "formKey" = 'contact'
+              AND ("createdAt" AT TIME ZONE ${LOS_ANGELES_TIME_ZONE})::date =
+                  (CURRENT_TIMESTAMP AT TIME ZONE ${LOS_ANGELES_TIME_ZONE})::date
+          `,
           prisma.formSubmission.count({
             where: {
               formKey: "contact",
@@ -2304,8 +2318,8 @@ export async function getDashboardSummary() {
           })
         ]);
 
-      const lowInventoryProducts = (
-        await prisma.product.findMany({
+      const [lowInventoryRows, recentOrderRows] = await Promise.all([
+        prisma.product.findMany({
           where: {
             inventory: {
               lt: 125
@@ -2313,28 +2327,32 @@ export async function getDashboardSummary() {
           },
           orderBy: {
             inventory: "asc"
-          }
+          },
+          take: 8
+        }),
+        prisma.order.findMany({
+          include: {
+            items: true
+          },
+          orderBy: {
+            createdAt: "desc"
+          },
+          take: 5
         })
-      ).map(mapProduct);
+      ]);
 
-      const recentOrders = orders.slice(0, 5).map(mapOrder);
-      const paidRevenueCents = orders
-        .filter((order) => order.status === "PAID" || order.status === "FULFILLED")
-        .reduce((sum, order) => sum + order.totalCents, 0);
-      const pointsIssued = rewards.reduce((sum, reward) => sum + Math.max(reward.points, 0), 0);
-      const laTodayKey = getDateKeyInTimeZone(new Date(), LOS_ANGELES_TIME_ZONE);
-      const completedOmbClaimsToday = completedClaims.filter((claim) =>
-        getDateKeyInTimeZone(claim.completedAt, LOS_ANGELES_TIME_ZONE) === laTodayKey
-      ).length;
-      const contactFormTodayCount = contactFormDates.filter(
-        (submission) => getDateKeyInTimeZone(submission.createdAt, LOS_ANGELES_TIME_ZONE) === laTodayKey
-      ).length;
+      const lowInventoryProducts = lowInventoryRows.map(mapProduct);
+      const recentOrders = recentOrderRows.map(mapOrder);
+      const paidRevenueCents = paidRevenueAggregate._sum.totalCents ?? 0;
+      const pointsIssued = pointsIssuedAggregate._sum.points ?? 0;
+      const completedOmbClaimsToday = completedTodayRows[0]?.count ?? 0;
+      const contactFormTodayCount = contactTodayRows[0]?.count ?? 0;
 
       const summary: DashboardSummary = {
         activeProductCount,
         publishedPostCount,
         customerCount,
-        orderCount: orders.length,
+        orderCount,
         paidRevenueCents,
         pointsIssued,
         completedOmbClaimsToday,

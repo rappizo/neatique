@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { toggleFormSubmissionHandledAction } from "@/app/admin/actions";
+import { FormHandledToggleButton } from "@/components/admin/form-handled-toggle-button";
 import { formatDate } from "@/lib/format";
 import { getFormSubmissionById, getFormSubmissionPage } from "@/lib/queries";
 
@@ -33,8 +33,6 @@ export default async function AdminFormSubmissionDetailPage({
     notFound();
   }
 
-  const redirectTo = `/admin/forms/${formKey}/${submission.id}`;
-
   return (
     <div className="admin-page">
       <div className="stack-row">
@@ -53,15 +51,12 @@ export default async function AdminFormSubmissionDetailPage({
             Reply by email
           </Link>
         ) : null}
-        <form action={toggleFormSubmissionHandledAction}>
-          <input type="hidden" name="id" value={submission.id} />
-          <input type="hidden" name="formKey" value={formKey} />
-          <input type="hidden" name="redirectTo" value={redirectTo} />
-          <input type="hidden" name="nextHandled" value={submission.handled ? "false" : "true"} />
-          <button type="submit" className="button button--ghost">
-            {submission.handled ? "Mark new" : "Mark handled"}
-          </button>
-        </form>
+        <FormHandledToggleButton
+          submissionId={submission.id}
+          formKey={formKey}
+          initialHandled={submission.handled}
+          className="button button--ghost"
+        />
       </div>
 
       {query.status ? <p className="notice">Submission action completed: {query.status}.</p> : null}

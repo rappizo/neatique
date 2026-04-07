@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { toggleFormSubmissionHandledAction } from "@/app/admin/actions";
+import { FormHandledToggleButton } from "@/components/admin/form-handled-toggle-button";
 import { formatDate } from "@/lib/format";
 import { getFormSubmissionPage } from "@/lib/queries";
 
@@ -61,8 +61,6 @@ export default async function AdminFormSubmissionListPage({
   } = submissionPage;
   const fromSubmission = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const toSubmission = Math.min(currentPage * pageSize, totalCount);
-  const redirectTo = buildPageHref(formKey, currentPage, searchEmail);
-
   return (
     <div className="admin-page">
       <div className="admin-page__header">
@@ -141,19 +139,11 @@ export default async function AdminFormSubmissionListPage({
                     Reply
                   </Link>
                 ) : null}
-                <form action={toggleFormSubmissionHandledAction}>
-                  <input type="hidden" name="id" value={submission.id} />
-                  <input type="hidden" name="formKey" value={formKey} />
-                  <input type="hidden" name="redirectTo" value={redirectTo} />
-                  <input
-                    type="hidden"
-                    name="nextHandled"
-                    value={submission.handled ? "false" : "true"}
-                  />
-                  <button type="submit" className="button button--secondary">
-                    {submission.handled ? "Mark new" : "Mark handled"}
-                  </button>
-                </form>
+                <FormHandledToggleButton
+                  submissionId={submission.id}
+                  formKey={formKey}
+                  initialHandled={submission.handled}
+                />
               </div>
             </article>
           ))
