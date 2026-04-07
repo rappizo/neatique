@@ -176,6 +176,14 @@ export type OrderRecord = {
   items: OrderItemRecord[];
 };
 
+export type AdminOrderPageRecord = {
+  orders: OrderRecord[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+};
+
 export type CouponRecord = {
   id: string;
   code: string;

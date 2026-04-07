@@ -1,9 +1,10 @@
-import { updateOrderAction } from "@/app/admin/actions";
+import Link from "next/link";
+import { OrderInlineEditor } from "@/components/admin/order-inline-editor";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getOrders } from "@/lib/queries";
 
 type AdminOrdersPageProps = {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 };
 
 function formatAddress(parts: Array<string | null>) {
@@ -11,7 +12,16 @@ function formatAddress(parts: Array<string | null>) {
 }
 
 export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageProps) {
-  const [orders, params] = await Promise.all([getOrders(), searchParams]);
+  const params = await searchParams;
+  const requestedPage = Number.parseInt(params.page || "1", 10);
+  const orderPage = await getOrders(Number.isFinite(requestedPage) ? requestedPage : 1, 50);
+  const { orders, totalCount, currentPage, totalPages, pageSize } = orderPage;
+  const fromOrder = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const toOrder = Math.min(currentPage * pageSize, totalCount);
+
+  function buildPageHref(page: number) {
+    return `/admin/orders?page=${page}`;
+  }
 
   return (
     <div className="admin-page">
@@ -25,6 +35,21 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
       </div>
 
       {params.status ? <p className="notice">Order action completed: {params.status}.</p> : null}
+
+      <section className="admin-form">
+        <div className="admin-review-pagination">
+          <div>
+            <h2>Orders</h2>
+            <p className="form-note">
+              Showing {fromOrder} to {toOrder} of {totalCount} orders.
+            </p>
+          </div>
+          <div className="stack-row">
+            <span className="pill">50 per page</span>
+            <span className="pill">Latest orders first</span>
+          </div>
+        </div>
+      </section>
 
       <div className="cards-2">
         {orders.map((order) => (
@@ -97,40 +122,39 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
               </ul>
             </section>
 
-            <form action={updateOrderAction}>
-              <input type="hidden" name="id" value={order.id} />
-              <div className="admin-form__grid">
-                <div className="field">
-                  <label>Status</label>
-                  <select name="status" defaultValue={order.status}>
-                    <option value="PENDING">PENDING</option>
-                    <option value="PAID">PAID</option>
-                    <option value="FULFILLED">FULFILLED</option>
-                    <option value="CANCELLED">CANCELLED</option>
-                    <option value="REFUNDED">REFUNDED</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Fulfillment</label>
-                  <select name="fulfillmentStatus" defaultValue={order.fulfillmentStatus}>
-                    <option value="UNFULFILLED">UNFULFILLED</option>
-                    <option value="PROCESSING">PROCESSING</option>
-                    <option value="SHIPPED">SHIPPED</option>
-                    <option value="DELIVERED">DELIVERED</option>
-                  </select>
-                </div>
-              </div>
-              <div className="field">
-                <label>Order notes</label>
-                <textarea name="notes" defaultValue={order.notes ?? ""} />
-              </div>
-              <button type="submit" className="button button--primary">
-                Update order
-              </button>
-            </form>
+            <OrderInlineEditor
+              orderId={order.id}
+              initialStatus={order.status}
+              initialFulfillmentStatus={order.fulfillmentStatus}
+              initialNotes={order.notes ?? ""}
+            />
           </section>
         ))}
       </div>
+
+      <section className="admin-form">
+        <div className="admin-review-pagination">
+          <div className="stack-row">
+            <Link
+              href={currentPage > 1 ? buildPageHref(currentPage - 1) : "#"}
+              className={`button button--secondary${currentPage > 1 ? "" : " button--disabled"}`}
+              aria-disabled={currentPage <= 1}
+            >
+              Previous
+            </Link>
+            <span className="pill">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Link
+              href={currentPage < totalPages ? buildPageHref(currentPage + 1) : "#"}
+              className={`button button--secondary${currentPage < totalPages ? "" : " button--disabled"}`}
+              aria-disabled={currentPage >= totalPages}
+            >
+              Next
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

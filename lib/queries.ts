@@ -3,6 +3,7 @@ import { cache } from "react";
 import type {
   AiPostAutomationOverviewRecord,
   AdminEmailAudiencePageRecord,
+  AdminOrderPageRecord,
   AdminOmbClaimPageRecord,
   AdminProductReviewPageRecord,
   AdminReviewProductSummary,
@@ -895,18 +896,40 @@ export async function getCustomers() {
   );
 }
 
-export async function getOrders() {
-  return withFallback(
-    async () =>
-      (
-        await prisma.order.findMany({
-          include: {
-            items: true
-          },
-          orderBy: [{ createdAt: "desc" }]
-        })
-      ).map(mapOrder),
-    fallbackOrders
+export async function getOrders(page = 1, pageSize = 50) {
+  const fallbackTotalPages = Math.max(1, Math.ceil(fallbackOrders.length / pageSize));
+  const fallbackCurrentPage = Math.min(Math.max(1, page), fallbackTotalPages);
+  const fallback: AdminOrderPageRecord = {
+    orders: fallbackOrders.slice((fallbackCurrentPage - 1) * pageSize, fallbackCurrentPage * pageSize),
+    totalCount: fallbackOrders.length,
+    currentPage: fallbackCurrentPage,
+    totalPages: fallbackTotalPages,
+    pageSize
+  };
+
+  return withFallback<AdminOrderPageRecord>(
+    async () => {
+      const totalCount = await prisma.order.count();
+      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      const currentPage = Math.min(Math.max(1, page), totalPages);
+      const rows = await prisma.order.findMany({
+        include: {
+          items: true
+        },
+        orderBy: [{ createdAt: "desc" }],
+        skip: (currentPage - 1) * pageSize,
+        take: pageSize
+      });
+
+      return {
+        orders: rows.map(mapOrder),
+        totalCount,
+        currentPage,
+        totalPages,
+        pageSize
+      };
+    },
+    fallback
   );
 }
 
@@ -1195,29 +1218,15 @@ export async function getOmbClaimPage(
           : {})
       };
 
-      const [totalCount, claims, completedClaims, platformRows, productRows, productShortNames] = await prisma.$transaction([
+      const [totalCount, completedTodayRows, platformRows, productRows, productShortNames] = await prisma.$transaction([
         prisma.ombClaim.count({ where }),
-        prisma.ombClaim.findMany({
-          where,
-          include: {
-            followEmails: {
-              orderBy: [{ createdAt: "desc" }]
-            }
-          },
-          orderBy: [{ createdAt: "desc" }],
-          skip: Math.max(0, page - 1) * pageSize,
-          take: pageSize
-        }),
-        prisma.ombClaim.findMany({
-          where: {
-            completedAt: {
-              not: null
-            }
-          },
-          select: {
-            completedAt: true
-          }
-        }),
+        prisma.$queryRaw<Array<{ count: number }>>`
+          SELECT COUNT(*)::int AS count
+          FROM "OmbClaim"
+          WHERE "completedAt" IS NOT NULL
+            AND ("completedAt" AT TIME ZONE ${LOS_ANGELES_TIME_ZONE})::date =
+                (CURRENT_TIMESTAMP AT TIME ZONE ${LOS_ANGELES_TIME_ZONE})::date
+        `,
         prisma.ombClaim.findMany({
           select: {
             platformKey: true,
@@ -1254,25 +1263,18 @@ export async function getOmbClaimPage(
 
       const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
       const currentPage = Math.min(Math.max(1, page), totalPages);
-      const laTodayKey = getDateKeyInTimeZone(new Date(), LOS_ANGELES_TIME_ZONE);
-      const completedTodayCount = completedClaims.filter((claim) =>
-        getDateKeyInTimeZone(claim.completedAt, LOS_ANGELES_TIME_ZONE) === laTodayKey
-      ).length;
-
-      const pagedClaims =
-        currentPage === page
-          ? claims
-          : await prisma.ombClaim.findMany({
-              where,
-              include: {
-                followEmails: {
-                  orderBy: [{ createdAt: "desc" }]
-                }
-              },
-              orderBy: [{ createdAt: "desc" }],
-              skip: (currentPage - 1) * pageSize,
-              take: pageSize
-            });
+      const pagedClaims = await prisma.ombClaim.findMany({
+        where,
+        include: {
+          followEmails: {
+            orderBy: [{ createdAt: "desc" }]
+          }
+        },
+        orderBy: [{ createdAt: "desc" }],
+        skip: (currentPage - 1) * pageSize,
+        take: pageSize
+      });
+      const completedTodayCount = completedTodayRows[0]?.count ?? 0;
 
       const platformOptions = platformRows
         .filter((platform) => platform.platformKey && platform.platformLabel)
@@ -1470,27 +1472,21 @@ export async function getRyoClaims(limit = 50) {
 export async function getFollowEmailOverview(processKey: FollowEmailProcessKey) {
   return withFallback<FollowEmailOverviewRecord>(
     async () => {
-      const [settings, logs] = await Promise.all([
+      const [settings, rows] = await Promise.all([
         getStoreSettings(),
-        prisma.followEmailLog.findMany({
-          where: {
-            processKey
-          },
-          select: {
-            stageKey: true,
-            createdAt: true
-          }
-        })
+        prisma.$queryRaw<Array<{ stageKey: FollowEmailLogRecord["stageKey"]; count: number }>>`
+          SELECT "stageKey", COUNT(*)::int AS count
+          FROM "FollowEmailLog"
+          WHERE "processKey" = ${processKey}::"FollowEmailProcess"
+            AND ("createdAt" AT TIME ZONE ${LOS_ANGELES_TIME_ZONE})::date =
+                (CURRENT_TIMESTAMP AT TIME ZONE ${LOS_ANGELES_TIME_ZONE})::date
+          GROUP BY "stageKey"
+        `
       ]);
 
-      const todayKey = getDateKeyInTimeZone(new Date(), LOS_ANGELES_TIME_ZONE);
-      const sentCounts = logs.reduce<Partial<Record<FollowEmailLogRecord["stageKey"], number>>>(
-        (accumulator, log) => {
-          if (getDateKeyInTimeZone(log.createdAt, LOS_ANGELES_TIME_ZONE) !== todayKey) {
-            return accumulator;
-          }
-
-          accumulator[log.stageKey] = (accumulator[log.stageKey] ?? 0) + 1;
+      const sentCounts = rows.reduce<Partial<Record<FollowEmailLogRecord["stageKey"], number>>>(
+        (accumulator, row) => {
+          accumulator[row.stageKey] = row.count;
           return accumulator;
         },
         {}

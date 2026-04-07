@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { saveFollowEmailSettingsAction, updateOmbClaimAction } from "@/app/admin/actions";
+import { saveFollowEmailSettingsAction } from "@/app/admin/actions";
+import { OmbClaimInlineEditor } from "@/components/admin/omb-claim-inline-editor";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { FOLLOW_EMAIL_PROCESS_LABELS, FOLLOW_EMAIL_STAGE_LABELS } from "@/lib/follow-emails";
 import { formatDate, formatNumber, formatTime, LOS_ANGELES_TIME_ZONE } from "@/lib/format";
@@ -239,8 +240,6 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
             </thead>
             <tbody>
               {claims.map((claim) => {
-                const redirectTo = buildPageHref(currentPage);
-                const formId = `claim-form-${claim.id}`;
                 const progressLabel = claim.completedAt
                   ? "Completed"
                   : claim.reviewRating && claim.reviewRating >= 4
@@ -319,15 +318,9 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                     </td>
                     <td>
                       <div className="admin-table__cell-stack">
-                        <label className="admin-table__checkbox-label">
-                          <input
-                            type="checkbox"
-                            name="giftSent"
-                            defaultChecked={claim.giftSent}
-                            form={formId}
-                          />
-                          <span>{claim.giftSent ? "Gift sent" : "Gift pending"}</span>
-                        </label>
+                        <span className={claim.giftSent ? "pill" : "admin-table__empty"}>
+                          {claim.giftSent ? "Gift sent" : "Gift pending"}
+                        </span>
                         {latestFollowEmail ? (
                           <details className="admin-follow-email-log">
                             <summary>Follow email sent</summary>
@@ -354,21 +347,16 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                       </div>
                     </td>
                     <td>
-                      <textarea
-                        className="admin-table__textarea"
-                        name="adminNote"
-                        defaultValue={claim.adminNote || ""}
-                        form={formId}
-                      />
+                      <div className="admin-table__clip">
+                        {claim.adminNote ? claim.adminNote : <span className="admin-table__empty">No note</span>}
+                      </div>
                     </td>
                     <td className="admin-table__actions">
-                      <form id={formId} action={updateOmbClaimAction}>
-                        <input type="hidden" name="id" value={claim.id} />
-                        <input type="hidden" name="redirectTo" value={redirectTo} />
-                      </form>
-                      <button type="submit" className="button button--primary" form={formId}>
-                        Save
-                      </button>
+                      <OmbClaimInlineEditor
+                        claimId={claim.id}
+                        initialGiftSent={claim.giftSent}
+                        initialAdminNote={claim.adminNote || ""}
+                      />
                     </td>
                   </tr>
                 );
