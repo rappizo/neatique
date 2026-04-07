@@ -18,8 +18,8 @@ import type {
   EmailContactRecord,
   EmailAudienceType,
   EmailCampaignRecord,
+  EmailCampaignOverviewCardRecord,
   EmailCampaignSummaryReportRecord,
-  EmailCampaignWithReportRecord,
   EmailMarketingOverviewRecord,
   FollowEmailLogRecord,
   FollowEmailOverviewRecord,
@@ -611,6 +611,21 @@ function mapEmailCampaign(campaign: any): EmailCampaignRecord {
     syncError: campaign.syncError ?? null,
     createdAt: new Date(campaign.createdAt),
     updatedAt: new Date(campaign.updatedAt)
+  };
+}
+
+function mapEmailCampaignOverviewCard(campaign: any): Omit<EmailCampaignOverviewCardRecord, "brevoReport"> {
+  return {
+    id: campaign.id,
+    name: campaign.name,
+    subject: campaign.subject,
+    audienceType: campaign.audienceType,
+    status: campaign.status,
+    brevoCampaignId: campaign.brevoCampaignId ?? null,
+    lastSyncedAt: campaign.lastSyncedAt ? new Date(campaign.lastSyncedAt) : null,
+    scheduledAt: campaign.scheduledAt ? new Date(campaign.scheduledAt) : null,
+    updatedAt: new Date(campaign.updatedAt),
+    createdAt: new Date(campaign.createdAt)
   };
 }
 
@@ -1901,6 +1916,18 @@ export async function getEmailMarketingOverview() {
           }
         }),
         prisma.emailCampaign.findMany({
+          select: {
+            id: true,
+            name: true,
+            subject: true,
+            audienceType: true,
+            status: true,
+            brevoCampaignId: true,
+            lastSyncedAt: true,
+            scheduledAt: true,
+            updatedAt: true,
+            createdAt: true
+          },
           orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
         })
       ]);
@@ -1915,13 +1942,13 @@ export async function getEmailMarketingOverview() {
         brevoReportsResult.reports.map((report) => [report.id, report] satisfies [number, BrevoCampaignReportRecord])
       );
       const campaignsMapped = campaigns.map((campaign) => {
-        const mappedCampaign = mapEmailCampaign(campaign);
+        const mappedCampaign = mapEmailCampaignOverviewCard(campaign);
         return {
           ...mappedCampaign,
           brevoReport: mappedCampaign.brevoCampaignId
             ? brevoReportLookup.get(mappedCampaign.brevoCampaignId) ?? null
             : null
-        } satisfies EmailCampaignWithReportRecord;
+        } satisfies EmailCampaignOverviewCardRecord;
       });
       const brevoListLookup = new Map(brevoListsResult.lists.map((list) => [list.id, list]));
       const newsletterEmailSet = new Set(newsletterRows.map((row) => row.email));
@@ -2056,7 +2083,7 @@ export async function getEmailMarketingOverview() {
       })),
       brevoLists: [] as BrevoListRecord[],
       brevoError: null,
-      campaigns: [] as EmailCampaignWithReportRecord[]
+      campaigns: [] as EmailCampaignOverviewCardRecord[]
     }
   );
 }

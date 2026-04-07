@@ -520,6 +520,20 @@ export type EmailCampaignWithReportRecord = EmailCampaignRecord & {
   brevoReport: BrevoCampaignReportRecord | null;
 };
 
+export type EmailCampaignOverviewCardRecord = {
+  id: string;
+  name: string;
+  subject: string;
+  audienceType: EmailAudienceType;
+  status: EmailCampaignStatus;
+  brevoCampaignId: number | null;
+  lastSyncedAt: Date | null;
+  scheduledAt: Date | null;
+  updatedAt: Date;
+  createdAt: Date;
+  brevoReport: BrevoCampaignReportRecord | null;
+};
+
 export type EmailCampaignSummaryReportRecord = {
   trackedCampaignCount: number;
   sentCampaignCount: number;
@@ -571,5 +585,5 @@ export type EmailMarketingOverviewRecord = {
   brevoLists: BrevoListRecord[];
   brevoError: string | null;
   campaignReport: EmailCampaignSummaryReportRecord;
-  campaigns: EmailCampaignWithReportRecord[];
+  campaigns: EmailCampaignOverviewCardRecord[];
 };

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import {
-  importBrevoAudienceAction,
-  saveEmailMarketingSettingsAction,
-  syncBrevoAudienceAction
+  saveEmailMarketingSettingsAction
 } from "@/app/admin/actions";
+import { EmailAudienceActionButtons } from "@/components/admin/email-audience-action-buttons";
 import { fetchBrevoSenders, getBrevoSettings } from "@/lib/brevo";
 import { formatDate, formatNumber, formatPercent } from "@/lib/format";
 import { getEmailMarketingOverview, getStoreSettings } from "@/lib/queries";
@@ -192,29 +191,10 @@ export default async function AdminEmailMarketingPage({
                   </li>
                 </ul>
 
-                <div className="stack-row">
-                  <Link
-                    href={`/admin/email-marketing/audience/${audience.key}`}
-                    className="button button--ghost"
-                  >
-                    View emails
-                  </Link>
-                  <form action={importBrevoAudienceAction}>
-                    <input type="hidden" name="audienceType" value={audience.key} />
-                    <input type="hidden" name="redirectTo" value="/admin/email-marketing" />
-                    <button type="submit" className="button button--secondary">
-                      Import from Brevo
-                    </button>
-                  </form>
-
-                  <form action={syncBrevoAudienceAction}>
-                    <input type="hidden" name="audienceType" value={audience.key} />
-                    <input type="hidden" name="redirectTo" value="/admin/email-marketing" />
-                    <button type="submit" className="button button--primary">
-                      Sync to Brevo
-                    </button>
-                  </form>
-                </div>
+                <EmailAudienceActionButtons
+                  audienceType={audience.key}
+                  detailHref={`/admin/email-marketing/audience/${audience.key}`}
+                />
               </div>
             </article>
           ))}

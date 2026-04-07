@@ -2,17 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
+import { ReviewBulkActionButton } from "@/components/admin/review-bulk-action-button";
 import { ReviewBulkSelectToggle } from "@/components/admin/review-bulk-select-toggle";
+import { ReviewInlineRow } from "@/components/admin/review-inline-row";
 import { RatingStars } from "@/components/ui/rating-stars";
 import {
-  approveReviewAction,
-  bulkModerateReviewsAction,
   bulkImportReviewsAction,
-  deleteReviewAction,
-  generateAiReviewsAction,
-  updateReviewAction
+  generateAiReviewsAction
 } from "@/app/admin/actions";
-import { formatDate } from "@/lib/format";
 import { getOpenAiReviewSettings } from "@/lib/openai-reviews";
 import { getAdminReviewPageByProductSlug } from "@/lib/queries";
 
@@ -26,10 +23,6 @@ const csvColumns = "displayName,email,rating,title,content,reviewDate,verifiedPu
 
 function buildPageHref(slug: string, page: number) {
   return `/admin/reviews/${slug}?page=${page}`;
-}
-
-function toDateInputValue(value: Date) {
-  return new Date(value).toISOString().slice(0, 10);
 }
 
 function toDefaultAiStartDate() {
@@ -354,46 +347,35 @@ export default async function AdminProductReviewsPage({
           </div>
 
           <div className="stack-row">
-            <form id={bulkModerationFormId} action={bulkModerateReviewsAction}>
-              <input type="hidden" name="productSlug" value={product.slug} />
-              <input type="hidden" name="redirectTo" value={redirectTo} />
-            </form>
-            <button
-              type="submit"
+            <form id={bulkModerationFormId} />
+            <ReviewBulkActionButton
+              formId={bulkModerationFormId}
+              productSlug={product.slug}
+              intent="approve"
+              label="Approve selected"
               className="button button--secondary"
-              form={bulkModerationFormId}
-              name="intent"
-              value="approve"
-            >
-              Approve selected
-            </button>
-            <button
-              type="submit"
+            />
+            <ReviewBulkActionButton
+              formId={bulkModerationFormId}
+              productSlug={product.slug}
+              intent="mark-verified"
+              label="Mark verified"
               className="button button--secondary"
-              form={bulkModerationFormId}
-              name="intent"
-              value="mark-verified"
-            >
-              Mark verified
-            </button>
-            <button
-              type="submit"
+            />
+            <ReviewBulkActionButton
+              formId={bulkModerationFormId}
+              productSlug={product.slug}
+              intent="mark-unverified"
+              label="Mark unverified"
               className="button button--secondary"
-              form={bulkModerationFormId}
-              name="intent"
-              value="mark-unverified"
-            >
-              Mark unverified
-            </button>
-            <button
-              type="submit"
+            />
+            <ReviewBulkActionButton
+              formId={bulkModerationFormId}
+              productSlug={product.slug}
+              intent="delete"
+              label="Delete selected"
               className="button button--ghost"
-              form={bulkModerationFormId}
-              name="intent"
-              value="delete"
-            >
-              Delete selected
-            </button>
+            />
             <Link
               href={currentPage > 1 ? buildPageHref(product.slug, currentPage - 1) : "#"}
               className={`button button--secondary${currentPage > 1 ? "" : " button--disabled"}`}
@@ -439,136 +421,14 @@ export default async function AdminProductReviewsPage({
               </tr>
             </thead>
             <tbody>
-              {reviews.map((review) => {
-                const updateFormId = `review-update-${review.id}`;
-                const deleteFormId = `review-delete-${review.id}`;
-
-                return (
-                  <tr key={review.id}>
-                    <td>
-                      <label className="admin-table__checkbox-label">
-                        <input type="checkbox" name="reviewIds" value={review.id} form={bulkModerationFormId} />
-                        <span>Select</span>
-                      </label>
-                    </td>
-                    <td>
-                      <div className="admin-table__cell-stack">
-                        <strong>{formatDate(review.reviewDate)}</strong>
-                        <span className="form-note">{review.customerEmail || "No customer record"}</span>
-                        <input
-                          className="admin-table__input"
-                          name="reviewDate"
-                          type="date"
-                          defaultValue={toDateInputValue(review.reviewDate)}
-                          form={updateFormId}
-                        />
-                      </div>
-                    </td>
-                    <td>
-                      <input
-                        className="admin-table__input"
-                        name="displayName"
-                        defaultValue={review.displayName}
-                        form={updateFormId}
-                      />
-                    </td>
-                    <td>
-                      <div className="admin-table__rating-cell">
-                        <input
-                          className="admin-table__input admin-table__input--xs"
-                          name="rating"
-                          type="number"
-                          min="1"
-                          max="5"
-                          defaultValue={review.rating}
-                          form={updateFormId}
-                        />
-                        <RatingStars rating={review.rating} size="sm" />
-                      </div>
-                    </td>
-                    <td>
-                      <select
-                        className="admin-table__select"
-                        name="status"
-                        defaultValue={review.status}
-                        form={updateFormId}
-                      >
-                        <option value="PENDING">PENDING</option>
-                        <option value="PUBLISHED">PUBLISHED</option>
-                        <option value="HIDDEN">HIDDEN</option>
-                      </select>
-                    </td>
-                    <td>
-                      <span className="pill">{review.source}</span>
-                    </td>
-                    <td>
-                      <label className="admin-table__checkbox-label">
-                        <input
-                          type="checkbox"
-                          name="verifiedPurchase"
-                          defaultChecked={review.verifiedPurchase}
-                          form={updateFormId}
-                        />
-                        <span>Verified</span>
-                      </label>
-                    </td>
-                    <td>
-                      <input
-                        className="admin-table__input"
-                        name="title"
-                        defaultValue={review.title}
-                        form={updateFormId}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        className="admin-table__textarea"
-                        name="content"
-                        defaultValue={review.content}
-                        form={updateFormId}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        className="admin-table__textarea"
-                        name="adminNotes"
-                        defaultValue={review.adminNotes ?? ""}
-                        form={updateFormId}
-                      />
-                    </td>
-                    <td className="admin-table__actions">
-                      <form id={updateFormId} action={updateReviewAction}>
-                        <input type="hidden" name="id" value={review.id} />
-                        <input type="hidden" name="productSlug" value={product.slug} />
-                        <input type="hidden" name="redirectTo" value={redirectTo} />
-                      </form>
-                      <button type="submit" className="button button--primary" form={updateFormId}>
-                        Save
-                      </button>
-
-                      {review.status !== "PUBLISHED" ? (
-                        <form action={approveReviewAction}>
-                          <input type="hidden" name="id" value={review.id} />
-                          <input type="hidden" name="productSlug" value={product.slug} />
-                          <input type="hidden" name="redirectTo" value={redirectTo} />
-                          <button type="submit" className="button button--secondary">
-                            Approve
-                          </button>
-                        </form>
-                      ) : null}
-
-                      <form id={deleteFormId} action={deleteReviewAction}>
-                        <input type="hidden" name="id" value={review.id} />
-                        <input type="hidden" name="productSlug" value={product.slug} />
-                        <input type="hidden" name="redirectTo" value={redirectTo} />
-                      </form>
-                      <button type="submit" className="button button--ghost" form={deleteFormId}>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {reviews.map((review) => (
+                <ReviewInlineRow
+                  key={review.id}
+                  review={review}
+                  productSlug={product.slug}
+                  bulkFormId={bulkModerationFormId}
+                />
+              ))}
             </tbody>
           </table>
         </section>
