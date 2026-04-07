@@ -10,17 +10,19 @@ type PostCardProps = {
 export function PostCard({ post }: PostCardProps) {
   return (
     <article className="post-card">
-      <div className="post-card__image-wrap">
-        <Image
-          src={post.coverImageUrl}
-          alt={post.coverImageAlt || post.title}
-          fill
-          className="post-card__image"
-          sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 31vw"
-          quality={75}
-          unoptimized
-        />
-      </div>
+      <Link href={`/beauty-tips/${post.slug}`} className="post-card__image-link" aria-label={`Read ${post.title}`}>
+        <div className="post-card__image-wrap">
+          <Image
+            src={post.coverImageUrl}
+            alt={post.coverImageAlt || post.title}
+            fill
+            className="post-card__image"
+            sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 31vw"
+            quality={75}
+            unoptimized
+          />
+        </div>
+      </Link>
       <div className="post-card__content">
         <div className="post-card__meta">
           <span>{post.category}</span>

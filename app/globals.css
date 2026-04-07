@@ -1048,6 +1048,11 @@ main {
   display: block;
 }
 
+.post-card__image-link {
+  display: block;
+  height: 100%;
+}
+
 .product-card__image-wrap,
 .post-card__image-wrap,
 .admin-product-card__media {
