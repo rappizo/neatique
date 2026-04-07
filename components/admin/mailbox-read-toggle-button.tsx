@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import type { MailboxFolderKey } from "@/lib/admin-mailbox";
 
 type MailboxReadToggleButtonProps = {
   uid: number;
   initialUnread: boolean;
+  folder: MailboxFolderKey;
   className?: string;
 };
 
@@ -21,6 +23,7 @@ function extractErrorMessage(payload: unknown) {
 export function MailboxReadToggleButton({
   uid,
   initialUnread,
+  folder,
   className = "button button--ghost"
 }: MailboxReadToggleButtonProps) {
   const router = useRouter();
@@ -44,7 +47,8 @@ export function MailboxReadToggleButton({
           },
           body: JSON.stringify({
             uid,
-            unread: nextUnread
+            unread: nextUnread,
+            folder
           })
         });
 

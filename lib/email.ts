@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { cache } from "react";
+import { ImapFlow } from "imapflow";
 import { prisma } from "@/lib/db";
 import {
   getSubscribeCouponDescription,
@@ -23,6 +24,7 @@ type EmailSettings = {
   imapUser: string;
   imapPass: string;
   imapMailbox: string;
+  imapSentMailbox: string;
 };
 
 type EmailSendResult =
@@ -57,7 +59,8 @@ function toEmailSettings(record: Record<string, string>): EmailSettings {
     imapSecure: parseBool(record.imap_secure),
     imapUser: record.imap_user || record.smtp_user || "",
     imapPass: record.imap_pass || record.smtp_pass || "",
-    imapMailbox: record.imap_mailbox || "INBOX"
+    imapMailbox: record.imap_mailbox || "INBOX",
+    imapSentMailbox: record.imap_sent_mailbox || "Sent"
   };
 }
 
@@ -80,7 +83,8 @@ const loadEmailSettings = cache(async () => {
           "imap_secure",
           "imap_user",
           "imap_pass",
-          "imap_mailbox"
+          "imap_mailbox",
+          "imap_sent_mailbox"
         ]
       }
     }
@@ -119,6 +123,127 @@ function createEmailTransport(settings: EmailSettings) {
       pass: settings.smtpPass
     }
   });
+}
+
+function canArchiveSentEmail(settings: EmailSettings) {
+  return Boolean(
+    settings.imapHost &&
+      settings.imapPort &&
+      settings.imapUser &&
+      settings.imapPass &&
+      settings.imapSentMailbox
+  );
+}
+
+function buildImapClient(settings: EmailSettings) {
+  return new ImapFlow({
+    host: settings.imapHost,
+    port: settings.imapPort,
+    secure: settings.imapSecure,
+    auth: {
+      user: settings.imapUser,
+      pass: settings.imapPass
+    },
+    logger: false,
+    emitLogs: false,
+    disableAutoIdle: true,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000,
+    maxIdleTime: 60000
+  });
+}
+
+function encodeMimeHeader(value: string) {
+  const normalized = (value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  return /[^\x20-\x7E]/.test(normalized)
+    ? `=?UTF-8?B?${Buffer.from(normalized, "utf8").toString("base64")}?=`
+    : normalized;
+}
+
+function normalizeMimeLineBreaks(value: string) {
+  return String(value || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+function toBase64MimeBlock(value: string) {
+  const encoded = Buffer.from(normalizeMimeLineBreaks(value), "utf8").toString("base64");
+  return encoded.replace(/.{1,76}/g, "$&\r\n").trim();
+}
+
+function buildArchivedMimeMessage(input: {
+  settings: EmailSettings;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+}) {
+  const boundary = `neatique-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const fromDisplay = input.settings.fromName
+    ? `${encodeMimeHeader(input.settings.fromName)} <${input.settings.fromEmail}>`
+    : input.settings.fromEmail;
+  const headers = [
+    `From: ${fromDisplay}`,
+    `To: ${input.to}`,
+    `Subject: ${encodeMimeHeader(input.subject)}`,
+    `Date: ${new Date().toUTCString()}`,
+    input.replyTo ? `Reply-To: ${input.replyTo}` : null,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`
+  ]
+    .filter(Boolean)
+    .join("\r\n");
+
+  const textPart = [
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    toBase64MimeBlock(input.text)
+  ].join("\r\n");
+
+  const htmlPart = [
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    toBase64MimeBlock(input.html)
+  ].join("\r\n");
+
+  const closingBoundary = `--${boundary}--`;
+
+  return `${headers}\r\n\r\n${textPart}\r\n${htmlPart}\r\n${closingBoundary}\r\n`;
+}
+
+async function archiveSentEmail(input: {
+  settings: EmailSettings;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+}) {
+  if (!canArchiveSentEmail(input.settings)) {
+    return;
+  }
+
+  const client = buildImapClient(input.settings);
+  await client.connect();
+
+  try {
+    const rawMessage = buildArchivedMimeMessage(input);
+    await client.append(input.settings.imapSentMailbox, rawMessage, ["\\Seen"], new Date());
+  } finally {
+    try {
+      await client.logout();
+    } catch {
+      // Ignore disconnect errors.
+    }
+  }
 }
 
 function sanitizeEmailDiagnosticValue(value: string, maxLength = 220) {
@@ -220,10 +345,23 @@ export async function sendConfiguredEmail(input: {
     return { delivered: false, stage: "config", reason: "Email configuration is incomplete." };
   }
 
-  return sendEmailWithTransport({
+  const result = await sendEmailWithTransport({
     settings,
     ...input
   });
+
+  if (result.delivered) {
+    try {
+      await archiveSentEmail({
+        settings,
+        ...input
+      });
+    } catch (error) {
+      console.error("Sent mailbox archive failed:", error);
+    }
+  }
+
+  return result;
 }
 
 export async function sendSmtpDiagnosticEmail(input: {

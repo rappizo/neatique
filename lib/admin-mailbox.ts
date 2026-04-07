@@ -12,6 +12,8 @@ export type MailboxMessageSummary = {
   unread: boolean;
 };
 
+export type MailboxFolderKey = "inbox" | "sent";
+
 export type MailboxMessageDetail = MailboxMessageSummary & {
   toEmails: string[];
   ccEmails: string[];
@@ -30,6 +32,7 @@ export type MailboxOverview = {
   totalMessages: number;
   unreadMessages: number;
   mailboxName: string;
+  folder: MailboxFolderKey;
   messages: MailboxMessageSummary[];
   selectedMessage: MailboxMessageDetail | null;
 };
@@ -52,8 +55,7 @@ function canReadMailbox(settings: Awaited<ReturnType<typeof getEmailSettings>>) 
       settings.imapHost &&
       settings.imapPort &&
       settings.imapUser &&
-      settings.imapPass &&
-      settings.imapMailbox
+      settings.imapPass
   );
 }
 
@@ -106,6 +108,13 @@ function mapSummary(message: any): MailboxMessageSummary {
   };
 }
 
+function resolveMailboxName(
+  settings: Awaited<ReturnType<typeof getEmailSettings>>,
+  folder: MailboxFolderKey
+) {
+  return folder === "sent" ? settings.imapSentMailbox || "Sent" : settings.imapMailbox || "INBOX";
+}
+
 async function withMailboxClient<T>(
   settings: Awaited<ReturnType<typeof getEmailSettings>>,
   run: (client: ImapFlow) => Promise<T>
@@ -124,8 +133,14 @@ async function withMailboxClient<T>(
   }
 }
 
-export async function getMailboxOverview(selectedUid?: number | null, limit = 25): Promise<MailboxOverview> {
+export async function getMailboxOverview(input?: {
+  selectedUid?: number | null;
+  limit?: number;
+  folder?: MailboxFolderKey;
+}): Promise<MailboxOverview> {
   const settings = await getEmailSettings();
+  const folder = input?.folder === "sent" ? "sent" : "inbox";
+  const mailboxName = resolveMailboxName(settings, folder);
 
   if (!canReadMailbox(settings)) {
     return {
@@ -133,7 +148,8 @@ export async function getMailboxOverview(selectedUid?: number | null, limit = 25
       reason: "Add IMAP settings to read this mailbox inside the admin.",
       totalMessages: 0,
       unreadMessages: 0,
-      mailboxName: settings.imapMailbox || "INBOX",
+      mailboxName,
+      folder,
       messages: [],
       selectedMessage: null
     };
@@ -141,16 +157,29 @@ export async function getMailboxOverview(selectedUid?: number | null, limit = 25
 
   try {
     return await withMailboxClient(settings, async (client) => {
-      const status = await client.status(settings.imapMailbox, {
+      const targetUid = input?.selectedUid && input.selectedUid > 0 ? input.selectedUid : null;
+
+      if (targetUid && folder === "inbox") {
+        const mailboxLock = await client.getMailboxLock(mailboxName);
+        try {
+          await client.messageFlagsAdd(targetUid, ["\\Seen"], { uid: true, silent: true });
+        } catch {
+          // Ignore mark-as-read failures here so the message can still open.
+        } finally {
+          mailboxLock.release();
+        }
+      }
+
+      const status = await client.status(mailboxName, {
         messages: true,
         unseen: true
       });
-      const lock = await client.getMailboxLock(settings.imapMailbox);
+      const lock = await client.getMailboxLock(mailboxName);
 
       try {
         const totalMessages = Number(status.messages || 0);
         const unreadMessages = Number(status.unseen || 0);
-        const start = Math.max(1, totalMessages - Math.max(1, limit) + 1);
+        const start = Math.max(1, totalMessages - Math.max(1, input?.limit || 25) + 1);
         const messages: MailboxMessageSummary[] = [];
 
         if (totalMessages > 0) {
@@ -171,7 +200,6 @@ export async function getMailboxOverview(selectedUid?: number | null, limit = 25
         messages.sort((left, right) => right.uid - left.uid);
 
         let selectedMessage: MailboxMessageDetail | null = null;
-        const targetUid = selectedUid && selectedUid > 0 ? selectedUid : null;
 
         if (targetUid) {
           const message = (await client.fetchOne(
@@ -210,7 +238,8 @@ export async function getMailboxOverview(selectedUid?: number | null, limit = 25
           reason: null,
           totalMessages,
           unreadMessages,
-          mailboxName: settings.imapMailbox,
+          mailboxName,
+          folder,
           messages,
           selectedMessage
         };
@@ -224,15 +253,18 @@ export async function getMailboxOverview(selectedUid?: number | null, limit = 25
       reason: error instanceof Error ? error.message : "Mailbox connection failed.",
       totalMessages: 0,
       unreadMessages: 0,
-      mailboxName: settings.imapMailbox || "INBOX",
+      mailboxName,
+      folder,
       messages: [],
       selectedMessage: null
     };
   }
 }
 
-export async function updateMailboxReadState(input: { uid: number; unread: boolean }) {
+export async function updateMailboxReadState(input: { uid: number; unread: boolean; folder?: MailboxFolderKey }) {
   const settings = await getEmailSettings();
+  const folder = input.folder === "sent" ? "sent" : "inbox";
+  const mailboxName = resolveMailboxName(settings, folder);
 
   if (!canReadMailbox(settings)) {
     throw new Error("Add IMAP settings before updating mailbox read state.");
@@ -243,7 +275,7 @@ export async function updateMailboxReadState(input: { uid: number; unread: boole
   }
 
   await withMailboxClient(settings, async (client) => {
-    const lock = await client.getMailboxLock(settings.imapMailbox);
+    const lock = await client.getMailboxLock(mailboxName);
 
     try {
       if (input.unread) {

@@ -1771,7 +1771,8 @@ export async function saveEmailSettingsAction(formData: FormData) {
     ["imap_secure", toBool(formData.get("imap_secure")) ? "true" : "false"],
     ["imap_user", toPlainString(formData.get("imap_user"))],
     ["imap_pass", toPlainString(formData.get("imap_pass"))],
-    ["imap_mailbox", toPlainString(formData.get("imap_mailbox")) || "INBOX"]
+    ["imap_mailbox", toPlainString(formData.get("imap_mailbox")) || "INBOX"],
+    ["imap_sent_mailbox", toPlainString(formData.get("imap_sent_mailbox")) || "Sent"]
   ];
 
   await Promise.all(
@@ -2086,7 +2087,11 @@ export async function generateAdminMailboxReplyAiAction(formData: FormData) {
       );
     }
 
-    const mailbox = await getMailboxOverview(uid, 1);
+    const mailbox = await getMailboxOverview({
+      selectedUid: uid,
+      limit: 1,
+      folder: "inbox"
+    });
     const message = mailbox.selectedMessage;
 
     if (!message) {

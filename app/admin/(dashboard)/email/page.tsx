@@ -6,6 +6,7 @@ import {
   generateAdminMailboxReplyAiAction
 } from "@/app/admin/actions";
 import { MailboxReadToggleButton } from "@/components/admin/mailbox-read-toggle-button";
+import type { MailboxFolderKey } from "@/lib/admin-mailbox";
 import { getMailboxOverview } from "@/lib/admin-mailbox";
 import { getFormSubmissionById, getStoreSettings } from "@/lib/queries";
 
@@ -19,6 +20,7 @@ type AdminEmailPageProps = {
     composeSubject?: string;
     composeBody?: string;
     detail?: string;
+    folder?: string;
   }>;
 };
 
@@ -51,6 +53,7 @@ function buildAdminEmailHref(input: {
   composeTo?: string;
   composeSubject?: string;
   composeBody?: string;
+  folder?: MailboxFolderKey;
 }) {
   const params = new URLSearchParams();
 
@@ -78,8 +81,16 @@ function buildAdminEmailHref(input: {
     params.set("composeBody", input.composeBody);
   }
 
+  if (input.folder) {
+    params.set("folder", input.folder);
+  }
+
   const query = params.toString();
   return query ? `/admin/email?${query}` : "/admin/email";
+}
+
+function parseMailboxFolder(value: string | undefined): MailboxFolderKey {
+  return value === "sent" ? "sent" : "inbox";
 }
 
 function buildReplySubject(subject: string) {
@@ -133,10 +144,11 @@ function buildContactReplyBody(input: {
 
 export default async function AdminEmailPage({ searchParams }: AdminEmailPageProps) {
   const [settings, params] = await Promise.all([getStoreSettings(), searchParams]);
+  const folder = parseMailboxFolder(params.folder);
   const selectedUid = toInt(params.uid);
   const contactSubmissionId = (params.contactSubmissionId || "").trim();
   const [mailbox, contactSubmission] = await Promise.all([
-    getMailboxOverview(selectedUid, 30),
+    getMailboxOverview({ selectedUid, limit: 30, folder }),
     contactSubmissionId ? getFormSubmissionById("contact", contactSubmissionId) : Promise.resolve(null)
   ]);
   const selectedMessage = mailbox.selectedMessage;
@@ -171,15 +183,19 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
             createdAt: contactSubmission.createdAt
           })
         : "");
-  const listHref = buildAdminEmailHref({});
+  const listHref = buildAdminEmailHref({ folder });
+  const inboxHref = buildAdminEmailHref({ folder: "inbox" });
+  const sentHref = buildAdminEmailHref({ folder: "sent" });
   const currentViewHref = buildAdminEmailHref({
     uid: selectedMessage?.uid ?? selectedUid ?? null,
-    contactSubmissionId: contactSubmission?.id ?? contactSubmissionId ?? null
+    contactSubmissionId: contactSubmission?.id ?? contactSubmissionId ?? null,
+    folder
   });
   const replyHref = selectedMessage
     ? buildAdminEmailHref({
         uid: selectedMessage.uid,
-        reply: true
+        reply: true,
+        folder
       })
     : null;
   const hasReplySource = Boolean(selectedMessage || contactSubmission);
@@ -293,6 +309,14 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
                   <input id="imap_mailbox" name="imap_mailbox" defaultValue={settings.imap_mailbox || "INBOX"} />
                 </div>
                 <div className="field">
+                  <label htmlFor="imap_sent_mailbox">Sent folder</label>
+                  <input
+                    id="imap_sent_mailbox"
+                    name="imap_sent_mailbox"
+                    defaultValue={settings.imap_sent_mailbox || "Sent"}
+                  />
+                </div>
+                <div className="field">
                   <label htmlFor="imap_host">IMAP host</label>
                   <input id="imap_host" name="imap_host" defaultValue={settings.imap_host || ""} />
                 </div>
@@ -361,6 +385,18 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
             </p>
           </div>
           <div className="stack-row">
+            <Link
+              href={inboxHref}
+              className={`button ${folder === "inbox" ? "button--primary" : "button--secondary"}`}
+            >
+              Inbox
+            </Link>
+            <Link
+              href={sentHref}
+              className={`button ${folder === "sent" ? "button--primary" : "button--secondary"}`}
+            >
+              Sent
+            </Link>
             <span className="pill">{mailbox.mailboxName}</span>
             <span className="pill">{mailbox.totalMessages} loaded</span>
             <span className="pill">{mailbox.unreadMessages} unread</span>
@@ -373,7 +409,7 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
         {!mailbox.available ? <p className="notice notice--warning">{mailbox.reason || "Mailbox is not available yet."}</p> : null}
         <div className="admin-table admin-table--scroll">
           <div className="stack-row">
-            <h3>Inbox list</h3>
+            <h3>{folder === "sent" ? "Sent mail" : "Inbox list"}</h3>
             <span className="pill">Latest 30 messages</span>
           </div>
           {mailbox.messages.length > 0 ? (
@@ -404,10 +440,14 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
                       <td>{message.receivedAt ? message.receivedAt.toLocaleString("en-US") : "No date"}</td>
                       <td>
                         <div className="admin-table__actions">
-                          <Link href={buildAdminEmailHref({ uid: message.uid })} className="button button--secondary">
+                          <Link href={buildAdminEmailHref({ uid: message.uid, folder })} className="button button--secondary">
                             Open
                           </Link>
-                          <MailboxReadToggleButton uid={message.uid} initialUnread={message.unread} />
+                          <MailboxReadToggleButton
+                            uid={message.uid}
+                            initialUnread={message.unread}
+                            folder={folder}
+                          />
                         </div>
                       </td>
                     </tr>
