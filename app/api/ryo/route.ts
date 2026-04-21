@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import {
   getOrderMatchPlatform,
   isOrderMatchPlatform,
@@ -67,6 +68,16 @@ export async function POST(request: Request) {
       phone: phone || null
     }
   });
+
+  try {
+    await syncEmailMarketingContact({
+      email,
+      audienceType: "CUSTOMERS",
+      force: true
+    });
+  } catch (error) {
+    console.error("RYO Brevo customer sync failed:", error);
+  }
 
   return NextResponse.redirect(
     new URL(`/ryo2?platform=${platform.key}&claim=${claim.id}`, request.url),

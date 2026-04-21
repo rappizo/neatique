@@ -139,6 +139,26 @@ export function hasBrevoCampaignPrerequisites(settings: BrevoSettings) {
   return settings.enabled && settings.apiKeyConfigured && Boolean(settings.senderEmail);
 }
 
+export function hasBrevoTransactionalPrerequisites(settings: BrevoSettings) {
+  return settings.apiKeyConfigured && Boolean(settings.senderEmail);
+}
+
+function parseBrevoRecipientEmails(value: string | string[]) {
+  const rawItems = Array.isArray(value) ? value : value.split(/[,;\n]+/);
+
+  return Array.from(
+    new Set(
+      rawItems
+        .map((item) => item.trim())
+        .map((item) => {
+          const emailMatch = item.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+          return emailMatch ? emailMatch[0].toLowerCase() : "";
+        })
+        .filter(Boolean)
+    )
+  ).slice(0, 25);
+}
+
 function buildBrevoHeaders(settings: BrevoSettings, headers?: Record<string, string>) {
   return {
     accept: "application/json",
@@ -187,6 +207,50 @@ function safeJsonParse(value: string) {
   } catch {
     return null;
   }
+}
+
+export async function sendBrevoTransactionalEmail(input: {
+  settings: BrevoSettings;
+  to: string | string[];
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+}) {
+  if (!hasBrevoTransactionalPrerequisites(input.settings)) {
+    throw new Error("Brevo transactional email is not configured.");
+  }
+
+  const recipients = parseBrevoRecipientEmails(input.to);
+
+  if (recipients.length === 0) {
+    throw new Error("Add at least one valid recipient email.");
+  }
+
+  const replyToEmail = input.replyTo?.trim();
+
+  const response = await brevoRequest<{ messageId?: string }>(input.settings, "/smtp/email", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      sender: {
+        name: input.settings.senderName || siteConfig.name,
+        email: input.settings.senderEmail
+      },
+      to: recipients.map((email) => ({ email })),
+      replyTo: replyToEmail ? { email: replyToEmail } : undefined,
+      subject: input.subject,
+      htmlContent: input.html,
+      textContent: input.text
+    })
+  });
+
+  return {
+    accepted: recipients,
+    messageId: response?.messageId ?? null
+  };
 }
 
 type RawBrevoList = {

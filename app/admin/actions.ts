@@ -21,6 +21,7 @@ import {
   getAudienceEmailsForSync,
   importAudienceContactsFromBrevo
 } from "@/lib/email-marketing-audience";
+import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import {
   clearAdminSession,
   requireAdminSession,
@@ -1877,6 +1878,16 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
             sourceSnippet
           }))
         });
+
+        await Promise.allSettled(
+          recipientEmails.map((email) =>
+            syncEmailMarketingContact({
+              email,
+              audienceType: "LEADS",
+              force: true
+            })
+          )
+        );
       }
 
       if (contactSubmissionId) {
@@ -1955,12 +1966,12 @@ export async function sendAdminSmtpTestEmailAction(formData: FormData) {
     redirect(buildEmailRedirect("smtp-test-sent", redirectTo, `Test email sent to ${testEmail}.`));
   } catch (error) {
     unstable_rethrow(error);
-    console.error("SMTP diagnostic send failed:", error);
+    console.error("Email delivery diagnostic failed:", error);
     redirect(
       buildEmailRedirect(
         "smtp-test-failed",
         redirectTo,
-        error instanceof Error ? error.message : "Unknown SMTP test error."
+        error instanceof Error ? error.message : "Unknown delivery test error."
       )
     );
   }

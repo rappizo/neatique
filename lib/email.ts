@@ -1,6 +1,12 @@
 import nodemailer from "nodemailer";
 import { cache } from "react";
 import { ImapFlow } from "imapflow";
+import {
+  getBrevoSettings,
+  hasBrevoTransactionalPrerequisites,
+  sendBrevoTransactionalEmail,
+  type BrevoSettings
+} from "@/lib/brevo";
 import { prisma } from "@/lib/db";
 import {
   getSubscribeCouponDescription,
@@ -25,6 +31,7 @@ type EmailSettings = {
   imapPass: string;
   imapMailbox: string;
   imapSentMailbox: string;
+  brevo: BrevoSettings;
 };
 
 type EmailSendResult =
@@ -69,7 +76,8 @@ function toEmailSettings(record: Record<string, string>): EmailSettings {
     imapUser: record.imap_user || record.smtp_user || "",
     imapPass: record.imap_pass || record.smtp_pass || "",
     imapMailbox: record.imap_mailbox || "INBOX",
-    imapSentMailbox: record.imap_sent_mailbox || "Sent"
+    imapSentMailbox: record.imap_sent_mailbox || "Sent",
+    brevo: getBrevoSettings(record)
   };
 }
 
@@ -93,7 +101,16 @@ const loadEmailSettings = cache(async () => {
           "imap_user",
           "imap_pass",
           "imap_mailbox",
-          "imap_sent_mailbox"
+          "imap_sent_mailbox",
+          "brevo_enabled",
+          "brevo_api_key",
+          "brevo_sender_name",
+          "brevo_sender_email",
+          "brevo_reply_to",
+          "brevo_test_email",
+          "brevo_subscribers_list_id",
+          "brevo_contact_list_id",
+          "brevo_customers_list_id"
         ]
       }
     }
@@ -114,12 +131,39 @@ export async function getEmailSettings() {
 function canSendEmail(settings: EmailSettings) {
   return Boolean(
     settings.enabled &&
-      settings.smtpHost &&
+      (hasBrevoTransactionalPrerequisites(settings.brevo) ||
+        (settings.smtpHost &&
+          settings.smtpPort &&
+          settings.smtpUser &&
+          settings.smtpPass &&
+          settings.fromEmail))
+  );
+}
+
+function canSendSmtpEmail(settings: EmailSettings) {
+  return Boolean(
+    settings.smtpHost &&
       settings.smtpPort &&
       settings.smtpUser &&
       settings.smtpPass &&
       settings.fromEmail
   );
+}
+
+function getOutgoingEmailProvider(settings: EmailSettings): "brevo" | "smtp" | null {
+  if (!settings.enabled) {
+    return null;
+  }
+
+  if (hasBrevoTransactionalPrerequisites(settings.brevo)) {
+    return "brevo";
+  }
+
+  if (canSendSmtpEmail(settings)) {
+    return "smtp";
+  }
+
+  return null;
 }
 
 function createEmailTransport(settings: EmailSettings) {
@@ -354,10 +398,38 @@ export async function sendConfiguredEmail(input: {
     return { delivered: false, stage: "config", reason: "Email configuration is incomplete." };
   }
 
-  const result = await sendEmailWithTransport({
-    settings,
-    ...input
-  });
+  const provider = getOutgoingEmailProvider(settings);
+
+  if (!provider) {
+    return { delivered: false, stage: "config", reason: "No active email delivery provider is configured." };
+  }
+
+  const result =
+    provider === "brevo"
+      ? await (async (): Promise<EmailSendResult> => {
+          try {
+            const delivery = await sendBrevoTransactionalEmail({
+              settings: settings.brevo,
+              ...input
+            });
+
+            return {
+              delivered: true,
+              accepted: delivery.accepted,
+              rejected: []
+            };
+          } catch (error) {
+            return {
+              delivered: false,
+              stage: "send",
+              reason: error instanceof Error ? error.message : "Brevo transactional delivery failed."
+            };
+          }
+        })()
+      : await sendEmailWithTransport({
+          settings,
+          ...input
+        });
 
   if (result.delivered) {
     try {
@@ -382,6 +454,38 @@ export async function sendSmtpDiagnosticEmail(input: {
     return { delivered: false, stage: "config", reason: "Email configuration is incomplete." };
   }
 
+  const provider = getOutgoingEmailProvider(settings);
+  const sentAt = new Date().toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+
+  if (provider === "brevo") {
+    const result = await sendConfiguredEmail({
+      to: input.to,
+      subject: "Neatique delivery test email",
+      text: `This is a Brevo delivery test email from the Neatique admin.\n\nSent at: ${sentAt}\nFrom: ${settings.brevo.senderEmail}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.8;color:#2e2825">
+          <h2 style="font-family:Georgia,serif;color:#ed7361">Neatique delivery test email</h2>
+          <p>This confirms that Brevo transactional email can send from the admin panel.</p>
+          <p><strong>Sent at:</strong> ${sentAt}</p>
+          <p><strong>From:</strong> ${settings.brevo.senderEmail}</p>
+        </div>
+      `
+    });
+
+    if (!result.delivered) {
+      return {
+        delivered: false,
+        stage: result.stage || "send",
+        reason: result.reason
+      };
+    }
+
+    return result;
+  }
+
   const transporter = createEmailTransport(settings);
 
   try {
@@ -394,20 +498,15 @@ export async function sendSmtpDiagnosticEmail(input: {
     };
   }
 
-  const sentAt = new Date().toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  });
-
   return sendEmailWithTransport({
     settings,
     to: input.to,
-    subject: "Neatique SMTP test email",
-    text: `This is a test email from the Neatique admin SMTP diagnostic tool.\n\nSent at: ${sentAt}\nFrom: ${settings.fromEmail}`,
+    subject: "Neatique delivery test email",
+    text: `This is a test email from the Neatique admin delivery diagnostic tool.\n\nSent at: ${sentAt}\nFrom: ${settings.fromEmail}`,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.8;color:#2e2825">
-        <h2 style="font-family:Georgia,serif;color:#ed7361">Neatique SMTP test email</h2>
-        <p>This confirms that the saved SMTP settings can authenticate and send a message from the admin panel.</p>
+        <h2 style="font-family:Georgia,serif;color:#ed7361">Neatique delivery test email</h2>
+        <p>This confirms that the saved fallback SMTP settings can authenticate and send a message from the admin panel.</p>
         <p><strong>Sent at:</strong> ${sentAt}</p>
         <p><strong>From:</strong> ${settings.fromEmail}</p>
       </div>
@@ -450,10 +549,7 @@ export async function sendContactSubmissionEmails(input: {
     return { delivered: false, reason: "Email configuration is incomplete." };
   }
 
-  const transporter = createEmailTransport(settings);
-
-  await transporter.sendMail({
-    from: `"${settings.fromName}" <${settings.fromEmail}>`,
+  const internalResult = await sendConfiguredEmail({
     to: settings.contactRecipient,
     replyTo: input.email,
     subject: `[Contact] ${input.subject}`,
@@ -469,8 +565,11 @@ export async function sendContactSubmissionEmails(input: {
     `
   });
 
-  await transporter.sendMail({
-    from: `"${settings.fromName}" <${settings.fromEmail}>`,
+  if (!internalResult.delivered) {
+    return internalResult;
+  }
+
+  const customerResult = await sendConfiguredEmail({
     to: input.email,
     subject: "We received your message",
     text: `Hi ${input.name}, thanks for contacting Neatique. We received your message and will get back to you soon.`,
@@ -483,7 +582,11 @@ export async function sendContactSubmissionEmails(input: {
     `
   });
 
-  return { delivered: true };
+  if (!customerResult.delivered) {
+    return customerResult;
+  }
+
+  return { delivered: true, accepted: customerResult.accepted };
 }
 
 export async function sendSubscriptionCouponEmail(input: {

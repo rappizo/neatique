@@ -36,8 +36,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   "ai-reply-generated": "AI reply draft was generated and added to the message box.",
   "ai-reply-failed": "AI reply generation failed. Please try again.",
   "mail-sent-contact-handled": "Email was sent successfully and the contact form was marked as handled.",
-  "smtp-test-sent": "SMTP test email was sent successfully.",
-  "smtp-test-failed": "SMTP test email failed. Review the diagnostic note below.",
+  "smtp-test-sent": "Delivery test email was sent successfully.",
+  "smtp-test-failed": "Delivery test email failed. Review the diagnostic note below.",
   "smtp-test-missing-email": "Enter a destination email before sending a test message."
 };
 
@@ -210,8 +210,8 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
         <p className="eyebrow">Email</p>
         <h1>Manage Tracy&apos;s mailbox from the same admin workspace you already use.</h1>
         <p>
-          SMTP continues to power all outgoing site mail. Add IMAP once, then read incoming mail,
-          reply from the Neatique mailbox, and keep customer conversations in one place.
+          Brevo now powers outgoing site mail when it is configured, while IMAP keeps the Tracy
+          mailbox readable, reply-ready, and organized in one workspace.
         </p>
       </div>
 
@@ -225,7 +225,8 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
             <div className="admin-mailbox-settings__card">
               <div className="stack-row">
                 <strong>Outgoing email</strong>
-                <span className="pill">SMTP</span>
+                <span className="pill">Brevo preferred</span>
+                <span className="pill">SMTP fallback</span>
               </div>
               <div className="admin-form__grid">
                 <label className="field field--checkbox">
@@ -347,12 +348,13 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
         <div className="admin-mailbox-settings" style={{ marginTop: "1.25rem" }}>
           <div className="admin-mailbox-settings__card">
             <div className="stack-row">
-              <strong>SMTP diagnostic test</strong>
+              <strong>Delivery diagnostic test</strong>
               <span className="pill">Saved settings</span>
             </div>
             <p className="admin-table__empty">
-              Send a quick test email using the SMTP configuration already saved above. If the send fails,
-              the exact SMTP reason will be shown here so you can diagnose auth, host, port, or sender issues.
+              Send a quick test email using the delivery configuration already saved above. Brevo is
+              tried first when it is configured, and the fallback SMTP reason is still shown if that
+              path is being used instead.
             </p>
             <form action={sendAdminSmtpTestEmailAction}>
               <input type="hidden" name="redirectTo" value={currentViewHref} />
@@ -577,8 +579,9 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
           <div>
             <h2>{selectedMessage ? "Reply from Tracy&apos;s mailbox" : "Compose from Tracy&apos;s mailbox"}</h2>
             <p className="admin-table__empty">
-              This uses the same SMTP sender you already configured for the site. Reply-to stays on the mailbox so responses keep coming back here.
-              AI-generated replies also reference your recent sent replies to keep tone and structure consistent.
+              This uses the same outgoing delivery setup already configured for the site. Reply-to
+              stays on the mailbox so responses keep coming back here, and AI-generated replies
+              still reference your recent sent emails to keep tone and structure consistent.
             </p>
           </div>
           {hasReplySource ? (

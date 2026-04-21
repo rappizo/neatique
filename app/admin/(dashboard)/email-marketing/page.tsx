@@ -206,8 +206,9 @@ export default async function AdminEmailMarketingPage({
           <div>
             <h2>Brevo connection</h2>
             <p className="form-note">
-              Keep transactional SMTP on the Email page. This section controls marketing senders,
-              list IDs, and Brevo campaign delivery settings.
+              Transactional delivery is configured from the Email page. Brevo is preferred there
+              when it is ready, while this section controls campaign senders, list IDs, and Brevo
+              marketing delivery.
             </p>
           </div>
           <div className="stack-row">
@@ -338,7 +339,7 @@ export default async function AdminEmailMarketingPage({
               Save Brevo settings
             </button>
             <Link href="/admin/email" className="button button--secondary">
-              Open SMTP email settings
+              Open email delivery settings
             </Link>
           </div>
         </form>
