@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getClientIpFromHeaders, getUserAgentFromHeaders } from "@/lib/contact-guard";
 import { sendSubscriptionCouponEmail } from "@/lib/email";
 import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import { createFormSubmission } from "@/lib/form-submissions";
@@ -8,14 +9,39 @@ import {
   SUBSCRIBE_COUPON_CODE,
   SUBSCRIBE_COUPON_PERCENT_OFF
 } from "@/lib/subscribe-offer";
+import {
+  assessSubscribeSubmissionRisk,
+  normalizeSubscribeSubmissionInput,
+  validateSubscribeSubmissionInput
+} from "@/lib/subscribe-guard";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
-  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const submission = normalizeSubscribeSubmissionInput(formData);
+  const validationError = validateSubscribeSubmissionInput(submission);
+  const ipAddress = getClientIpFromHeaders(request.headers);
+  const userAgent = getUserAgentFromHeaders(request.headers);
 
-  if (!email) {
-    return NextResponse.redirect(new URL("/?subscribe_error=missing", request.url), 303);
+  if (validationError) {
+    return NextResponse.redirect(new URL("/?subscribe_error=invalid", request.url), 303);
   }
+
+  const moderation = await assessSubscribeSubmissionRisk({
+    submission,
+    ipAddress
+  });
+
+  if (moderation.blocked) {
+    console.warn("Blocked suspicious subscribe submission", {
+      email: submission.email,
+      reasons: moderation.reasons,
+      score: moderation.score,
+      ipAddress
+    });
+    return NextResponse.redirect(new URL("/?subscribed=1", request.url), 303);
+  }
+
+  const email = submission.email;
 
   await prisma.customer.upsert({
     where: { email },
@@ -51,7 +77,13 @@ export async function POST(request: Request) {
     payload: {
       email,
       couponCode: SUBSCRIBE_COUPON_CODE,
-      offer: getSubscribeCouponDescription()
+      offer: getSubscribeCouponDescription(),
+      meta: {
+        ipAddress,
+        userAgent,
+        submittedAt: new Date().toISOString()
+      },
+      moderation
     }
   });
 
@@ -59,6 +91,7 @@ export async function POST(request: Request) {
     await syncEmailMarketingContact({
       email,
       audienceType: "NEWSLETTER",
+      force: true,
       source: "SUBSCRIBE_FORM"
     });
   } catch (error) {

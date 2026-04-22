@@ -513,6 +513,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
 
             <form action="/api/subscribe" method="post" className="subscribe-panel__form">
+              <input
+                type="text"
+                name="company"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: "-9999px",
+                  width: "1px",
+                  height: "1px",
+                  opacity: 0,
+                  pointerEvents: "none"
+                }}
+              />
               <div className="field">
                 <label htmlFor="subscribe-email">Email address</label>
                 <input
@@ -547,6 +562,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </p>
             <Link href="/" className="button button--primary">
               Close
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {params.subscribe_error === "invalid" ? (
+        <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="subscribe-invalid-title">
+          <div className="success-modal__backdrop" />
+          <div className="success-modal__panel">
+            <p className="eyebrow">Check your email</p>
+            <h2 id="subscribe-invalid-title">Please enter a valid email address.</h2>
+            <p>
+              We could not save the subscription because the email format looked incomplete. Please
+              try again with a full email address.
+            </p>
+            <Link href="/#subscribe-offer" className="button button--primary">
+              Try again
             </Link>
           </div>
         </div>
