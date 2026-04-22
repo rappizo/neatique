@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { OrderCard } from "@/components/admin/order-card";
+import { OrderTableRow } from "@/components/admin/order-table-row";
 import { getOrders } from "@/lib/queries";
 
 type AdminOrdersPageProps = {
@@ -46,11 +46,27 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
         </div>
       </section>
 
-      <div className="cards-2">
-        {orders.map((order) => (
-          <OrderCard key={order.id} order={order} />
-        ))}
-      </div>
+      <section className="admin-table admin-table--scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Customer</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Fulfillment</th>
+              <th>Items</th>
+              <th>Logs</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <OrderTableRow key={order.id} order={order} />
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       <section className="admin-form">
         <div className="admin-review-pagination">
