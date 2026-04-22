@@ -93,6 +93,12 @@ export default async function CartPage({ searchParams }: CartPageProps) {
             check the server logs for the Stripe error details.
           </p>
         ) : null}
+        {params.error === "inventory-unavailable" ? (
+          <p className="notice">
+            One or more items in your cart no longer have enough inventory. Please adjust the
+            quantities before checkout.
+          </p>
+        ) : null}
 
         {lines.length === 0 ? (
           <div className="empty-state">

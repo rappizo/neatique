@@ -46,6 +46,14 @@ export async function createStripeCheckoutSession({ request, cart, draft }: Chec
     throw new Error("stripe-config");
   }
 
+  const unavailableLine = cart.lines.find(
+    (line) => line.product.inventory <= 0 || line.quantity > line.product.inventory
+  );
+
+  if (unavailableLine) {
+    throw new Error("inventory-unavailable");
+  }
+
   const { lineItems } = buildDiscountedStripeLineItems(cart.lines, cart.appliedCoupons);
 
   if (lineItems.length === 0) {
@@ -57,7 +65,16 @@ export async function createStripeCheckoutSession({ request, cart, draft }: Chec
   const firstName = draft.firstName.trim() || null;
   const lastName = draft.lastName.trim() || null;
 
-  const cartMetadata = cart.lines.map((line) => `${line.product.id}:${line.quantity}`).join(",");
+  const cartMetadata = cart.lines
+    .map((line) =>
+      [
+        line.product.id,
+        line.quantity,
+        line.product.priceCents,
+        line.product.pointsReward
+      ].join(":")
+    )
+    .join(",");
   const metadata = {
     customerId: "",
     cartItems: cartMetadata,

@@ -249,7 +249,7 @@ model Order {
   pointsEarned          Int               @default(0)
   couponCode            String?
   couponId              String?
-  stripeCheckoutId      String?
+  stripeCheckoutId      String?           @unique
   stripePaymentIntentId String?
   shippingName          String?
   shippingAddress1      String?

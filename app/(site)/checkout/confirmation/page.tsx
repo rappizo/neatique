@@ -73,6 +73,12 @@ export default async function CheckoutConfirmationPage({
             back to cart and use a lower discount coupon.
           </p>
         ) : null}
+        {params.error === "inventory-unavailable" ? (
+          <p className="notice">
+            One or more items in your cart no longer have enough stock to complete checkout. Please
+            return to the cart and review the quantities.
+          </p>
+        ) : null}
         {couponError === "coupon-expired" ? (
           <p className="notice">
             One of your coupons has expired. Please return to the cart to review the updated total.

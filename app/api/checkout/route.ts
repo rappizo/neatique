@@ -52,6 +52,10 @@ export async function POST(request: Request) {
       return redirectToConfirmation(request, "coupon-over-discount");
     }
 
+    if (message === "inventory-unavailable") {
+      return redirectToConfirmation(request, "inventory-unavailable");
+    }
+
     return redirectToConfirmation(request, "stripe-checkout");
   }
 }

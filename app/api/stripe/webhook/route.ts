@@ -1,4 +1,6 @@
+import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { sendCustomerWelcomeEmail } from "@/lib/email";
@@ -8,7 +10,7 @@ import { stripe } from "@/lib/stripe";
 export const runtime = "nodejs";
 
 function createOrderNumber() {
-  return `NEA-${Date.now().toString().slice(-8)}`;
+  return `NEA-${Date.now().toString().slice(-8)}-${randomBytes(2).toString("hex").toUpperCase()}`;
 }
 
 function splitCustomerName(name: string | null | undefined) {
@@ -39,6 +41,10 @@ function readAddressFromMetadata(
 }
 
 async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
+  if (session.payment_status !== "paid") {
+    return;
+  }
+
   const checkoutId = session.id;
 
   const existingOrder = await prisma.order.findFirst({
@@ -67,11 +73,13 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
     .map((item) => item.trim())
     .filter(Boolean)
     .map((item) => {
-      const [productId, quantity] = item.split(":");
+      const [productId, quantity, unitPriceCents, pointsReward] = item.split(":");
 
       return {
         productId,
-        quantity: Math.max(1, Number(quantity || 1))
+        quantity: Math.max(1, Number(quantity || 1)),
+        unitPriceCents: Math.max(0, Number(unitPriceCents || 0) || 0),
+        pointsReward: Math.max(0, Number(pointsReward || 0) || 0)
       };
     })
     .filter((item) => item.productId);
@@ -99,7 +107,9 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
       return {
         product,
         quantity: item.quantity,
-        lineTotalCents: product.priceCents * item.quantity
+        unitPriceCents: item.unitPriceCents || product.priceCents,
+        pointsReward: item.pointsReward || product.pointsReward,
+        lineTotalCents: (item.unitPriceCents || product.priceCents) * item.quantity
       };
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
@@ -125,152 +135,205 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
   const shippingCents = 0;
   const taxCents = session.total_details?.amount_tax ?? 0;
   const pointsEarned = resolvedLines.reduce(
-    (sum, line) => sum + line.product.pointsReward * line.quantity,
+    (sum, line) => sum + line.pointsReward * line.quantity,
     0
   );
+  let welcomePayload: { email: string; firstName: string | null; password: string } | null = null;
 
-  const existingCustomer = metadataCustomerId
-    ? await prisma.customer.findUnique({
-        where: { id: metadataCustomerId }
-      })
-    : await prisma.customer.findUnique({
-        where: { email: customerEmail }
+  try {
+    await prisma.$transaction(async (tx) => {
+      const duplicateOrder = await tx.order.findFirst({
+        where: { stripeCheckoutId: checkoutId }
       });
 
-  let welcomePassword: string | null = null;
-  let customer = existingCustomer
-    ? await prisma.customer.update({
-        where: { id: existingCustomer.id },
-        data: {
-          firstName: existingCustomer.firstName || nameParts.firstName,
-          lastName: existingCustomer.lastName || nameParts.lastName,
-          totalSpentCents: {
-            increment: totalCents
-          },
-          loyaltyPoints: {
-            increment: pointsEarned
+      if (duplicateOrder) {
+        return;
+      }
+
+      const existingCustomer = metadataCustomerId
+        ? await tx.customer.findUnique({
+            where: { id: metadataCustomerId }
+          })
+        : await tx.customer.findUnique({
+            where: { email: customerEmail }
+          });
+
+      let welcomePassword: string | null = null;
+      let customer = existingCustomer
+        ? await tx.customer.update({
+            where: { id: existingCustomer.id },
+            data: {
+              firstName: existingCustomer.firstName || nameParts.firstName,
+              lastName: existingCustomer.lastName || nameParts.lastName,
+              totalSpentCents: {
+                increment: totalCents
+              },
+              loyaltyPoints: {
+                increment: pointsEarned
+              }
+            }
+          })
+        : await tx.customer.create({
+            data: {
+              email: customerEmail,
+              firstName: nameParts.firstName,
+              lastName: nameParts.lastName,
+              passwordHash: hashPassword((welcomePassword = generateTemporaryPassword())),
+              passwordSetAt: new Date(),
+              totalSpentCents: totalCents,
+              loyaltyPoints: pointsEarned,
+              marketingOptIn: false
+            }
+          });
+
+      if (!customer.passwordHash) {
+        welcomePassword = generateTemporaryPassword();
+        customer = await tx.customer.update({
+          where: { id: customer.id },
+          data: {
+            passwordHash: hashPassword(welcomePassword),
+            passwordSetAt: new Date()
           }
+        });
+      }
+
+      const appliedCoupons = metadataCouponIds.length
+        ? await tx.coupon.findMany({
+            where: {
+              id: {
+                in: metadataCouponIds
+              }
+            },
+            select: {
+              id: true
+            }
+          })
+        : [];
+
+      let orderNumber = createOrderNumber();
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const existingOrderNumber = await tx.order.findUnique({
+          where: { orderNumber }
+        });
+
+        if (!existingOrderNumber) {
+          break;
         }
-      })
-    : await prisma.customer.create({
+
+        orderNumber = createOrderNumber();
+      }
+
+      const order = await tx.order.create({
         data: {
+          orderNumber,
           email: customerEmail,
-          firstName: nameParts.firstName,
-          lastName: nameParts.lastName,
-          passwordHash: hashPassword((welcomePassword = generateTemporaryPassword())),
-          passwordSetAt: new Date(),
-          totalSpentCents: totalCents,
-          loyaltyPoints: pointsEarned,
-          marketingOptIn: false
+          status: "PAID",
+          fulfillmentStatus: "UNFULFILLED",
+          currency: (session.currency || "usd").toUpperCase(),
+          subtotalCents,
+          discountCents: metadataDiscountCents,
+          shippingCents,
+          taxCents,
+          totalCents,
+          pointsEarned,
+          couponCode: metadataCouponCodes.join(", ") || null,
+          couponId: appliedCoupons.length === 1 ? appliedCoupons[0].id : null,
+          stripeCheckoutId: checkoutId,
+          stripePaymentIntentId:
+            typeof session.payment_intent === "string" ? session.payment_intent : null,
+          shippingName: customerName || null,
+          shippingAddress1: shippingAddress.line1,
+          shippingAddress2: shippingAddress.line2,
+          shippingCity: shippingAddress.city,
+          shippingState: shippingAddress.state,
+          shippingPostalCode: shippingAddress.postalCode,
+          shippingCountry: shippingAddress.country,
+          billingName: billingAddress.name,
+          billingAddress1: billingAddress.line1,
+          billingAddress2: billingAddress.line2,
+          billingCity: billingAddress.city,
+          billingState: billingAddress.state,
+          billingPostalCode: billingAddress.postalCode,
+          billingCountry: billingAddress.country,
+          customerId: customer.id,
+          items: {
+            create: resolvedLines.map((line) => ({
+              productId: line.product.id,
+              name: line.product.name,
+              slug: line.product.slug,
+              quantity: line.quantity,
+              unitPriceCents: line.unitPriceCents,
+              lineTotalCents: line.lineTotalCents,
+              imageUrl: line.product.imageUrl
+            }))
+          }
         }
       });
 
-  if (!customer.passwordHash) {
-    welcomePassword = generateTemporaryPassword();
-    customer = await prisma.customer.update({
-      where: { id: customer.id },
-      data: {
-        passwordHash: hashPassword(welcomePassword),
-        passwordSetAt: new Date()
-      }
-    });
-  }
-
-  const appliedCoupons = metadataCouponIds.length
-    ? await prisma.coupon.findMany({
-        where: {
-          id: {
-            in: metadataCouponIds
+      if (pointsEarned > 0) {
+        await tx.rewardEntry.create({
+          data: {
+            customerId: customer.id,
+            orderId: order.id,
+            type: "EARNED",
+            points: pointsEarned,
+            note: `Paid order ${order.orderNumber}`
           }
-        },
-        select: {
-          id: true
-        }
-      })
-    : [];
-
-  const order = await prisma.order.create({
-    data: {
-      orderNumber: createOrderNumber(),
-      email: customerEmail,
-      status: "PAID",
-      fulfillmentStatus: "UNFULFILLED",
-      currency: (session.currency || "usd").toUpperCase(),
-      subtotalCents,
-      discountCents: metadataDiscountCents,
-      shippingCents,
-      taxCents,
-      totalCents,
-      pointsEarned,
-      couponCode: metadataCouponCodes.join(", ") || null,
-      couponId: appliedCoupons.length === 1 ? appliedCoupons[0].id : null,
-      stripeCheckoutId: checkoutId,
-      stripePaymentIntentId:
-        typeof session.payment_intent === "string" ? session.payment_intent : null,
-      shippingName: customerName || null,
-      shippingAddress1: shippingAddress.line1,
-      shippingAddress2: shippingAddress.line2,
-      shippingCity: shippingAddress.city,
-      shippingState: shippingAddress.state,
-      shippingPostalCode: shippingAddress.postalCode,
-      shippingCountry: shippingAddress.country,
-      billingName: billingAddress.name,
-      billingAddress1: billingAddress.line1,
-      billingAddress2: billingAddress.line2,
-      billingCity: billingAddress.city,
-      billingState: billingAddress.state,
-      billingPostalCode: billingAddress.postalCode,
-      billingCountry: billingAddress.country,
-      customerId: customer.id,
-      items: {
-        create: resolvedLines.map((line) => ({
-          productId: line.product.id,
-          name: line.product.name,
-          slug: line.product.slug,
-          quantity: line.quantity,
-          unitPriceCents: line.product.priceCents,
-          lineTotalCents: line.lineTotalCents,
-          imageUrl: line.product.imageUrl
-        }))
+        });
       }
-    }
-  });
 
-  if (pointsEarned > 0) {
-    await prisma.rewardEntry.create({
-      data: {
-        customerId: customer.id,
-        orderId: order.id,
-        type: "EARNED",
-        points: pointsEarned,
-        note: `Paid order ${order.orderNumber}`
+      for (const line of resolvedLines) {
+        await tx.$executeRaw`
+          UPDATE "Product"
+          SET "inventory" = GREATEST("inventory" - ${line.quantity}, 0)
+          WHERE "id" = ${line.product.id}
+        `;
+      }
+
+      for (const coupon of appliedCoupons) {
+        await tx.coupon.update({
+          where: { id: coupon.id },
+          data: {
+            usageCount: {
+              increment: 1
+            }
+          }
+        });
+      }
+
+      if (welcomePassword) {
+        welcomePayload = {
+          email: customerEmail,
+          firstName: customer.firstName,
+          password: welcomePassword
+        };
       }
     });
+  } catch (error) {
+    const duplicateTarget =
+      error instanceof Prisma.PrismaClientKnownRequestError
+        ? Array.isArray(error.meta?.target)
+          ? (error.meta.target as string[])
+          : typeof error.meta?.target === "string"
+            ? [error.meta.target]
+            : []
+        : [];
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      duplicateTarget.includes("stripeCheckoutId")
+    ) {
+      return;
+    }
+
+    throw error;
   }
 
-  if (welcomePassword) {
-    await sendCustomerWelcomeEmail({
-      email: customerEmail,
-      firstName: customer.firstName,
-      password: welcomePassword
-    }).catch((error) => {
+  if (welcomePayload) {
+    await sendCustomerWelcomeEmail(welcomePayload).catch((error) => {
       console.error("Welcome email delivery failed:", error);
     });
-  }
-
-  for (const coupon of appliedCoupons) {
-    await prisma.coupon
-      .update({
-        where: { id: coupon.id },
-        data: {
-          usageCount: {
-            increment: 1
-          }
-        }
-      })
-      .catch((error) => {
-        console.error("Coupon usage update skipped:", error);
-      });
   }
 }
 
