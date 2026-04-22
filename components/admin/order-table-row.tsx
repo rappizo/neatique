@@ -182,14 +182,16 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
             <span className="form-note">recent updates</span>
           </div>
         </td>
-        <td className="admin-table__actions">
-          <button
-            type="button"
-            className="button button--secondary"
-            onClick={() => setExpanded((current) => !current)}
-          >
-            {expanded ? "Hide" : "View"}
-          </button>
+        <td>
+          <div className="admin-order-row__actions">
+            <button
+              type="button"
+              className="button button--secondary"
+              onClick={() => setExpanded((current) => !current)}
+            >
+              {expanded ? "Hide" : "View"}
+            </button>
+          </div>
         </td>
       </tr>
       {expanded ? (

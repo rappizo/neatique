@@ -3221,6 +3221,16 @@ main {
   gap: 18px;
 }
 
+.admin-order-row__actions {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.admin-order-row__actions .button {
+  min-width: 140px;
+}
+
 .admin-order-log-list {
   display: grid;
   gap: 12px;
