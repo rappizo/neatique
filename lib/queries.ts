@@ -758,7 +758,7 @@ const getPostBySlugFromDatabase = unstable_cache(
 export async function getFeaturedProducts(limit = 4) {
   return withFallback(
     async () => getFeaturedProductsFromDatabase(limit),
-    fallbackProducts.filter((product) => product.featured).slice(0, limit),
+    [],
     { allowFallbackOnDatabaseError: true }
   );
 }
@@ -781,7 +781,7 @@ export async function getProducts() {
 export async function getActiveProducts() {
   return withFallback(
     async () => getActiveProductsFromDatabase(),
-    fallbackProducts.filter((product) => product.status === "ACTIVE"),
+    [],
     { allowFallbackOnDatabaseError: true }
   );
 }
@@ -789,7 +789,7 @@ export async function getActiveProducts() {
 export async function getProductBySlug(slug: string) {
   return withFallback(
     async () => getProductBySlugFromDatabase(slug),
-    fallbackProducts.find((product) => product.slug === slug) ?? null,
+    null,
     { allowFallbackOnDatabaseError: true }
   );
 }

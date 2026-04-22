@@ -1,4 +1,5 @@
-import { type CheckoutAddress, type CheckoutDraft } from "@/lib/checkout-draft";
+import { type CheckoutDraft } from "@/lib/checkout-draft";
+import { buildCheckoutSessionMetadata } from "@/lib/checkout-metadata";
 import { getBaseUrl, stripe } from "@/lib/stripe";
 import type { CartLine } from "@/lib/cart";
 import { buildDiscountedStripeLineItems } from "@/lib/coupons";
@@ -29,18 +30,6 @@ export type CheckoutSessionInput = {
   draft: CheckoutDraft;
 };
 
-function serializeAddress(prefix: string, address: CheckoutAddress) {
-  return {
-    [`${prefix}Name`]: address.fullName,
-    [`${prefix}Address1`]: address.address1,
-    [`${prefix}Address2`]: address.address2 || "",
-    [`${prefix}City`]: address.city,
-    [`${prefix}State`]: address.state,
-    [`${prefix}PostalCode`]: address.postalCode,
-    [`${prefix}Country`]: address.country
-  };
-}
-
 export async function createStripeCheckoutSession({ request, cart, draft }: CheckoutSessionInput) {
   if (!stripe) {
     throw new Error("stripe-config");
@@ -65,28 +54,7 @@ export async function createStripeCheckoutSession({ request, cart, draft }: Chec
   const firstName = draft.firstName.trim() || null;
   const lastName = draft.lastName.trim() || null;
 
-  const cartMetadata = cart.lines
-    .map((line) =>
-      [
-        line.product.id,
-        line.quantity,
-        line.product.priceCents,
-        line.product.pointsReward
-      ].join(":")
-    )
-    .join(",");
-  const metadata = {
-    customerId: "",
-    cartItems: cartMetadata,
-    couponIds: cart.appliedCoupons.map((coupon) => coupon.id).join(","),
-    couponCodes: cart.appliedCouponCodes.join(","),
-    discountCents: String(cart.discountCents),
-    contactFirstName: firstName || "",
-    contactLastName: lastName || "",
-    ...serializeAddress("shipping", draft.shippingAddress!),
-    ...serializeAddress("billing", draft.billingAddress!),
-    billingSameAsShipping: draft.billingSameAsShipping ? "true" : "false"
-  };
+  const metadata = buildCheckoutSessionMetadata({ cart, draft });
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

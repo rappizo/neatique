@@ -2,6 +2,10 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import Stripe from "stripe";
+import {
+  parseCheckoutCartMetadataItems,
+  readAddressFromCheckoutMetadata
+} from "@/lib/checkout-metadata";
 import { prisma } from "@/lib/db";
 import { sendCustomerWelcomeEmail } from "@/lib/email";
 import { generateTemporaryPassword, hashPassword } from "@/lib/password";
@@ -22,21 +26,6 @@ function splitCustomerName(name: string | null | undefined) {
   return {
     firstName: firstName || null,
     lastName: rest.join(" ") || null
-  };
-}
-
-function readAddressFromMetadata(
-  metadata: Stripe.Metadata | null | undefined,
-  prefix: "shipping" | "billing"
-) {
-  return {
-    name: metadata?.[`${prefix}Name`] || null,
-    line1: metadata?.[`${prefix}Address1`] || null,
-    line2: metadata?.[`${prefix}Address2`] || null,
-    city: metadata?.[`${prefix}City`] || null,
-    state: metadata?.[`${prefix}State`] || null,
-    postalCode: metadata?.[`${prefix}PostalCode`] || null,
-    country: metadata?.[`${prefix}Country`] || null
   };
 }
 
@@ -68,21 +57,7 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
     0,
     Number.parseInt(session.metadata?.discountCents || "0", 10) || 0
   );
-  const cartItems = (session.metadata?.cartItems || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((item) => {
-      const [productId, quantity, unitPriceCents, pointsReward] = item.split(":");
-
-      return {
-        productId,
-        quantity: Math.max(1, Number(quantity || 1)),
-        unitPriceCents: Math.max(0, Number(unitPriceCents || 0) || 0),
-        pointsReward: Math.max(0, Number(pointsReward || 0) || 0)
-      };
-    })
-    .filter((item) => item.productId);
+  const cartItems = parseCheckoutCartMetadataItems(session.metadata);
 
   if (cartItems.length === 0) {
     return;
@@ -124,8 +99,8 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
     return;
   }
 
-  const shippingAddress = readAddressFromMetadata(session.metadata, "shipping");
-  const billingAddress = readAddressFromMetadata(session.metadata, "billing");
+  const shippingAddress = readAddressFromCheckoutMetadata(session.metadata, "shipping");
+  const billingAddress = readAddressFromCheckoutMetadata(session.metadata, "billing");
   const customerName = shippingAddress.name || session.customer_details?.name;
   const nameParts = splitCustomerName(customerName);
   const originalSubtotalCents = resolvedLines.reduce((sum, line) => sum + line.lineTotalCents, 0);
