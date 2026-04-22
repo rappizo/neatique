@@ -629,11 +629,15 @@ export async function upsertBrevoContact(input: {
   settings: BrevoSettings;
   email: string;
   listIds: number[];
+  firstName?: string | null;
+  lastName?: string | null;
 }) {
   const email = input.email.trim().toLowerCase();
   const listIds = Array.from(new Set(input.listIds.filter((value) => Number.isFinite(value) && value > 0)));
+  const firstName = (input.firstName || "").trim();
+  const lastName = (input.lastName || "").trim();
 
-  if (!email || !input.settings.enabled || !input.settings.apiKeyConfigured || listIds.length === 0) {
+  if (!email || !input.settings.apiKeyConfigured || listIds.length === 0) {
     return {
       synced: false,
       skipped: true
@@ -648,6 +652,13 @@ export async function upsertBrevoContact(input: {
     body: JSON.stringify({
       email,
       listIds,
+      attributes:
+        firstName || lastName
+          ? {
+              ...(firstName ? { FIRSTNAME: firstName } : {}),
+              ...(lastName ? { LASTNAME: lastName } : {})
+            }
+          : undefined,
       updateEnabled: true
     })
   });

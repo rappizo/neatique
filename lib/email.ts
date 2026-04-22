@@ -37,12 +37,15 @@ type EmailSettings = {
 type EmailSendResult =
   | {
       delivered: true;
+      provider: "brevo" | "smtp";
+      messageId?: string | null;
       accepted?: string[];
       rejected?: string[];
     }
   | {
       delivered: false;
       reason: string;
+      provider?: "brevo" | "smtp" | null;
       stage?: "config" | "verify" | "send";
     };
 
@@ -373,12 +376,14 @@ async function sendEmailWithTransport(input: {
 
     return {
       delivered: true,
+      provider: "smtp",
       accepted,
       rejected
     };
   } catch (error) {
     return {
       delivered: false,
+      provider: "smtp",
       stage: "send",
       reason: formatEmailTransportError(error)
     };
@@ -395,13 +400,13 @@ export async function sendConfiguredEmail(input: {
   const settings = await getEmailSettings();
 
   if (!canSendEmail(settings)) {
-    return { delivered: false, stage: "config", reason: "Email configuration is incomplete." };
+    return { delivered: false, provider: null, stage: "config", reason: "Email configuration is incomplete." };
   }
 
   const provider = getOutgoingEmailProvider(settings);
 
   if (!provider) {
-    return { delivered: false, stage: "config", reason: "No active email delivery provider is configured." };
+    return { delivered: false, provider: null, stage: "config", reason: "No active email delivery provider is configured." };
   }
 
   const result =
@@ -415,12 +420,15 @@ export async function sendConfiguredEmail(input: {
 
             return {
               delivered: true,
+              provider: "brevo",
+              messageId: delivery.messageId,
               accepted: delivery.accepted,
               rejected: []
             };
           } catch (error) {
             return {
               delivered: false,
+              provider: "brevo",
               stage: "send",
               reason: error instanceof Error ? error.message : "Brevo transactional delivery failed."
             };
@@ -451,7 +459,7 @@ export async function sendSmtpDiagnosticEmail(input: {
   const settings = await getEmailSettings();
 
   if (!canSendEmail(settings)) {
-    return { delivered: false, stage: "config", reason: "Email configuration is incomplete." };
+    return { delivered: false, provider: null, stage: "config", reason: "Email configuration is incomplete." };
   }
 
   const provider = getOutgoingEmailProvider(settings);
@@ -478,6 +486,7 @@ export async function sendSmtpDiagnosticEmail(input: {
     if (!result.delivered) {
       return {
         delivered: false,
+        provider: result.provider,
         stage: result.stage || "send",
         reason: result.reason
       };

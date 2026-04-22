@@ -7,6 +7,7 @@ import {
   updateMascotRedemptionAction
 } from "@/app/admin/actions";
 import { RatingStars } from "@/components/ui/rating-stars";
+import { getBrevoSettings } from "@/lib/brevo";
 import { FOLLOW_EMAIL_PROCESS_LABELS, FOLLOW_EMAIL_STAGE_LABELS } from "@/lib/follow-emails";
 import { formatDate } from "@/lib/format";
 import {
@@ -15,7 +16,8 @@ import {
   getMascotRedemptions,
   getMascotRewards,
   getRewards,
-  getRyoClaims
+  getRyoClaims,
+  getStoreSettings
 } from "@/lib/queries";
 
 type AdminRewardsPageProps = {
@@ -23,15 +25,17 @@ type AdminRewardsPageProps = {
 };
 
 export default async function AdminRewardsPage({ searchParams }: AdminRewardsPageProps) {
-  const [customers, rewards, mascots, redemptions, ryoClaims, followOverview, params] = await Promise.all([
+  const [customers, rewards, mascots, redemptions, ryoClaims, followOverview, storeSettings, params] = await Promise.all([
     getCustomers(),
     getRewards(),
     getMascotRewards(),
     getMascotRedemptions(),
     getRyoClaims(),
     getFollowEmailOverview("RYO"),
+    getStoreSettings(),
     searchParams
   ]);
+  const brevoSettings = getBrevoSettings(storeSettings);
   const pendingRyoClaims = ryoClaims.filter((claim) => claim.completedAt && !claim.rewardGranted);
 
   return (
@@ -77,12 +81,16 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
               {" "}
               and
               {" "}
-              <code>[Customer Email]</code>.
+              <code>[Customer Email]</code>. These reminders use the Brevo-preferred delivery
+              path and keep RYO customers synced to the Brevo customer list.
             </p>
           </div>
           <div className="stack-row">
             <span className="pill">{FOLLOW_EMAIL_PROCESS_LABELS.RYO}</span>
             <span className="pill">{followOverview.totalSentToday} sent today</span>
+            <span className="pill">
+              Customer list: {brevoSettings.customersListId ? `Brevo #${brevoSettings.customersListId}` : "Missing"}
+            </span>
           </div>
         </div>
         <form action={saveFollowEmailSettingsAction} className="admin-follow-email-form">
@@ -287,6 +295,11 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
                       <div className="admin-table__cell-stack">
                         <strong>{claim.name}</strong>
                         <span>{claim.email}</span>
+                        <span className={claim.brevoContact ? "form-note" : "admin-table__empty"}>
+                          {claim.brevoContact
+                            ? `Brevo synced to ${claim.brevoContact.listName || `list ${claim.brevoContact.brevoListId ?? "unknown"}`} on ${formatDate(claim.brevoContact.lastSyncedAt)}`
+                            : "Brevo customer sync pending"}
+                        </span>
                       </div>
                     </td>
                     <td>
@@ -323,23 +336,28 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
                       <span className={statusClassName}>{statusLabel}</span>
                     </td>
                     <td>
-                      {latestFollowEmail ? (
-                        <details className="admin-follow-email-log">
-                          <summary>Follow email sent</summary>
-                          <div className="admin-table__cell-stack">
-                            {claim.followEmails.map((emailLog) => (
-                              <div key={emailLog.id} className="admin-table__cell-stack">
-                                <span className="pill">{FOLLOW_EMAIL_STAGE_LABELS[emailLog.stageKey]}</span>
-                                <strong>{emailLog.subject}</strong>
-                                <span>{formatDate(emailLog.createdAt)}</span>
-                                <p>{emailLog.bodyText}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </details>
-                      ) : (
-                        <span className="admin-table__empty">No follow email sent</span>
-                      )}
+                      <div className="admin-table__cell-stack">
+                        <span className={claim.brevoContact ? "pill" : "admin-table__empty"}>
+                          {claim.brevoContact ? "Brevo customer ready" : "Brevo sync pending"}
+                        </span>
+                        {latestFollowEmail ? (
+                          <details className="admin-follow-email-log">
+                            <summary>Follow email sent</summary>
+                            <div className="admin-table__cell-stack">
+                              {claim.followEmails.map((emailLog) => (
+                                <div key={emailLog.id} className="admin-table__cell-stack">
+                                  <span className="pill">{FOLLOW_EMAIL_STAGE_LABELS[emailLog.stageKey]}</span>
+                                  <strong>{emailLog.subject}</strong>
+                                  <span>{formatDate(emailLog.createdAt)}</span>
+                                  <p>{emailLog.bodyText}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        ) : (
+                          <span className="admin-table__empty">No follow email sent</span>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <textarea

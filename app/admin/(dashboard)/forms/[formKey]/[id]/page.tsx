@@ -51,6 +51,11 @@ export default async function AdminFormSubmissionDetailPage({
             Reply by email
           </Link>
         ) : null}
+        {formKey === "contact" && submission.brevoContact ? (
+          <Link href="/admin/email-marketing/audience/LEADS" className="button button--ghost">
+            Open CRM list
+          </Link>
+        ) : null}
         <FormHandledToggleButton
           submissionId={submission.id}
           formKey={formKey}
@@ -83,6 +88,14 @@ export default async function AdminFormSubmissionDetailPage({
               <li>Handled: {submission.handled ? "Yes" : "No"}</li>
               <li>Handled at: {submission.handledAt ? formatDate(submission.handledAt) : "Not handled yet"}</li>
               <li>Updated: {formatDate(submission.updatedAt)}</li>
+              {formKey === "contact" ? (
+                <li>
+                  Brevo CRM:{" "}
+                  {submission.brevoContact
+                    ? `${submission.brevoContact.listName || `List ${submission.brevoContact.brevoListId ?? "unknown"}`} / synced ${formatDate(submission.brevoContact.lastSyncedAt)}`
+                    : "Not synced yet"}
+                </li>
+              ) : null}
             </ul>
           </section>
 

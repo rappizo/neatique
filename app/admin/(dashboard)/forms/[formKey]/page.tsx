@@ -116,10 +116,22 @@ export default async function AdminFormSubmissionListPage({
                     {submission.email} / {formatDate(submission.createdAt)} /{" "}
                     {submission.handled ? "Handled" : "New"}
                   </p>
+                  {formKey === "contact" ? (
+                    <p className={submission.brevoContact ? "form-note" : "admin-table__empty"}>
+                      {submission.brevoContact
+                        ? `Brevo synced to ${submission.brevoContact.listName || `list ${submission.brevoContact.brevoListId ?? "unknown"}`} on ${formatDate(submission.brevoContact.lastSyncedAt)}`
+                        : "Not synced to Brevo yet"}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="stack-row">
                   <span className="pill">{submission.formLabel}</span>
                   {submission.handled ? <span className="pill">Handled</span> : <span className="pill">New</span>}
+                  {formKey === "contact" ? (
+                    <span className="pill">
+                      {submission.brevoContact ? "Brevo in CRM list" : "Brevo pending"}
+                    </span>
+                  ) : null}
                 </div>
               </div>
               <p>{submission.message || submission.summary || "Open the detail page to view the full payload."}</p>
@@ -137,6 +149,14 @@ export default async function AdminFormSubmissionListPage({
                     className="button button--secondary"
                   >
                     Reply
+                  </Link>
+                ) : null}
+                {formKey === "contact" && submission.brevoContact ? (
+                  <Link
+                    href="/admin/email-marketing/audience/LEADS"
+                    className="button button--ghost"
+                  >
+                    Open CRM list
                   </Link>
                 ) : null}
                 <FormHandledToggleButton

@@ -58,7 +58,8 @@ export async function POST(request: Request) {
   try {
     await syncEmailMarketingContact({
       email,
-      audienceType: "NEWSLETTER"
+      audienceType: "NEWSLETTER",
+      source: "SUBSCRIBE_FORM"
     });
   } catch (error) {
     console.error("Brevo subscribe sync failed:", error);

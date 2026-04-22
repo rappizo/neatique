@@ -389,6 +389,7 @@ export type FormSubmissionRecord = {
   handled: boolean;
   handledAt: Date | null;
   legacyContactSubmissionId: string | null;
+  brevoContact: EmailContactRecord | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -435,6 +436,7 @@ export type OmbClaimRecord = {
   giftSentAt: Date | null;
   adminNote: string | null;
   completedAt: Date | null;
+  brevoContact: EmailContactRecord | null;
   followEmails: FollowEmailLogRecord[];
   createdAt: Date;
   updatedAt: Date;
@@ -461,6 +463,7 @@ export type RyoClaimRecord = {
   rewardGrantedAt: Date | null;
   adminNote: string | null;
   completedAt: Date | null;
+  brevoContact: EmailContactRecord | null;
   followEmails: FollowEmailLogRecord[];
   createdAt: Date;
   updatedAt: Date;

@@ -158,7 +158,8 @@ export async function runFollowEmailAutomation(): Promise<FollowEmailAutomationS
       await syncEmailMarketingContact({
         email: claim.email,
         audienceType: "CUSTOMERS",
-        force: true
+        force: true,
+        fullName: claim.name
       }).catch((error) => {
         console.error("OMB Brevo contact sync failed:", error);
       });
@@ -241,7 +242,8 @@ export async function runFollowEmailAutomation(): Promise<FollowEmailAutomationS
       await syncEmailMarketingContact({
         email: claim.email,
         audienceType: "CUSTOMERS",
-        force: true
+        force: true,
+        fullName: claim.name
       }).catch((error) => {
         console.error("RYO Brevo contact sync failed:", error);
       });

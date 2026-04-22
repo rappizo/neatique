@@ -73,7 +73,9 @@ export async function POST(request: Request) {
     await syncEmailMarketingContact({
       email: submission.email,
       audienceType: "LEADS",
-      force: true
+      force: true,
+      fullName: submission.name,
+      source: "CONTACT_FORM"
     });
   } catch (error) {
     console.error("Brevo contact sync failed:", error);

@@ -73,7 +73,9 @@ export async function POST(request: Request) {
     await syncEmailMarketingContact({
       email,
       audienceType: "CUSTOMERS",
-      force: true
+      force: true,
+      fullName: name,
+      source: "RYO_FLOW"
     });
   } catch (error) {
     console.error("RYO Brevo customer sync failed:", error);

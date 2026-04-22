@@ -2,9 +2,10 @@ import Link from "next/link";
 import { saveFollowEmailSettingsAction } from "@/app/admin/actions";
 import { OmbClaimInlineEditor } from "@/components/admin/omb-claim-inline-editor";
 import { RatingStars } from "@/components/ui/rating-stars";
+import { getBrevoSettings } from "@/lib/brevo";
 import { FOLLOW_EMAIL_PROCESS_LABELS, FOLLOW_EMAIL_STAGE_LABELS } from "@/lib/follow-emails";
 import { formatDate, formatNumber, formatTime, LOS_ANGELES_TIME_ZONE } from "@/lib/format";
-import { getFollowEmailOverview, getOmbClaimPage } from "@/lib/queries";
+import { getFollowEmailOverview, getOmbClaimPage, getStoreSettings } from "@/lib/queries";
 
 const OMB_UNSUBMITTED_PRODUCT_FILTER = "__NOT_SUBMITTED__";
 
@@ -21,7 +22,7 @@ type AdminOmbClaimsPageProps = {
 export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaimsPageProps) {
   const params = await searchParams;
   const requestedPage = Number.parseInt(params.page || "1", 10);
-  const [claimPage, followOverview] = await Promise.all([
+  const [claimPage, followOverview, storeSettings] = await Promise.all([
     getOmbClaimPage(
       Number.isFinite(requestedPage) ? requestedPage : 1,
       50,
@@ -29,8 +30,10 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
       params.platform || "",
       params.product || ""
     ),
-    getFollowEmailOverview("OMB")
+    getFollowEmailOverview("OMB"),
+    getStoreSettings()
   ]);
+  const brevoSettings = getBrevoSettings(storeSettings);
   const {
     claims,
     totalCount,
@@ -95,12 +98,16 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
               {" "}
               and
               {" "}
-              <code>[Customer Email]</code>.
+              <code>[Customer Email]</code>. These follow emails now use the Brevo-preferred
+              delivery path and keep the customer synced to the Brevo customer list.
             </p>
           </div>
           <div className="stack-row">
             <span className="pill">{FOLLOW_EMAIL_PROCESS_LABELS.OMB}</span>
             <span className="pill">{formatNumber(followOverview.totalSentToday)} sent today</span>
+            <span className="pill">
+              Customer list: {brevoSettings.customersListId ? `Brevo #${brevoSettings.customersListId}` : "Missing"}
+            </span>
           </div>
         </div>
         <form action={saveFollowEmailSettingsAction} className="admin-follow-email-form">
@@ -270,6 +277,11 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                       <div className="admin-table__cell-stack">
                         <strong>{claim.name}</strong>
                         <span>{claim.email}</span>
+                        <span className={claim.brevoContact ? "form-note" : "admin-table__empty"}>
+                          {claim.brevoContact
+                            ? `Brevo synced to ${claim.brevoContact.listName || `list ${claim.brevoContact.brevoListId ?? "unknown"}`} on ${formatDate(claim.brevoContact.lastSyncedAt)}`
+                            : "Brevo customer sync pending"}
+                        </span>
                         <span className={claim.phone ? "form-note" : "admin-table__empty"}>
                           {claim.phone || "No phone"}
                         </span>
@@ -320,6 +332,9 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
                       <div className="admin-table__cell-stack">
                         <span className={claim.giftSent ? "pill" : "admin-table__empty"}>
                           {claim.giftSent ? "Gift sent" : "Gift pending"}
+                        </span>
+                        <span className={claim.brevoContact ? "pill" : "admin-table__empty"}>
+                          {claim.brevoContact ? "Brevo customer ready" : "Brevo sync pending"}
                         </span>
                         {latestFollowEmail ? (
                           <details className="admin-follow-email-log">

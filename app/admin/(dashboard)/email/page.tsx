@@ -8,6 +8,7 @@ import {
 import { MailboxReadToggleButton } from "@/components/admin/mailbox-read-toggle-button";
 import type { MailboxFolderKey } from "@/lib/admin-mailbox";
 import { getMailboxOverview } from "@/lib/admin-mailbox";
+import { getBrevoSettings } from "@/lib/brevo";
 import { getFormSubmissionById, getStoreSettings } from "@/lib/queries";
 
 type AdminEmailPageProps = {
@@ -144,6 +145,19 @@ function buildContactReplyBody(input: {
 
 export default async function AdminEmailPage({ searchParams }: AdminEmailPageProps) {
   const [settings, params] = await Promise.all([getStoreSettings(), searchParams]);
+  const brevoSettings = getBrevoSettings(settings);
+  const smtpReady = Boolean(
+    settings.smtp_host &&
+      settings.smtp_port &&
+      settings.smtp_user &&
+      settings.smtp_pass &&
+      settings.email_from_address
+  );
+  const activeDeliveryProvider = brevoSettings.apiKeyConfigured && brevoSettings.senderEmail
+    ? "Brevo transactional"
+    : smtpReady
+      ? "Fallback SMTP"
+      : "Not configured";
   const folder = parseMailboxFolder(params.folder);
   const selectedUid = toInt(params.uid);
   const contactSubmissionId = (params.contactSubmissionId || "").trim();
@@ -213,6 +227,18 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
           Brevo now powers outgoing site mail when it is configured, while IMAP keeps the Tracy
           mailbox readable, reply-ready, and organized in one workspace.
         </p>
+        <div className="stack-row">
+          <span className="pill">Active delivery: {activeDeliveryProvider}</span>
+          <span className="pill">
+            Sender: {brevoSettings.senderEmail || settings.email_from_address || "Not configured"}
+          </span>
+          <span className="pill">
+            CRM list: {brevoSettings.contactListId ? `Brevo #${brevoSettings.contactListId}` : "Missing"}
+          </span>
+          <span className="pill">
+            Customer list: {brevoSettings.customersListId ? `Brevo #${brevoSettings.customersListId}` : "Missing"}
+          </span>
+        </div>
       </div>
 
       {params.status && STATUS_MESSAGES[params.status] ? <p className="notice">{STATUS_MESSAGES[params.status]}</p> : null}
@@ -227,6 +253,7 @@ export default async function AdminEmailPage({ searchParams }: AdminEmailPagePro
                 <strong>Outgoing email</strong>
                 <span className="pill">Brevo preferred</span>
                 <span className="pill">SMTP fallback</span>
+                <span className="pill">{activeDeliveryProvider}</span>
               </div>
               <div className="admin-form__grid">
                 <label className="field field--checkbox">

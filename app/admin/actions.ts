@@ -1884,7 +1884,9 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
             syncEmailMarketingContact({
               email,
               audienceType: "LEADS",
-              force: true
+              force: true,
+              fullName: sourceSenderName,
+              source: "ADMIN_CRM"
             })
           )
         );
@@ -1924,7 +1926,10 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
     redirect(
       buildEmailRedirect(
         contactSubmissionId ? "mail-sent-contact-handled" : "mail-sent",
-        redirectTo
+        redirectTo,
+        result.provider === "brevo"
+          ? "Delivered through Brevo transactional email."
+          : "Delivered through fallback SMTP."
       )
     );
   } catch (error) {
@@ -1963,7 +1968,15 @@ export async function sendAdminSmtpTestEmailAction(formData: FormData) {
       redirect(buildEmailRedirect("smtp-test-failed", redirectTo, result.reason));
     }
 
-    redirect(buildEmailRedirect("smtp-test-sent", redirectTo, `Test email sent to ${testEmail}.`));
+    redirect(
+      buildEmailRedirect(
+        "smtp-test-sent",
+        redirectTo,
+        result.provider === "brevo"
+          ? `Test email sent to ${testEmail} through Brevo transactional email.`
+          : `Test email sent to ${testEmail} through fallback SMTP.`
+      )
+    );
   } catch (error) {
     unstable_rethrow(error);
     console.error("Email delivery diagnostic failed:", error);

@@ -85,7 +85,9 @@ export async function POST(request: Request) {
     await syncEmailMarketingContact({
       email,
       audienceType: "CUSTOMERS",
-      force: true
+      force: true,
+      fullName: name,
+      source: "OMB_FLOW"
     });
   } catch (error) {
     console.error("OMB Brevo customer sync failed:", error);

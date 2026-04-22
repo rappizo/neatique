@@ -346,6 +346,31 @@ function mapEmailContact(contact: any): EmailContactRecord {
   };
 }
 
+async function loadEmailContactLookup(emails: string[], audienceType: EmailAudienceType) {
+  const normalizedEmails = Array.from(
+    new Set(
+      emails
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+
+  if (normalizedEmails.length === 0) {
+    return new Map<string, EmailContactRecord>();
+  }
+
+  const contacts = await prisma.emailContact.findMany({
+    where: {
+      audienceType,
+      email: {
+        in: normalizedEmails
+      }
+    }
+  });
+
+  return new Map(contacts.map((contact) => [contact.email.trim().toLowerCase(), mapEmailContact(contact)]));
+}
+
 function mapOrder(order: any): OrderRecord {
   return {
     id: order.id,
@@ -515,6 +540,7 @@ function mapFormSubmission(submission: any): FormSubmissionRecord {
     handled: submission.handled,
     handledAt: submission.handledAt ? new Date(submission.handledAt) : null,
     legacyContactSubmissionId: submission.legacyContactSubmissionId ?? null,
+    brevoContact: submission.brevoContact ? mapEmailContact(submission.brevoContact) : null,
     createdAt: new Date(submission.createdAt),
     updatedAt: new Date(submission.updatedAt)
   };
@@ -554,6 +580,7 @@ function mapOmbClaim(claim: any): OmbClaimRecord {
     giftSentAt: claim.giftSentAt ? new Date(claim.giftSentAt) : null,
     adminNote: claim.adminNote ?? null,
     completedAt: claim.completedAt ? new Date(claim.completedAt) : null,
+    brevoContact: claim.brevoContact ? mapEmailContact(claim.brevoContact) : null,
     followEmails: Array.isArray(claim.followEmails) ? claim.followEmails.map(mapFollowEmailLog) : [],
     createdAt: new Date(claim.createdAt),
     updatedAt: new Date(claim.updatedAt)
@@ -582,6 +609,7 @@ function mapRyoClaim(claim: any): RyoClaimRecord {
     rewardGrantedAt: claim.rewardGrantedAt ? new Date(claim.rewardGrantedAt) : null,
     adminNote: claim.adminNote ?? null,
     completedAt: claim.completedAt ? new Date(claim.completedAt) : null,
+    brevoContact: claim.brevoContact ? mapEmailContact(claim.brevoContact) : null,
     followEmails: Array.isArray(claim.followEmails) ? claim.followEmails.map(mapFollowEmailLog) : [],
     createdAt: new Date(claim.createdAt),
     updatedAt: new Date(claim.updatedAt)
@@ -1101,12 +1129,24 @@ export async function getFormSubmissionPage(formKey: string, page = 1, pageSize 
         skip: Math.max(0, currentPage - 1) * pageSize,
         take: pageSize
       });
+      const brevoContactLookup =
+        formKey === "contact"
+          ? await loadEmailContactLookup(
+              rows.map((row) => row.email),
+              "LEADS"
+            )
+          : new Map<string, EmailContactRecord>();
 
       return {
         formKey: definition.key,
         formLabel: definition.label,
         description: definition.description,
-        submissions: rows.map(mapFormSubmission),
+        submissions: rows.map((row) =>
+          mapFormSubmission({
+            ...row,
+            brevoContact: brevoContactLookup.get(row.email.trim().toLowerCase()) ?? null
+          })
+        ),
         totalCount,
         unhandledCount,
         currentPage,
@@ -1147,7 +1187,19 @@ export async function getFormSubmissionById(formKey: string, id: string) {
         }
       });
 
-      return submission ? mapFormSubmission(submission) : null;
+      if (!submission) {
+        return null;
+      }
+
+      const brevoContactLookup =
+        formKey === "contact"
+          ? await loadEmailContactLookup([submission.email], "LEADS")
+          : new Map<string, EmailContactRecord>();
+
+      return mapFormSubmission({
+        ...submission,
+        brevoContact: brevoContactLookup.get(submission.email.trim().toLowerCase()) ?? null
+      });
     },
     null
   );
@@ -1289,6 +1341,10 @@ export async function getOmbClaimPage(
         skip: (currentPage - 1) * pageSize,
         take: pageSize
       });
+      const brevoContactLookup = await loadEmailContactLookup(
+        pagedClaims.map((claim) => claim.email),
+        "CUSTOMERS"
+      );
       const completedTodayCount = completedTodayRows[0]?.count ?? 0;
 
       const platformOptions = platformRows
@@ -1310,7 +1366,12 @@ export async function getOmbClaimPage(
       );
 
       return {
-        claims: pagedClaims.map(mapOmbClaim),
+        claims: pagedClaims.map((claim) =>
+          mapOmbClaim({
+            ...claim,
+            brevoContact: brevoContactLookup.get(claim.email.trim().toLowerCase()) ?? null
+          })
+        ),
         totalCount,
         completedTodayCount,
         currentPage,
@@ -1339,7 +1400,16 @@ export async function getOmbClaimById(id: string) {
         }
       });
 
-      return claim ? mapOmbClaim(claim) : null;
+      if (!claim) {
+        return null;
+      }
+
+      const brevoContactLookup = await loadEmailContactLookup([claim.email], "CUSTOMERS");
+
+      return mapOmbClaim({
+        ...claim,
+        brevoContact: brevoContactLookup.get(claim.email.trim().toLowerCase()) ?? null
+      });
     },
     null
   );
@@ -1468,18 +1538,28 @@ export async function getMascotRedemptions(limit = 50) {
 
 export async function getRyoClaims(limit = 50) {
   return withFallback(
-    async () =>
-      (
-        await prisma.ryoClaim.findMany({
-          include: {
-            followEmails: {
-              orderBy: [{ createdAt: "desc" }]
-            }
-          },
-          orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
-          take: limit
+    async () => {
+      const claims = await prisma.ryoClaim.findMany({
+        include: {
+          followEmails: {
+            orderBy: [{ createdAt: "desc" }]
+          }
+        },
+        orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
+        take: limit
+      });
+      const brevoContactLookup = await loadEmailContactLookup(
+        claims.map((claim) => claim.email),
+        "CUSTOMERS"
+      );
+
+      return claims.map((claim) =>
+        mapRyoClaim({
+          ...claim,
+          brevoContact: brevoContactLookup.get(claim.email.trim().toLowerCase()) ?? null
         })
-      ).map(mapRyoClaim),
+      );
+    },
     [] as RyoClaimRecord[]
   );
 }

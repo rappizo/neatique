@@ -72,11 +72,73 @@ function resolveForcedFallbackListIds(
   }
 }
 
+function splitNameParts(input: {
+  firstName?: string | null;
+  lastName?: string | null;
+  fullName?: string | null;
+}) {
+  const firstName = (input.firstName || "").trim();
+  const lastName = (input.lastName || "").trim();
+
+  if (firstName || lastName) {
+    return {
+      firstName: firstName || null,
+      lastName: lastName || null
+    };
+  }
+
+  const fullName = (input.fullName || "").trim();
+
+  if (!fullName) {
+    return {
+      firstName: null,
+      lastName: null
+    };
+  }
+
+  const parts = fullName.split(/\s+/).filter(Boolean);
+
+  if (parts.length === 1) {
+    return {
+      firstName: parts[0] || null,
+      lastName: null
+    };
+  }
+
+  return {
+    firstName: parts[0] || null,
+    lastName: parts.slice(1).join(" ") || null
+  };
+}
+
+function getBrevoListLabel(
+  listId: number,
+  settings: ReturnType<typeof getBrevoSettings>
+) {
+  if (settings.contactListId === listId) {
+    return "Neatique CRM Leads";
+  }
+
+  if (settings.customersListId === listId) {
+    return "Neatique Customers";
+  }
+
+  if (settings.subscribersListId === listId) {
+    return "Neatique Subscribers";
+  }
+
+  return `Brevo list ${listId}`;
+}
+
 export async function syncEmailMarketingContact(input: {
   email: string;
   audienceType: EmailAudienceType;
   customListIds?: string | null;
   force?: boolean;
+  firstName?: string | null;
+  lastName?: string | null;
+  fullName?: string | null;
+  source?: string | null;
 }) {
   const settingsMap = await loadStoreSettingsMap();
   const brevoSettings = getBrevoSettings(settingsMap);
@@ -106,9 +168,59 @@ export async function syncEmailMarketingContact(input: {
     });
   }
 
-  return upsertBrevoContact({
+  const email = input.email.trim().toLowerCase();
+  const nameParts = splitNameParts(input);
+  const primaryListId = targetListIds[0] ?? null;
+  const syncResult = await upsertBrevoContact({
     settings: brevoSettings,
-    email: input.email,
-    listIds: targetListIds
+    email,
+    listIds: targetListIds,
+    firstName: nameParts.firstName,
+    lastName: nameParts.lastName
   });
+
+  if (!syncResult.skipped) {
+    const normalizedSource = (input.source || "").trim();
+    const metadata =
+      targetListIds.length > 0
+        ? JSON.stringify({
+            listIds: targetListIds,
+            forced: Boolean(input.force),
+            fallbackUsed: listIds.length === 0 && fallbackListIds.length > 0
+          })
+        : null;
+
+    await prisma.emailContact.upsert({
+      where: {
+        email_audienceType: {
+          email,
+          audienceType: input.audienceType
+        }
+      },
+      update: {
+        firstName: nameParts.firstName,
+        lastName: nameParts.lastName,
+        ...(normalizedSource ? { source: normalizedSource } : {}),
+        brevoListId: primaryListId,
+        listName: primaryListId ? getBrevoListLabel(primaryListId, brevoSettings) : null,
+        emailBlacklisted: false,
+        metadata,
+        lastSyncedAt: new Date()
+      },
+      create: {
+        email,
+        firstName: nameParts.firstName,
+        lastName: nameParts.lastName,
+        audienceType: input.audienceType,
+        source: normalizedSource || "BREVO_SYNC",
+        brevoListId: primaryListId,
+        listName: primaryListId ? getBrevoListLabel(primaryListId, brevoSettings) : null,
+        emailBlacklisted: false,
+        metadata,
+        lastSyncedAt: new Date()
+      }
+    });
+  }
+
+  return syncResult;
 }
