@@ -1,5 +1,9 @@
 import type { BeautyPostRecord, ProductRecord, ProductReviewRecord, StoreSettingsRecord } from "@/lib/types";
-import { getDefaultProductImageUrl, getLocalProductGallery } from "@/lib/product-media";
+import {
+  buildProductMediaUrl,
+  getDefaultProductImageUrl,
+  getLocalProductGallery
+} from "@/lib/product-media";
 import { buildSiteImageUrl } from "@/lib/site-media";
 
 type BaseProduct = Omit<ProductRecord, "reviewCount" | "averageRating">;
@@ -77,6 +81,11 @@ function average(values: number[]) {
   return total / values.length;
 }
 
+function prioritizeGalleryImage(images: string[], priorityImage: string) {
+  const withoutPriority = images.filter((image) => image !== priorityImage);
+  return [priorityImage, ...withoutPriority];
+}
+
 const baseProducts: BaseProduct[] = [
   {
     id: "prod_bee_venom_body_cream",
@@ -126,9 +135,13 @@ const baseProducts: BaseProduct[] = [
     details:
       "Designed for an easy AM and PM routine with lightweight daytime hydration and richer overnight comfort.\nMade with NAD+, collagen peptides, niacinamide, and hyaluronic acid for smoother-looking, plumper-feeling skin.\nUse 2 to 3 pumps on face and neck after cleansing, then follow with moisturizer. Use SPF in the morning.",
     imageUrl:
+      buildProductMediaUrl("HH076 NAD+ Collagen Peptide Serum Optimized", "Main4.webp") ??
       getDefaultProductImageUrl("nad-collagen-peptide-serum") ??
       "/products/nad-collagen-peptide-serum.svg",
-    galleryImages: getLocalProductGallery("nad-collagen-peptide-serum"),
+    galleryImages: prioritizeGalleryImage(
+      getLocalProductGallery("nad-collagen-peptide-serum"),
+      buildProductMediaUrl("HH076 NAD+ Collagen Peptide Serum Optimized", "Main4.webp")
+    ),
     featured: false,
     status: "ACTIVE",
     inventory: 124,
