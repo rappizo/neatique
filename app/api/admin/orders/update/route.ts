@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
-import { prisma } from "@/lib/db";
+import {
+  isOrderConflictError,
+  updateOrderWithReconciliation
+} from "@/lib/admin-order-updates";
 import type { FulfillmentStatus, OrderStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -26,17 +29,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing order id." }, { status: 400 });
   }
 
-  await prisma.order.update({
-    where: { id },
-    data: {
+  try {
+    const result = await updateOrderWithReconciliation({
+      id,
       status: (payload?.status || "PENDING") as OrderStatus,
       fulfillmentStatus: (payload?.fulfillmentStatus || "UNFULFILLED") as FulfillmentStatus,
       notes: payload?.notes?.trim() ? payload.notes.trim() : null
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/orders");
+    revalidatePath("/admin/customers");
+    revalidatePath("/admin/rewards");
+    revalidatePath("/shop");
+
+    return NextResponse.json({
+      ok: true,
+      order: result.order,
+      summary: result.summary
+    });
+  } catch (error) {
+    if (isOrderConflictError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode });
     }
-  });
 
-  revalidatePath("/admin");
-  revalidatePath("/admin/orders");
-
-  return NextResponse.json({ ok: true });
+    console.error("Admin order update failed:", error);
+    return NextResponse.json({ error: "Order update failed." }, { status: 500 });
+  }
 }

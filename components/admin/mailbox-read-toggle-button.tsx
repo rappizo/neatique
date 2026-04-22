@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { MailboxFolderKey } from "@/lib/admin-mailbox";
 
@@ -26,7 +25,6 @@ export function MailboxReadToggleButton({
   folder,
   className = "button button--ghost"
 }: MailboxReadToggleButtonProps) {
-  const router = useRouter();
   const [unread, setUnread] = useState(initialUnread);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -56,8 +54,6 @@ export function MailboxReadToggleButton({
           const payload = (await response.json().catch(() => null)) as unknown;
           throw new Error(extractErrorMessage(payload));
         }
-
-        router.refresh();
       } catch (requestError) {
         setUnread(previous);
         setError(requestError instanceof Error ? requestError.message : "Mailbox update failed.");

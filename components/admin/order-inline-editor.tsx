@@ -56,7 +56,11 @@ export function OrderInlineEditor({
           throw new Error(extractErrorMessage(payload));
         }
 
-        setMessage("Saved");
+        const payload = (await response.json().catch(() => null)) as
+          | { summary?: string }
+          | null;
+
+        setMessage(payload?.summary || "Saved");
         router.refresh();
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Order update failed.");

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { formatDate } from "@/lib/format";
@@ -26,7 +25,6 @@ function extractErrorMessage(payload: unknown, fallback: string) {
 }
 
 export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlineRowProps) {
-  const router = useRouter();
   const [displayName, setDisplayName] = useState(review.displayName);
   const [rating, setRating] = useState(String(review.rating));
   const [status, setStatus] = useState<ReviewStatus>(review.status);
@@ -36,6 +34,7 @@ export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlin
   const [adminNotes, setAdminNotes] = useState(review.adminNotes ?? "");
   const [reviewDate, setReviewDate] = useState(toDateInputValue(review.reviewDate));
   const [message, setMessage] = useState<string | null>(null);
+  const [deleted, setDeleted] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const formattedDate = useMemo(() => formatDate(new Date(reviewDate)), [reviewDate]);
@@ -70,13 +69,28 @@ export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlin
           throw new Error(extractErrorMessage(payload, fallbackError));
         }
 
-        setMessage(intent === "delete" ? "Deleted" : intent === "approve" ? "Approved" : "Saved");
-        router.refresh();
+        if (intent === "delete") {
+          setDeleted(true);
+          setMessage("Deleted");
+          return;
+        }
+
+        if (intent === "approve") {
+          setStatus("PUBLISHED");
+          setMessage("Approved");
+          return;
+        }
+
+        setMessage("Saved");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : fallbackError);
       }
     });
   };
+
+  if (deleted) {
+    return null;
+  }
 
   return (
     <tr>

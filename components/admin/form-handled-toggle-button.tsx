@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 type FormHandledToggleButtonProps = {
@@ -25,7 +24,6 @@ export function FormHandledToggleButton({
   initialHandled,
   className = "button button--secondary"
 }: FormHandledToggleButtonProps) {
-  const router = useRouter();
   const [handled, setHandled] = useState(initialHandled);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -55,8 +53,6 @@ export function FormHandledToggleButton({
           const payload = (await response.json().catch(() => null)) as unknown;
           throw new Error(extractErrorMessage(payload));
         }
-
-        router.refresh();
       } catch (requestError) {
         setHandled(previous);
         setError(requestError instanceof Error ? requestError.message : "Update failed.");

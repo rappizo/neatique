@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 type OmbClaimInlineEditorProps = {
@@ -23,7 +22,6 @@ export function OmbClaimInlineEditor({
   initialGiftSent,
   initialAdminNote
 }: OmbClaimInlineEditorProps) {
-  const router = useRouter();
   const [giftSent, setGiftSent] = useState(initialGiftSent);
   const [adminNote, setAdminNote] = useState(initialAdminNote);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,7 +50,6 @@ export function OmbClaimInlineEditor({
         }
 
         setMessage("Saved");
-        router.refresh();
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "OMB claim update failed.");
       }

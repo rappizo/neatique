@@ -6,6 +6,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { runAiPostAutomation } from "@/lib/ai-post-automation";
 import { prisma } from "@/lib/db";
+import { updateOrderWithReconciliation } from "@/lib/admin-order-updates";
 import {
   fetchBrevoLists,
   getBrevoSettings,
@@ -1180,19 +1181,18 @@ export async function updateOrderAction(formData: FormData) {
   await requireAdminSession();
 
   const id = toPlainString(formData.get("id"));
-
-  await prisma.order.update({
-    where: { id },
-    data: {
-      status: (toPlainString(formData.get("status")) || "PENDING") as OrderStatus,
-      fulfillmentStatus: (toPlainString(formData.get("fulfillmentStatus")) ||
-        "UNFULFILLED") as FulfillmentStatus,
-      notes: toPlainString(formData.get("notes")) || null
-    }
+  await updateOrderWithReconciliation({
+    id,
+    status: (toPlainString(formData.get("status")) || "PENDING") as OrderStatus,
+    fulfillmentStatus: (toPlainString(formData.get("fulfillmentStatus")) ||
+      "UNFULFILLED") as FulfillmentStatus,
+    notes: toPlainString(formData.get("notes")) || null
   });
 
   revalidatePath("/admin");
   revalidatePath("/admin/orders");
+  revalidatePath("/admin/customers");
+  revalidatePath("/admin/rewards");
   redirect("/admin/orders?status=updated");
 }
 
