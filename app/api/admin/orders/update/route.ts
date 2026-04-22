@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       order: result.order,
+      activityLog: result.activityLog,
       summary: result.summary
     });
   } catch (error) {

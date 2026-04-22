@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { formatCurrency } from "@/lib/format";
 import {
   buildOrderAdjustmentNote,
   describeOrderAccountingTransition,
@@ -25,6 +26,69 @@ export class OrderUpdateError extends Error {
 
 function clampToZero(value: number) {
   return Math.max(0, value);
+}
+
+function normalizeNotes(value: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function buildOrderActivityCopy(input: {
+  orderNumber: string;
+  previousStatus: OrderStatus;
+  nextStatus: OrderStatus;
+  previousFulfillmentStatus: FulfillmentStatus;
+  nextFulfillmentStatus: FulfillmentStatus;
+  previousNotes: string | null;
+  nextNotes: string | null;
+  totalCents: number;
+  pointsEarned: number;
+  transitionSummary: string;
+  couponUsageDelta: number;
+}) {
+  const parts: string[] = [];
+  const detailParts: string[] = [];
+
+  if (input.previousStatus !== input.nextStatus) {
+    parts.push(`Status ${input.previousStatus} → ${input.nextStatus}`);
+  }
+
+  if (input.previousFulfillmentStatus !== input.nextFulfillmentStatus) {
+    parts.push(`Fulfillment ${input.previousFulfillmentStatus} → ${input.nextFulfillmentStatus}`);
+  }
+
+  if (input.previousNotes !== input.nextNotes) {
+    parts.push(input.nextNotes ? "Notes updated" : "Notes cleared");
+  }
+
+  if (parts.length === 0) {
+    parts.push("Order reviewed");
+  }
+
+  detailParts.push(input.transitionSummary);
+
+  if (input.previousStatus !== input.nextStatus) {
+    detailParts.push(`Order value: ${formatCurrency(input.totalCents)}`);
+  }
+
+  if (input.previousStatus !== input.nextStatus && input.pointsEarned > 0) {
+    detailParts.push(`Points tied to this order: ${input.pointsEarned}`);
+  }
+
+  if (input.couponUsageDelta > 0) {
+    detailParts.push("Coupon usage was re-applied.");
+  } else if (input.couponUsageDelta < 0) {
+    detailParts.push("Coupon usage was released back.");
+  }
+
+  if (input.nextNotes) {
+    detailParts.push(`Current note: ${input.nextNotes}`);
+  }
+
+  return {
+    summary: `${input.orderNumber}: ${parts.join(" · ")}`,
+    detail: detailParts.join(" ")
+  };
 }
 
 export async function updateOrderWithReconciliation({
@@ -63,12 +127,52 @@ export async function updateOrderWithReconciliation({
     throw new OrderUpdateError("Order not found.", 404);
   }
 
+  const nextNotes = normalizeNotes(notes);
+
+  if (
+    existingOrder.status === status &&
+    existingOrder.fulfillmentStatus === fulfillmentStatus &&
+    normalizeNotes(existingOrder.notes) === nextNotes
+  ) {
+    return {
+      order: {
+        id: existingOrder.id,
+        status: existingOrder.status,
+        fulfillmentStatus: existingOrder.fulfillmentStatus,
+        notes: existingOrder.notes
+      },
+      transition: resolveOrderAccountingTransition({
+        previousStatus: existingOrder.status as OrderStatus,
+        nextStatus: status,
+        totalCents: existingOrder.totalCents,
+        pointsEarned: existingOrder.pointsEarned,
+        hasCoupon: Boolean(existingOrder.couponId)
+      }),
+      activityLog: null,
+      summary: "No changes to save"
+    };
+  }
+
   const transition = resolveOrderAccountingTransition({
     previousStatus: existingOrder.status as OrderStatus,
     nextStatus: status,
     totalCents: existingOrder.totalCents,
     pointsEarned: existingOrder.pointsEarned,
     hasCoupon: Boolean(existingOrder.couponId)
+  });
+
+  const activityCopy = buildOrderActivityCopy({
+    orderNumber: existingOrder.orderNumber,
+    previousStatus: existingOrder.status as OrderStatus,
+    nextStatus: status,
+    previousFulfillmentStatus: existingOrder.fulfillmentStatus as FulfillmentStatus,
+    nextFulfillmentStatus: fulfillmentStatus,
+    previousNotes: normalizeNotes(existingOrder.notes),
+    nextNotes,
+    totalCents: existingOrder.totalCents,
+    pointsEarned: existingOrder.pointsEarned,
+    transitionSummary: describeOrderAccountingTransition(transition),
+    couponUsageDelta: transition.couponUsageDelta
   });
 
   const updatedOrder = await prisma.$transaction(async (tx) => {
@@ -164,12 +268,12 @@ export async function updateOrderWithReconciliation({
       });
     }
 
-    return tx.order.update({
+    const order = await tx.order.update({
       where: { id: existingOrder.id },
       data: {
         status,
         fulfillmentStatus,
-        notes
+        notes: nextNotes
       },
       select: {
         id: true,
@@ -178,12 +282,34 @@ export async function updateOrderWithReconciliation({
         notes: true
       }
     });
+
+    const activityLog = await tx.orderActivityLog.create({
+      data: {
+        orderId: existingOrder.id,
+        eventType: "ADMIN_UPDATE",
+        summary: activityCopy.summary,
+        detail: activityCopy.detail
+      },
+      select: {
+        id: true,
+        eventType: true,
+        summary: true,
+        detail: true,
+        createdAt: true
+      }
+    });
+
+    return {
+      order,
+      activityLog
+    };
   });
 
   return {
-    order: updatedOrder,
+    order: updatedOrder.order,
     transition,
-    summary: describeOrderAccountingTransition(transition)
+    activityLog: updatedOrder.activityLog,
+    summary: activityCopy.detail || describeOrderAccountingTransition(transition)
   };
 }
 

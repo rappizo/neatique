@@ -270,6 +270,7 @@ model Order {
   customer              Customer?         @relation(fields: [customerId], references: [id])
   coupon                Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items                 OrderItem[]
+  activityLogs          OrderActivityLog[]
   rewards               RewardEntry[]
   reviews               ProductReview[]
   createdAt             DateTime          @default(now())
@@ -278,6 +279,19 @@ model Order {
   @@index([createdAt])
   @@index([status, createdAt])
   @@index([customerId, createdAt])
+}
+
+model OrderActivityLog {
+  id        String   @id @default(cuid())
+  eventType String
+  summary   String
+  detail    String?
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([eventType, createdAt])
 }
 
 model OrderItem {

@@ -32,6 +32,7 @@ import type {
   ProductRecord,
   ProductReviewRecord,
   RewardEntryRecord,
+  OrderActivityLogRecord,
   RyoClaimRecord,
   StoreSettingsRecord
 } from "@/lib/types";
@@ -412,6 +413,13 @@ function mapOrder(order: any): OrderRecord {
       unitPriceCents: item.unitPriceCents,
       lineTotalCents: item.lineTotalCents,
       imageUrl: item.imageUrl
+    })),
+    activityLogs: (order.activityLogs ?? []).map((log: any): OrderActivityLogRecord => ({
+      id: log.id,
+      eventType: log.eventType,
+      summary: log.summary,
+      detail: log.detail ?? null,
+      createdAt: new Date(log.createdAt)
     }))
   };
 }
@@ -952,13 +960,17 @@ export async function getOrders(page = 1, pageSize = 50) {
       const totalCount = await prisma.order.count();
       const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
       const currentPage = Math.min(Math.max(1, page), totalPages);
-      const rows = await prisma.order.findMany({
-        include: {
-          items: true
-        },
-        orderBy: [{ createdAt: "desc" }],
-        skip: (currentPage - 1) * pageSize,
-        take: pageSize
+        const rows = await prisma.order.findMany({
+          include: {
+            items: true,
+            activityLogs: {
+              orderBy: [{ createdAt: "desc" }],
+              take: 8
+            }
+          },
+          orderBy: [{ createdAt: "desc" }],
+          skip: (currentPage - 1) * pageSize,
+          take: pageSize
       });
 
       return {
@@ -2436,12 +2448,16 @@ export async function getDashboardSummary() {
           },
           take: 8
         }),
-        prisma.order.findMany({
-          include: {
-            items: true
-          },
-          orderBy: {
-            createdAt: "desc"
+          prisma.order.findMany({
+            include: {
+              items: true,
+              activityLogs: {
+                orderBy: [{ createdAt: "desc" }],
+                take: 3
+              }
+            },
+            orderBy: {
+              createdAt: "desc"
           },
           take: 5
         })

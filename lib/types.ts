@@ -172,6 +172,14 @@ export type OrderItemRecord = {
   imageUrl: string;
 };
 
+export type OrderActivityLogRecord = {
+  id: string;
+  eventType: string;
+  summary: string;
+  detail: string | null;
+  createdAt: Date;
+};
+
 export type OrderRecord = {
   id: string;
   orderNumber: string;
@@ -208,6 +216,7 @@ export type OrderRecord = {
   createdAt: Date;
   updatedAt: Date;
   items: OrderItemRecord[];
+  activityLogs?: OrderActivityLogRecord[];
 };
 
 export type AdminOrderPageRecord = {
