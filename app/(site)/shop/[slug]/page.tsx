@@ -83,6 +83,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     product.slug === "nt16-niacinamide-tranexamic-serum"
       ? nt16SerumSeo.title
       : 
+    product.slug === "nad-collagen-peptide-serum"
+      ? "NAD+ Collagen Peptide Serum | 8AM Glow + 8PM Recharge Care"
+      :
     product.slug === "pdrn-serum"
       ? pdrnSerumSeo.title
       :
@@ -95,6 +98,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     product.slug === "nt16-niacinamide-tranexamic-serum"
       ? nt16SerumSeo.description
       : 
+    product.slug === "nad-collagen-peptide-serum"
+      ? "Shop Neatique NAD+ Collagen Peptide Serum, a layer-friendly peptide serum with NAD+, collagen peptides, niacinamide, and hyaluronic acid for smooth, plump-looking hydration from morning to night."
+      :
     product.slug === "pdrn-serum"
       ? pdrnSerumSeo.description
       :
@@ -165,6 +171,43 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
       title,
       description,
       keywords: pdrnSerumSeo.keywords,
+      alternates: {
+        canonical: `/shop/${product.slug}`
+      },
+      openGraph: {
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        url: `${siteConfig.url}/shop/${product.slug}`,
+        images: [
+          {
+            url: absoluteImageUrl,
+            alt: product.name
+          }
+        ]
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        images: [absoluteImageUrl]
+      }
+    };
+  }
+
+  if (product.slug === "nad-collagen-peptide-serum") {
+    return {
+      title,
+      description,
+      keywords: [
+        "NAD+ collagen peptide serum",
+        "NAD serum",
+        "collagen peptide serum",
+        "peptide serum",
+        "niacinamide hyaluronic acid serum",
+        "firm-looking serum",
+        "AM PM serum routine",
+        "buy NAD+ collagen peptide serum"
+      ],
       alternates: {
         canonical: `/shop/${product.slug}`
       },

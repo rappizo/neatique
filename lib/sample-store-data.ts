@@ -79,6 +79,37 @@ function average(values: number[]) {
 
 const baseProducts: BaseProduct[] = [
   {
+    id: "prod_nad_collagen_serum",
+    productCode: "0008",
+    productShortName: "8+ NAD+ Serum",
+    amazonAsin: null,
+    name: "NAD+ Collagen Peptide Serum",
+    slug: "nad-collagen-peptide-serum",
+    tagline:
+      "An AM-to-PM peptide serum designed for firmer-looking, smoother, hydrated skin with a fresh, polished finish.",
+    category: "Peptide Serum",
+    shortDescription:
+      "A lightweight NAD+ and collagen peptide serum with niacinamide and hyaluronic acid for plump-looking hydration and overnight comfort.",
+    description:
+      "Neatique NAD+ Collagen Peptide Serum is built around an easy 8AM and 8PM routine concept: fresh, layer-friendly hydration in the morning and cushioned moisture-barrier comfort at night. Powered by NAD+, collagen peptides, and a multi-peptide blend, the formula is made for shoppers who want skin to look smoother, firmer, more elastic, and softly radiant without adding heaviness to the routine.",
+    details:
+      "Designed for an easy AM and PM routine with lightweight daytime hydration and richer overnight comfort.\nMade with NAD+, collagen peptides, niacinamide, and hyaluronic acid for smoother-looking, plumper-feeling skin.\nUse 2 to 3 pumps on face and neck after cleansing, then follow with moisturizer. Use SPF in the morning.",
+    imageUrl:
+      getDefaultProductImageUrl("nad-collagen-peptide-serum") ??
+      "/products/nad-collagen-peptide-serum.svg",
+    galleryImages: getLocalProductGallery("nad-collagen-peptide-serum"),
+    featured: false,
+    status: "ACTIVE",
+    inventory: 124,
+    priceCents: 1999,
+    compareAtPriceCents: 2999,
+    currency: "USD",
+    pointsReward: 20,
+    stripePriceId: null,
+    createdAt: new Date("2026-04-22T08:00:00.000Z"),
+    updatedAt: new Date("2026-04-22T08:00:00.000Z")
+  },
+  {
     id: "prod_nt16_serum",
     productCode: "0007",
     productShortName: "NT16",

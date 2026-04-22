@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { formatCurrency, getSavingsCents } from "@/lib/format";
+import { isLocalProductMediaUrl } from "@/lib/media-url";
 import type { ProductRecord } from "@/lib/types";
 import { RatingStars } from "@/components/ui/rating-stars";
 
@@ -23,6 +24,7 @@ export function ProductCard({ product }: ProductCardProps) {
             className="product-card__image"
             sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 31vw"
             quality={75}
+            unoptimized={isLocalProductMediaUrl(product.imageUrl)}
           />
         </div>
       </Link>

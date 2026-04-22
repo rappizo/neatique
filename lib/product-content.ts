@@ -12,6 +12,62 @@ type ProductStory = {
 };
 
 export const productStories: Record<string, ProductStory> = {
+  "nad-collagen-peptide-serum": {
+    gallery: getLocalProductGallery("nad-collagen-peptide-serum"),
+    heroLabel: "HH076 NAD+ Collagen Peptide Serum",
+    sections: [
+      {
+        title: "1. What It Is",
+        body:
+          "Neatique NAD+ Collagen Peptide Serum is a daily peptide serum built around an 8AM wake-up glow and 8PM recharge care idea. It is made for shoppers who want one bottle to cover fresh daytime hydration and a smoother, more rested-looking finish at night."
+      },
+      {
+        title: "2. Texture",
+        body:
+          "The texture feels lightweight, silky, and quick to absorb. It layers easily under moisturizer and makeup in the morning, and it still feels substantial enough at night to leave skin cushioned rather than tight."
+      },
+      {
+        title: "3. The 8+ Concept",
+        body:
+          "The 8+ concept is simple: use the same serum in an easy AM and PM rhythm. In the morning it helps skin look fresher and more radiant, and in the evening it supports deep hydration and a softer, smoother-looking complexion by the next day."
+      },
+      {
+        title: "4. NAD+ And Collagen Peptide Direction",
+        body:
+          "This formula is centered around NAD+ plus a collagen peptide and multi-peptide blend. Together, they shape the serum's firm-look identity and support skin that wants to appear smoother, more elastic, and more refined over time."
+      },
+      {
+        title: "5. Why Niacinamide And Hyaluronic Acid Matter",
+        body:
+          "Niacinamide and hyaluronic acid help give the serum its easy daily wear. They add layer-friendly hydration that helps skin look plump and fresh without leaving behind a sticky finish that can make the rest of the routine feel heavy."
+      },
+      {
+        title: "6. Morning Routine Fit",
+        body:
+          "In the morning, this serum is especially useful for shoppers who want hydration that wears well under moisturizer, sunscreen, and makeup. It helps the complexion look awake and polished while still keeping the routine light."
+      },
+      {
+        title: "7. Evening Routine Feel",
+        body:
+          "At night, the same formula shifts into a more comfort-focused role. It helps support the look of the moisture barrier and locks in hydration so skin feels softer, more cushioned, and less dry by morning."
+      },
+      {
+        title: "8. Who It Is For",
+        body:
+          "This serum is a strong option for shoppers who want a peptide serum, an NAD+ serum, or a collagen peptide serum that feels elegant in both AM and PM routines. It fits especially well when the goal is smoother-looking skin with a fuller, healthier-looking finish."
+      },
+      {
+        title: "9. How To Use It",
+        body:
+          "Apply 2 to 3 pumps on the face and neck after cleansing, then follow with moisturizer. Use sunscreen in the morning. The airless pump keeps dispensing clean and controlled, which makes the routine feel simple and consistent."
+      },
+      {
+        title: "10. What Makes It Easy To Keep Using",
+        body:
+          "Because the formula is light enough for daytime and comforting enough for evening care, it is easy to keep in steady rotation. That balance is what makes it feel like a practical daily serum instead of a complicated treatment step."
+      }
+    ]
+  },
   "nt16-niacinamide-tranexamic-serum": {
     gallery: getLocalProductGallery("nt16-niacinamide-tranexamic-serum"),
     heroLabel: "HH067 NT16 11% Niacinamide + 5% Tranexamic Serum",

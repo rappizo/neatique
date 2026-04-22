@@ -13,6 +13,7 @@ import { getCartDetails } from "@/lib/cart";
 import { formatCouponValue } from "@/lib/coupons";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { formatCurrency } from "@/lib/format";
+import { isLocalProductMediaUrl } from "@/lib/media-url";
 
 type CartPageProps = {
   searchParams: Promise<{ status?: string; error?: string }>;
@@ -124,6 +125,7 @@ export default async function CartPage({ searchParams }: CartPageProps) {
                         height={220}
                         sizes="(max-width: 720px) 96px, 160px"
                         quality={75}
+                        unoptimized={isLocalProductMediaUrl(line.product.imageUrl)}
                       />
                     </div>
                     <div className="cart-line__content">

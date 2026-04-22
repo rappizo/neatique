@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
+import { isLocalProductMediaUrl } from "@/lib/media-url";
 import { cn } from "@/lib/utils";
 
 type ProductGalleryProps = {
@@ -13,6 +14,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const galleryRef = useRef<HTMLDivElement | null>(null);
   const activeImage = images[activeIndex] ?? images[0];
+  const activeImageIsLocalProductMedia = isLocalProductMediaUrl(activeImage);
 
   function showNextImage() {
     setActiveIndex((current) => (current + 1) % images.length);
@@ -46,6 +48,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           height={900}
           sizes="(max-width: 720px) 100vw, (max-width: 1080px) 86vw, 42vw"
           quality={75}
+          unoptimized={activeImageIsLocalProductMedia}
           className="product-detail__media-image"
         />
         {images.length > 1 ? (
@@ -99,6 +102,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
                   height={220}
                   sizes="(max-width: 720px) 78px, 96px"
                   quality={75}
+                  unoptimized={isLocalProductMediaUrl(imagePath)}
                 />
               </button>
             ))}
