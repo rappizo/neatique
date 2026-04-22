@@ -79,6 +79,37 @@ function average(values: number[]) {
 
 const baseProducts: BaseProduct[] = [
   {
+    id: "prod_bee_venom_body_cream",
+    productCode: "0009",
+    productShortName: "Bee Venom Cream",
+    amazonAsin: null,
+    name: "Bee Venom Body Cream",
+    slug: "bee-venom-body-cream",
+    tagline:
+      "A moisturizing body cream for dry, rough areas that leaves skin softer, smoother, and more comforted.",
+    category: "Body Cream",
+    shortDescription:
+      "A bee venom and hyaluronic acid body cream designed for dry, rough, and uneven-looking skin on the body.",
+    description:
+      "Neatique Bee Venom Body Cream is a daily body cream made for arms, legs, neck, shoulders, and any area that feels dry, rough, or tight. Formulated with bee venom and hyaluronic acid, it helps deliver lasting hydration while supporting skin that looks smoother, softer, and healthier with regular use.",
+    details:
+      "Designed for dry, rough, and uneven-looking body skin including elbows, knees, calves, upper arms, neck, and shoulders.\nMade with bee venom and hyaluronic acid for lasting hydration and a smoother, more supple skin feel.\nUse after showering, before bed, or anytime skin feels dry and tight. The creamy texture absorbs smoothly without a greasy finish.",
+    imageUrl:
+      getDefaultProductImageUrl("bee-venom-body-cream") ??
+      "/products/bee-venom-body-cream.svg",
+    galleryImages: getLocalProductGallery("bee-venom-body-cream"),
+    featured: false,
+    status: "ACTIVE",
+    inventory: 116,
+    priceCents: 2299,
+    compareAtPriceCents: 3999,
+    currency: "USD",
+    pointsReward: 23,
+    stripePriceId: null,
+    createdAt: new Date("2026-04-22T12:00:00.000Z"),
+    updatedAt: new Date("2026-04-22T12:00:00.000Z")
+  },
+  {
     id: "prod_nad_collagen_serum",
     productCode: "0008",
     productShortName: "8+ NAD+ Serum",

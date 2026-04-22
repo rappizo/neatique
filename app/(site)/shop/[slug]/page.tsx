@@ -80,6 +80,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
   const absoluteImageUrl = toAbsoluteUrl(product.imageUrl);
   const title =
+    product.slug === "bee-venom-body-cream"
+      ? "Bee Venom Body Cream | Moisturizing Cream for Dry Rough Areas"
+      :
     product.slug === "nt16-niacinamide-tranexamic-serum"
       ? nt16SerumSeo.title
       : 
@@ -95,6 +98,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
         ? tnv3SerumSeo.title
         : product.name;
   const description =
+    product.slug === "bee-venom-body-cream"
+      ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
+      :
     product.slug === "nt16-niacinamide-tranexamic-serum"
       ? nt16SerumSeo.description
       : 
@@ -115,6 +121,43 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
       title,
       description,
       keywords: nt16SerumSeo.keywords,
+      alternates: {
+        canonical: `/shop/${product.slug}`
+      },
+      openGraph: {
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        url: `${siteConfig.url}/shop/${product.slug}`,
+        images: [
+          {
+            url: absoluteImageUrl,
+            alt: product.name
+          }
+        ]
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        images: [absoluteImageUrl]
+      }
+    };
+  }
+
+  if (product.slug === "bee-venom-body-cream") {
+    return {
+      title,
+      description,
+      keywords: [
+        "bee venom body cream",
+        "bee venom cream",
+        "moisturizing body cream",
+        "body cream for dry rough areas",
+        "hyaluronic acid body cream",
+        "body cream for elbows and knees",
+        "non greasy body cream",
+        "buy bee venom body cream"
+      ],
       alternates: {
         canonical: `/shop/${product.slug}`
       },
@@ -317,7 +360,9 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const isPdrnCream = product.slug === "pdrn-cream";
   const isPdrnSerum = product.slug === "pdrn-serum";
   const seoDescription =
-    product.slug === "pdrn-cream"
+    product.slug === "bee-venom-body-cream"
+      ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
+      : product.slug === "pdrn-cream"
       ? pdrnCreamSeo.description
       : product.slug === "pdrn-serum"
         ? pdrnSerumSeo.description

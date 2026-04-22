@@ -12,6 +12,62 @@ type ProductStory = {
 };
 
 export const productStories: Record<string, ProductStory> = {
+  "bee-venom-body-cream": {
+    gallery: getLocalProductGallery("bee-venom-body-cream"),
+    heroLabel: "HH049 Bee Venom Body Cream",
+    sections: [
+      {
+        title: "1. What It Is",
+        body:
+          "Neatique Bee Venom Body Cream is a moisturizing body cream created for dry, rough, and uneven-looking skin on the body. It is designed for the areas that often need extra attention, including arms, legs, neck, shoulders, elbows, knees, and calves."
+      },
+      {
+        title: "2. Texture",
+        body:
+          "The cream feels rich enough to comfort dry skin yet still spreads smoothly and absorbs with a clean finish. It leaves the skin feeling softer and more refreshed without turning sticky or overly heavy."
+      },
+      {
+        title: "3. Bee Venom And Hyaluronic Acid Formula",
+        body:
+          "The formula is centered around bee venom and hyaluronic acid, a pairing that gives the cream both its moisture story and its smooth, supple after-feel. It is made for daily body care rather than for a complicated treatment routine."
+      },
+      {
+        title: "4. Why It Works Well For Dry, Rough Areas",
+        body:
+          "Dry areas on the body often need a cream that feels comforting right away and still leaves the skin looking smoother later. This formula is built for exactly that type of daily use, especially when the skin feels rough, tight, or visibly dry."
+      },
+      {
+        title: "5. Daily Body Care Routine Fit",
+        body:
+          "Use it after showering, before bed, or anytime the skin feels dry and in need of support. Because it absorbs smoothly, it fits easily into regular body care routines and does not feel like an extra-fussy step."
+      },
+      {
+        title: "6. Where To Use It",
+        body:
+          "It is especially useful for elbows, knees, upper arms, calves, neck, and shoulders. These are the places where uneven texture and dryness often show up first, and where a consistent body cream can make the skin feel much better cared for."
+      },
+      {
+        title: "7. Daytime Feel",
+        body:
+          "During the day, the finish feels smooth and nourished rather than greasy. That makes it easy to use under clothing and throughout the day whenever the skin needs a quick layer of moisture."
+      },
+      {
+        title: "8. Night Routine Comfort",
+        body:
+          "At night, the cream feels especially satisfying because it helps dry skin feel cushioned and more settled by morning. It is a simple final step when the body needs comfort and a softer-looking finish overnight."
+      },
+      {
+        title: "9. Who It Is For",
+        body:
+          "This is a strong option for shoppers looking for a moisturizing body cream with a comfortable skin feel and visible smoothness. It suits anyone who wants dry, stressed-looking skin to feel softer, silkier, and more nourished with regular use."
+      },
+      {
+        title: "10. What Makes It Easy To Keep Using",
+        body:
+          "Because the cream balances richness with a non-greasy finish, it is easy to keep near a shower, bedside, or vanity and use consistently. That kind of everyday practicality is what makes a body cream worth staying with."
+      }
+    ]
+  },
   "nad-collagen-peptide-serum": {
     gallery: getLocalProductGallery("nad-collagen-peptide-serum"),
     heroLabel: "HH076 NAD+ Collagen Peptide Serum",
