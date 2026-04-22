@@ -1,5 +1,4 @@
 import { Prisma } from "@prisma/client";
-import { cache } from "react";
 import type {
   AiPostAutomationOverviewRecord,
   AdminEmailAudiencePageRecord,
@@ -43,6 +42,7 @@ import {
   fetchBrevoLists,
   getBrevoSettings
 } from "@/lib/brevo";
+import { STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
 import { expireCouponsIfNeeded } from "@/lib/coupon-expiration";
 import { parseStoredCouponProductCodes } from "@/lib/coupons";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
@@ -68,7 +68,6 @@ import {
   fallbackRewards,
   fallbackSettings
 } from "@/lib/fallback-data";
-import { ensureStoreBootstrap } from "@/lib/store-bootstrap";
 
 const PUBLIC_CONTENT_REVALIDATE_SECONDS = 60;
 const OMB_UNSUBMITTED_PRODUCT_FILTER = "__NOT_SUBMITTED__";
@@ -107,8 +106,6 @@ async function withFallback<T>(
   if (!hasValidPostgresDatabaseUrl()) {
     return fallback;
   }
-
-  await ensureStoreBootstrap();
 
   try {
     return await run();
@@ -1921,16 +1918,22 @@ export async function getAdminReviewPageByProductSlug(slug: string, page = 1, pa
   );
 }
 
-const loadStoreSettings = cache(async () => {
-  const settings = await prisma.storeSetting.findMany({
-    orderBy: { key: "asc" }
-  });
+const loadStoreSettings = unstable_cache(
+  async () => {
+    const settings = await prisma.storeSetting.findMany({
+      orderBy: { key: "asc" }
+    });
 
-  return settings.reduce<StoreSettingsRecord>((accumulator, setting) => {
-    accumulator[setting.key] = setting.value;
-    return accumulator;
-  }, {});
-});
+    return settings.reduce<StoreSettingsRecord>((accumulator, setting) => {
+      accumulator[setting.key] = setting.value;
+      return accumulator;
+    }, {});
+  },
+  ["store-settings"],
+  {
+    tags: [STORE_SETTINGS_CACHE_TAG]
+  }
+);
 
 export async function getStoreSettings() {
   return withFallback(

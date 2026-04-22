@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma db push && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
     "db:seed": "node prisma/seed.js",
     "db:reviews:reset": "node prisma/reset-reviews.js",
     "db:studio": "prisma studio",
@@ -36,8 +38,5 @@
     "eslint-config-next": "^15.0.0",
     "prisma": "^6.0.0",
     "typescript": "^5.0.0"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
   }
 }

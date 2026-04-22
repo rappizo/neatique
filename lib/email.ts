@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { ImapFlow } from "imapflow";
 import {
   getBrevoSettings,
@@ -7,6 +7,7 @@ import {
   sendBrevoTransactionalEmail,
   type BrevoSettings
 } from "@/lib/brevo";
+import { EMAIL_SETTINGS_CACHE_TAG, STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
 import { prisma } from "@/lib/db";
 import {
   getSubscribeCouponDescription,
@@ -84,48 +85,54 @@ function toEmailSettings(record: Record<string, string>): EmailSettings {
   };
 }
 
-const loadEmailSettings = cache(async () => {
-  const settings = await prisma.storeSetting.findMany({
-    where: {
-      key: {
-        in: [
-          "email_enabled",
-          "smtp_host",
-          "smtp_port",
-          "smtp_secure",
-          "smtp_user",
-          "smtp_pass",
-          "email_from_name",
-          "email_from_address",
-          "contact_recipient",
-          "imap_host",
-          "imap_port",
-          "imap_secure",
-          "imap_user",
-          "imap_pass",
-          "imap_mailbox",
-          "imap_sent_mailbox",
-          "brevo_enabled",
-          "brevo_api_key",
-          "brevo_sender_name",
-          "brevo_sender_email",
-          "brevo_reply_to",
-          "brevo_test_email",
-          "brevo_subscribers_list_id",
-          "brevo_contact_list_id",
-          "brevo_customers_list_id"
-        ]
+const loadEmailSettings = unstable_cache(
+  async () => {
+    const settings = await prisma.storeSetting.findMany({
+      where: {
+        key: {
+          in: [
+            "email_enabled",
+            "smtp_host",
+            "smtp_port",
+            "smtp_secure",
+            "smtp_user",
+            "smtp_pass",
+            "email_from_name",
+            "email_from_address",
+            "contact_recipient",
+            "imap_host",
+            "imap_port",
+            "imap_secure",
+            "imap_user",
+            "imap_pass",
+            "imap_mailbox",
+            "imap_sent_mailbox",
+            "brevo_enabled",
+            "brevo_api_key",
+            "brevo_sender_name",
+            "brevo_sender_email",
+            "brevo_reply_to",
+            "brevo_test_email",
+            "brevo_subscribers_list_id",
+            "brevo_contact_list_id",
+            "brevo_customers_list_id"
+          ]
+        }
       }
-    }
-  });
+    });
 
-  const record = settings.reduce<Record<string, string>>((accumulator, item) => {
-    accumulator[item.key] = item.value;
-    return accumulator;
-  }, {});
+    const record = settings.reduce<Record<string, string>>((accumulator, item) => {
+      accumulator[item.key] = item.value;
+      return accumulator;
+    }, {});
 
-  return toEmailSettings(record);
-});
+    return toEmailSettings(record);
+  },
+  ["email-settings"],
+  {
+    tags: [EMAIL_SETTINGS_CACHE_TAG, STORE_SETTINGS_CACHE_TAG]
+  }
+);
 
 export async function getEmailSettings() {
   return loadEmailSettings();

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
 import { prisma } from "@/lib/db";
 import {
   generateSeoPostDraftWithAi,
@@ -117,6 +118,8 @@ async function saveAutomationState(nextState: Partial<Record<(typeof AI_POST_SET
       })
     )
   );
+
+  revalidateTag(STORE_SETTINGS_CACHE_TAG);
 }
 
 function getNextProductCursor<T extends { id: string }>(

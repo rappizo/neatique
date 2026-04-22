@@ -2,7 +2,7 @@
 
 import { randomInt } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { runAiPostAutomation } from "@/lib/ai-post-automation";
 import { prisma } from "@/lib/db";
@@ -28,6 +28,7 @@ import {
   setAdminSession,
   validateAdminCredentials
 } from "@/lib/admin-auth";
+import { EMAIL_SETTINGS_CACHE_TAG, STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
 import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from "@/lib/coupons";
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
 import { normalizeArticleContent } from "@/lib/article-format";
@@ -83,6 +84,14 @@ function refreshStorefront(productSlugs: string[] = []) {
 
   for (const slug of productSlugs) {
     revalidatePath(`/shop/${slug}`);
+  }
+}
+
+function revalidateSettingsCaches(options?: { email?: boolean }) {
+  revalidateTag(STORE_SETTINGS_CACHE_TAG);
+
+  if (options?.email) {
+    revalidateTag(EMAIL_SETTINGS_CACHE_TAG);
   }
 }
 
@@ -1105,6 +1114,7 @@ export async function saveAiPostAutomationSettingsAction(formData: FormData) {
     )
   );
 
+  revalidateSettingsCaches();
   revalidatePath("/admin/posts");
   redirect(buildPostsRedirect("automation-settings-saved"));
 }
@@ -1786,6 +1796,7 @@ export async function saveStoreSettingsAction(formData: FormData) {
     )
   );
 
+  revalidateSettingsCaches();
   revalidatePath("/admin");
   redirect("/admin?status=settings-saved");
 }
@@ -1822,6 +1833,7 @@ export async function saveEmailSettingsAction(formData: FormData) {
     )
   );
 
+  revalidateSettingsCaches({ email: true });
   revalidatePath("/admin/email");
   redirect("/admin/email?status=saved");
 }
@@ -2220,6 +2232,7 @@ export async function saveEmailMarketingSettingsAction(formData: FormData) {
     )
   );
 
+  revalidateSettingsCaches({ email: true });
   revalidatePath("/admin/email-marketing");
   redirect("/admin/email-marketing?status=settings-saved");
 }
@@ -2270,6 +2283,7 @@ export async function saveFollowEmailSettingsAction(formData: FormData) {
     )
   );
 
+  revalidateSettingsCaches({ email: true });
   revalidatePath("/admin/omb-claims");
   revalidatePath("/admin/rewards");
   redirect(

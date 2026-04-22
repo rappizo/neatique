@@ -1,3 +1,5 @@
+import { revalidateTag } from "next/cache";
+import { STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
 import { prisma } from "@/lib/db";
 import type {
   PostExternalLinkAuditEntryRecord,
@@ -193,6 +195,8 @@ export async function savePostExternalLinkAudit(report: PostExternalLinkAuditRec
       })
     }
   });
+
+  revalidateTag(STORE_SETTINGS_CACHE_TAG);
 }
 
 async function probeExternalUrl(url: string, method: "HEAD" | "GET") {
