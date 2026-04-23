@@ -10,6 +10,7 @@ export type EmailCampaignStatus = "DRAFT" | "SYNCED" | "SCHEDULED" | "SENT" | "F
 export type EmailAudienceType = "NEWSLETTER" | "CUSTOMERS" | "LEADS" | "ALL_MARKETING" | "CUSTOM";
 export type FollowEmailProcessKey = "OMB" | "RYO";
 export type FollowEmailStageKey = "WAITING_STEP_2" | "WAITING_LAST_STEP" | "COMPLETED";
+export type ComicPromptRunStatus = "DRAFT" | "READY" | "FAILED" | "APPROVED";
 
 export type PostExternalLinkRecord = {
   label: string;
@@ -632,4 +633,211 @@ export type EmailMarketingOverviewRecord = {
   brevoError: string | null;
   campaignReport: EmailCampaignSummaryReportRecord;
   campaigns: EmailCampaignOverviewCardRecord[];
+};
+
+export type ComicProjectRecord = {
+  id: string;
+  slug: string;
+  title: string;
+  shortDescription: string;
+  storyOutline: string;
+  worldRules: string;
+  visualStyleGuide: string;
+  workflowNotes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ComicCharacterRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+  appearance: string;
+  personality: string;
+  speechGuide: string;
+  referenceFolder: string;
+  referenceNotes: string | null;
+  active: boolean;
+  sortOrder: number;
+  projectId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ComicSceneRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  summary: string;
+  visualNotes: string;
+  moodNotes: string;
+  referenceFolder: string;
+  referenceNotes: string | null;
+  active: boolean;
+  sortOrder: number;
+  projectId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ComicEpisodeAssetRecord = {
+  id: string;
+  assetType: string;
+  title: string;
+  imageUrl: string;
+  altText: string | null;
+  caption: string | null;
+  sortOrder: number;
+  published: boolean;
+  episodeId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ComicPromptRunRecord = {
+  id: string;
+  promptType: string;
+  model: string;
+  imageModel: string | null;
+  status: ComicPromptRunStatus;
+  inputContext: string;
+  outputSummary: string;
+  promptPack: string | null;
+  referenceChecklist: string | null;
+  errorMessage: string | null;
+  episodeId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ComicEpisodeRecord = {
+  id: string;
+  episodeNumber: number;
+  slug: string;
+  title: string;
+  summary: string;
+  outline: string;
+  script: string;
+  panelPlan: string;
+  promptPack: string;
+  requiredReferences: string;
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
+  published: boolean;
+  publishedAt: Date | null;
+  sortOrder: number;
+  chapterId: string;
+  assetCount?: number;
+  promptRunCount?: number;
+  latestPromptRunAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ComicChapterRecord = {
+  id: string;
+  chapterNumber: number;
+  slug: string;
+  title: string;
+  summary: string;
+  outline: string;
+  published: boolean;
+  sortOrder: number;
+  seasonId: string;
+  episodeCount?: number;
+  publishedEpisodeCount?: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ComicSeasonRecord = {
+  id: string;
+  seasonNumber: number;
+  slug: string;
+  title: string;
+  summary: string;
+  outline: string;
+  published: boolean;
+  sortOrder: number;
+  projectId: string;
+  chapterCount?: number;
+  episodeCount?: number;
+  publishedEpisodeCount?: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ComicAdminOverviewRecord = {
+  project: ComicProjectRecord | null;
+  characterCount: number;
+  sceneCount: number;
+  seasonCount: number;
+  chapterCount: number;
+  episodeCount: number;
+  publishedEpisodeCount: number;
+  recentEpisodes: Array<
+    ComicEpisodeRecord & {
+      seasonTitle: string;
+      seasonSlug: string;
+      chapterTitle: string;
+      chapterSlug: string;
+    }
+  >;
+};
+
+export type ComicSeasonDetailRecord = {
+  season: ComicSeasonRecord;
+  chapters: ComicChapterRecord[];
+};
+
+export type ComicChapterDetailRecord = {
+  season: ComicSeasonRecord;
+  chapter: ComicChapterRecord;
+  episodes: ComicEpisodeRecord[];
+};
+
+export type ComicEpisodeDetailRecord = {
+  project: ComicProjectRecord | null;
+  season: ComicSeasonRecord;
+  chapter: ComicChapterRecord;
+  episode: ComicEpisodeRecord;
+  assets: ComicEpisodeAssetRecord[];
+  promptRuns: ComicPromptRunRecord[];
+  characters: ComicCharacterRecord[];
+  scenes: ComicSceneRecord[];
+};
+
+export type ComicPromptStudioPageRecord = {
+  project: ComicProjectRecord | null;
+  characters: ComicCharacterRecord[];
+  scenes: ComicSceneRecord[];
+  seasons: Array<
+    ComicSeasonRecord & {
+      chapters: Array<
+        ComicChapterRecord & {
+          episodes: ComicEpisodeRecord[];
+        }
+      >;
+    }
+  >;
+  selectedEpisode: ComicEpisodeDetailRecord | null;
+};
+
+export type ComicPublicEpisodeRecord = ComicEpisodeRecord & {
+  assets: ComicEpisodeAssetRecord[];
+  seasonTitle: string;
+  seasonSlug: string;
+  chapterTitle: string;
+  chapterSlug: string;
+};
+
+export type ComicPublicChapterRecord = ComicChapterRecord & {
+  seasonTitle: string;
+  seasonSlug: string;
+  episodes: ComicPublicEpisodeRecord[];
+};
+
+export type ComicPublicSeasonRecord = ComicSeasonRecord & {
+  chapters: ComicPublicChapterRecord[];
 };

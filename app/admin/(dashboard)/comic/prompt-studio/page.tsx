@@ -1,0 +1,185 @@
+import Link from "next/link";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
+import { generateComicPromptPackageAction } from "@/app/admin/comic-actions";
+import { getOpenAiComicSettings } from "@/lib/openai-comic";
+import { getComicPromptStudioPage } from "@/lib/queries";
+
+type AdminComicPromptStudioPageProps = {
+  searchParams: Promise<{ episodeId?: string; status?: string }>;
+};
+
+const STATUS_MESSAGES: Record<string, string> = {
+  "prompt-generated": "Comic prompt package generated.",
+  "prompt-failed": "Comic prompt generation failed. Check the latest prompt run and try again.",
+  "missing-episode": "Pick an episode before generating prompts.",
+  "missing-project": "Save the comic project bible first so the prompt workflow has canon context."
+};
+
+export default async function AdminComicPromptStudioPage({
+  searchParams
+}: AdminComicPromptStudioPageProps) {
+  const params = await searchParams;
+  const episodeId = params.episodeId || null;
+  const [pageData, openAiSettings] = await Promise.all([
+    getComicPromptStudioPage(episodeId),
+    Promise.resolve(getOpenAiComicSettings())
+  ]);
+
+  const selectedEpisode = pageData.selectedEpisode;
+
+  return (
+    <div className="admin-page">
+      <div className="stack-row">
+        <Link href="/admin/comic" className="button button--secondary">
+          Back to comic
+        </Link>
+      </div>
+
+      <div className="admin-page__header">
+        <p className="eyebrow">Comic / Prompt Studio</p>
+        <h1>Generate episode prompt packs with the locked cast and scene library.</h1>
+        <p>
+          Choose an episode, then let the model expand it into a script, page plan, panel prompts,
+          and an explicit upload checklist for <code>gpt-image-2</code>.
+        </p>
+      </div>
+
+      {params.status ? (
+        <p className="notice">
+          {STATUS_MESSAGES[params.status] || `Comic action completed: ${params.status}.`}
+        </p>
+      ) : null}
+
+      <div className="cards-3">
+        <section className="admin-card">
+          <p className="eyebrow">Project</p>
+          <h3>{pageData.project?.title || "No comic project saved yet"}</h3>
+          <p>
+            {pageData.project?.shortDescription ||
+              "Save the comic project bible first so the model can read the same canon and visual rules every time."}
+          </p>
+        </section>
+
+        <section className="admin-card">
+          <p className="eyebrow">Library</p>
+          <h3>{pageData.characters.length} characters / {pageData.scenes.length} scenes</h3>
+          <p>
+            Only active characters and scenes are used when building prompt packages and reference
+            upload checklists.
+          </p>
+        </section>
+
+        <section className="admin-card">
+          <p className="eyebrow">AI</p>
+          <h3>{openAiSettings.model}</h3>
+          <p>
+            The prompt studio builds instructions for <code>{openAiSettings.imageModel}</code> so
+            your image-generation workflow stays stable from panel to panel.
+          </p>
+        </section>
+      </div>
+
+      <section className="admin-form">
+        <h2>Select an episode</h2>
+        <form method="get" action="/admin/comic/prompt-studio">
+          <div className="field">
+            <label htmlFor="comic-prompt-episode">Episode</label>
+            <select id="comic-prompt-episode" name="episodeId" defaultValue={episodeId || ""}>
+              <option value="">Choose an episode...</option>
+              {pageData.seasons.map((season) => (
+                <optgroup key={season.id} label={`Season ${season.seasonNumber}: ${season.title}`}>
+                  {season.chapters.map((chapter) =>
+                    chapter.episodes.map((episode) => (
+                      <option key={episode.id} value={episode.id}>
+                        {chapter.title} / Episode {episode.episodeNumber}: {episode.title}
+                      </option>
+                    ))
+                  )}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <button type="submit" className="button button--primary">
+            Load episode
+          </button>
+        </form>
+      </section>
+
+      {selectedEpisode ? (
+        <>
+          <section className="admin-form">
+            <div className="admin-review-pagination">
+              <div>
+                <h2>Selected episode</h2>
+                <p className="form-note">
+                  {selectedEpisode.season.title} {"->"} {selectedEpisode.chapter.title} {"->"}{" "}
+                  {selectedEpisode.episode.title}
+                </p>
+              </div>
+              <div className="stack-row">
+                <Link href={`/admin/comic/episodes/${selectedEpisode.episode.id}`} className="button button--secondary">
+                  Open episode editor
+                </Link>
+              </div>
+            </div>
+
+            <div className="cards-2">
+              <div className="admin-card">
+                <p className="eyebrow">Episode summary</p>
+                <p>{selectedEpisode.episode.summary || "No summary added yet."}</p>
+              </div>
+              <div className="admin-card">
+                <p className="eyebrow">Outline</p>
+                <p>{selectedEpisode.episode.outline || "No outline added yet."}</p>
+              </div>
+            </div>
+
+            <form action={generateComicPromptPackageAction}>
+              <input type="hidden" name="episodeId" value={selectedEpisode.episode.id} />
+              <input
+                type="hidden"
+                name="redirectTo"
+                value={`/admin/comic/prompt-studio?episodeId=${selectedEpisode.episode.id}`}
+              />
+              <PendingSubmitButton
+                idleLabel="Generate prompt package"
+                pendingLabel="Generating prompt package..."
+                modalTitle="Generating the comic prompt package"
+                modalDescription="The model is turning this episode into a script, page plan, panel prompts, and a gpt-image-2 upload checklist."
+                disabled={!openAiSettings.ready || !pageData.project}
+              />
+            </form>
+          </section>
+
+          <section className="admin-form">
+            <h2>Current prompt output</h2>
+            <div className="field">
+              <label>Script</label>
+              <textarea rows={14} value={selectedEpisode.episode.script} readOnly />
+            </div>
+            <div className="field">
+              <label>Panel / page plan</label>
+              <textarea rows={12} value={selectedEpisode.episode.panelPlan} readOnly />
+            </div>
+            <div className="field">
+              <label>Prompt pack</label>
+              <textarea rows={16} value={selectedEpisode.episode.promptPack} readOnly />
+            </div>
+            <div className="field">
+              <label>Required references and gpt-image-2 notes</label>
+              <textarea rows={16} value={selectedEpisode.episode.requiredReferences} readOnly />
+            </div>
+          </section>
+        </>
+      ) : (
+        <section className="admin-form">
+          <h2>No episode selected yet</h2>
+          <p className="form-note">
+            Choose an episode above to generate prompts. The studio will read the master comic
+            bible, active characters, and active scenes once an episode is selected.
+          </p>
+        </section>
+      )}
+    </div>
+  );
+}

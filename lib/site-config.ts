@@ -10,6 +10,7 @@ export const siteConfig = {
   nav: [
     { href: "/", label: "Home" },
     { href: "/shop", label: "Shop" },
+    { href: "/comic", label: "Comic" },
     { href: "/beauty-tips", label: "Beauty Tips" },
     { href: "/contact", label: "Contact" }
   ],
@@ -24,6 +25,7 @@ export const siteConfig = {
     { href: "/admin/rewards", label: "Points" },
     { href: "/admin/reviews", label: "Reviews" },
     { href: "/admin/posts", label: "Posts" },
+    { href: "/admin/comic", label: "Comic" },
     { href: "/admin/email-marketing", label: "Email Marketing" },
     { href: "/admin/email", label: "Email" }
   ],
@@ -35,6 +37,7 @@ export const siteConfig = {
       { href: "/shop/snail-mucin-serum", label: "Snail Mucin Serum" }
     ],
     discover: [
+      { href: "/comic", label: "Comic" },
       { href: "/beauty-tips", label: "Beauty Tips" },
       { href: "/mascot", label: "Mascot Rewards" },
       { href: "/contact", label: "Contact Us" },

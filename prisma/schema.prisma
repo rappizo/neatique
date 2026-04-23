@@ -84,6 +84,13 @@ enum FollowEmailStage {
   COMPLETED
 }
 
+enum ComicPromptRunStatus {
+  DRAFT
+  READY
+  FAILED
+  APPROVED
+}
+
 model Product {
   id                  String        @id @default(cuid())
   productCode         String?       @unique
@@ -150,6 +157,168 @@ model Post {
   @@index([published, publishedAt])
   @@index([aiGenerated, createdAt])
   @@index([sourceProductId, createdAt])
+}
+
+model ComicProject {
+  id               String           @id @default(cuid())
+  slug             String           @unique
+  title            String
+  shortDescription String
+  storyOutline     String
+  worldRules       String
+  visualStyleGuide String
+  workflowNotes    String?
+  characters       ComicCharacter[]
+  scenes           ComicScene[]
+  seasons          ComicSeason[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model ComicCharacter {
+  id              String       @id @default(cuid())
+  name            String
+  slug            String       @unique
+  role            String
+  appearance      String
+  personality     String
+  speechGuide     String
+  referenceFolder String
+  referenceNotes  String?
+  active          Boolean      @default(true)
+  sortOrder       Int          @default(0)
+  projectId       String
+  project         ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([projectId, sortOrder, createdAt])
+  @@index([active, sortOrder])
+}
+
+model ComicScene {
+  id              String       @id @default(cuid())
+  name            String
+  slug            String       @unique
+  summary         String
+  visualNotes     String
+  moodNotes       String
+  referenceFolder String
+  referenceNotes  String?
+  active          Boolean      @default(true)
+  sortOrder       Int          @default(0)
+  projectId       String
+  project         ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([projectId, sortOrder, createdAt])
+  @@index([active, sortOrder])
+}
+
+model ComicSeason {
+  id         String         @id @default(cuid())
+  seasonNumber Int
+  slug       String
+  title      String
+  summary    String
+  outline    String
+  published  Boolean        @default(false)
+  sortOrder  Int            @default(0)
+  projectId  String
+  project    ComicProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapters   ComicChapter[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([projectId, seasonNumber])
+  @@unique([projectId, slug])
+  @@index([published, sortOrder, createdAt])
+}
+
+model ComicChapter {
+  id            String         @id @default(cuid())
+  chapterNumber Int
+  slug          String
+  title         String
+  summary       String
+  outline       String
+  published     Boolean        @default(false)
+  sortOrder     Int            @default(0)
+  seasonId      String
+  season        ComicSeason    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  episodes      ComicEpisode[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([seasonId, chapterNumber])
+  @@unique([seasonId, slug])
+  @@index([published, sortOrder, createdAt])
+}
+
+model ComicEpisode {
+  id                 String            @id @default(cuid())
+  episodeNumber      Int
+  slug               String
+  title              String
+  summary            String
+  outline            String
+  script             String
+  panelPlan          String
+  promptPack         String
+  requiredReferences String
+  coverImageUrl      String?
+  coverImageAlt      String?
+  published          Boolean           @default(false)
+  publishedAt        DateTime?
+  sortOrder          Int               @default(0)
+  chapterId          String
+  chapter            ComicChapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  assets             ComicEpisodeAsset[]
+  promptRuns         ComicPromptRun[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@unique([chapterId, episodeNumber])
+  @@unique([chapterId, slug])
+  @@index([published, publishedAt, sortOrder, createdAt])
+}
+
+model ComicEpisodeAsset {
+  id        String       @id @default(cuid())
+  assetType String       @default("PAGE")
+  title     String
+  imageUrl  String
+  altText   String?
+  caption   String?
+  sortOrder Int          @default(0)
+  published Boolean      @default(true)
+  episodeId String
+  episode   ComicEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([episodeId, published, sortOrder, createdAt])
+}
+
+model ComicPromptRun {
+  id                 String              @id @default(cuid())
+  promptType         String
+  model              String
+  imageModel         String?
+  status             ComicPromptRunStatus @default(DRAFT)
+  inputContext       String
+  outputSummary      String
+  promptPack         String?
+  referenceChecklist String?
+  errorMessage       String?
+  episodeId          String
+  episode            ComicEpisode        @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([episodeId, createdAt])
+  @@index([status, createdAt])
 }
 
 model Customer {
