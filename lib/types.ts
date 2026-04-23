@@ -681,6 +681,13 @@ export type ComicSceneRecord = {
   updatedAt: Date;
 };
 
+export type ComicChapterSceneReferenceRecord = {
+  label: string;
+  fileName: string;
+  relativePath: string;
+  extension: string;
+};
+
 export type ComicEpisodeAssetRecord = {
   id: string;
   assetType: string;
@@ -806,6 +813,8 @@ export type ComicEpisodeDetailRecord = {
   promptRuns: ComicPromptRunRecord[];
   characters: ComicCharacterRecord[];
   scenes: ComicSceneRecord[];
+  chapterSceneReferenceFolder: string;
+  chapterSceneReferences: ComicChapterSceneReferenceRecord[];
 };
 
 export type ComicPromptStudioPageRecord = {

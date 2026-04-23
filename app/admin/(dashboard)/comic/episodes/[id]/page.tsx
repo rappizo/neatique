@@ -39,7 +39,18 @@ export default async function AdminComicEpisodeDetailPage({
     notFound();
   }
 
-  const { project, season, chapter, episode, assets, promptRuns, characters, scenes } = episodePage;
+  const {
+    project,
+    season,
+    chapter,
+    episode,
+    assets,
+    promptRuns,
+    characters,
+    scenes,
+    chapterSceneReferenceFolder,
+    chapterSceneReferences
+  } = episodePage;
   const nextAssetSortOrder =
     assets.length > 0 ? Math.max(...assets.map((asset) => asset.sortOrder)) + 1 : 1;
 
@@ -91,11 +102,12 @@ export default async function AdminComicEpisodeDetailPage({
           <h3>{project?.title || "No project saved yet"}</h3>
           <p>
             Prompt generation currently has access to {characters.length} active characters and{" "}
-            {scenes.length} active scenes.
+            {scenes.length} active scenes, plus {chapterSceneReferences.length} chapter scene refs.
           </p>
           <div className="stack-row">
             <span className="pill">{characters.length} characters</span>
             <span className="pill">{scenes.length} scenes</span>
+            <span className="pill">{chapterSceneReferences.length} chapter scene refs</span>
           </div>
         </section>
 
@@ -113,6 +125,32 @@ export default async function AdminComicEpisodeDetailPage({
           </div>
         </section>
       </div>
+
+      <section className="admin-form">
+        <h2>Chapter scene pack</h2>
+        <p className="form-note">
+          Store chapter-only environment sheets here and upload the relevant ones when generating
+          with <code>gpt-image-2</code>.
+        </p>
+        <div className="field">
+          <label>Chapter scene folder</label>
+          <input value={chapterSceneReferenceFolder} readOnly />
+        </div>
+        {chapterSceneReferences.length > 0 ? (
+          <div className="stack-row">
+            {chapterSceneReferences.map((sceneReference) => (
+              <span key={sceneReference.relativePath} className="pill">
+                {sceneReference.fileName}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="form-note">
+            No chapter scene refs stored yet. Add scene drawings to this chapter folder to make the
+            AI upload checklist more specific.
+          </p>
+        )}
+      </section>
 
       <section className="admin-form">
         <h2>Episode settings</h2>
@@ -230,12 +268,12 @@ export default async function AdminComicEpisodeDetailPage({
         <div className="admin-review-pagination">
           <div>
             <h2>Generate a fresh prompt package</h2>
-            <p className="form-note">
-              This will read the project bible, active characters, active scenes, and the selected
-              episode outline, then write back a script, page plan, prompt pack, and upload
-              checklist for <code>gpt-image-2</code>.
-            </p>
-          </div>
+          <p className="form-note">
+            This will read the project bible, active characters, active scenes, and the selected
+            episode outline, plus the current chapter scene pack, then write back a script, page
+            plan, prompt pack, and upload checklist for <code>gpt-image-2</code>.
+          </p>
+        </div>
         </div>
 
         <form action={generateComicPromptPackageAction}>

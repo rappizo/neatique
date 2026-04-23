@@ -12,6 +12,7 @@ import type {
   BrevoListRecord,
   ComicAdminOverviewRecord,
   ComicChapterDetailRecord,
+  ComicChapterSceneReferenceRecord,
   ComicChapterRecord,
   ComicCharacterRecord,
   ComicEpisodeAssetRecord,
@@ -53,6 +54,10 @@ import type {
   StoreSettingsRecord
 } from "@/lib/types";
 import { unstable_cache } from "next/cache";
+import {
+  getComicChapterSceneReferenceFolder,
+  listComicChapterSceneReferences
+} from "@/lib/comic-workspace";
 import {
   EMAIL_AUDIENCE_OPTIONS,
   fetchBrevoCampaignReports,
@@ -2588,6 +2593,19 @@ function mapComicScene(scene: any): ComicSceneRecord {
   };
 }
 
+async function loadComicChapterSceneReferenceState(
+  seasonSlug: string,
+  chapterSlug: string
+): Promise<{
+  chapterSceneReferenceFolder: string;
+  chapterSceneReferences: ComicChapterSceneReferenceRecord[];
+}> {
+  return {
+    chapterSceneReferenceFolder: getComicChapterSceneReferenceFolder(seasonSlug, chapterSlug),
+    chapterSceneReferences: await listComicChapterSceneReferences(seasonSlug, chapterSlug)
+  };
+}
+
 function mapComicSeason(season: any): ComicSeasonRecord {
   return {
     id: season.id,
@@ -2986,7 +3004,7 @@ export async function getComicEpisodeById(id: string) {
         return null;
       }
 
-      const [characters, scenes] = await Promise.all([
+      const [characters, scenes, chapterSceneReferenceState] = await Promise.all([
         prisma.comicCharacter.findMany({
           where: { projectId: episode.chapter.season.projectId },
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
@@ -2994,7 +3012,8 @@ export async function getComicEpisodeById(id: string) {
         prisma.comicScene.findMany({
           where: { projectId: episode.chapter.season.projectId },
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
-        })
+        }),
+        loadComicChapterSceneReferenceState(episode.chapter.season.slug, episode.chapter.slug)
       ]);
 
       return {
@@ -3005,7 +3024,9 @@ export async function getComicEpisodeById(id: string) {
         assets: episode.assets.map(mapComicEpisodeAsset),
         promptRuns: episode.promptRuns.map(mapComicPromptRun),
         characters: characters.map(mapComicCharacter),
-        scenes: scenes.map(mapComicScene)
+        scenes: scenes.map(mapComicScene),
+        chapterSceneReferenceFolder: chapterSceneReferenceState.chapterSceneReferenceFolder,
+        chapterSceneReferences: chapterSceneReferenceState.chapterSceneReferences
       };
     },
     null

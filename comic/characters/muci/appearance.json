@@ -1,0 +1,10 @@
+{
+  "silhouette": "Clean teardrop silhouette with a centered point and rounded base.",
+  "face": "Large dot eyes, open friendly smile, glossy highlight marks near the upper left side.",
+  "body_language": "Approachable, beginner-friendly, soft and balanced.",
+  "do_not_change": [
+    "Keep the centered point.",
+    "Keep the highlight marks.",
+    "Do not harden the default expression."
+  ]
+}

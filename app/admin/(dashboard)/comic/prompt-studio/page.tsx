@@ -123,7 +123,7 @@ export default async function AdminComicPromptStudioPage({
               </div>
             </div>
 
-            <div className="cards-2">
+            <div className="cards-3">
               <div className="admin-card">
                 <p className="eyebrow">Episode summary</p>
                 <p>{selectedEpisode.episode.summary || "No summary added yet."}</p>
@@ -132,7 +132,37 @@ export default async function AdminComicPromptStudioPage({
                 <p className="eyebrow">Outline</p>
                 <p>{selectedEpisode.episode.outline || "No outline added yet."}</p>
               </div>
+              <div className="admin-card">
+                <p className="eyebrow">Chapter scene pack</p>
+                <h3>{selectedEpisode.chapterSceneReferences.length} scene refs</h3>
+                <p>
+                  Prompt generation will use the current chapter scene folder first whenever a panel
+                  happens in a known Chapter {selectedEpisode.chapter.chapterNumber} location.
+                </p>
+                <p className="form-note">
+                  <code>{selectedEpisode.chapterSceneReferenceFolder}</code>
+                </p>
+              </div>
             </div>
+
+            {selectedEpisode.chapterSceneReferences.length > 0 ? (
+              <div className="field">
+                <label>Chapter scene refs to upload when relevant</label>
+                <div className="stack-row">
+                  {selectedEpisode.chapterSceneReferences.map((sceneReference) => (
+                    <span key={sceneReference.relativePath} className="pill">
+                      {sceneReference.fileName}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="form-note">
+                No chapter-specific scene refs are stored yet. Add scene sheets under{" "}
+                <code>{selectedEpisode.chapterSceneReferenceFolder}</code> to make the upload
+                checklist more precise.
+              </p>
+            )}
 
             <form action={generateComicPromptPackageAction}>
               <input type="hidden" name="episodeId" value={selectedEpisode.episode.id} />
@@ -153,6 +183,10 @@ export default async function AdminComicPromptStudioPage({
 
           <section className="admin-form">
             <h2>Current prompt output</h2>
+            <p className="form-note">
+              The generated upload checklist now reads both the active scene library and the current
+              chapter&apos;s stored scene pack.
+            </p>
             <div className="field">
               <label>Script</label>
               <textarea rows={14} value={selectedEpisode.episode.script} readOnly />

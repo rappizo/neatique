@@ -12,7 +12,9 @@ import {
   ensureComicSeasonWorkspace,
   ensureComicWorkspaceScaffold,
   getComicCharacterReferenceFolder,
-  getComicSceneReferenceFolder
+  getComicSceneReferenceFolder,
+  getComicChapterSceneReferenceFolder,
+  listComicChapterSceneReferences
 } from "@/lib/comic-workspace";
 import { generateComicPromptPackageWithAi } from "@/lib/openai-comic";
 import { slugify, toBool, toInt, toPlainString } from "@/lib/utils";
@@ -772,8 +774,12 @@ export async function generateComicPromptPackageAction(formData: FormData) {
         active: true
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
-    })
+      })
   ]);
+  const chapterSceneReferences = await listComicChapterSceneReferences(
+    episode.chapter.season.slug,
+    episode.chapter.slug
+  );
 
   const inputContext = JSON.stringify(
     {
@@ -794,7 +800,13 @@ export async function generateComicPromptPackageAction(formData: FormData) {
         slug: episode.slug
       },
       characterCount: characters.length,
-      sceneCount: scenes.length
+      sceneCount: scenes.length,
+      chapterSceneReferenceFolder: getComicChapterSceneReferenceFolder(
+        episode.chapter.season.slug,
+        episode.chapter.slug
+      ),
+      chapterSceneReferenceCount: chapterSceneReferences.length,
+      chapterSceneReferenceFiles: chapterSceneReferences.map((reference) => reference.fileName)
     },
     null,
     2
@@ -843,7 +855,8 @@ export async function generateComicPromptPackageAction(formData: FormData) {
         moodNotes: scene.moodNotes,
         referenceFolder: scene.referenceFolder,
         referenceNotes: scene.referenceNotes
-      }))
+      })),
+      chapterSceneReferences
     });
 
     await prisma.$transaction([

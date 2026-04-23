@@ -36,6 +36,12 @@ type ComicSceneContext = {
   referenceNotes: string | null;
 };
 
+type ComicChapterSceneReferenceContext = {
+  label: string;
+  fileName: string;
+  relativePath: string;
+};
+
 type ComicSeasonContext = {
   title: string;
   summary: string;
@@ -85,6 +91,7 @@ type GenerateComicPromptPackageInput = {
   episode: ComicEpisodeContext;
   characters: ComicCharacterContext[];
   scenes: ComicSceneContext[];
+  chapterSceneReferences: ComicChapterSceneReferenceContext[];
 };
 
 function getOpenAiApiKey() {
@@ -174,6 +181,23 @@ function buildSceneSummary(scenes: ComicSceneContext[]) {
           `  Mood notes: ${scene.moodNotes}`,
           `  Reference folder: ${scene.referenceFolder}`,
           `  Reference notes: ${scene.referenceNotes || "None"}`
+        ].join("\n")
+    )
+    .join("\n\n");
+}
+
+function buildChapterSceneReferenceSummary(sceneReferences: ComicChapterSceneReferenceContext[]) {
+  if (sceneReferences.length === 0) {
+    return "No chapter-specific scene reference files have been stored yet.";
+  }
+
+  return sceneReferences
+    .map(
+      (sceneReference) =>
+        [
+          `- ${sceneReference.label}`,
+          `  File: ${sceneReference.fileName}`,
+          `  Path: ${sceneReference.relativePath}`
         ].join("\n")
     )
     .join("\n\n");
@@ -320,11 +344,15 @@ export async function generateComicPromptPackageWithAi(
                 "Locked scene library:",
                 buildSceneSummary(input.scenes),
                 "",
+                "Chapter-specific scene reference files:",
+                buildChapterSceneReferenceSummary(input.chapterSceneReferences),
+                "",
                 "Output requirements:",
                 "- Expand the episode into a readable production script.",
                 "- Create a page plan and a panel-by-panel prompt pack.",
                 `- Assume the image generation step will use ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
                 "- For every panel, tell the team which character refs and scene refs matter.",
+                "- Prefer the chapter-specific scene reference files whenever the panel happens in a known Chapter scene pack location.",
                 "- In the reference checklist, group the upload needs into CHARACTER and SCENE buckets.",
                 "- The gpt-image-2 instructions should tell the creator exactly what to upload and how to preserve continuity across pages.",
                 "- Keep the tone useful, concrete, and ready for actual image production."

@@ -1,4 +1,4 @@
-import { mkdir, writeFile, access } from "node:fs/promises";
+import { mkdir, writeFile, access, readdir } from "node:fs/promises";
 import path from "node:path";
 
 const COMIC_ROOT = path.join(process.cwd(), "comic");
@@ -41,6 +41,49 @@ export function getComicSceneReferenceFolder(slug: string) {
   return toRelativeWorkspacePath(path.join(COMIC_ROOT, "scenes", slug, "refs"));
 }
 
+export function getComicChapterSceneReferenceFolder(seasonSlug: string, chapterSlug: string) {
+  return toRelativeWorkspacePath(
+    path.join(COMIC_ROOT, "seasons", seasonSlug, chapterSlug, "scene-refs")
+  );
+}
+
+export function getComicChapterSceneReferenceFolderPath(seasonSlug: string, chapterSlug: string) {
+  return path.join(COMIC_ROOT, "seasons", seasonSlug, chapterSlug, "scene-refs");
+}
+
+function toDisplayLabel(fileName: string) {
+  const ext = path.extname(fileName);
+  const base = fileName.slice(0, ext ? -ext.length : undefined);
+
+  return base
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export async function listComicChapterSceneReferences(seasonSlug: string, chapterSlug: string) {
+  const folderPath = getComicChapterSceneReferenceFolderPath(seasonSlug, chapterSlug);
+
+  try {
+    const entries = await readdir(folderPath, { withFileTypes: true });
+
+    return entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .filter((fileName) => fileName.toLowerCase() !== "readme.md")
+      .sort((left, right) => left.localeCompare(right))
+      .map((fileName) => ({
+        label: toDisplayLabel(fileName),
+        fileName,
+        relativePath: toRelativeWorkspacePath(path.join(folderPath, fileName)),
+        extension: path.extname(fileName).replace(/^\./, "").toLowerCase()
+      }));
+  } catch {
+    return [];
+  }
+}
+
 function getSeasonFolderPath(seasonSlug: string) {
   return path.join(COMIC_ROOT, "seasons", seasonSlug);
 }
@@ -62,10 +105,20 @@ export async function ensureComicWorkspaceScaffold() {
       "This folder is the local comic-production workspace for Neatique.",
       "",
       "- `characters/` stores stable character reference notes and fixed visual folders.",
-      "- `scenes/` stores location notes and reusable scene references.",
+      "- `scenes/` stores reusable location notes and master scene definitions.",
       "- `story-bible/` stores the long-form canon, season plans, and world rules.",
       "- `seasons/` stores the working folders for every season/chapter/episode.",
       "- `templates/` stores starter files for future comic planning.",
+      "",
+      "## Scene-reference rule",
+      "",
+      "- Character model sheets stay in `characters/<slug>/refs/`.",
+      "- Reusable location rules can stay in `scenes/<slug>/`.",
+      "- Chapter-specific scene artwork should be stored inside the chapter folder under `scene-refs/`.",
+      "",
+      "Example:",
+      "",
+      "`seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/`",
       "",
       "The website reads comic publishing data from the database. This workspace exists so Codex and your local repo can keep the long-form creative materials organized."
     ].join("\n")
@@ -155,7 +208,13 @@ export async function ensureComicWorkspaceScaffold() {
       "",
       "Each season folder is created automatically when a season is added from the admin comic tools.",
       "",
-      "Inside each season folder, chapters and episodes are nested to keep prompts, scripts, and final comic pages together."
+      "Inside each season folder, chapters and episodes are nested to keep prompts, scripts, scene references, and final comic pages together.",
+      "",
+      "Recommended chapter structure:",
+      "",
+      "- `chapter-outline.md`",
+      "- `scene-refs/` for chapter-only environment artwork",
+      "- `episode-xx-.../` folders for scripts, prompt packs, and rendered pages"
     ].join("\n")
   );
 
@@ -289,6 +348,21 @@ export async function ensureComicChapterWorkspace(
   await writeIfMissing(
     path.join(chapterPath, "chapter-outline.md"),
     [`# ${chapterTitle}`, "", "## Chapter objective", "", "## Episode beats", "", "## Cliffhanger / payoff"].join("\n")
+  );
+  await writeIfMissing(
+    path.join(chapterPath, "scene-refs", "README.md"),
+    [
+      `# ${chapterTitle} scene references`,
+      "",
+      "Store chapter-specific environment drawings here.",
+      "",
+      "Recommended contents:",
+      "- exterior establishing shots",
+      "- hallways and room layouts",
+      "- special campus landmarks used only in this chapter",
+      "",
+      "When building prompts for `gpt-image-2`, upload only the scene sheets that are relevant to the current panel."
+    ].join("\n")
   );
 }
 
