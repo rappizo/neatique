@@ -35,6 +35,20 @@ Original location used during import:
 
 `F:/Administrator/Documents/WPSDrive/937175334/WPS云盘/Neatique IP Design/Comic/场景设定图/`
 
+## Imported on 2026-04-24
+
+### Season 1 supporting-cast design sheets
+- `Coach Ray.png`
+- `Dewey Dot.png`
+- `Mira Mistwell.png`
+- `Professor Cera Lin.png`
+- `Sunny Spritz.png`
+- `Vela Sheen.png`
+
+Original location used during import:
+
+`F:/Administrator/Documents/WPSDrive/937175334/WPS浜戠洏/Neatique IP Design/Comic/Other Characters/`
+
 ## Usage notes
 - The design sheets are copied into each character's `refs/` folder as the primary visual lock.
 - The two Word documents were interpreted into markdown files under `comic/story-bible/` and `comic/characters/`.

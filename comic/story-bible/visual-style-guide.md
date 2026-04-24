@@ -20,6 +20,12 @@
 - **Padarana**: soft teardrop, closed smiling eyes, emotional warmth
 - **Padaruna**: bright rounded teardrop, energetic openness, highly expressive face
 - **Snacri**: simple stable droplet, quieter asymmetry, minimalist read
+- **Sunny Spritz**: soft five-point star silhouette, bright open smile, orientation-host energy
+- **Coach Ray**: broad pentagonal silhouette, planted authority, drill-instructor read
+- **Mira Mistwell**: rounded-square silhouette, neat balance, quiet administrative authority
+- **Professor Cera Lin**: pointed pentagonal silhouette, controlled posture, academic precision
+- **Dewey Dot**: clean circular silhouette, bookish gentleness, archive-first energy
+- **Vela Sheen**: elegant diamond silhouette, refined balance, polished upperclass composure
 
 ## Camera language
 - Comedy scenes can use slightly exaggerated campus framing, reaction panels, and rhythm-based cutaways.
@@ -44,3 +50,11 @@
 - Random costume or accessory drift
 - Hyper-real textures that fight the comic line language
 - "Cute" poses that break the character's established personality rhythm
+
+## Dialogue voice locks
+- **Sunny Spritz**: hyper-enthusiastic, fast, cheerful, orientation-host energy, many exclamation marks
+- **Coach Ray**: loud, short, commanding, drill-instructor style, slogan-like lines
+- **Mira Mistwell**: soft, polite, calm, gently firm, rule-enforcing without sounding angry
+- **Professor Cera Lin**: precise, dry, controlled, academic, concise, challenges vague thinking
+- **Dewey Dot**: nervous, nerdy, trivia-heavy, hesitant at first, rambly when excited
+- **Vela Sheen**: polished, elegant, persuasive, warm on the surface, subtly controlling underneath

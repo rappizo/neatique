@@ -2,6 +2,10 @@ import { loadEnvConfig } from "@next/env";
 
 loadEnvConfig(process.cwd());
 
+if (process.env.DIRECT_URL) {
+  process.env.DATABASE_URL = process.env.DIRECT_URL;
+}
+
 async function main() {
   const [{ prisma }, { syncComicWorkspaceToDatabase }] = await Promise.all([
     import("../lib/db"),
