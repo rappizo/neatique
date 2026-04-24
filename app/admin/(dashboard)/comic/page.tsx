@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
+import { syncComicWorkspaceAction } from "@/app/admin/comic-actions";
 import { getOpenAiComicSettings } from "@/lib/openai-comic";
 import { getComicAdminOverview } from "@/lib/queries";
 import { formatDate } from "@/lib/format";
@@ -10,6 +12,8 @@ type AdminComicOverviewPageProps = {
 const STATUS_MESSAGES: Record<string, string> = {
   saved: "Comic project settings were saved.",
   created: "Comic record created.",
+  "workspace-synced": "Comic workspace synced into the admin database.",
+  "workspace-sync-failed": "Comic workspace sync failed. Check the server logs and try again.",
   "prompt-generated": "A fresh comic prompt package is ready.",
   "prompt-failed": "Comic prompt generation failed. Review the latest prompt run details."
 };
@@ -82,6 +86,27 @@ export default async function AdminComicOverviewPage({
           </div>
         </section>
       </div>
+
+      <section className="admin-form">
+        <div className="admin-review-pagination">
+          <div>
+            <h2>Sync repo workspace</h2>
+            <p className="form-note">
+              Import the current <code>comic/</code> bible, character sheets, season outlines,
+              chapter outlines, and chapter scene packs into the admin database.
+            </p>
+          </div>
+          <form action={syncComicWorkspaceAction}>
+            <input type="hidden" name="redirectTo" value="/admin/comic" />
+            <PendingSubmitButton
+              idleLabel="Sync workspace to admin"
+              pendingLabel="Syncing comic workspace..."
+              modalTitle="Syncing comic workspace"
+              modalDescription="Reading the repo-level comic bible, character library, chapter scene packs, and season structure into the admin database."
+            />
+          </form>
+        </div>
+      </section>
 
       <div className="cards-3">
         <section className="admin-form">

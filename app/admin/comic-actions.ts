@@ -16,6 +16,7 @@ import {
   getComicChapterSceneReferenceFolder,
   listComicChapterSceneReferences
 } from "@/lib/comic-workspace";
+import { syncComicWorkspaceToDatabase } from "@/lib/comic-workspace-sync";
 import { generateComicPromptPackageWithAi } from "@/lib/openai-comic";
 import { slugify, toBool, toInt, toPlainString } from "@/lib/utils";
 
@@ -95,6 +96,20 @@ function revalidateComicRoutes(slugs?: {
 
 function normalizeLongText(value: FormDataEntryValue | null) {
   return toPlainString(value);
+}
+
+export async function syncComicWorkspaceAction(formData?: FormData) {
+  await requireAdminSession();
+  const redirectTo =
+    toPlainString(formData?.get("redirectTo") ?? null) || "/admin/comic";
+  try {
+    await syncComicWorkspaceToDatabase();
+    revalidateComicRoutes();
+    redirect(buildComicRedirect(redirectTo, "workspace-synced"));
+  } catch (error) {
+    console.error("Comic workspace sync failed:", error);
+    redirect(buildComicRedirect(redirectTo, "workspace-sync-failed"));
+  }
 }
 
 export async function saveComicProjectAction(formData: FormData) {
