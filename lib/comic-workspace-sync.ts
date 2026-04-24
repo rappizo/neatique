@@ -16,6 +16,7 @@ export type ComicWorkspaceSyncSummary = {
   sceneCount: number;
   seasonCount: number;
   chapterCount: number;
+  episodeCount: number;
 };
 
 function normalizeText(value: string) {
@@ -163,6 +164,18 @@ function parseChapterNumberFromSlug(slug: string) {
   return match ? Number.parseInt(match[1], 10) : 1;
 }
 
+function parseEpisodeNumberFromSlug(slug: string) {
+  const match = slug.match(/^episode-(\d+)/);
+  return match ? Number.parseInt(match[1], 10) : 1;
+}
+
+function normalizeEpisodeTitle(heading: string, episodeNumber: number) {
+  return (
+    heading.replace(new RegExp(`^Episode\\s+${episodeNumber}\\s*[-:]\\s*`, "i"), "").trim() ||
+    heading
+  );
+}
+
 function buildChapterSceneSlug(seasonSlug: string, chapterSlug: string, sceneLabel: string) {
   return slugify(`${seasonSlug}-${chapterSlug}-${sceneLabel}`);
 }
@@ -276,6 +289,7 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
 
   let seasonCount = 0;
   let chapterCount = 0;
+  let episodeCount = 0;
   const importedSceneSlugs = new Set<string>();
 
   for (const seasonEntry of seasonEntries) {
@@ -329,7 +343,7 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
         extractFirstParagraph(extractSection(chapterOutline, "Chapter objective")) ||
         "Add the chapter summary here.";
 
-      await prisma.comicChapter.upsert({
+      const chapter = await prisma.comicChapter.upsert({
         where: {
           seasonId_slug: {
             seasonId: season.id,
@@ -406,6 +420,55 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
 
         importedSceneSlugs.add(sceneSlug);
       }
+
+      const episodeEntries = (await readdir(chapterRoot, { withFileTypes: true }))
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("episode-"))
+        .sort((left, right) => left.name.localeCompare(right.name));
+
+      for (const episodeEntry of episodeEntries) {
+        const episodeSlug = episodeEntry.name;
+        const episodeRoot = path.join(chapterRoot, episodeSlug);
+        const episodeOutline = await readTextIfExists(path.join(episodeRoot, "episode-outline.md"));
+        const episodeNumber = parseEpisodeNumberFromSlug(episodeSlug);
+        const episodeHeading = extractHeading(episodeOutline) || `Episode ${episodeNumber}`;
+        const episodeTitle = normalizeEpisodeTitle(episodeHeading, episodeNumber);
+        const episodeSummary =
+          extractFirstParagraph(extractSection(episodeOutline, "Episode promise")) ||
+          extractFirstParagraph(extractSection(episodeOutline, "Core plot")) ||
+          "Add the episode promise here.";
+
+        await prisma.comicEpisode.upsert({
+          where: {
+            chapterId_slug: {
+              chapterId: chapter.id,
+              slug: episodeSlug
+            }
+          },
+          create: {
+            chapterId: chapter.id,
+            episodeNumber,
+            slug: episodeSlug,
+            title: episodeTitle,
+            summary: episodeSummary,
+            outline: episodeOutline || "Add the episode outline here.",
+            script: "",
+            panelPlan: "",
+            promptPack: "",
+            requiredReferences: "",
+            published: false,
+            sortOrder: episodeNumber
+          },
+          update: {
+            episodeNumber,
+            title: episodeTitle,
+            summary: episodeSummary,
+            outline: episodeOutline || "Add the episode outline here.",
+            sortOrder: episodeNumber
+          }
+        });
+
+        episodeCount += 1;
+      }
     }
   }
 
@@ -414,6 +477,7 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
     characterCount,
     sceneCount: importedSceneSlugs.size,
     seasonCount,
-    chapterCount
+    chapterCount,
+    episodeCount
   };
 }

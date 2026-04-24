@@ -17,7 +17,8 @@ async function main() {
         characterCount: summary.characterCount,
         sceneCount: summary.sceneCount,
         seasonCount: summary.seasonCount,
-        chapterCount: summary.chapterCount
+        chapterCount: summary.chapterCount,
+        episodeCount: summary.episodeCount
       },
       null,
       2
