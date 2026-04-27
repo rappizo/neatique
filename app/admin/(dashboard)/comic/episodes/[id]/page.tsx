@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ComicPromptPageLists } from "@/components/admin/comic-prompt-page-lists";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
   createComicEpisodeAssetAction,
@@ -8,6 +9,7 @@ import {
   updateComicEpisodeAction,
   updateComicEpisodeAssetAction
 } from "@/app/admin/comic-actions";
+import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { formatDate, formatTime } from "@/lib/format";
 import { getComicEpisodeById } from "@/lib/queries";
 
@@ -51,6 +53,10 @@ export default async function AdminComicEpisodeDetailPage({
     chapterSceneReferenceFolder,
     chapterSceneReferences
   } = episodePage;
+  const parsedEpisodePromptOutput = parseComicPromptOutput(
+    episode.promptPack,
+    episode.requiredReferences
+  );
   const nextAssetSortOrder =
     assets.length > 0 ? Math.max(...assets.map((asset) => asset.sortOrder)) + 1 : 1;
 
@@ -243,7 +249,7 @@ export default async function AdminComicEpisodeDetailPage({
             <textarea
               id="comic-episode-prompt-pack"
               name="promptPack"
-              rows={14}
+              rows={8}
               defaultValue={episode.promptPack}
             />
           </div>
@@ -253,7 +259,7 @@ export default async function AdminComicEpisodeDetailPage({
             <textarea
               id="comic-episode-required-refs"
               name="requiredReferences"
-              rows={12}
+              rows={8}
               defaultValue={episode.requiredReferences}
             />
           </div>
@@ -268,12 +274,12 @@ export default async function AdminComicEpisodeDetailPage({
         <div className="admin-review-pagination">
           <div>
             <h2>Generate a fresh prompt package</h2>
-          <p className="form-note">
-            This will read the project bible, active characters, active scenes, and the selected
-            episode outline, plus the current chapter scene pack, then write back a script, page
-            plan, prompt pack, and upload checklist for <code>gpt-image-2</code>.
-          </p>
-        </div>
+            <p className="form-note">
+              This will read the project bible, active characters, active scenes, and the selected
+              episode outline, plus the current chapter scene pack, then write back a script, page
+              plan, prompt pack, and upload checklist for <code>gpt-image-2</code>.
+            </p>
+          </div>
         </div>
 
         <form action={generateComicPromptPackageAction}>
@@ -287,6 +293,15 @@ export default async function AdminComicEpisodeDetailPage({
           />
         </form>
       </section>
+
+      {parsedEpisodePromptOutput ? (
+        <ComicPromptPageLists
+          episodeLogline={parsedEpisodePromptOutput.episodeLogline}
+          episodeSynopsis={parsedEpisodePromptOutput.episodeSynopsis}
+          promptPages={parsedEpisodePromptOutput.pages}
+          globalGptImage2Notes={parsedEpisodePromptOutput.globalGptImage2Notes}
+        />
+      ) : null}
 
       <section className="admin-form">
         <h2>Add a comic asset</h2>
@@ -502,17 +517,37 @@ export default async function AdminComicEpisodeDetailPage({
                             <label>Input context</label>
                             <textarea rows={10} value={run.inputContext} readOnly />
                           </div>
-                          {run.promptPack ? (
-                            <div className="field">
-                              <label>Prompt pack JSON</label>
-                              <textarea rows={14} value={run.promptPack} readOnly />
-                            </div>
-                          ) : null}
-                          {run.referenceChecklist ? (
-                            <div className="field">
-                              <label>Reference checklist</label>
-                              <textarea rows={14} value={run.referenceChecklist} readOnly />
-                            </div>
+                          {run.promptPack || run.referenceChecklist ? (
+                            (() => {
+                              const parsedRunPromptOutput = parseComicPromptOutput(
+                                run.promptPack || "",
+                                run.referenceChecklist || ""
+                              );
+
+                              return parsedRunPromptOutput ? (
+                                <ComicPromptPageLists
+                                  episodeLogline={parsedRunPromptOutput.episodeLogline}
+                                  episodeSynopsis={parsedRunPromptOutput.episodeSynopsis}
+                                  promptPages={parsedRunPromptOutput.pages}
+                                  globalGptImage2Notes={parsedRunPromptOutput.globalGptImage2Notes}
+                                />
+                              ) : (
+                                <>
+                                  {run.promptPack ? (
+                                    <div className="field">
+                                      <label>Prompt pack JSON</label>
+                                      <textarea rows={14} value={run.promptPack} readOnly />
+                                    </div>
+                                  ) : null}
+                                  {run.referenceChecklist ? (
+                                    <div className="field">
+                                      <label>Reference checklist</label>
+                                      <textarea rows={14} value={run.referenceChecklist} readOnly />
+                                    </div>
+                                  ) : null}
+                                </>
+                              );
+                            })()
                           ) : null}
                           {run.errorMessage ? (
                             <div className="field">

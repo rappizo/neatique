@@ -24,6 +24,7 @@ type ComicCharacterContext = {
   speechGuide: string;
   referenceFolder: string;
   referenceNotes: string | null;
+  referenceFiles: ComicReferenceFileContext[];
 };
 
 type ComicSceneContext = {
@@ -34,13 +35,16 @@ type ComicSceneContext = {
   moodNotes: string;
   referenceFolder: string;
   referenceNotes: string | null;
+  referenceFiles: ComicReferenceFileContext[];
 };
 
-type ComicChapterSceneReferenceContext = {
+type ComicReferenceFileContext = {
   label: string;
   fileName: string;
   relativePath: string;
 };
+
+type ComicChapterSceneReferenceContext = ComicReferenceFileContext;
 
 type ComicSeasonContext = {
   title: string;
@@ -61,12 +65,31 @@ type ComicEpisodeContext = {
 };
 
 export type GeneratedComicPanelPrompt = {
+  pageNumber: number;
   panelNumber: number;
   panelTitle: string;
+  storyBeat: string;
   promptText: string;
-  characterRefs: string[];
-  sceneRefs: string[];
-  uploadChecklist: string[];
+};
+
+export type GeneratedComicPageUpload = {
+  bucket: "CHARACTER" | "SCENE" | "CHAPTER_SCENE";
+  label: string;
+  slug: string;
+  whyThisMatters: string;
+  contentSummary: string;
+  uploadImageNames: string[];
+  relativePaths: string[];
+};
+
+export type GeneratedComicPagePrompt = {
+  pageNumber: number;
+  panelCount: 2 | 3;
+  pagePurpose: string;
+  promptPackCopyText: string;
+  referenceNotesCopyText: string;
+  panels: GeneratedComicPanelPrompt[];
+  requiredUploads: GeneratedComicPageUpload[];
 };
 
 export type GeneratedComicPromptPackage = {
@@ -74,14 +97,8 @@ export type GeneratedComicPromptPackage = {
   episodeSynopsis: string;
   episodeScript: string;
   pagePlan: string;
-  panelPrompts: GeneratedComicPanelPrompt[];
-  referenceChecklist: Array<{
-    bucket: "CHARACTER" | "SCENE";
-    name: string;
-    slug: string;
-    requiredUploads: string[];
-  }>;
-  gptImage2Instructions: string;
+  pages: GeneratedComicPagePrompt[];
+  globalGptImage2Notes: string;
 };
 
 type GenerateComicPromptPackageInput = {
@@ -159,7 +176,9 @@ function buildCharacterSummary(characters: ComicCharacterContext[]) {
           `  Personality: ${character.personality}`,
           `  Speech guide: ${character.speechGuide}`,
           `  Reference folder: ${character.referenceFolder}`,
-          `  Reference notes: ${character.referenceNotes || "None"}`
+          `  Reference notes: ${character.referenceNotes || "None"}`,
+          "  Available reference files:",
+          buildReferenceFileSummary(character.referenceFiles)
         ].join("\n")
     )
     .join("\n\n");
@@ -180,7 +199,9 @@ function buildSceneSummary(scenes: ComicSceneContext[]) {
           `  Visual notes: ${scene.visualNotes}`,
           `  Mood notes: ${scene.moodNotes}`,
           `  Reference folder: ${scene.referenceFolder}`,
-          `  Reference notes: ${scene.referenceNotes || "None"}`
+          `  Reference notes: ${scene.referenceNotes || "None"}`,
+          "  Available reference files:",
+          buildReferenceFileSummary(scene.referenceFiles)
         ].join("\n")
     )
     .join("\n\n");
@@ -203,6 +224,22 @@ function buildChapterSceneReferenceSummary(sceneReferences: ComicChapterSceneRef
     .join("\n\n");
 }
 
+function buildReferenceFileSummary(referenceFiles: ComicReferenceFileContext[]) {
+  if (referenceFiles.length === 0) {
+    return "No reference files stored yet.";
+  }
+
+  return referenceFiles
+    .map((referenceFile) =>
+      [
+        `  - ${referenceFile.fileName}`,
+        `    Label: ${referenceFile.label}`,
+        `    Path: ${referenceFile.relativePath}`
+      ].join("\n")
+    )
+    .join("\n");
+}
+
 export async function generateComicPromptPackageWithAi(
   input: GenerateComicPromptPackageInput
 ): Promise<GeneratedComicPromptPackage> {
@@ -218,68 +255,96 @@ export async function generateComicPromptPackageWithAi(
     properties: {
       episodeLogline: { type: "string", minLength: 30, maxLength: 220 },
       episodeSynopsis: { type: "string", minLength: 120, maxLength: 800 },
-      episodeScript: { type: "string", minLength: 500, maxLength: 5000 },
-      pagePlan: { type: "string", minLength: 180, maxLength: 4000 },
-      panelPrompts: {
+      episodeScript: { type: "string", minLength: 500, maxLength: 8000 },
+      pagePlan: { type: "string", minLength: 240, maxLength: 6000 },
+      pages: {
         type: "array",
-        minItems: 4,
-        maxItems: 16,
+        minItems: 10,
+        maxItems: 10,
         items: {
           type: "object",
           additionalProperties: false,
           properties: {
-            panelNumber: { type: "integer", minimum: 1, maximum: 32 },
-            panelTitle: { type: "string", minLength: 4, maxLength: 90 },
-            promptText: { type: "string", minLength: 40, maxLength: 800 },
-            characterRefs: {
+            pageNumber: { type: "integer", minimum: 1, maximum: 10 },
+            panelCount: { type: "integer", enum: [2, 3] },
+            pagePurpose: { type: "string", minLength: 12, maxLength: 220 },
+            promptPackCopyText: { type: "string", minLength: 160, maxLength: 2600 },
+            referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 2200 },
+            panels: {
               type: "array",
-              items: { type: "string", minLength: 1, maxLength: 80 },
-              maxItems: 8
+              minItems: 2,
+              maxItems: 3,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  pageNumber: { type: "integer", minimum: 1, maximum: 10 },
+                  panelNumber: { type: "integer", minimum: 1, maximum: 3 },
+                  panelTitle: { type: "string", minLength: 4, maxLength: 90 },
+                  storyBeat: { type: "string", minLength: 12, maxLength: 180 },
+                  promptText: { type: "string", minLength: 60, maxLength: 900 }
+                },
+                required: ["pageNumber", "panelNumber", "panelTitle", "storyBeat", "promptText"]
+              }
             },
-            sceneRefs: {
-              type: "array",
-              items: { type: "string", minLength: 1, maxLength: 80 },
-              maxItems: 6
-            },
-            uploadChecklist: {
-              type: "array",
-              items: { type: "string", minLength: 5, maxLength: 160 },
-              maxItems: 10
-            }
-          },
-          required: ["panelNumber", "panelTitle", "promptText", "characterRefs", "sceneRefs", "uploadChecklist"]
-        }
-      },
-      referenceChecklist: {
-        type: "array",
-        minItems: 1,
-        maxItems: 20,
-        items: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            bucket: { type: "string", enum: ["CHARACTER", "SCENE"] },
-            name: { type: "string", minLength: 2, maxLength: 120 },
-            slug: { type: "string", minLength: 2, maxLength: 120 },
             requiredUploads: {
               type: "array",
-              items: { type: "string", minLength: 5, maxLength: 160 },
-              maxItems: 10
+              minItems: 1,
+              maxItems: 12,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  bucket: { type: "string", enum: ["CHARACTER", "SCENE", "CHAPTER_SCENE"] },
+                  label: { type: "string", minLength: 2, maxLength: 120 },
+                  slug: { type: "string", minLength: 1, maxLength: 120 },
+                  whyThisMatters: { type: "string", minLength: 12, maxLength: 240 },
+                  contentSummary: { type: "string", minLength: 12, maxLength: 320 },
+                  uploadImageNames: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 8,
+                    items: { type: "string", minLength: 3, maxLength: 140 }
+                  },
+                  relativePaths: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 8,
+                    items: { type: "string", minLength: 3, maxLength: 240 }
+                  }
+                },
+                required: [
+                  "bucket",
+                  "label",
+                  "slug",
+                  "whyThisMatters",
+                  "contentSummary",
+                  "uploadImageNames",
+                  "relativePaths"
+                ]
+              }
             }
           },
-          required: ["bucket", "name", "slug", "requiredUploads"]
+          required: [
+            "pageNumber",
+            "panelCount",
+            "pagePurpose",
+            "promptPackCopyText",
+            "referenceNotesCopyText",
+            "panels",
+            "requiredUploads"
+          ]
         }
       },
-      gptImage2Instructions: { type: "string", minLength: 120, maxLength: 2200 }
+      globalGptImage2Notes: { type: "string", minLength: 120, maxLength: 2600 }
     },
     required: [
       "episodeLogline",
       "episodeSynopsis",
       "episodeScript",
       "pagePlan",
-      "panelPrompts",
-      "referenceChecklist",
-      "gptImage2Instructions"
+      "pages",
+      "globalGptImage2Notes"
     ]
   };
 
@@ -303,7 +368,12 @@ export async function generateComicPromptPackageWithAi(
                 "Keep characters visually stable, emotionally consistent, and aligned with their stored canon.",
                 "You must think like a comic production assistant, not like a novelist only.",
                 "Return only valid JSON matching the schema.",
-                "When you build the upload checklist, explicitly state which character reference images and scene reference images should be uploaded before using gpt-image-2.",
+                "Build exactly 10 pages for every episode.",
+                "Use 3 panels per page by default. Only use 2 panels when the story beat deserves extra visual space, such as a reveal, pause, emotional beat, or dramatic transition.",
+                "Every page must include a prompt block that is ready to copy and paste directly into gpt-image-2 after the right references are uploaded.",
+                "Every page must also include a reference-notes block that is ready to copy and paste directly into the image workflow without cleanup.",
+                "When you build the upload checklist, explicitly state which character reference images, reusable scene reference images, and chapter scene reference images should be uploaded before using gpt-image-2.",
+                "Never invent file names. Only use file names that appear in the provided reference libraries.",
                 "Assume the team wants stable characters, reusable scenes, and a polished comic workflow."
               ].join(" ")
             }
@@ -349,12 +419,17 @@ export async function generateComicPromptPackageWithAi(
                 "",
                 "Output requirements:",
                 "- Expand the episode into a readable production script.",
-                "- Create a page plan and a panel-by-panel prompt pack.",
+                "- Create a 10-page plan.",
+                "- Every page should normally contain 3 panels.",
+                "- A page may contain 2 panels only when the beat is visually important enough to justify extra space.",
                 `- Assume the image generation step will use ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
-                "- For every panel, tell the team which character refs and scene refs matter.",
-                "- Prefer the chapter-specific scene reference files whenever the panel happens in a known Chapter scene pack location.",
-                "- In the reference checklist, group the upload needs into CHARACTER and SCENE buckets.",
-                "- The gpt-image-2 instructions should tell the creator exactly what to upload and how to preserve continuity across pages.",
+                "- For every page, return a promptPackCopyText block that can be pasted directly into the image-generation tool.",
+                "- For every page, return a referenceNotesCopyText block that can also be pasted directly into the image-generation tool or production notes.",
+                "- For every panel, tell the team which visual beat is happening and what needs to stay stable.",
+                "- Prefer the chapter-specific scene reference files whenever the page happens in a known chapter scene location.",
+                "- Required uploads must be organized per page, and each item must include real upload image file names plus the matching relative paths.",
+                "- Use CHARACTER for character model sheets, SCENE for reusable master location refs, and CHAPTER_SCENE for chapter-only location sheets.",
+                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, and reference reuse across all 10 pages.",
                 "- Keep the tone useful, concrete, and ready for actual image production."
               ].join("\n")
             }
@@ -403,20 +478,57 @@ export async function generateComicPromptPackageWithAi(
     typeof normalizedOutput.episodeSynopsis !== "string" ||
     typeof normalizedOutput.episodeScript !== "string" ||
     typeof normalizedOutput.pagePlan !== "string" ||
-    !Array.isArray(normalizedOutput.panelPrompts) ||
-    !Array.isArray(normalizedOutput.referenceChecklist) ||
-    typeof normalizedOutput.gptImage2Instructions !== "string"
+    !Array.isArray(normalizedOutput.pages) ||
+    typeof normalizedOutput.globalGptImage2Notes !== "string"
   ) {
     throw new Error("OpenAI returned an invalid comic prompt package.");
   }
+
+  const pages = normalizedOutput.pages as GeneratedComicPagePrompt[];
+  const hasValidPageShape =
+    pages.length === 10 &&
+    pages.every((page, pageIndex) => {
+      return (
+        page &&
+        typeof page === "object" &&
+        page.pageNumber === pageIndex + 1 &&
+        (page.panelCount === 2 || page.panelCount === 3) &&
+        Array.isArray(page.panels) &&
+        page.panels.length === page.panelCount &&
+        Array.isArray(page.requiredUploads) &&
+        typeof page.promptPackCopyText === "string" &&
+        typeof page.referenceNotesCopyText === "string"
+      );
+    });
+
+  if (!hasValidPageShape) {
+    throw new Error("OpenAI returned pages that do not match the 10-page comic workflow.");
+  }
+
+  const normalizedPages = pages
+    .map((page) => ({
+      ...page,
+      panels: [...page.panels].sort((left, right) => left.panelNumber - right.panelNumber),
+      requiredUploads: [...page.requiredUploads]
+        .map((upload) => ({
+          ...upload,
+          uploadImageNames: [...upload.uploadImageNames].sort((left, right) => left.localeCompare(right)),
+          relativePaths: [...upload.relativePaths].sort((left, right) => left.localeCompare(right))
+        }))
+        .sort((left, right) => {
+          const bucketOrder = `${left.bucket}-${left.label}`;
+          const nextBucketOrder = `${right.bucket}-${right.label}`;
+          return bucketOrder.localeCompare(nextBucketOrder);
+        })
+    }))
+    .sort((left, right) => left.pageNumber - right.pageNumber);
 
   return {
     episodeLogline: normalizedOutput.episodeLogline.trim(),
     episodeSynopsis: normalizedOutput.episodeSynopsis.trim(),
     episodeScript: normalizedOutput.episodeScript.trim(),
     pagePlan: normalizedOutput.pagePlan.trim(),
-    panelPrompts: normalizedOutput.panelPrompts as GeneratedComicPanelPrompt[],
-    referenceChecklist: normalizedOutput.referenceChecklist as GeneratedComicPromptPackage["referenceChecklist"],
-    gptImage2Instructions: normalizedOutput.gptImage2Instructions.trim()
+    pages: normalizedPages,
+    globalGptImage2Notes: normalizedOutput.globalGptImage2Notes.trim()
   };
 }

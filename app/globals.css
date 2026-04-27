@@ -3852,6 +3852,118 @@ main {
   display: none;
 }
 
+.admin-comic-prompt-lists {
+  display: grid;
+  gap: 24px;
+}
+
+.admin-comic-prompt-page-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.admin-comic-prompt-page {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  min-height: 100%;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.admin-comic-prompt-page h3 {
+  margin: 0;
+  font-family: Baskerville, "Palatino Linotype", serif;
+  font-size: 1.35rem;
+}
+
+.admin-comic-prompt-panel-list,
+.admin-comic-upload-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-comic-prompt-panel-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.admin-comic-prompt-panel-item strong,
+.admin-comic-upload-item strong {
+  color: var(--ink);
+}
+
+.admin-comic-upload-item {
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.admin-comic-upload-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-comic-upload-summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-comic-upload-summary span:first-child {
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.admin-comic-upload-details {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+  border-top: 1px solid rgba(46, 40, 37, 0.08);
+}
+
+.admin-comic-upload-details p,
+.admin-comic-upload-details strong {
+  margin: 0;
+}
+
+.admin-comic-upload-details p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.admin-comic-upload-details > div {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-comic-upload-bullets {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  display: grid;
+  gap: 6px;
+}
+
+.admin-comic-upload-bullets code {
+  color: var(--ink);
+}
+
 @media (max-width: 1080px) {
   .admin-follow-email-form__controls,
   .admin-follow-email-grid {
@@ -4048,7 +4160,8 @@ main {
   .ritual-steps--grid,
   .editorial-prompt-grid,
   .ritual-spotlight__media,
-  .home-mosaic {
+  .home-mosaic,
+  .admin-comic-prompt-page-grid {
     grid-template-columns: 1fr;
   }
 

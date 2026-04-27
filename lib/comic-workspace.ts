@@ -84,6 +84,28 @@ export async function listComicChapterSceneReferences(seasonSlug: string, chapte
   }
 }
 
+export async function listComicReferenceFiles(relativeFolder: string) {
+  const folderPath = path.join(process.cwd(), relativeFolder);
+
+  try {
+    const entries = await readdir(folderPath, { withFileTypes: true });
+
+    return entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .filter((fileName) => fileName.toLowerCase() !== "readme.md")
+      .sort((left, right) => left.localeCompare(right))
+      .map((fileName) => ({
+        label: toDisplayLabel(fileName),
+        fileName,
+        relativePath: toRelativeWorkspacePath(path.join(folderPath, fileName)),
+        extension: path.extname(fileName).replace(/^\./, "").toLowerCase()
+      }));
+  } catch {
+    return [];
+  }
+}
+
 function getSeasonFolderPath(seasonSlug: string) {
   return path.join(COMIC_ROOT, "seasons", seasonSlug);
 }
@@ -387,8 +409,8 @@ export async function ensureComicEpisodeWorkspace(input: {
   );
   await writeIfMissing(path.join(episodePath, "script.md"), "# Script\n\n");
   await writeIfMissing(path.join(episodePath, "panel-plan.json"), "{\n  \"pages\": []\n}\n");
-  await writeIfMissing(path.join(episodePath, "prompt-pack.json"), "{\n  \"panelPrompts\": []\n}\n");
-  await writeIfMissing(path.join(episodePath, "required-refs.json"), "{\n  \"references\": []\n}\n");
+  await writeIfMissing(path.join(episodePath, "prompt-pack.json"), "{\n  \"pages\": []\n}\n");
+  await writeIfMissing(path.join(episodePath, "required-refs.json"), "{\n  \"pages\": []\n}\n");
   await writeIfMissing(
     path.join(episodePath, "renders", "README.md"),
     [

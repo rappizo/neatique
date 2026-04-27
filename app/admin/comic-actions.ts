@@ -14,7 +14,8 @@ import {
   getComicCharacterReferenceFolder,
   getComicSceneReferenceFolder,
   getComicChapterSceneReferenceFolder,
-  listComicChapterSceneReferences
+  listComicChapterSceneReferences,
+  listComicReferenceFiles
 } from "@/lib/comic-workspace";
 import { syncComicWorkspaceToDatabase } from "@/lib/comic-workspace-sync";
 import { generateComicPromptPackageWithAi } from "@/lib/openai-comic";
@@ -795,6 +796,24 @@ export async function generateComicPromptPackageAction(formData: FormData) {
     episode.chapter.season.slug,
     episode.chapter.slug
   );
+  const [characterReferenceFiles, sceneReferenceFiles] = await Promise.all([
+    Promise.all(
+      characters.map(async (character) => ({
+        slug: character.slug,
+        files: await listComicReferenceFiles(character.referenceFolder)
+      }))
+    ),
+    Promise.all(
+      scenes.map(async (scene) => ({
+        slug: scene.slug,
+        files: await listComicReferenceFiles(scene.referenceFolder)
+      }))
+    )
+  ]);
+  const characterReferenceFileMap = new Map(
+    characterReferenceFiles.map((entry) => [entry.slug, entry.files])
+  );
+  const sceneReferenceFileMap = new Map(sceneReferenceFiles.map((entry) => [entry.slug, entry.files]));
 
   const inputContext = JSON.stringify(
     {
@@ -821,7 +840,15 @@ export async function generateComicPromptPackageAction(formData: FormData) {
         episode.chapter.slug
       ),
       chapterSceneReferenceCount: chapterSceneReferences.length,
-      chapterSceneReferenceFiles: chapterSceneReferences.map((reference) => reference.fileName)
+      chapterSceneReferenceFiles: chapterSceneReferences.map((reference) => reference.fileName),
+      characterReferenceFiles: characterReferenceFiles.map((entry) => ({
+        slug: entry.slug,
+        files: entry.files.map((file) => file.fileName)
+      })),
+      sceneReferenceFiles: sceneReferenceFiles.map((entry) => ({
+        slug: entry.slug,
+        files: entry.files.map((file) => file.fileName)
+      }))
     },
     null,
     2
@@ -860,7 +887,8 @@ export async function generateComicPromptPackageAction(formData: FormData) {
         personality: character.personality,
         speechGuide: character.speechGuide,
         referenceFolder: character.referenceFolder,
-        referenceNotes: character.referenceNotes
+        referenceNotes: character.referenceNotes,
+        referenceFiles: characterReferenceFileMap.get(character.slug) || []
       })),
       scenes: scenes.map((scene) => ({
         name: scene.name,
@@ -869,7 +897,8 @@ export async function generateComicPromptPackageAction(formData: FormData) {
         visualNotes: scene.visualNotes,
         moodNotes: scene.moodNotes,
         referenceFolder: scene.referenceFolder,
-        referenceNotes: scene.referenceNotes
+        referenceNotes: scene.referenceNotes,
+        referenceFiles: sceneReferenceFileMap.get(scene.slug) || []
       })),
       chapterSceneReferences
     });
@@ -884,15 +913,20 @@ export async function generateComicPromptPackageAction(formData: FormData) {
             {
               episodeLogline: result.episodeLogline,
               episodeSynopsis: result.episodeSynopsis,
-              panelPrompts: result.panelPrompts
+              pages: result.pages
             },
             null,
             2
           ),
           requiredReferences: JSON.stringify(
             {
-              referenceChecklist: result.referenceChecklist,
-              gptImage2Instructions: result.gptImage2Instructions
+              globalGptImage2Notes: result.globalGptImage2Notes,
+              pages: result.pages.map((page) => ({
+                pageNumber: page.pageNumber,
+                panelCount: page.panelCount,
+                referenceNotesCopyText: page.referenceNotesCopyText,
+                requiredUploads: page.requiredUploads
+              }))
             },
             null,
             2
@@ -908,11 +942,16 @@ export async function generateComicPromptPackageAction(formData: FormData) {
           status: "READY",
           inputContext,
           outputSummary: result.episodeLogline,
-          promptPack: JSON.stringify(result.panelPrompts, null, 2),
+          promptPack: JSON.stringify(result.pages, null, 2),
           referenceChecklist: JSON.stringify(
             {
-              referenceChecklist: result.referenceChecklist,
-              gptImage2Instructions: result.gptImage2Instructions
+              globalGptImage2Notes: result.globalGptImage2Notes,
+              pages: result.pages.map((page) => ({
+                pageNumber: page.pageNumber,
+                panelCount: page.panelCount,
+                referenceNotesCopyText: page.referenceNotesCopyText,
+                requiredUploads: page.requiredUploads
+              }))
             },
             null,
             2

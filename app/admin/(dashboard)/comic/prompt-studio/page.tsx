@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { ComicPromptPageLists } from "@/components/admin/comic-prompt-page-lists";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { generateComicPromptPackageAction } from "@/app/admin/comic-actions";
+import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { getOpenAiComicSettings } from "@/lib/openai-comic";
 import { getComicPromptStudioPage } from "@/lib/queries";
 
@@ -26,6 +28,12 @@ export default async function AdminComicPromptStudioPage({
   ]);
 
   const selectedEpisode = pageData.selectedEpisode;
+  const parsedPromptOutput = selectedEpisode
+    ? parseComicPromptOutput(
+        selectedEpisode.episode.promptPack,
+        selectedEpisode.episode.requiredReferences
+      )
+    : null;
 
   return (
     <div className="admin-page">
@@ -39,8 +47,9 @@ export default async function AdminComicPromptStudioPage({
         <p className="eyebrow">Comic / Prompt Studio</p>
         <h1>Generate episode prompt packs with the locked cast and scene library.</h1>
         <p>
-          Choose an episode, then let the model expand it into a script, page plan, panel prompts,
-          and an explicit upload checklist for <code>gpt-image-2</code>.
+          Choose an episode, then let the model expand it into a 10-page comic plan with mostly
+          3-panel pages, selectively 2-panel emphasis pages, plus direct-copy prompt blocks and an
+          explicit upload checklist for <code>gpt-image-2</code>.
         </p>
       </div>
 
@@ -175,7 +184,7 @@ export default async function AdminComicPromptStudioPage({
                 idleLabel="Generate prompt package"
                 pendingLabel="Generating prompt package..."
                 modalTitle="Generating the comic prompt package"
-                modalDescription="The model is turning this episode into a script, page plan, panel prompts, and a gpt-image-2 upload checklist."
+                modalDescription="The model is turning this episode into a 10-page script pack, page-by-page prompts, and a gpt-image-2 upload checklist."
                 disabled={!openAiSettings.ready || !pageData.project}
               />
             </form>
@@ -195,15 +204,32 @@ export default async function AdminComicPromptStudioPage({
               <label>Panel / page plan</label>
               <textarea rows={12} value={selectedEpisode.episode.panelPlan} readOnly />
             </div>
-            <div className="field">
-              <label>Prompt pack</label>
-              <textarea rows={16} value={selectedEpisode.episode.promptPack} readOnly />
-            </div>
-            <div className="field">
-              <label>Required references and gpt-image-2 notes</label>
-              <textarea rows={16} value={selectedEpisode.episode.requiredReferences} readOnly />
-            </div>
           </section>
+
+          {parsedPromptOutput ? (
+            <ComicPromptPageLists
+              episodeLogline={parsedPromptOutput.episodeLogline}
+              episodeSynopsis={parsedPromptOutput.episodeSynopsis}
+              promptPages={parsedPromptOutput.pages}
+              globalGptImage2Notes={parsedPromptOutput.globalGptImage2Notes}
+            />
+          ) : selectedEpisode.episode.promptPack || selectedEpisode.episode.requiredReferences ? (
+            <section className="admin-form">
+              <h2>Legacy prompt output</h2>
+              <p className="form-note">
+                This episode still uses the older prompt format. Regenerate the prompt package to
+                get the new page-by-page comic workflow.
+              </p>
+              <div className="field">
+                <label>Prompt pack</label>
+                <textarea rows={16} value={selectedEpisode.episode.promptPack} readOnly />
+              </div>
+              <div className="field">
+                <label>Required references and gpt-image-2 notes</label>
+                <textarea rows={16} value={selectedEpisode.episode.requiredReferences} readOnly />
+              </div>
+            </section>
+          ) : null}
         </>
       ) : (
         <section className="admin-form">
