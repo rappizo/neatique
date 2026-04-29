@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getComicProject, getComicScenes } from "@/lib/queries";
+import { getComicProject, getComicScenes } from "@/lib/comic-queries";
 
 type AdminComicScenesPageProps = {
   searchParams: Promise<{ status?: string }>;

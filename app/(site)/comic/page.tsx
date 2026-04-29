@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPublishedComicLibrary } from "@/lib/queries";
+import { getPublishedComicLibrary } from "@/lib/comic-queries";
 
 export default async function ComicLibraryPage() {
   const seasons = await getPublishedComicLibrary();

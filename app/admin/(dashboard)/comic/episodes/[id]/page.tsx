@@ -11,7 +11,7 @@ import {
 } from "@/app/admin/comic-actions";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { formatDate, formatTime } from "@/lib/format";
-import { getComicEpisodeById } from "@/lib/queries";
+import { getComicEpisodeById } from "@/lib/comic-queries";
 
 type AdminComicEpisodeDetailPageProps = {
   params: Promise<{ id: string }>;

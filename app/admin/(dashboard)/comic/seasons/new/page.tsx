@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createComicSeasonAction } from "@/app/admin/comic-actions";
-import { getComicProject, getComicSeasonsForAdmin } from "@/lib/queries";
+import { getComicProject, getComicSeasonsForAdmin } from "@/lib/comic-queries";
 
 export default async function AdminNewComicSeasonPage() {
   const [project, seasons] = await Promise.all([getComicProject(), getComicSeasonsForAdmin()]);

@@ -4,7 +4,7 @@ import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { generateComicPromptPackageAction } from "@/app/admin/comic-actions";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { getOpenAiComicSettings } from "@/lib/openai-comic";
-import { getComicPromptStudioPage } from "@/lib/queries";
+import { getComicPromptStudioPage } from "@/lib/comic-queries";
 
 type AdminComicPromptStudioPageProps = {
   searchParams: Promise<{ episodeId?: string; status?: string }>;

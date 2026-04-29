@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { saveComicProjectAction } from "@/app/admin/comic-actions";
-import { getComicProject } from "@/lib/queries";
+import { getComicProject } from "@/lib/comic-queries";
 
 type AdminComicProjectPageProps = {
   searchParams: Promise<{ status?: string }>;

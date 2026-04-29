@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPublishedComicSeasonBySlug } from "@/lib/queries";
+import { getPublishedComicSeasonBySlug } from "@/lib/comic-queries";
 
 type ComicSeasonPageProps = {
   params: Promise<{ seasonSlug: string }>;

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createComicEpisodeAction, updateComicChapterAction } from "@/app/admin/comic-actions";
-import { getComicChapterById } from "@/lib/queries";
+import { getComicChapterById } from "@/lib/comic-queries";
 
 type AdminComicChapterDetailPageProps = {
   params: Promise<{ id: string }>;

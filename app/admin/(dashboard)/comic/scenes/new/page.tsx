@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createComicSceneAction } from "@/app/admin/comic-actions";
-import { getComicProject } from "@/lib/queries";
+import { getComicProject } from "@/lib/comic-queries";
 
 export default async function AdminNewComicScenePage() {
   const project = await getComicProject();
