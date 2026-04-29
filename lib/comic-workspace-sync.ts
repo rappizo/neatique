@@ -1,14 +1,19 @@
-import { access, readdir, readFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/db";
 import {
   ensureComicWorkspaceScaffold,
+  getComicRootPath,
+  listComicChapterSceneReferences,
+  listComicReferenceFiles
+} from "@/lib/comic-workspace";
+import {
   getComicCharacterReferenceFolder,
   getComicChapterSceneReferenceFolder,
-  getComicRootPath,
-  listComicChapterSceneReferences
-} from "@/lib/comic-workspace";
+  getComicSceneReferenceFolder
+} from "@/lib/comic-paths";
 import { slugify } from "@/lib/utils";
+import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 
 export type ComicWorkspaceSyncSummary = {
   projectTitle: string;
@@ -17,6 +22,19 @@ export type ComicWorkspaceSyncSummary = {
   seasonCount: number;
   chapterCount: number;
   episodeCount: number;
+};
+
+type ComicReferenceManifest = {
+  generatedAt: string;
+  characters: Record<string, ComicChapterSceneReferenceRecord[]>;
+  scenes: Record<string, ComicChapterSceneReferenceRecord[]>;
+  chapters: Record<
+    string,
+    {
+      folder: string;
+      references: ComicChapterSceneReferenceRecord[];
+    }
+  >;
 };
 
 function normalizeText(value: string) {
@@ -180,6 +198,12 @@ function buildChapterSceneSlug(seasonSlug: string, chapterSlug: string, sceneLab
   return slugify(`${seasonSlug}-${chapterSlug}-${sceneLabel}`);
 }
 
+async function writeComicReferenceManifest(manifest: ComicReferenceManifest) {
+  const manifestPath = path.join(process.cwd(), "data", "comic-reference-manifest.json");
+  await mkdir(path.dirname(manifestPath), { recursive: true });
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+}
+
 export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSyncSummary> {
   await ensureComicWorkspaceScaffold();
 
@@ -291,6 +315,12 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
   let chapterCount = 0;
   let episodeCount = 0;
   const importedSceneSlugs = new Set<string>();
+  const manifest: ComicReferenceManifest = {
+    generatedAt: new Date().toISOString(),
+    characters: {},
+    scenes: {},
+    chapters: {}
+  };
 
   for (const seasonEntry of seasonEntries) {
     const seasonSlug = seasonEntry.name;
@@ -374,6 +404,10 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
       const sceneRefReadme = await readTextIfExists(path.join(sceneRefFolder, "README.md"));
       const sceneDescriptions = parseSceneReadmeDescriptions(sceneRefReadme);
       const sceneRefs = await listComicChapterSceneReferences(seasonSlug, chapterSlug);
+      manifest.chapters[`${seasonSlug}/${chapterSlug}`] = {
+        folder: getComicChapterSceneReferenceFolder(seasonSlug, chapterSlug),
+        references: sceneRefs
+      };
 
       for (const [sceneIndex, sceneRef] of sceneRefs.entries()) {
         const sceneSlug = buildChapterSceneSlug(seasonSlug, chapterSlug, sceneRef.label);
@@ -471,6 +505,46 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
       }
     }
   }
+
+  const [manifestCharacters, manifestScenes] = await Promise.all([
+    prisma.comicCharacter.findMany({
+      where: { projectId: project.id },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+    }),
+    prisma.comicScene.findMany({
+      where: { projectId: project.id },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+    })
+  ]);
+
+  for (const character of manifestCharacters) {
+    manifest.characters[character.slug] = await listComicReferenceFiles(character.referenceFolder);
+  }
+
+  for (const scene of manifestScenes) {
+    manifest.scenes[scene.slug] = await listComicReferenceFiles(scene.referenceFolder);
+  }
+
+  const sceneWorkspaceRoot = path.join(comicRoot, "scenes");
+  const sceneWorkspaceExists = await pathExists(sceneWorkspaceRoot);
+  if (sceneWorkspaceExists) {
+    const sceneFolders = (await readdir(sceneWorkspaceRoot, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort((left, right) => left.localeCompare(right));
+
+    for (const sceneSlug of sceneFolders) {
+      if (manifest.scenes[sceneSlug]) {
+        continue;
+      }
+
+      manifest.scenes[sceneSlug] = await listComicReferenceFiles(
+        getComicSceneReferenceFolder(sceneSlug)
+      );
+    }
+  }
+
+  await writeComicReferenceManifest(manifest);
 
   return {
     projectTitle,

@@ -20,10 +20,7 @@ import type {
 } from "@/lib/types";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { prisma } from "@/lib/db";
-import {
-  getComicChapterSceneReferenceFolder,
-  listComicChapterSceneReferences
-} from "@/lib/comic-workspace";
+import { getComicChapterSceneReferenceState } from "@/lib/comic-reference-manifest";
 
 function isMissingComicTableError(error: unknown) {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2021") {
@@ -114,10 +111,7 @@ async function loadComicChapterSceneReferenceState(
   chapterSceneReferenceFolder: string;
   chapterSceneReferences: ComicChapterSceneReferenceRecord[];
 }> {
-  return {
-    chapterSceneReferenceFolder: getComicChapterSceneReferenceFolder(seasonSlug, chapterSlug),
-    chapterSceneReferences: await listComicChapterSceneReferences(seasonSlug, chapterSlug)
-  };
+  return getComicChapterSceneReferenceState(seasonSlug, chapterSlug);
 }
 
 function mapComicSeason(season: any): ComicSeasonRecord {

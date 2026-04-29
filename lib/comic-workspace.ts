@@ -1,7 +1,13 @@
 import { mkdir, writeFile, access, readdir } from "node:fs/promises";
 import path from "node:path";
+import {
+  getComicChapterSceneReferenceFolder,
+  getComicCharacterReferenceFolder,
+  getComicRootFolder,
+  getComicSceneReferenceFolder
+} from "@/lib/comic-paths";
 
-const COMIC_ROOT = path.join(process.cwd(), "comic");
+const COMIC_ROOT = path.join(process.cwd(), getComicRootFolder());
 
 function toRelativeWorkspacePath(targetPath: string) {
   return path.relative(process.cwd(), targetPath).replace(/\\/g, "/");
@@ -33,22 +39,8 @@ export function getComicRootPath() {
   return COMIC_ROOT;
 }
 
-export function getComicCharacterReferenceFolder(slug: string) {
-  return toRelativeWorkspacePath(path.join(COMIC_ROOT, "characters", slug, "refs"));
-}
-
-export function getComicSceneReferenceFolder(slug: string) {
-  return toRelativeWorkspacePath(path.join(COMIC_ROOT, "scenes", slug, "refs"));
-}
-
-export function getComicChapterSceneReferenceFolder(seasonSlug: string, chapterSlug: string) {
-  return toRelativeWorkspacePath(
-    path.join(COMIC_ROOT, "seasons", seasonSlug, chapterSlug, "scene-refs")
-  );
-}
-
 export function getComicChapterSceneReferenceFolderPath(seasonSlug: string, chapterSlug: string) {
-  return path.join(COMIC_ROOT, "seasons", seasonSlug, chapterSlug, "scene-refs");
+  return path.join(process.cwd(), getComicChapterSceneReferenceFolder(seasonSlug, chapterSlug));
 }
 
 function toDisplayLabel(fileName: string) {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ComicPromptPageLists } from "@/components/admin/comic-prompt-page-lists";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
-import { generateComicPromptPackageAction } from "@/app/admin/comic-actions";
+import { generateComicPromptPackageAction } from "@/app/admin/comic-prompt-actions";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { getOpenAiComicSettings } from "@/lib/openai-comic";
 import { getComicPromptStudioPage } from "@/lib/comic-queries";

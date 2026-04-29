@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
-import { syncComicWorkspaceAction } from "@/app/admin/comic-actions";
+import { syncComicWorkspaceAction } from "@/app/admin/comic-sync-actions";
 import { getOpenAiComicSettings } from "@/lib/openai-comic";
 import { getComicAdminOverview } from "@/lib/comic-queries";
 import { formatDate } from "@/lib/format";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createComicSceneAction } from "@/app/admin/comic-actions";
+import { createComicSceneAction } from "@/app/admin/comic-editor-actions";
 import { getComicProject } from "@/lib/comic-queries";
 
 export default async function AdminNewComicScenePage() {

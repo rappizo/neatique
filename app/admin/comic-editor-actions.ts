@@ -1,120 +1,25 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
+import { getComicCharacterReferenceFolder, getComicSceneReferenceFolder } from "@/lib/comic-paths";
+import { toBool, toInt, toPlainString } from "@/lib/utils";
 import {
-  ensureComicCharacterWorkspace,
-  ensureComicChapterWorkspace,
-  ensureComicEpisodeWorkspace,
-  ensureComicSceneWorkspace,
-  ensureComicSeasonWorkspace,
-  ensureComicWorkspaceScaffold,
-  getComicCharacterReferenceFolder,
-  getComicSceneReferenceFolder,
-  getComicChapterSceneReferenceFolder,
-  listComicChapterSceneReferences,
-  listComicReferenceFiles
-} from "@/lib/comic-workspace";
-import { syncComicWorkspaceToDatabase } from "@/lib/comic-workspace-sync";
-import { generateComicPromptPackageWithAi } from "@/lib/openai-comic";
-import { slugify, toBool, toInt, toPlainString } from "@/lib/utils";
+  buildComicRedirect,
+  buildComicSlug,
+  ensureComicProjectId,
+  normalizeLongText,
+  revalidateComicRoutes
+} from "@/app/admin/comic-action-helpers";
 
-const DEFAULT_PROJECT_DATA = {
-  slug: "main",
-  title: "Neatique Comic Universe",
-  shortDescription: "A multi-season comic project with stable characters, reusable scene references, and production-ready prompt planning.",
-  storyOutline: "Add the full multi-season story outline here.",
-  worldRules: "Add the rules, logic, and canon constraints for the comic world here.",
-  visualStyleGuide: "Define the line quality, panel rhythm, camera language, color mood, and continuity rules here.",
-  workflowNotes:
-    "Use this project as the source of truth for character locks, scene locks, and episode-level prompt generation."
-};
-
-function buildComicRedirect(basePath: string, status: string) {
-  const [pathname, queryString = ""] = basePath.split("?");
-  const params = new URLSearchParams(queryString);
-  params.set("status", status);
-  const nextQuery = params.toString();
-  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
-}
-
-async function ensureComicProjectId(inputProjectId?: string) {
-  if (inputProjectId) {
-    const existing = await prisma.comicProject.findUnique({
-      where: { id: inputProjectId },
-      select: { id: true }
-    });
-
-    if (existing) {
-      return existing.id;
-    }
-  }
-
-  const firstProject = await prisma.comicProject.findFirst({
-    orderBy: [{ createdAt: "asc" }],
-    select: { id: true }
-  });
-
-  if (firstProject) {
-    return firstProject.id;
-  }
-
-  const created = await prisma.comicProject.create({
-    data: DEFAULT_PROJECT_DATA,
-    select: { id: true }
-  });
-
-  return created.id;
-}
-
-function revalidateComicRoutes(slugs?: {
-  seasonSlug?: string | null;
-  chapterSlug?: string | null;
-  episodeSlug?: string | null;
-}) {
-  revalidatePath("/admin/comic");
-  revalidatePath("/admin/comic/project");
-  revalidatePath("/admin/comic/characters");
-  revalidatePath("/admin/comic/scenes");
-  revalidatePath("/admin/comic/seasons");
-  revalidatePath("/admin/comic/prompt-studio");
-  revalidatePath("/comic");
-
-  if (slugs?.seasonSlug) {
-    revalidatePath(`/comic/${slugs.seasonSlug}`);
-  }
-
-  if (slugs?.seasonSlug && slugs?.chapterSlug) {
-    revalidatePath(`/comic/${slugs.seasonSlug}/${slugs.chapterSlug}`);
-  }
-
-  if (slugs?.seasonSlug && slugs?.chapterSlug && slugs?.episodeSlug) {
-    revalidatePath(`/comic/${slugs.seasonSlug}/${slugs.chapterSlug}/${slugs.episodeSlug}`);
-  }
-}
-
-function normalizeLongText(value: FormDataEntryValue | null) {
-  return toPlainString(value);
-}
-
-export async function syncComicWorkspaceAction(formData?: FormData) {
-  await requireAdminSession();
-  const redirectTo =
-    toPlainString(formData?.get("redirectTo") ?? null) || "/admin/comic";
-  try {
-    await syncComicWorkspaceToDatabase();
-    revalidateComicRoutes();
-    redirect(buildComicRedirect(redirectTo, "workspace-synced"));
-  } catch (error) {
-    console.error("Comic workspace sync failed:", error);
-    redirect(buildComicRedirect(redirectTo, "workspace-sync-failed"));
-  }
+async function loadComicWorkspaceModule() {
+  return import("@/lib/comic-workspace");
 }
 
 export async function saveComicProjectAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicWorkspaceScaffold } = await loadComicWorkspaceModule();
   await ensureComicWorkspaceScaffold();
 
   const id = toPlainString(formData.get("id"));
@@ -125,15 +30,21 @@ export async function saveComicProjectAction(formData: FormData) {
   }
 
   const payload = {
-    slug: slugify(toPlainString(formData.get("slug")) || DEFAULT_PROJECT_DATA.slug) || DEFAULT_PROJECT_DATA.slug,
+    slug: buildComicSlug(formData.get("slug"), "main") || "main",
     title,
     shortDescription:
-      normalizeLongText(formData.get("shortDescription")) || DEFAULT_PROJECT_DATA.shortDescription,
-    storyOutline: normalizeLongText(formData.get("storyOutline")) || DEFAULT_PROJECT_DATA.storyOutline,
-    worldRules: normalizeLongText(formData.get("worldRules")) || DEFAULT_PROJECT_DATA.worldRules,
+      normalizeLongText(formData.get("shortDescription")) ||
+      "A multi-season comic project with stable characters, reusable scene references, and production-ready prompt planning.",
+    storyOutline: normalizeLongText(formData.get("storyOutline")) || "Add the full multi-season story outline here.",
+    worldRules:
+      normalizeLongText(formData.get("worldRules")) ||
+      "Add the rules, logic, and canon constraints for the comic world here.",
     visualStyleGuide:
-      normalizeLongText(formData.get("visualStyleGuide")) || DEFAULT_PROJECT_DATA.visualStyleGuide,
-    workflowNotes: normalizeLongText(formData.get("workflowNotes")) || DEFAULT_PROJECT_DATA.workflowNotes
+      normalizeLongText(formData.get("visualStyleGuide")) ||
+      "Define the line quality, panel rhythm, camera language, color mood, and continuity rules here.",
+    workflowNotes:
+      normalizeLongText(formData.get("workflowNotes")) ||
+      "Use this project as the source of truth for character locks, scene locks, and episode-level prompt generation."
   };
 
   if (id) {
@@ -153,10 +64,12 @@ export async function saveComicProjectAction(formData: FormData) {
 
 export async function createComicCharacterAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicWorkspaceScaffold, ensureComicCharacterWorkspace } =
+    await loadComicWorkspaceModule();
   await ensureComicWorkspaceScaffold();
 
   const name = toPlainString(formData.get("name"));
-  const slug = slugify(toPlainString(formData.get("slug")) || name);
+  const slug = buildComicSlug(formData.get("slug"), name);
 
   if (!name || !slug) {
     redirect(buildComicRedirect("/admin/comic/characters", "missing-fields"));
@@ -169,9 +82,14 @@ export async function createComicCharacterAction(formData: FormData) {
       name,
       slug,
       role: toPlainString(formData.get("role")) || "Main cast",
-      appearance: normalizeLongText(formData.get("appearance")) || "Add the fixed visual appearance here.",
-      personality: normalizeLongText(formData.get("personality")) || "Add the stable personality profile here.",
-      speechGuide: normalizeLongText(formData.get("speechGuide")) || "Add the dialogue rhythm and voice guide here.",
+      appearance:
+        normalizeLongText(formData.get("appearance")) || "Add the fixed visual appearance here.",
+      personality:
+        normalizeLongText(formData.get("personality")) ||
+        "Add the stable personality profile here.",
+      speechGuide:
+        normalizeLongText(formData.get("speechGuide")) ||
+        "Add the dialogue rhythm and voice guide here.",
       referenceFolder: getComicCharacterReferenceFolder(slug),
       referenceNotes: normalizeLongText(formData.get("referenceNotes")) || null,
       active: true,
@@ -186,6 +104,7 @@ export async function createComicCharacterAction(formData: FormData) {
 
 export async function updateComicCharacterAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicCharacterWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
   if (!id) {
@@ -201,7 +120,7 @@ export async function updateComicCharacterAction(formData: FormData) {
   }
 
   const name = toPlainString(formData.get("name"));
-  const slug = slugify(toPlainString(formData.get("slug")) || name || existing.slug);
+  const slug = buildComicSlug(formData.get("slug"), name || existing.slug);
 
   if (!name || !slug) {
     redirect(buildComicRedirect(`/admin/comic/characters/${id}`, "missing-fields"));
@@ -230,10 +149,12 @@ export async function updateComicCharacterAction(formData: FormData) {
 
 export async function createComicSceneAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicWorkspaceScaffold, ensureComicSceneWorkspace } =
+    await loadComicWorkspaceModule();
   await ensureComicWorkspaceScaffold();
 
   const name = toPlainString(formData.get("name"));
-  const slug = slugify(toPlainString(formData.get("slug")) || name);
+  const slug = buildComicSlug(formData.get("slug"), name);
 
   if (!name || !slug) {
     redirect(buildComicRedirect("/admin/comic/scenes", "missing-fields"));
@@ -246,8 +167,12 @@ export async function createComicSceneAction(formData: FormData) {
       name,
       slug,
       summary: normalizeLongText(formData.get("summary")) || "Add the scene summary here.",
-      visualNotes: normalizeLongText(formData.get("visualNotes")) || "Describe the stable visual structure here.",
-      moodNotes: normalizeLongText(formData.get("moodNotes")) || "Describe the emotional and lighting notes here.",
+      visualNotes:
+        normalizeLongText(formData.get("visualNotes")) ||
+        "Describe the stable visual structure here.",
+      moodNotes:
+        normalizeLongText(formData.get("moodNotes")) ||
+        "Describe the emotional and lighting notes here.",
       referenceFolder: getComicSceneReferenceFolder(slug),
       referenceNotes: normalizeLongText(formData.get("referenceNotes")) || null,
       active: true,
@@ -262,6 +187,7 @@ export async function createComicSceneAction(formData: FormData) {
 
 export async function updateComicSceneAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicSceneWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
   if (!id) {
@@ -277,7 +203,7 @@ export async function updateComicSceneAction(formData: FormData) {
   }
 
   const name = toPlainString(formData.get("name"));
-  const slug = slugify(toPlainString(formData.get("slug")) || name || existing.slug);
+  const slug = buildComicSlug(formData.get("slug"), name || existing.slug);
 
   if (!name || !slug) {
     redirect(buildComicRedirect(`/admin/comic/scenes/${id}`, "missing-fields"));
@@ -305,10 +231,12 @@ export async function updateComicSceneAction(formData: FormData) {
 
 export async function createComicSeasonAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicWorkspaceScaffold, ensureComicSeasonWorkspace } =
+    await loadComicWorkspaceModule();
   await ensureComicWorkspaceScaffold();
 
   const title = toPlainString(formData.get("title"));
-  const slug = slugify(toPlainString(formData.get("slug")) || title);
+  const slug = buildComicSlug(formData.get("slug"), title);
   const seasonNumber = Math.max(1, toInt(formData.get("seasonNumber"), 1));
 
   if (!title || !slug) {
@@ -336,6 +264,7 @@ export async function createComicSeasonAction(formData: FormData) {
 
 export async function updateComicSeasonAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicSeasonWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
   if (!id) {
@@ -351,7 +280,7 @@ export async function updateComicSeasonAction(formData: FormData) {
   }
 
   const title = toPlainString(formData.get("title"));
-  const slug = slugify(toPlainString(formData.get("slug")) || title || existing.slug);
+  const slug = buildComicSlug(formData.get("slug"), title || existing.slug);
   const seasonNumber = Math.max(1, toInt(formData.get("seasonNumber"), existing.seasonNumber));
 
   if (!title || !slug) {
@@ -378,6 +307,7 @@ export async function updateComicSeasonAction(formData: FormData) {
 
 export async function createComicChapterAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicChapterWorkspace } = await loadComicWorkspaceModule();
 
   const seasonId = toPlainString(formData.get("seasonId"));
   if (!seasonId) {
@@ -393,7 +323,7 @@ export async function createComicChapterAction(formData: FormData) {
   }
 
   const title = toPlainString(formData.get("title"));
-  const slug = slugify(toPlainString(formData.get("slug")) || title);
+  const slug = buildComicSlug(formData.get("slug"), title);
   const chapterNumber = Math.max(1, toInt(formData.get("chapterNumber"), 1));
 
   if (!title || !slug) {
@@ -420,6 +350,7 @@ export async function createComicChapterAction(formData: FormData) {
 
 export async function updateComicChapterAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicChapterWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
   if (!id) {
@@ -438,7 +369,7 @@ export async function updateComicChapterAction(formData: FormData) {
   }
 
   const title = toPlainString(formData.get("title"));
-  const slug = slugify(toPlainString(formData.get("slug")) || title || existing.slug);
+  const slug = buildComicSlug(formData.get("slug"), title || existing.slug);
   const chapterNumber = Math.max(1, toInt(formData.get("chapterNumber"), existing.chapterNumber));
 
   if (!title || !slug) {
@@ -465,6 +396,7 @@ export async function updateComicChapterAction(formData: FormData) {
 
 export async function createComicEpisodeAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicEpisodeWorkspace } = await loadComicWorkspaceModule();
 
   const chapterId = toPlainString(formData.get("chapterId"));
   if (!chapterId) {
@@ -483,7 +415,7 @@ export async function createComicEpisodeAction(formData: FormData) {
   }
 
   const title = toPlainString(formData.get("title"));
-  const slug = slugify(toPlainString(formData.get("slug")) || title);
+  const slug = buildComicSlug(formData.get("slug"), title);
   const episodeNumber = Math.max(1, toInt(formData.get("episodeNumber"), 1));
 
   if (!title || !slug) {
@@ -529,6 +461,7 @@ export async function createComicEpisodeAction(formData: FormData) {
 
 export async function updateComicEpisodeAction(formData: FormData) {
   await requireAdminSession();
+  const { ensureComicEpisodeWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
   if (!id) {
@@ -551,7 +484,7 @@ export async function updateComicEpisodeAction(formData: FormData) {
   }
 
   const title = toPlainString(formData.get("title"));
-  const slug = slugify(toPlainString(formData.get("slug")) || title || existing.slug);
+  const slug = buildComicSlug(formData.get("slug"), title || existing.slug);
   const episodeNumber = Math.max(1, toInt(formData.get("episodeNumber"), existing.episodeNumber));
   const published = toBool(formData.get("published"));
 
@@ -745,246 +678,4 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
     episodeSlug: asset.episode.slug
   });
   redirect(buildComicRedirect(`/admin/comic/episodes/${asset.episodeId}`, "asset-deleted"));
-}
-
-export async function generateComicPromptPackageAction(formData: FormData) {
-  await requireAdminSession();
-
-  const episodeId = toPlainString(formData.get("episodeId"));
-  const redirectTo = toPlainString(formData.get("redirectTo")) || `/admin/comic/prompt-studio?episodeId=${episodeId}`;
-
-  if (!episodeId) {
-    redirect(buildComicRedirect("/admin/comic/prompt-studio", "missing-episode"));
-  }
-
-  const episode = await prisma.comicEpisode.findUnique({
-    where: { id: episodeId },
-    include: {
-      chapter: {
-        include: {
-          season: {
-            include: {
-              project: true
-            }
-          }
-        }
-      }
-    }
-  });
-
-  if (!episode?.chapter.season.project) {
-    redirect(buildComicRedirect(redirectTo, "missing-project"));
-  }
-
-  const [characters, scenes] = await Promise.all([
-    prisma.comicCharacter.findMany({
-      where: {
-        projectId: episode.chapter.season.projectId,
-        active: true
-      },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
-    }),
-    prisma.comicScene.findMany({
-      where: {
-        projectId: episode.chapter.season.projectId,
-        active: true
-      },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
-      })
-  ]);
-  const chapterSceneReferences = await listComicChapterSceneReferences(
-    episode.chapter.season.slug,
-    episode.chapter.slug
-  );
-  const [characterReferenceFiles, sceneReferenceFiles] = await Promise.all([
-    Promise.all(
-      characters.map(async (character) => ({
-        slug: character.slug,
-        files: await listComicReferenceFiles(character.referenceFolder)
-      }))
-    ),
-    Promise.all(
-      scenes.map(async (scene) => ({
-        slug: scene.slug,
-        files: await listComicReferenceFiles(scene.referenceFolder)
-      }))
-    )
-  ]);
-  const characterReferenceFileMap = new Map(
-    characterReferenceFiles.map((entry) => [entry.slug, entry.files])
-  );
-  const sceneReferenceFileMap = new Map(sceneReferenceFiles.map((entry) => [entry.slug, entry.files]));
-
-  const inputContext = JSON.stringify(
-    {
-      project: {
-        title: episode.chapter.season.project.title,
-        slug: episode.chapter.season.project.slug
-      },
-      season: {
-        title: episode.chapter.season.title,
-        slug: episode.chapter.season.slug
-      },
-      chapter: {
-        title: episode.chapter.title,
-        slug: episode.chapter.slug
-      },
-      episode: {
-        title: episode.title,
-        slug: episode.slug
-      },
-      characterCount: characters.length,
-      sceneCount: scenes.length,
-      chapterSceneReferenceFolder: getComicChapterSceneReferenceFolder(
-        episode.chapter.season.slug,
-        episode.chapter.slug
-      ),
-      chapterSceneReferenceCount: chapterSceneReferences.length,
-      chapterSceneReferenceFiles: chapterSceneReferences.map((reference) => reference.fileName),
-      characterReferenceFiles: characterReferenceFiles.map((entry) => ({
-        slug: entry.slug,
-        files: entry.files.map((file) => file.fileName)
-      })),
-      sceneReferenceFiles: sceneReferenceFiles.map((entry) => ({
-        slug: entry.slug,
-        files: entry.files.map((file) => file.fileName)
-      }))
-    },
-    null,
-    2
-  );
-
-  try {
-    const result = await generateComicPromptPackageWithAi({
-      project: {
-        title: episode.chapter.season.project.title,
-        shortDescription: episode.chapter.season.project.shortDescription,
-        storyOutline: episode.chapter.season.project.storyOutline,
-        worldRules: episode.chapter.season.project.worldRules,
-        visualStyleGuide: episode.chapter.season.project.visualStyleGuide,
-        workflowNotes: episode.chapter.season.project.workflowNotes
-      },
-      season: {
-        title: episode.chapter.season.title,
-        summary: episode.chapter.season.summary,
-        outline: episode.chapter.season.outline
-      },
-      chapter: {
-        title: episode.chapter.title,
-        summary: episode.chapter.summary,
-        outline: episode.chapter.outline
-      },
-      episode: {
-        title: episode.title,
-        summary: episode.summary,
-        outline: episode.outline
-      },
-      characters: characters.map((character) => ({
-        name: character.name,
-        slug: character.slug,
-        role: character.role,
-        appearance: character.appearance,
-        personality: character.personality,
-        speechGuide: character.speechGuide,
-        referenceFolder: character.referenceFolder,
-        referenceNotes: character.referenceNotes,
-        referenceFiles: characterReferenceFileMap.get(character.slug) || []
-      })),
-      scenes: scenes.map((scene) => ({
-        name: scene.name,
-        slug: scene.slug,
-        summary: scene.summary,
-        visualNotes: scene.visualNotes,
-        moodNotes: scene.moodNotes,
-        referenceFolder: scene.referenceFolder,
-        referenceNotes: scene.referenceNotes,
-        referenceFiles: sceneReferenceFileMap.get(scene.slug) || []
-      })),
-      chapterSceneReferences
-    });
-
-    await prisma.$transaction([
-      prisma.comicEpisode.update({
-        where: { id: episodeId },
-        data: {
-          script: result.episodeScript,
-          panelPlan: result.pagePlan,
-          promptPack: JSON.stringify(
-            {
-              episodeLogline: result.episodeLogline,
-              episodeSynopsis: result.episodeSynopsis,
-              pages: result.pages
-            },
-            null,
-            2
-          ),
-          requiredReferences: JSON.stringify(
-            {
-              globalGptImage2Notes: result.globalGptImage2Notes,
-              pages: result.pages.map((page) => ({
-                pageNumber: page.pageNumber,
-                panelCount: page.panelCount,
-                referenceNotesCopyText: page.referenceNotesCopyText,
-                requiredUploads: page.requiredUploads
-              }))
-            },
-            null,
-            2
-          )
-        }
-      }),
-      prisma.comicPromptRun.create({
-        data: {
-          episodeId,
-          promptType: "EPISODE_PROMPT_PACKAGE",
-          model: process.env.OPENAI_COMIC_MODEL || process.env.OPENAI_POST_MODEL || process.env.OPENAI_EMAIL_MODEL || "gpt-5.4-mini",
-          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
-          status: "READY",
-          inputContext,
-          outputSummary: result.episodeLogline,
-          promptPack: JSON.stringify(result.pages, null, 2),
-          referenceChecklist: JSON.stringify(
-            {
-              globalGptImage2Notes: result.globalGptImage2Notes,
-              pages: result.pages.map((page) => ({
-                pageNumber: page.pageNumber,
-                panelCount: page.panelCount,
-                referenceNotesCopyText: page.referenceNotesCopyText,
-                requiredUploads: page.requiredUploads
-              }))
-            },
-            null,
-            2
-          )
-        }
-      })
-    ]);
-
-    revalidateComicRoutes({
-      seasonSlug: episode.chapter.season.slug,
-      chapterSlug: episode.chapter.slug,
-      episodeSlug: episode.slug
-    });
-    redirect(buildComicRedirect(redirectTo, "prompt-generated"));
-  } catch (error) {
-    await prisma.comicPromptRun.create({
-      data: {
-        episodeId,
-        promptType: "EPISODE_PROMPT_PACKAGE",
-        model: process.env.OPENAI_COMIC_MODEL || process.env.OPENAI_POST_MODEL || process.env.OPENAI_EMAIL_MODEL || "gpt-5.4-mini",
-        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
-        status: "FAILED",
-        inputContext,
-        outputSummary: "Prompt generation failed.",
-        errorMessage: error instanceof Error ? error.message : "Unknown comic prompt generation error."
-      }
-    });
-
-    revalidateComicRoutes({
-      seasonSlug: episode.chapter.season.slug,
-      chapterSlug: episode.chapter.slug,
-      episodeSlug: episode.slug
-    });
-    redirect(buildComicRedirect(redirectTo, "prompt-failed"));
-  }
 }

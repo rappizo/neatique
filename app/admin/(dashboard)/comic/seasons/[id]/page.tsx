@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createComicChapterAction, updateComicSeasonAction } from "@/app/admin/comic-actions";
+import { createComicChapterAction, updateComicSeasonAction } from "@/app/admin/comic-editor-actions";
 import { getComicSeasonById } from "@/lib/comic-queries";
 
 type AdminComicSeasonDetailPageProps = {

@@ -5,10 +5,10 @@ import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
   createComicEpisodeAssetAction,
   deleteComicEpisodeAssetAction,
-  generateComicPromptPackageAction,
   updateComicEpisodeAction,
   updateComicEpisodeAssetAction
-} from "@/app/admin/comic-actions";
+} from "@/app/admin/comic-editor-actions";
+import { generateComicPromptPackageAction } from "@/app/admin/comic-prompt-actions";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { formatDate, formatTime } from "@/lib/format";
 import { getComicEpisodeById } from "@/lib/comic-queries";

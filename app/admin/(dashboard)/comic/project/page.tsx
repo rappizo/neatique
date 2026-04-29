@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { saveComicProjectAction } from "@/app/admin/comic-actions";
+import { saveComicProjectAction } from "@/app/admin/comic-editor-actions";
 import { getComicProject } from "@/lib/comic-queries";
 
 type AdminComicProjectPageProps = {

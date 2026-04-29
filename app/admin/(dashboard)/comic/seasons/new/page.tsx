@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createComicSeasonAction } from "@/app/admin/comic-actions";
+import { createComicSeasonAction } from "@/app/admin/comic-editor-actions";
 import { getComicProject, getComicSeasonsForAdmin } from "@/lib/comic-queries";
 
 export default async function AdminNewComicSeasonPage() {

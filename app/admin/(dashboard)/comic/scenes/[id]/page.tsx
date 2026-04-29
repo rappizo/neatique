@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { updateComicSceneAction } from "@/app/admin/comic-actions";
+import { updateComicSceneAction } from "@/app/admin/comic-editor-actions";
 import { getComicSceneById } from "@/lib/comic-queries";
 
 type AdminComicSceneDetailPageProps = {
