@@ -289,6 +289,8 @@ model ComicEpisodeAsset {
   assetType String       @default("PAGE")
   title     String
   imageUrl  String
+  imageData String?
+  imageMimeType String?
   altText   String?
   caption   String?
   sortOrder Int          @default(0)

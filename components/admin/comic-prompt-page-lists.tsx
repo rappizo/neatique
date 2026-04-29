@@ -1,4 +1,6 @@
 import { CopyTextButton } from "@/components/admin/copy-text-button";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
+import { generateComicPageImageAction } from "@/app/admin/comic-prompt-actions";
 
 type PromptPanelView = {
   panelNumber: number;
@@ -31,6 +33,9 @@ type ComicPromptPageListsProps = {
   episodeSynopsis: string | null;
   promptPages: PromptPageView[];
   globalGptImage2Notes: string | null;
+  episodeId?: string;
+  redirectTo?: string;
+  showGenerateActions?: boolean;
 };
 
 function getTextareaRows(value: string, minRows: number, maxRows: number) {
@@ -102,8 +107,13 @@ export function ComicPromptPageLists({
   episodeLogline,
   episodeSynopsis,
   promptPages,
-  globalGptImage2Notes
+  globalGptImage2Notes,
+  episodeId,
+  redirectTo,
+  showGenerateActions = false
 }: ComicPromptPageListsProps) {
+  const canGeneratePages = Boolean(showGenerateActions && episodeId && redirectTo);
+
   return (
     <div className="admin-comic-prompt-lists">
       {episodeLogline || episodeSynopsis ? (
@@ -128,8 +138,8 @@ export function ComicPromptPageLists({
           <div>
             <h2>Page-by-page production list</h2>
             <p className="form-note">
-              Each row is one complete comic page kit. Copy the page kit, upload the listed
-              reference images, then paste the prompt into the image-generation tool.
+              Each row is one complete comic page kit. Generate a 2:3 comic page directly from the
+              stored page context, or copy the kit when you want to run it manually.
             </p>
           </div>
           {globalGptImage2Notes ? (
@@ -169,6 +179,19 @@ export function ComicPromptPageLists({
                     </div>
                   </div>
                   <div className="admin-comic-page-list-item__actions">
+                    {canGeneratePages ? (
+                      <form action={generateComicPageImageAction} className="admin-comic-generate-page-form">
+                        <input type="hidden" name="episodeId" value={episodeId} />
+                        <input type="hidden" name="pageNumber" value={page.pageNumber} />
+                        <input type="hidden" name="redirectTo" value={redirectTo} />
+                        <PendingSubmitButton
+                          idleLabel="Generate Page"
+                          pendingLabel="Generating..."
+                          modalTitle={`Generating ${formatPageLabel(page.pageNumber)}`}
+                          modalDescription="The image API is reading this page's character notes, scene references, panel beats, and prompt pack to create one 2:3 comic page."
+                        />
+                      </form>
+                    ) : null}
                     <CopyTextButton
                       text={pageProductionText}
                       label="Copy full page kit"

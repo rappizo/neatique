@@ -3896,6 +3896,14 @@ main {
   min-width: 280px;
 }
 
+.admin-comic-generate-page-form {
+  display: contents;
+}
+
+.admin-comic-generate-page-form .button {
+  box-shadow: 0 12px 28px rgba(237, 115, 97, 0.18);
+}
+
 .admin-comic-page-section {
   display: grid;
   gap: 14px;

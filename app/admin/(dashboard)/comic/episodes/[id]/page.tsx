@@ -26,8 +26,11 @@ const STATUS_MESSAGES: Record<string, string> = {
   "asset-deleted": "Comic asset deleted.",
   "prompt-generated": "A fresh comic prompt package is ready.",
   "prompt-failed": "Comic prompt generation failed. Check the latest prompt run entry below.",
+  "page-image-generated": "Comic page image generated and saved as a draft asset.",
+  "page-image-failed": "Comic page image generation failed. Check the latest prompt run entry below.",
   "missing-fields": "Fill in the required episode fields before saving.",
-  "missing-asset-fields": "Add an asset title and image URL before saving."
+  "missing-asset-fields": "Add an asset title and image URL before saving.",
+  "missing-page-prompt": "Generate a page-by-page prompt package before creating page images."
 };
 
 export default async function AdminComicEpisodeDetailPage({
@@ -300,6 +303,9 @@ export default async function AdminComicEpisodeDetailPage({
           episodeSynopsis={parsedEpisodePromptOutput.episodeSynopsis}
           promptPages={parsedEpisodePromptOutput.pages}
           globalGptImage2Notes={parsedEpisodePromptOutput.globalGptImage2Notes}
+          episodeId={episode.id}
+          redirectTo={`/admin/comic/episodes/${episode.id}`}
+          showGenerateActions
         />
       ) : null}
 

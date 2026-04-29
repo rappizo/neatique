@@ -101,6 +101,27 @@ export type GeneratedComicPromptPackage = {
   globalGptImage2Notes: string;
 };
 
+export type GenerateComicPageImageInput = {
+  projectTitle: string;
+  seasonTitle: string;
+  chapterTitle: string;
+  episodeTitle: string;
+  episodeSummary: string;
+  pageNumber: number;
+  panelCount: number;
+  pagePurpose: string;
+  promptPackCopyText: string;
+  referenceNotesCopyText: string;
+  globalGptImage2Notes: string | null;
+  panels: GeneratedComicPanelPrompt[];
+  requiredUploads: GeneratedComicPageUpload[];
+};
+
+export type GeneratedComicPageImageAsset = {
+  mimeType: string;
+  base64Data: string;
+};
+
 type GenerateComicPromptPackageInput = {
   project: ComicProjectContext;
   season: ComicSeasonContext;
@@ -238,6 +259,132 @@ function buildReferenceFileSummary(referenceFiles: ComicReferenceFileContext[]) 
       ].join("\n")
     )
     .join("\n");
+}
+
+function buildComicPageUploadSummary(uploads: GeneratedComicPageUpload[]) {
+  if (uploads.length === 0) {
+    return "No required reference uploads were listed for this page.";
+  }
+
+  return uploads
+    .map((upload) =>
+      [
+        `- ${upload.label} (${upload.bucket})`,
+        `  Why it matters: ${upload.whyThisMatters}`,
+        `  Visual lock: ${upload.contentSummary}`,
+        `  Upload image names: ${upload.uploadImageNames.join(", ") || "None listed"}`,
+        `  Workspace paths: ${upload.relativePaths.join(", ") || "None listed"}`
+      ].join("\n")
+    )
+    .join("\n\n");
+}
+
+function buildComicPagePanelSummary(panels: GeneratedComicPanelPrompt[]) {
+  if (panels.length === 0) {
+    return "No panel beats were listed for this page.";
+  }
+
+  return panels
+    .map((panel) =>
+      [
+        `Panel ${panel.panelNumber}: ${panel.panelTitle}`,
+        `Story beat: ${panel.storyBeat}`,
+        `Panel image direction: ${panel.promptText || "Use the page prompt and story beat."}`
+      ].join("\n")
+    )
+    .join("\n\n");
+}
+
+export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
+  return [
+    "Create one finished vertical comic page for Neatique's original comic series.",
+    "Canvas and layout requirements:",
+    "- Aspect ratio must be 2:3 vertical.",
+    `- The page must contain exactly ${input.panelCount} panel${input.panelCount === 1 ? "" : "s"}.`,
+    "- Use clear manga/webcomic page composition with clean panel gutters.",
+    "- Keep the page suitable for a polished brand comic, not a rough storyboard.",
+    "- Preserve character shape, facial expression language, and scene continuity from the reference notes.",
+    "- If dialogue balloons are needed, keep text minimal, clean, and readable; otherwise use expressive acting and leave balloons simple.",
+    "- Do not add extra characters, extra logos, extra product labels, watermarks, signatures, or random text.",
+    "",
+    "Story context:",
+    `Project: ${input.projectTitle}`,
+    `Season: ${input.seasonTitle}`,
+    `Chapter: ${input.chapterTitle}`,
+    `Episode: ${input.episodeTitle}`,
+    `Episode summary: ${input.episodeSummary || "No episode summary stored."}`,
+    `Page ${input.pageNumber} purpose: ${input.pagePurpose}`,
+    "",
+    "Required references for visual continuity:",
+    buildComicPageUploadSummary(input.requiredUploads),
+    "",
+    "Panel-by-panel content to illustrate:",
+    buildComicPagePanelSummary(input.panels),
+    "",
+    "Production prompt already prepared for this page:",
+    input.promptPackCopyText,
+    "",
+    input.globalGptImage2Notes
+      ? `Global gpt-image-2 continuity notes:\n${input.globalGptImage2Notes}`
+      : "Global gpt-image-2 continuity notes: none stored.",
+    "",
+    input.referenceNotesCopyText
+      ? `Page-specific reference notes:\n${input.referenceNotesCopyText}`
+      : "Page-specific reference notes: none stored.",
+    "",
+    "Final output: one complete 2:3 comic page image, not separate files."
+  ].join("\n");
+}
+
+export async function generateComicPageImageWithAi(
+  input: GenerateComicPageImageInput
+): Promise<GeneratedComicPageImageAsset> {
+  const apiKey = getOpenAiApiKey();
+
+  if (!apiKey) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
+  const prompt = buildComicPageImagePrompt(input);
+
+  const response = await fetch(`${OPENAI_API_BASE_URL}/images/generations`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: DEFAULT_OPENAI_COMIC_IMAGE_MODEL,
+      prompt,
+      size: "1024x1536",
+      quality: "medium"
+    })
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `OpenAI comic page image generation failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
+  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
+
+  if (!base64Data) {
+    throw new Error("OpenAI did not return a comic page image.");
+  }
+
+  return {
+    mimeType: "image/png",
+    base64Data
+  };
 }
 
 export async function generateComicPromptPackageWithAi(

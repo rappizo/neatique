@@ -13,7 +13,10 @@ type AdminComicPromptStudioPageProps = {
 const STATUS_MESSAGES: Record<string, string> = {
   "prompt-generated": "Comic prompt package generated.",
   "prompt-failed": "Comic prompt generation failed. Check the latest prompt run and try again.",
+  "page-image-generated": "Comic page image generated and saved as a draft episode asset.",
+  "page-image-failed": "Comic page image generation failed. Check the latest prompt run entry for details.",
   "missing-episode": "Pick an episode before generating prompts.",
+  "missing-page-prompt": "Generate a page-by-page prompt package before creating page images.",
   "missing-project": "Save the comic project bible first so the prompt workflow has canon context."
 };
 
@@ -212,6 +215,9 @@ export default async function AdminComicPromptStudioPage({
               episodeSynopsis={parsedPromptOutput.episodeSynopsis}
               promptPages={parsedPromptOutput.pages}
               globalGptImage2Notes={parsedPromptOutput.globalGptImage2Notes}
+              episodeId={selectedEpisode.episode.id}
+              redirectTo={`/admin/comic/prompt-studio?episodeId=${selectedEpisode.episode.id}`}
+              showGenerateActions
             />
           ) : selectedEpisode.episode.promptPack || selectedEpisode.episode.requiredReferences ? (
             <section className="admin-form">

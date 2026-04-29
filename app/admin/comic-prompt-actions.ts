@@ -3,13 +3,14 @@
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
+import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import {
   getComicCharacterReferenceFiles,
   getComicChapterSceneReferenceState,
   getComicSceneReferenceFiles
 } from "@/lib/comic-reference-manifest";
 import { buildComicRedirect, revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
-import { toPlainString } from "@/lib/utils";
+import { toInt, toPlainString } from "@/lib/utils";
 
 export async function generateComicPromptPackageAction(formData: FormData) {
   await requireAdminSession();
@@ -243,4 +244,167 @@ export async function generateComicPromptPackageAction(formData: FormData) {
     });
     redirect(buildComicRedirect(redirectTo, "prompt-failed"));
   }
+}
+
+export async function generateComicPageImageAction(formData: FormData) {
+  await requireAdminSession();
+
+  const episodeId = toPlainString(formData.get("episodeId"));
+  const pageNumber = toInt(formData.get("pageNumber"), 0);
+  const redirectTo =
+    toPlainString(formData.get("redirectTo")) || `/admin/comic/prompt-studio?episodeId=${episodeId}`;
+
+  if (!episodeId) {
+    redirect(buildComicRedirect("/admin/comic/prompt-studio", "missing-episode"));
+  }
+
+  if (!pageNumber) {
+    redirect(buildComicRedirect(redirectTo, "missing-page-prompt"));
+  }
+
+  const episode = await prisma.comicEpisode.findUnique({
+    where: { id: episodeId },
+    include: {
+      chapter: {
+        include: {
+          season: {
+            include: {
+              project: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!episode?.chapter.season.project) {
+    redirect(buildComicRedirect(redirectTo, "missing-project"));
+  }
+
+  const parsedPromptOutput = parseComicPromptOutput(episode.promptPack, episode.requiredReferences);
+  const page = parsedPromptOutput?.pages.find((candidate) => candidate.pageNumber === pageNumber);
+
+  if (!page) {
+    redirect(buildComicRedirect(redirectTo, "missing-page-prompt"));
+  }
+
+  const { buildComicPageImagePrompt, generateComicPageImageWithAi } = await import("@/lib/openai-comic");
+  const imageInput = {
+    projectTitle: episode.chapter.season.project.title,
+    seasonTitle: episode.chapter.season.title,
+    chapterTitle: episode.chapter.title,
+    episodeTitle: episode.title,
+    episodeSummary: episode.summary,
+    pageNumber: page.pageNumber,
+    panelCount: page.panelCount,
+    pagePurpose: page.pagePurpose,
+    promptPackCopyText: page.promptPackCopyText,
+    referenceNotesCopyText: page.referenceNotesCopyText,
+    globalGptImage2Notes: parsedPromptOutput?.globalGptImage2Notes || null,
+    panels: page.panels.map((panel) => ({
+      pageNumber: page.pageNumber,
+      ...panel,
+      promptText: panel.storyBeat
+    })),
+    requiredUploads: page.requiredUploads
+  };
+  const inputPrompt = buildComicPageImagePrompt(imageInput);
+  const inputContext = JSON.stringify(
+    {
+      project: episode.chapter.season.project.title,
+      season: episode.chapter.season.title,
+      chapter: episode.chapter.title,
+      episode: episode.title,
+      pageNumber: page.pageNumber,
+      panelCount: page.panelCount,
+      pagePurpose: page.pagePurpose,
+      uploadImages: page.requiredUploads.flatMap((upload) => upload.uploadImageNames),
+      prompt: inputPrompt
+    },
+    null,
+    2
+  );
+
+  let nextStatus = "page-image-generated";
+
+  try {
+    const imageAsset = await generateComicPageImageWithAi(imageInput);
+    const createdAsset = await prisma.comicEpisodeAsset.create({
+      data: {
+        episodeId,
+        assetType: "GENERATED_PAGE",
+        title: `${episode.title} - Page ${String(page.pageNumber).padStart(2, "0")}`,
+        imageUrl: "/media/comic/pending",
+        imageData: imageAsset.base64Data,
+        imageMimeType: imageAsset.mimeType,
+        altText: `${episode.title} comic page ${page.pageNumber}`,
+        caption: page.pagePurpose,
+        sortOrder: page.pageNumber,
+        published: false
+      },
+      select: {
+        id: true
+      }
+    });
+
+    const imageUrl = `/media/comic/${createdAsset.id}?v=${Date.now()}`;
+
+    await prisma.$transaction([
+      prisma.comicEpisodeAsset.update({
+        where: { id: createdAsset.id },
+        data: { imageUrl }
+      }),
+      prisma.comicPromptRun.create({
+        data: {
+          episodeId,
+          promptType: "PAGE_IMAGE_GENERATION",
+          model:
+            process.env.OPENAI_COMIC_MODEL ||
+            process.env.OPENAI_POST_MODEL ||
+            process.env.OPENAI_EMAIL_MODEL ||
+            "gpt-5.4-mini",
+          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          status: "READY",
+          inputContext,
+          outputSummary: `Generated ${episode.title} page ${page.pageNumber}.`,
+          promptPack: page.promptPackCopyText,
+          referenceChecklist: page.referenceNotesCopyText
+        }
+      })
+    ]);
+
+    revalidateComicRoutes({
+      seasonSlug: episode.chapter.season.slug,
+      chapterSlug: episode.chapter.slug,
+      episodeSlug: episode.slug
+    });
+  } catch (error) {
+    nextStatus = "page-image-failed";
+    await prisma.comicPromptRun.create({
+      data: {
+        episodeId,
+        promptType: "PAGE_IMAGE_GENERATION",
+        model:
+          process.env.OPENAI_COMIC_MODEL ||
+          process.env.OPENAI_POST_MODEL ||
+          process.env.OPENAI_EMAIL_MODEL ||
+          "gpt-5.4-mini",
+        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+        status: "FAILED",
+        inputContext,
+        outputSummary: `Page ${page.pageNumber} image generation failed.`,
+        promptPack: page.promptPackCopyText,
+        referenceChecklist: page.referenceNotesCopyText,
+        errorMessage: error instanceof Error ? error.message : "Unknown comic page image generation error."
+      }
+    });
+
+    revalidateComicRoutes({
+      seasonSlug: episode.chapter.season.slug,
+      chapterSlug: episode.chapter.slug,
+      episodeSlug: episode.slug
+    });
+  }
+
+  redirect(buildComicRedirect(redirectTo, nextStatus));
 }
