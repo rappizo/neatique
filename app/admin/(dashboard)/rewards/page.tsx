@@ -41,7 +41,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
   return (
     <div className="admin-page">
       <div className="admin-page__header">
-        <p className="eyebrow">Points</p>
+        <p className="eyebrow">Points & Rewards</p>
         <h1>Manage loyalty balances, mascot rewards, redemption requests, and RYO approvals.</h1>
         <p>
           Reward points can be earned and adjusted here, but they are never used as cash discounts.
@@ -70,7 +70,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         </div>
       </div>
 
-      <section className="admin-form">
+      <section id="following-email" className="admin-form">
         <div className="stack-row">
           <div>
             <h2>Email Following</h2>
@@ -145,7 +145,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         </form>
       </section>
 
-      <section className="admin-form">
+      <section id="mascot-setting" className="admin-form">
         <div className="stack-row">
           <div>
             <h2>Mascot rewards</h2>
@@ -187,7 +187,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         </div>
       </section>
 
-      <section className="admin-table admin-table--scroll">
+      <section id="point-adjustment" className="admin-table admin-table--scroll">
         <h2>Manual point adjustment</h2>
         <table>
           <thead>
@@ -250,7 +250,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         </table>
       </section>
 
-      <section className="admin-table admin-table--scroll">
+      <section id="ryo" className="admin-table admin-table--scroll">
         <h2>RYO approval queue</h2>
         <table>
           <thead>
@@ -393,7 +393,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         </table>
       </section>
 
-      <section className="admin-table admin-table--scroll">
+      <section id="redemption" className="admin-table admin-table--scroll">
         <h2>Redemption requests</h2>
         <table>
           <thead>
@@ -474,7 +474,7 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         </table>
       </section>
 
-      <section className="admin-table">
+      <section id="rewards-ledger" className="admin-table">
         <h2>Rewards ledger</h2>
         <table>
           <thead>
