@@ -4,7 +4,7 @@ import { formatCurrency, getSavingsCents } from "@/lib/format";
 import { getProducts } from "@/lib/queries";
 
 type AdminProductsPageProps = {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; view?: string }>;
 };
 
 export default async function AdminProductsPage({ searchParams }: AdminProductsPageProps) {
@@ -13,11 +13,12 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
   return (
     <div className="admin-page">
       <div className="admin-page__header">
-        <p className="eyebrow">Products</p>
-        <h1>Manage the Neatique product catalog.</h1>
+        <p className="eyebrow">{params.view === "media" ? "Product Media" : "Products"}</p>
+        <h1>{params.view === "media" ? "Manage product images and gallery assets." : "Manage the Neatique product catalog."}</h1>
         <p>
-          Open any card to edit the main image, gallery images, pricing, inventory, and product
-          copy.
+          {params.view === "media"
+            ? "Open a product card to update the main image, square gallery thumbnails, product page imagery, and media presentation."
+            : "Open any card to edit the main image, gallery images, pricing, inventory, and product copy."}
         </p>
       </div>
 

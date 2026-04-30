@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
+import { AdminSidebarNav } from "@/components/admin/admin-sidebar-nav";
 import { logoutAction } from "@/app/admin/actions";
 import { siteConfig } from "@/lib/site-config";
 
@@ -12,13 +12,7 @@ export function AdminShell({ children }: Readonly<{ children: React.ReactNode }>
           <span className="pill">Admin portal</span>
           <span className="pill">US store operations</span>
         </div>
-        <nav className="admin-sidebar__nav" aria-label="Admin navigation">
-          {siteConfig.adminNav.map((item) => (
-            <Link key={item.href} href={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <AdminSidebarNav items={siteConfig.adminNav} />
         <form action={logoutAction}>
           <button type="submit" className="admin-sidebar__logout">
             Sign out

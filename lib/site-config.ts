@@ -16,7 +16,17 @@ export const siteConfig = {
   ],
   adminNav: [
     { href: "/admin", label: "Dashboard" },
-    { href: "/admin/products", label: "Products" },
+    {
+      href: "/admin/products",
+      label: "Products",
+      children: [
+        { href: "/admin/products", label: "All Products" },
+        { href: "/admin/products/new", label: "Add Product" },
+        { href: "/admin/reviews", label: "Product Reviews" },
+        { href: "/admin/coupons", label: "Coupons by Product" },
+        { href: "/admin/products?view=media", label: "Product Media" }
+      ]
+    },
     { href: "/admin/coupons", label: "Coupons" },
     { href: "/admin/omb-claims", label: "OMB Claim" },
     { href: "/admin/forms", label: "Forms" },
