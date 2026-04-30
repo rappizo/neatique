@@ -67,7 +67,7 @@ export default async function AdminEmailMarketingPage({
         <p className="notice">{STATUS_MESSAGES[params.status] || `Email marketing action completed: ${params.status}.`}</p>
       ) : null}
 
-      <section className="admin-form">
+      <section className="admin-form" id="campaign-report">
         <div className="admin-review-pagination">
           <div>
             <h2>Campaign report</h2>
@@ -109,7 +109,7 @@ export default async function AdminEmailMarketingPage({
         </div>
       </section>
 
-      <section className="admin-form">
+      <section className="admin-form" id="campaigns">
         <div className="admin-review-pagination">
           <div>
             <h2>Campaigns</h2>
@@ -165,7 +165,7 @@ export default async function AdminEmailMarketingPage({
         )}
       </section>
 
-      <section className="admin-form">
+      <section className="admin-form" id="audience-sync">
         <h2>Audience sync</h2>
         <p className="form-note">
           Import existing contacts from Brevo into the local backend, or push the combined site
@@ -201,7 +201,7 @@ export default async function AdminEmailMarketingPage({
         </div>
       </section>
 
-      <section className="admin-form">
+      <section className="admin-form" id="brevo-connection">
         <div className="admin-review-pagination">
           <div>
             <h2>Brevo connection</h2>
@@ -380,7 +380,7 @@ export default async function AdminEmailMarketingPage({
         ) : null}
       </section>
 
-      <section className="admin-form">
+      <section className="admin-form" id="ai-drafting">
         <div className="admin-review-pagination">
           <div>
             <h2>AI drafting</h2>
@@ -404,7 +404,7 @@ export default async function AdminEmailMarketingPage({
         </div>
       </section>
 
-      <section className="admin-form">
+      <section className="admin-form" id="brevo-lists">
         <h2>Brevo lists</h2>
         <p className="form-note">
           Use these IDs in the connection section above. This is reference data only, so it lives

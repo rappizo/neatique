@@ -23,21 +23,53 @@ export const siteConfig = {
         { href: "/admin/products", label: "All Products" },
         { href: "/admin/products/new", label: "Add Product" },
         { href: "/admin/reviews", label: "Product Reviews" },
-        { href: "/admin/coupons", label: "Coupons by Product" },
-        { href: "/admin/products?view=media", label: "Product Media" }
+        { href: "/admin/coupons", label: "Coupons by Product" }
       ]
     },
-    { href: "/admin/coupons", label: "Coupons" },
-    { href: "/admin/omb-claims", label: "OMB Claim" },
+    {
+      href: "/admin/omb-claims",
+      label: "OMB Claim",
+      children: [
+        { href: "/admin/omb-claims#all-claims", label: "All Claims" },
+        { href: "/admin/omb-claims#email-following-settings", label: "Email Following Setting" }
+      ]
+    },
     { href: "/admin/forms", label: "Forms" },
     { href: "/admin/orders", label: "Orders" },
     { href: "/admin/customers", label: "Users" },
     { href: "/admin/rewards", label: "Points" },
-    { href: "/admin/reviews", label: "Reviews" },
-    { href: "/admin/posts", label: "Posts" },
+    {
+      href: "/admin/posts",
+      label: "Posts",
+      children: [
+        { href: "/admin/posts#post-library", label: "All Posts" },
+        { href: "/admin/posts/new", label: "Add Post" },
+        { href: "/admin/posts#ai-seo-posts", label: "AI SEO Posts" },
+        { href: "/admin/posts#post-library", label: "Post Images" },
+        { href: "/admin/posts#seo-automation", label: "SEO Automation" }
+      ]
+    },
     { href: "/admin/comic", label: "Comic" },
-    { href: "/admin/email-marketing", label: "Email Marketing" },
-    { href: "/admin/email", label: "Email" }
+    {
+      href: "/admin/email-marketing",
+      label: "Email Marketing",
+      children: [
+        { href: "/admin/email-marketing#campaign-report", label: "Campaign Reports" },
+        { href: "/admin/email-marketing#campaigns", label: "Campaigns" },
+        { href: "/admin/email-marketing#audience-sync", label: "Audience Lists" },
+        { href: "/admin/email-marketing#ai-drafting", label: "AI Drafting" },
+        { href: "/admin/email-marketing#audience-sync", label: "Brevo Sync" },
+        { href: "/admin/email-marketing#brevo-connection", label: "Settings" }
+      ]
+    },
+    {
+      href: "/admin/settings",
+      label: "Settings",
+      children: [
+        { href: "/admin/email", label: "Email Inbox & Delivery" },
+        { href: "/admin/email-marketing#brevo-connection", label: "Brevo Connection" }
+      ]
+    }
   ],
   footerLinks: {
     shop: [

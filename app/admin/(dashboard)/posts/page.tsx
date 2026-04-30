@@ -101,7 +101,7 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
         </section>
       </div>
 
-      <section className="admin-form">
+      <section className="admin-form" id="seo-automation">
         <h2>AI SEO post automation</h2>
         <form action={saveAiPostAutomationSettingsAction}>
           <div className="admin-form__grid">
@@ -143,7 +143,7 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
         </form>
       </section>
 
-      <section className="admin-form">
+      <section className="admin-form" id="ai-seo-posts">
         <div className="admin-review-pagination">
           <div>
             <h2>Generate the next AI post now</h2>
@@ -169,7 +169,7 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
         </form>
       </section>
 
-      <section className="admin-form admin-table">
+      <section className="admin-form admin-table" id="external-link-validation">
         <div className="admin-review-pagination">
           <div>
             <h2>External link validation</h2>
@@ -281,7 +281,7 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
         )}
       </section>
 
-      <section className="admin-form admin-table">
+      <section className="admin-form admin-table" id="post-library">
         <div className="admin-review-pagination">
           <div>
             <h2>Post library</h2>

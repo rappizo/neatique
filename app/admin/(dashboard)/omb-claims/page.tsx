@@ -87,7 +87,7 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
 
       {params.status ? <p className="notice">OMB claim action completed: {params.status}.</p> : null}
 
-      <section className="admin-form">
+      <section className="admin-form" id="email-following-settings">
         <div className="stack-row">
           <div>
             <h2>Email Following</h2>
@@ -162,7 +162,7 @@ export default async function AdminOmbClaimsPage({ searchParams }: AdminOmbClaim
         </form>
       </section>
 
-      <section className="admin-form">
+      <section className="admin-form" id="all-claims">
         <div className="admin-review-pagination">
           <div>
             <h2>Claims</h2>

@@ -16,7 +16,12 @@ type AdminNavItem = {
 };
 
 function isHrefActive(pathname: string, currentSearch: string, href: string) {
-  const [cleanHref, targetSearch = ""] = href.split("?");
+  if (href.includes("#")) {
+    return false;
+  }
+
+  const [withoutHash] = href.split("#");
+  const [cleanHref, targetSearch = ""] = withoutHash.split("?");
 
   if (targetSearch) {
     return pathname === cleanHref && currentSearch === targetSearch;
