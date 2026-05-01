@@ -681,6 +681,88 @@ export async function generateChineseComicPageVersionWithAi(input: {
   return parseImageBase64Response(base64Data);
 }
 
+export async function editComicPageImageWithAi(input: {
+  sourceImage: ComicPageImageReferenceAsset;
+  pageNumber: number;
+  episodeTitle: string;
+  editInstruction: string;
+}): Promise<GeneratedComicPageImageAsset> {
+  const imageApiSettings = getComicImageApiSettings();
+
+  if (!imageApiSettings.apiKey) {
+    throw new Error("Comic image API key is not configured.");
+  }
+
+  const editInstruction = input.editInstruction.trim();
+
+  if (!editInstruction) {
+    throw new Error("Comic page edit instruction is required.");
+  }
+
+  const formData = new FormData();
+  const sourceBuffer = Buffer.from(input.sourceImage.base64Data, "base64");
+  formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
+  formData.append(
+    "prompt",
+    [
+      "Edit the supplied finished comic page using it as the primary reference image.",
+      "Make only the requested local/simple change. Preserve the existing page as much as possible.",
+      "Keep the same panel layout, page size, camera angles, composition, gutters, character identities, character proportions, facial expressions, clean black-and-white manga linework, pure white mascot body fills, and readable page rhythm.",
+      "Do not regenerate the page from scratch. Do not add new panels, extra characters, random props, watermarks, signatures, logos, or unrelated text.",
+      "Keep all characters handless and armless. Preserve visible small rounded feet or foot nubs in any full-body character view.",
+      "If the edit request affects text, keep the wording short and fitted to the original balloon/sign space.",
+      "If the edit request conflicts with the locked comic style or character model consistency, make the closest safe edit while preserving the original character/page identity.",
+      `Episode: ${input.episodeTitle}`,
+      `Page: ${input.pageNumber}`,
+      "",
+      "Admin edit request:",
+      editInstruction
+    ].join("\n")
+  );
+  formData.append("size", "1024x1536");
+  formData.append("quality", "medium");
+  formData.append(
+    "image",
+    new Blob([new Uint8Array(sourceBuffer)], { type: input.sourceImage.mimeType }),
+    input.sourceImage.fileName
+  );
+
+  const response = await fetch(`${imageApiSettings.baseUrl}/images/edits`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${imageApiSettings.apiKey}`
+    },
+    body: formData
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `Comic page image edit failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
+  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
+  const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
+
+  if (!base64Data) {
+    if (imageUrl) {
+      return fetchImageUrlAsBase64(imageUrl);
+    }
+
+    throw new Error("Comic image API did not return an edited comic page image.");
+  }
+
+  return parseImageBase64Response(base64Data);
+}
+
 export async function reviseComicPagePromptWithAi(
   input: ReviseComicPagePromptInput
 ): Promise<RevisedComicPagePrompt> {

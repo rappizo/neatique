@@ -728,7 +728,7 @@ export async function getComicPublishCenter() {
                   promptRuns: {
                     where: {
                       promptType: {
-                        in: ["PAGE_IMAGE_GENERATION", "PAGE_PROMPT_REVISION"]
+                        in: ["PAGE_IMAGE_GENERATION", "PAGE_IMAGE_EDIT", "PAGE_PROMPT_REVISION"]
                       }
                     },
                     orderBy: [{ createdAt: "desc" }],
@@ -785,7 +785,9 @@ export async function getComicPublishCenter() {
             const canPublish = approvedPageCount === COMIC_REQUIRED_PAGES_PER_EPISODE;
             const promptRuns = episode.promptRuns.map(mapComicPromptRun);
             const latestImageGenerationRun =
-              promptRuns.find((run) => run.promptType === "PAGE_IMAGE_GENERATION") || null;
+              promptRuns.find((run) =>
+                ["PAGE_IMAGE_GENERATION", "PAGE_IMAGE_EDIT"].includes(run.promptType)
+              ) || null;
             const promptRevisionHistory = getLatestComicPagePromptRevisionHistory(promptRuns);
 
             if (canPublish && !episode.published) {

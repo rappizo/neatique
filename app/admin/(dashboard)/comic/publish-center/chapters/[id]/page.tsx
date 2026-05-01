@@ -12,6 +12,7 @@ import {
   approveComicEpisodeAssetAction,
   createChineseComicPageVersionAction,
   deleteComicEpisodeAssetAction,
+  editComicPageAssetAction,
   publishComicEpisodeFromCenterAction,
   unapproveComicEpisodeAssetAction
 } from "@/app/admin/comic-editor-actions";
@@ -48,14 +49,17 @@ const STATUS_MESSAGES: Record<string, string> = {
   "prompt-failed": "Comic prompt generation failed. Check the episode prompt run history.",
   "page-image-generated": "Comic page image generated and saved as a draft asset.",
   "page-image-failed": "Comic page image generation failed. Check the episode prompt run history.",
+  "page-edit-created": "Comic page edit saved as a new draft candidate.",
+  "page-edit-failed": "Comic page edit failed. Check the episode prompt run history.",
   "page-prompt-revised": "Comic page prompt updated.",
   "page-prompt-restored": "Comic page prompt restored from history.",
   "page-prompt-revision-failed": "Comic page prompt revision failed. Check the episode prompt run history.",
   "missing-approved-pages": "Approve pages 1-10 before publishing this episode.",
   "missing-approved-page": "Approve an English page image before creating a Chinese version.",
   "missing-asset": "That comic page asset could not be found.",
-  "missing-source-image": "This approved page does not have stored image data for AI editing.",
+  "missing-source-image": "This page image does not have stored image data for AI editing.",
   "missing-prompt-suggestion": "Enter a prompt suggestion before updating this page prompt.",
+  "missing-page-edit-instruction": "Enter an edit instruction before editing this page image.",
   "missing-page-prompt": "Generate a page-by-page prompt package before creating page images.",
   "missing-prompt-revision": "That prompt revision history entry could not be restored."
 };
@@ -73,6 +77,19 @@ function buildImageResultMessages(errorMessage?: string | null) {
       description: errorMessage
         ? `OpenAI returned: ${errorMessage}`
         : "The image request did not complete. Open the episode editor and check the latest prompt run entry for the stored error message.",
+      tone: "danger"
+    },
+    "page-edit-created": {
+      title: "Page edit created",
+      description:
+        "The edited page image is saved as a new draft candidate. Review it here, then approve it if it is the best version.",
+      tone: "success"
+    },
+    "page-edit-failed": {
+      title: "Page edit failed",
+      description: errorMessage
+        ? `OpenAI returned: ${errorMessage}`
+        : "The page image edit did not complete. Open the episode editor and check the latest prompt run entry for the stored error message.",
       tone: "danger"
     },
     "missing-page-prompt": {
@@ -618,6 +635,27 @@ export default async function AdminComicPublishChapterPage({
                                     >
                                       {asset.published ? "Remove approval" : "Approve this page"}
                                     </button>
+                                  </form>
+                                  <form action={editComicPageAssetAction} className="admin-comic-page-edit-form">
+                                    <input type="hidden" name="id" value={asset.id} />
+                                    <input type="hidden" name="redirectTo" value={redirectTo} />
+                                    <div className="field">
+                                      <label htmlFor={`page-edit-${asset.id}`}>Edit page</label>
+                                      <textarea
+                                        id={`page-edit-${asset.id}`}
+                                        name="editInstruction"
+                                        rows={3}
+                                        placeholder="Describe a small image change to make from this candidate..."
+                                        required
+                                      />
+                                    </div>
+                                    <PendingSubmitButton
+                                      idleLabel="Create edited draft"
+                                      pendingLabel="Editing..."
+                                      className="button button--secondary"
+                                      modalTitle={`Editing ${formatPageLabel(pageNumber)}`}
+                                      modalDescription="The image API is using this page as the reference and applying your requested adjustment."
+                                    />
                                   </form>
                                   {asset.published ? (
                                     <form action={createChineseComicPageVersionAction}>

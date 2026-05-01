@@ -947,6 +947,150 @@ export async function createChineseComicPageVersionAction(formData: FormData) {
   }
 }
 
+export async function editComicPageAssetAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = getComicPublishRedirect(formData);
+  const editInstruction = normalizeLongText(formData.get("editInstruction"));
+
+  if (!id) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  if (!editInstruction) {
+    redirect(buildComicRedirect(redirectTo, "missing-page-edit-instruction"));
+  }
+
+  const asset = await prisma.comicEpisodeAsset.findUnique({
+    where: { id },
+    include: {
+      episode: {
+        include: {
+          chapter: {
+            include: {
+              season: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!asset) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  if (!isComicPageAssetType(asset.assetType) || !isComicPublishPageNumber(asset.sortOrder)) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  if (!asset.imageData) {
+    redirect(buildComicRedirect(redirectTo, "missing-source-image"));
+  }
+
+  const inputContext = JSON.stringify(
+    {
+      episode: asset.episode.title,
+      pageNumber: asset.sortOrder,
+      sourceAssetId: asset.id,
+      sourceAssetType: asset.assetType,
+      sourceAssetTitle: asset.title,
+      editInstruction
+    },
+    null,
+    2
+  );
+
+  try {
+    const { editComicPageImageWithAi } = await import("@/lib/openai-comic");
+    const editedImage = await editComicPageImageWithAi({
+      sourceImage: {
+        mimeType: asset.imageMimeType || "image/png",
+        base64Data: asset.imageData,
+        fileName: `${asset.id}.png`
+      },
+      episodeTitle: asset.episode.title,
+      pageNumber: asset.sortOrder,
+      editInstruction
+    });
+
+    const createdAsset = await prisma.comicEpisodeAsset.create({
+      data: {
+        episodeId: asset.episodeId,
+        assetType: "GENERATED_PAGE",
+        title: `${asset.episode.title} - Page ${String(asset.sortOrder).padStart(2, "0")} Edit`,
+        imageUrl: "/media/comic/pending",
+        imageData: editedImage.base64Data,
+        imageMimeType: editedImage.mimeType,
+        altText: `${asset.episode.title} comic page ${asset.sortOrder} edited candidate`,
+        caption: editInstruction,
+        sortOrder: asset.sortOrder,
+        published: false
+      },
+      select: {
+        id: true
+      }
+    });
+    const imageUrl = `/media/comic/${createdAsset.id}?v=${Date.now()}`;
+
+    await prisma.$transaction([
+      prisma.comicEpisodeAsset.update({
+        where: { id: createdAsset.id },
+        data: { imageUrl }
+      }),
+      prisma.comicPromptRun.create({
+        data: {
+          episodeId: asset.episodeId,
+          promptType: "PAGE_IMAGE_EDIT",
+          model:
+            process.env.OPENAI_COMIC_MODEL ||
+            process.env.OPENAI_POST_MODEL ||
+            process.env.OPENAI_EMAIL_MODEL ||
+            "gpt-5.5",
+          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          status: "READY",
+          inputContext,
+          outputSummary: `Edited ${asset.episode.title} page ${asset.sortOrder} from an existing page candidate.`,
+          promptPack: editInstruction
+        }
+      })
+    ]);
+
+    revalidateComicRoutes({
+      seasonSlug: asset.episode.chapter.season.slug,
+      chapterSlug: asset.episode.chapter.slug,
+      episodeSlug: asset.episode.slug
+    });
+    redirect(buildComicRedirect(redirectTo, "page-edit-created"));
+  } catch (error) {
+    await prisma.comicPromptRun.create({
+      data: {
+        episodeId: asset.episodeId,
+        promptType: "PAGE_IMAGE_EDIT",
+        model:
+          process.env.OPENAI_COMIC_MODEL ||
+          process.env.OPENAI_POST_MODEL ||
+          process.env.OPENAI_EMAIL_MODEL ||
+          "gpt-5.5",
+        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+        status: "FAILED",
+        inputContext,
+        outputSummary: `Page ${asset.sortOrder} image edit failed.`,
+        promptPack: editInstruction,
+        errorMessage: error instanceof Error ? error.message : "Unknown comic page image edit error."
+      }
+    });
+
+    revalidateComicRoutes({
+      seasonSlug: asset.episode.chapter.season.slug,
+      chapterSlug: asset.episode.chapter.slug,
+      episodeSlug: asset.episode.slug
+    });
+    redirect(buildComicRedirect(redirectTo, "page-edit-failed"));
+  }
+}
+
 export async function uploadComicPageAssetAction(formData: FormData) {
   await requireAdminSession();
 
