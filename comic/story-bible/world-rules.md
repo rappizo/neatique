@@ -23,6 +23,10 @@
 - No character should become a one-note mascot after their first impression.
 - Even comedic characters must remain emotionally credible.
 - Conflict should come from worldview, fear, timing, and values, not random cruelty.
+- All characters are handless, limbless mascot beings. No one in this world has arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid limbs.
+- Object interaction is handled through gentle telekinesis. Characters can float nearby books, bottles, papers, doors, pens, skincare tools, and props with intention, shown through manga motion lines, small emphasis marks, or subtle glow cues.
+- Everyday school life is designed around handless beings: doors, lockers, books, lab tools, dorm shelves, and campus devices respond to telekinetic nudges instead of hand contact.
+- When a script beat says someone holds, grabs, points, writes, pushes, opens, carries, or hands over an object, the visual staging should reinterpret that action as nearby-object movement controlled by thought.
 
 ## Institutional logic
 - The Luster Circle should always feel polished, credible, and persuasive.

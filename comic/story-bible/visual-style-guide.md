@@ -1,21 +1,27 @@
 # Visual Style Guide
 
 ## Overall look
-- Clean black linework
+- Black-and-white manga only
+- Clean black ink linework on white paper
+- Grayscale screentone, hatching, manga shadow shapes, and simple white highlight space
 - Soft rounded silhouettes
 - Friendly mascot readability
 - Campus-comedy warmth with mystery undertones
 - Expressions should be simple, readable, and scalable from chibi reactions to more cinematic framing
+- Do not use full color, colored accents, painterly color lighting, or rendered color palettes for final comic pages
 
 ## Character consistency rules
 - Always keep each character's silhouette stable before adding emotion.
 - Characters must be recognizable even in silhouette-only poses.
-- Model-sheet reference images are the top authority for body shape, face placement, eye style, and point direction.
+- Model-sheet reference images are the top authority for body shape, face placement, eye style, highlight marks, proportions, and point direction.
+- Treat model sheets as exact identity locks, not loose inspiration.
 - Do not let random prompts "average out" the cast into the same droplet.
+- Every character is a limbless mascot being with no arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid limbs.
+- If a beat needs an object moved, use telekinetic object movement instead of hands.
 
 ## Fixed shape language
 - **Artrans**: cream-swirl silhouette, layered spiral volume, half-lidded eyes, sly sleepy face
-- **Muci**: balanced teardrop, beginner-friendly open smile, glossy highlight marks
+- **Muci**: balanced centered teardrop, rounded base, beginner-friendly open smile, large dot eyes, glossy highlight marks near the upper-left side, cute approachable protagonist energy
 - **Nia**: taller teardrop, sharper point, one angled brow, composed confidence
 - **Padarana**: soft teardrop, closed smiling eyes, emotional warmth
 - **Padaruna**: bright rounded teardrop, energetic openness, highly expressive face
@@ -33,23 +39,31 @@
 - Group scenes should preserve silhouette readability and not let one character block the iconic profile of another.
 
 ## Color and lighting logic
-- The core comic world should support warm daylight campus scenes, calm dorm interiors, cool archive spaces, and controlled lab lighting.
-- Villain-adjacent or "Glow Standard" scenes can look cleaner, colder, and more over-optimized.
-- Emotional repair scenes should feel softer and more breathable, not aggressively dramatic.
+- Final comic pages are black-and-white manga pages, so lighting is expressed through line weight, screentone density, hatching, white space, and shadow shape.
+- The core comic world should support warm daylight campus scenes, calm dorm interiors, cool archive spaces, and controlled lab lighting through grayscale value design only.
+- Villain-adjacent or "Glow Standard" scenes can look cleaner, colder, and more over-optimized through sharper contrast and more controlled panel geometry, not color.
+- Emotional repair scenes should feel softer and more breathable through lighter screentone, open white space, and gentler linework.
 
 ## Prompting rules for gpt-image-2
+- Start every page prompt with black-and-white manga only, no color.
 - Always upload the relevant model sheet(s) for every speaking character in the panel.
 - When multiple droplets appear in one panel, call out each silhouette explicitly by name.
 - Keep line style, face placement, and body proportions consistent with the provided references.
+- State that all characters have no hands or limbs.
+- Translate holding, pointing, grabbing, opening, carrying, writing, pushing, or handing something over into telekinetic object movement with floating objects, motion lines, or subtle manga emphasis marks.
+- For Muci, explicitly repeat the centered teardrop shape, rounded base, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.
 - If a panel depends on a specific reaction, include the exact expression target in the prompt and mention which reference sheet to upload.
 
 ## Things to avoid
+- Color pages or colored accents
 - Turning every character into the same generic teardrop
 - Over-rendering that loses mascot simplicity
 - Random costume or accessory drift
 - Hyper-real textures that fight the comic line language
 - "Cute" poses that break the character's established personality rhythm
+- Any arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid limbs
+- Muci redesigns, shifted highlight marks, animal-like features, humanoid bodies, or altered teardrop proportions
 
 ## Dialogue voice locks
 - **Sunny Spritz**: hyper-enthusiastic, fast, cheerful, orientation-host energy, many exclamation marks

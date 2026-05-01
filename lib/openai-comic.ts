@@ -16,6 +16,17 @@ const DEFAULT_OPENAI_COMIC_MODEL =
   process.env.OPENAI_EMAIL_MODEL ||
   "gpt-5.5";
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
+const COMIC_VISUAL_PRODUCTION_LOCKS = [
+  "Non-negotiable visual production locks:",
+  "- Output must be black-and-white manga only: black ink linework, white paper, grayscale screentone, hatching, and manga shadow shapes. No color, no colored accents, no painterly full-color lighting.",
+  "- Keep the overall feeling cute, soft, polished, and mascot-like, not gritty or horror-styled.",
+  "- Character model sheets are the highest visual authority. Preserve each character's exact silhouette, face placement, eye style, highlight marks, proportions, and point direction from the stored reference notes and model-sheet upload list.",
+  "- Do not redesign Muci. Muci must stay a cute friendly teardrop mascot with a centered point, rounded base, large dot eyes, an open friendly smile, glossy highlight marks near the upper-left side, and soft approachable protagonist energy.",
+  "- All characters in this world are limbless mascot beings with no hands. Never draw arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid limbs on any character.",
+  "- Characters interact with nearby objects through gentle telekinesis. Show objects floating, tilting, sliding, or opening near them with small motion lines, glow cues, or manga emphasis marks instead of hands touching objects.",
+  "- If a story beat mentions holding, pointing, grabbing, writing, pushing, opening, carrying, or handing something over, translate that action into telekinetic object movement while keeping every character handless.",
+  "- Avoid adding extra characters, props, logos, product labels, watermarks, signatures, or random text."
+].join("\n");
 
 type ComicProjectContext = {
   title: string;
@@ -364,14 +375,16 @@ function buildComicPagePanelSummary(panels: GeneratedComicPanelPrompt[]) {
 export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
   return [
     "Create one finished vertical comic page for Neatique's original comic series.",
+    COMIC_VISUAL_PRODUCTION_LOCKS,
+    "",
     "Canvas and layout requirements:",
     "- Aspect ratio must be 2:3 vertical.",
     `- The page must contain exactly ${input.panelCount} panel${input.panelCount === 1 ? "" : "s"}.`,
     "- Use clear manga/webcomic page composition with clean panel gutters.",
     "- Keep the page suitable for a polished brand comic, not a rough storyboard.",
     "- Preserve character shape, facial expression language, and scene continuity from the reference notes.",
+    "- Treat all listed character model sheets as exact identity references, not loose inspiration.",
     "- If dialogue balloons are needed, keep text minimal, clean, and readable; otherwise use expressive acting and leave balloons simple.",
-    "- Do not add extra characters, extra logos, extra product labels, watermarks, signatures, or random text.",
     "",
     "Story context:",
     `Project: ${input.projectTitle}`,
@@ -581,6 +594,11 @@ export async function generateComicPromptPackageWithAi(
                 "You are Neatique's comic story architect and prompt planner.",
                 "Your job is to turn a season/chapter/episode outline into a production-ready comic prompt package.",
                 "Keep characters visually stable, emotionally consistent, and aligned with their stored canon.",
+                "Every visual prompt must enforce black-and-white manga output only.",
+                "Every visual prompt must enforce that all characters are handless limbless mascot beings.",
+                "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
+                "Muci must always match the Muci model sheet and written appearance lock exactly: cute friendly teardrop mascot, centered point, rounded base, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, soft approachable protagonist energy.",
+                "Never invent arms, hands, fingers, gloves, sleeves, humanoid bodies, animal paws, or redesigned mascot silhouettes.",
                 "You must think like a comic production assistant, not like a novelist only.",
                 "Return only valid JSON matching the schema.",
                 "Build exactly 10 pages for every episode.",
@@ -623,6 +641,9 @@ export async function generateComicPromptPackageWithAi(
                 `Summary: ${input.episode.summary}`,
                 `Outline: ${input.episode.outline}`,
                 "",
+                "Global visual production locks that must appear in the page prompts and notes:",
+                COMIC_VISUAL_PRODUCTION_LOCKS,
+                "",
                 "Locked character library:",
                 buildCharacterSummary(input.characters),
                 "",
@@ -638,13 +659,18 @@ export async function generateComicPromptPackageWithAi(
                 "- Every page should normally contain 3 panels.",
                 "- A page may contain 2 panels only when the beat is visually important enough to justify extra space.",
                 `- Assume the image generation step will use ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
+                "- Every promptPackCopyText block must state black-and-white manga only, no color.",
+                "- Every promptPackCopyText block must state that characters have no hands or limbs.",
+                "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
+                "- Every Muci prompt must explicitly preserve his model-sheet identity and cute centered-teardrop design.",
+                "- Every referenceNotesCopyText block must remind production that character model sheets are exact identity locks, not loose inspiration.",
                 "- For every page, return a promptPackCopyText block that can be pasted directly into the image-generation tool.",
                 "- For every page, return a referenceNotesCopyText block that can also be pasted directly into the image-generation tool or production notes.",
                 "- For every panel, tell the team which visual beat is happening and what needs to stay stable.",
                 "- Prefer the chapter-specific scene reference files whenever the page happens in a known chapter scene location.",
                 "- Required uploads must be organized per page, and each item must include real upload image file names plus the matching relative paths.",
                 "- Use CHARACTER for character model sheets, SCENE for reusable master location refs, and CHAPTER_SCENE for chapter-only location sheets.",
-                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, and reference reuse across all 10 pages.",
+                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, reference reuse, black-and-white manga style, model-sheet exactness, and handless telekinetic action across all 10 pages.",
                 "- Keep the tone useful, concrete, and ready for actual image production."
               ].join("\n")
             }
