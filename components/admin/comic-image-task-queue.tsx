@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  type FormEvent,
   type ReactNode,
   useCallback,
   useContext,
@@ -13,9 +14,11 @@ import {
 import { useRouter } from "next/navigation";
 
 type ComicImageTaskStatus = "queued" | "running" | "success" | "failed";
+type ComicImageTaskKind = "generate" | "edit";
 
 type ComicImageTask = {
   id: string;
+  kind: ComicImageTaskKind;
   episodeId: string;
   pageNumber: number;
   label: string;
@@ -26,12 +29,21 @@ type ComicImageTask = {
   errorMessage?: string;
   assetId?: string;
   imageUrl?: string;
+  sourceAssetId?: string;
+  editInstruction?: string;
 };
 
 type ComicImageTaskQueueContextValue = {
   maxConcurrent: number;
   tasks: ComicImageTask[];
   enqueue: (input: { episodeId: string; pageNumber: number; label?: string }) => string;
+  enqueueEdit: (input: {
+    sourceAssetId: string;
+    episodeId: string;
+    pageNumber: number;
+    editInstruction: string;
+    label?: string;
+  }) => string;
   getLatestPageTask: (episodeId: string, pageNumber: number) => ComicImageTask | null;
   clearCompleted: () => void;
 };
@@ -42,8 +54,8 @@ function formatPageLabel(pageNumber: number) {
   return `Page ${String(pageNumber).padStart(2, "0")}`;
 }
 
-function createTaskId(episodeId: string, pageNumber: number) {
-  return `${episodeId}-${pageNumber}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function createTaskId(kind: ComicImageTaskKind, episodeId: string, pageNumber: number) {
+  return `${kind}-${episodeId}-${pageNumber}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function getTaskSortTime(task: ComicImageTask) {
@@ -100,16 +112,27 @@ export function ComicImageTaskQueueProvider({
 
     for (const task of runnableTasks) {
       startedTaskIds.current.add(task.id);
+      const endpoint =
+        task.kind === "edit"
+          ? "/api/admin/comic/page-image-edit"
+          : "/api/admin/comic/page-image-generation";
+      const requestBody =
+        task.kind === "edit"
+          ? {
+              assetId: task.sourceAssetId,
+              editInstruction: task.editInstruction
+            }
+          : {
+              episodeId: task.episodeId,
+              pageNumber: task.pageNumber
+            };
 
-      void fetch("/api/admin/comic/page-image-generation", {
+      void fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          episodeId: task.episodeId,
-          pageNumber: task.pageNumber
-        })
+        body: JSON.stringify(requestBody)
       })
         .then(async (response) => {
           const payload = await response.json().catch(() => null);
@@ -155,7 +178,7 @@ export function ComicImageTaskQueueProvider({
                     errorMessage:
                       error instanceof Error
                         ? error.message
-                        : "The image generation request could not be completed."
+                        : "The image request could not be completed."
                   }
                 : currentTask
             )
@@ -168,6 +191,7 @@ export function ComicImageTaskQueueProvider({
     (input: { episodeId: string; pageNumber: number; label?: string }) => {
       const activeTask = tasksRef.current.find(
         (task) =>
+          task.kind === "generate" &&
           task.episodeId === input.episodeId &&
           task.pageNumber === input.pageNumber &&
           (task.status === "queued" || task.status === "running")
@@ -177,18 +201,63 @@ export function ComicImageTaskQueueProvider({
         return activeTask.id;
       }
 
-      const id = createTaskId(input.episodeId, input.pageNumber);
+      const id = createTaskId("generate", input.episodeId, input.pageNumber);
       const label = input.label || formatPageLabel(input.pageNumber);
 
       setTasks((currentTasks) => [
         ...currentTasks,
         {
           id,
+          kind: "generate",
           episodeId: input.episodeId,
           pageNumber: input.pageNumber,
           label,
           status: "queued",
           createdAt: Date.now()
+        }
+      ]);
+
+      return id;
+    },
+    []
+  );
+
+  const enqueueEdit = useCallback(
+    (input: {
+      sourceAssetId: string;
+      episodeId: string;
+      pageNumber: number;
+      editInstruction: string;
+      label?: string;
+    }) => {
+      const editInstruction = input.editInstruction.trim();
+      const activeTask = tasksRef.current.find(
+        (task) =>
+          task.kind === "edit" &&
+          task.sourceAssetId === input.sourceAssetId &&
+          task.editInstruction === editInstruction &&
+          (task.status === "queued" || task.status === "running")
+      );
+
+      if (activeTask) {
+        return activeTask.id;
+      }
+
+      const id = createTaskId("edit", input.episodeId, input.pageNumber);
+      const label = input.label || formatPageLabel(input.pageNumber);
+
+      setTasks((currentTasks) => [
+        ...currentTasks,
+        {
+          id,
+          kind: "edit",
+          episodeId: input.episodeId,
+          pageNumber: input.pageNumber,
+          label,
+          status: "queued",
+          createdAt: Date.now(),
+          sourceAssetId: input.sourceAssetId,
+          editInstruction
         }
       ]);
 
@@ -216,10 +285,11 @@ export function ComicImageTaskQueueProvider({
       maxConcurrent,
       tasks,
       enqueue,
+      enqueueEdit,
       getLatestPageTask,
       clearCompleted
     }),
-    [maxConcurrent, tasks, enqueue, getLatestPageTask, clearCompleted]
+    [maxConcurrent, tasks, enqueue, enqueueEdit, getLatestPageTask, clearCompleted]
   );
 
   return (
@@ -254,7 +324,12 @@ export function ComicGenerateImageQueueButton({
   const { enqueue, tasks } = useComicImageTaskQueue();
   const task =
     [...tasks]
-      .filter((candidate) => candidate.episodeId === episodeId && candidate.pageNumber === pageNumber)
+      .filter(
+        (candidate) =>
+          candidate.kind === "generate" &&
+          candidate.episodeId === episodeId &&
+          candidate.pageNumber === pageNumber
+      )
       .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
   const isActive = task?.status === "queued" || task?.status === "running";
   const label =
@@ -278,6 +353,72 @@ export function ComicGenerateImageQueueButton({
     >
       {label}
     </button>
+  );
+}
+
+export function ComicEditImageQueueForm({
+  sourceAssetId,
+  episodeId,
+  pageNumber
+}: {
+  sourceAssetId: string;
+  episodeId: string;
+  pageNumber: number;
+}) {
+  const { enqueueEdit, tasks } = useComicImageTaskQueue();
+  const [editInstruction, setEditInstruction] = useState("");
+  const [notice, setNotice] = useState("");
+  const activeEditCount = tasks.filter(
+    (task) =>
+      task.kind === "edit" &&
+      task.sourceAssetId === sourceAssetId &&
+      (task.status === "queued" || task.status === "running")
+  ).length;
+  const trimmedInstruction = editInstruction.trim();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!trimmedInstruction) {
+      setNotice("Enter an edit instruction first.");
+      return;
+    }
+
+    enqueueEdit({
+      sourceAssetId,
+      episodeId,
+      pageNumber,
+      editInstruction: trimmedInstruction,
+      label: `Edit ${formatPageLabel(pageNumber)}`
+    });
+    setEditInstruction("");
+    setNotice("Added to Image tasks.");
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="admin-comic-page-edit-form">
+      <div className="field">
+        <label htmlFor={`page-edit-${sourceAssetId}`}>Edit page</label>
+        <textarea
+          id={`page-edit-${sourceAssetId}`}
+          name="editInstruction"
+          rows={3}
+          placeholder="Describe a small image change to make from this candidate..."
+          value={editInstruction}
+          onChange={(event) => {
+            setEditInstruction(event.target.value);
+            if (notice) {
+              setNotice("");
+            }
+          }}
+          required
+        />
+      </div>
+      <button type="submit" className="button button--secondary" disabled={!trimmedInstruction}>
+        {activeEditCount > 0 ? "Queue another edit" : "Create edited draft"}
+      </button>
+      {notice ? <span className="form-note">{notice}</span> : null}
+    </form>
   );
 }
 

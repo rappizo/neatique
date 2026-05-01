@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { AdminActionResultDialog } from "@/components/admin/admin-action-result-dialog";
 import {
+  ComicEditImageQueueForm,
   ComicGenerateImageQueueButton,
   ComicImageTaskQueueProvider
 } from "@/components/admin/comic-image-task-queue";
@@ -12,7 +13,6 @@ import {
   approveComicEpisodeAssetAction,
   createChineseComicPageVersionAction,
   deleteComicEpisodeAssetAction,
-  editComicPageAssetAction,
   publishComicEpisodeFromCenterAction,
   unapproveComicEpisodeAssetAction
 } from "@/app/admin/comic-editor-actions";
@@ -636,27 +636,11 @@ export default async function AdminComicPublishChapterPage({
                                       {asset.published ? "Remove approval" : "Approve this page"}
                                     </button>
                                   </form>
-                                  <form action={editComicPageAssetAction} className="admin-comic-page-edit-form">
-                                    <input type="hidden" name="id" value={asset.id} />
-                                    <input type="hidden" name="redirectTo" value={redirectTo} />
-                                    <div className="field">
-                                      <label htmlFor={`page-edit-${asset.id}`}>Edit page</label>
-                                      <textarea
-                                        id={`page-edit-${asset.id}`}
-                                        name="editInstruction"
-                                        rows={3}
-                                        placeholder="Describe a small image change to make from this candidate..."
-                                        required
-                                      />
-                                    </div>
-                                    <PendingSubmitButton
-                                      idleLabel="Create edited draft"
-                                      pendingLabel="Editing..."
-                                      className="button button--secondary"
-                                      modalTitle={`Editing ${formatPageLabel(pageNumber)}`}
-                                      modalDescription="The image API is using this page as the reference and applying your requested adjustment."
-                                    />
-                                  </form>
+                                  <ComicEditImageQueueForm
+                                    sourceAssetId={asset.id}
+                                    episodeId={episode.id}
+                                    pageNumber={pageNumber}
+                                  />
                                   {asset.published ? (
                                     <form action={createChineseComicPageVersionAction}>
                                       <input type="hidden" name="id" value={asset.id} />
