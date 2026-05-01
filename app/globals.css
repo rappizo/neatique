@@ -3907,6 +3907,42 @@ main {
   display: block;
 }
 
+.comic-page-toolbar {
+  align-items: center;
+}
+
+.comic-page-toolbar--right {
+  justify-content: flex-end;
+}
+
+.comic-language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  margin-left: auto;
+  border: 1px solid rgba(237, 115, 97, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.comic-language-switcher a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.comic-language-switcher a.is-active {
+  background: var(--ink);
+  color: white;
+}
+
 .comic-card__cover,
 .comic-episode-cover {
   overflow: hidden;

@@ -1,14 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ComicLanguageSwitcher } from "@/components/site/comic-language-switcher";
+import { getComicLanguageHref, getComicLanguageState } from "@/lib/comic-language";
 import { getPublishedComicEpisodeBySlugs } from "@/lib/comic-queries";
 
 type ComicEpisodePageProps = {
   params: Promise<{ seasonSlug: string; chapterSlug: string; episodeSlug: string }>;
+  searchParams: Promise<{ lang?: string }>;
 };
 
-export default async function ComicEpisodePage({ params }: ComicEpisodePageProps) {
+export default async function ComicEpisodePage({ params, searchParams }: ComicEpisodePageProps) {
   const { seasonSlug, chapterSlug, episodeSlug } = await params;
-  const episode = await getPublishedComicEpisodeBySlugs(seasonSlug, chapterSlug, episodeSlug);
+  const query = await searchParams;
+  const languageState = await getComicLanguageState(query);
+  const episode = await getPublishedComicEpisodeBySlugs(
+    seasonSlug,
+    chapterSlug,
+    episodeSlug,
+    languageState.language
+  );
+  const isChinese = languageState.language === "zh";
 
   if (!episode) {
     notFound();
@@ -17,10 +28,21 @@ export default async function ComicEpisodePage({ params }: ComicEpisodePageProps
   return (
     <section className="section">
       <div className="container">
-        <div className="stack-row">
-          <Link href={`/comic/${seasonSlug}/${chapterSlug}`} className="button button--secondary">
-            Back to chapter
+        <div className="stack-row comic-page-toolbar">
+          <Link
+            href={getComicLanguageHref(
+              `/comic/${seasonSlug}/${chapterSlug}`,
+              languageState.language
+            )}
+            className="button button--secondary"
+          >
+            {isChinese ? "返回章节" : "Back to chapter"}
           </Link>
+          <ComicLanguageSwitcher
+            basePath={`/comic/${seasonSlug}/${chapterSlug}/${episodeSlug}`}
+            language={languageState.language}
+            show={languageState.showSwitcher}
+          />
         </div>
 
         <div className="page-hero">
@@ -31,7 +53,9 @@ export default async function ComicEpisodePage({ params }: ComicEpisodePageProps
           <p>{episode.summary}</p>
           <div className="page-hero__stats">
             <span className="pill">Episode {episode.episodeNumber}</span>
-            <span className="pill">{episode.assets.length} published comic pages</span>
+            <span className="pill">
+              {episode.assets.length} {isChinese ? "页已发布漫画" : "published comic pages"}
+            </span>
           </div>
         </div>
 
@@ -43,10 +67,11 @@ export default async function ComicEpisodePage({ params }: ComicEpisodePageProps
 
         <section className="panel comic-episode-reader">
           <div className="comic-episode-reader__intro">
-            <h2>Episode pages</h2>
+            <h2>{isChinese ? "本集漫画页" : "Episode pages"}</h2>
             <p>
-              Read the finished episode below. Only published comic assets appear here, so drafts
-              stay hidden until they are ready.
+              {isChinese
+                ? "下方显示已发布的正式漫画页。草稿会继续隐藏，直到后台完成审核。"
+                : "Read the finished episode below. Only published comic assets appear here, so drafts stay hidden until they are ready."}
             </p>
           </div>
 

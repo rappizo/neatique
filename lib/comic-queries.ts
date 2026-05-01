@@ -22,6 +22,7 @@ import type {
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { prisma } from "@/lib/db";
 import { getComicChapterSceneReferenceState } from "@/lib/comic-reference-manifest";
+import type { ComicLanguage } from "@/lib/comic-language";
 
 function isMissingComicTableError(error: unknown) {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2021") {
@@ -626,6 +627,8 @@ export async function getComicPromptStudioPage(selectedEpisodeId?: string | null
 
 const COMIC_REQUIRED_PAGES_PER_EPISODE = 10;
 const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
+const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
+const COMIC_PUBLIC_PAGE_ASSET_TYPES = [...COMIC_PAGE_ASSET_TYPES, COMIC_CHINESE_PAGE_ASSET_TYPE];
 
 type ComicPageApprovalCandidate = Pick<
   ComicEpisodeAssetRecord,
@@ -653,6 +656,47 @@ function getApprovedRequiredPageCount(assets: ComicPageApprovalCandidate[]) {
 
 function hasAllRequiredComicPages(assets: ComicPageApprovalCandidate[]) {
   return getApprovedRequiredPageCount(assets) === COMIC_REQUIRED_PAGES_PER_EPISODE;
+}
+
+function getPublicComicAssetsForLanguage(
+  assets: ComicEpisodeAssetRecord[],
+  language: ComicLanguage
+) {
+  const englishAssets = assets
+    .filter(
+      (asset) =>
+        isComicPageAsset(asset) &&
+        asset.published &&
+        isRequiredComicPageNumber(asset.sortOrder)
+    )
+    .sort((left, right) => {
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder;
+      }
+
+      return left.createdAt.getTime() - right.createdAt.getTime();
+    });
+
+  if (language !== "zh") {
+    return englishAssets;
+  }
+
+  const chineseByPage = new Map<number, ComicEpisodeAssetRecord>();
+  assets
+    .filter(
+      (asset) =>
+        asset.assetType === COMIC_CHINESE_PAGE_ASSET_TYPE &&
+        asset.published &&
+        isRequiredComicPageNumber(asset.sortOrder)
+    )
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+    .forEach((asset) => {
+      if (!chineseByPage.has(asset.sortOrder)) {
+        chineseByPage.set(asset.sortOrder, asset);
+      }
+    });
+
+  return englishAssets.map((asset) => chineseByPage.get(asset.sortOrder) || asset);
 }
 
 export async function getComicPublishCenter() {
@@ -783,7 +827,7 @@ export async function getComicPublishCenter() {
   );
 }
 
-export async function getPublishedComicLibrary() {
+export async function getPublishedComicLibrary(language: ComicLanguage = "en") {
   return withComicFallback<ComicPublicSeasonRecord[]>(
     async () => {
       const seasons = await prisma.comicSeason.findMany({
@@ -840,7 +884,7 @@ export async function getPublishedComicLibrary() {
                   assets: {
                     where: {
                       published: true,
-                      assetType: { in: COMIC_PAGE_ASSET_TYPES },
+                      assetType: { in: COMIC_PUBLIC_PAGE_ASSET_TYPES },
                       sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
                     },
                     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
@@ -863,7 +907,10 @@ export async function getPublishedComicLibrary() {
                 .filter((episode) => hasAllRequiredComicPages(episode.assets))
                 .map((episode): ComicPublicEpisodeRecord => ({
                   ...mapComicEpisode(episode),
-                  assets: episode.assets.map(mapComicEpisodeAsset),
+                  assets: getPublicComicAssetsForLanguage(
+                    episode.assets.map(mapComicEpisodeAsset),
+                    language
+                  ),
                   seasonTitle: season.title,
                   seasonSlug: season.slug,
                   chapterTitle: chapter.title,
@@ -890,13 +937,20 @@ export async function getPublishedComicLibrary() {
   );
 }
 
-export async function getPublishedComicSeasonBySlug(seasonSlug: string) {
-  const seasons = await getPublishedComicLibrary();
+export async function getPublishedComicSeasonBySlug(
+  seasonSlug: string,
+  language: ComicLanguage = "en"
+) {
+  const seasons = await getPublishedComicLibrary(language);
   return seasons.find((season) => season.slug === seasonSlug) ?? null;
 }
 
-export async function getPublishedComicChapterBySlugs(seasonSlug: string, chapterSlug: string) {
-  const season = await getPublishedComicSeasonBySlug(seasonSlug);
+export async function getPublishedComicChapterBySlugs(
+  seasonSlug: string,
+  chapterSlug: string,
+  language: ComicLanguage = "en"
+) {
+  const season = await getPublishedComicSeasonBySlug(seasonSlug, language);
   if (!season) {
     return null;
   }
@@ -907,9 +961,10 @@ export async function getPublishedComicChapterBySlugs(seasonSlug: string, chapte
 export async function getPublishedComicEpisodeBySlugs(
   seasonSlug: string,
   chapterSlug: string,
-  episodeSlug: string
+  episodeSlug: string,
+  language: ComicLanguage = "en"
 ) {
-  const chapter = await getPublishedComicChapterBySlugs(seasonSlug, chapterSlug);
+  const chapter = await getPublishedComicChapterBySlugs(seasonSlug, chapterSlug, language);
   if (!chapter) {
     return null;
   }

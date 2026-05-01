@@ -1,14 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ComicLanguageSwitcher } from "@/components/site/comic-language-switcher";
+import { getComicLanguageHref, getComicLanguageState } from "@/lib/comic-language";
 import { getPublishedComicChapterBySlugs } from "@/lib/comic-queries";
 
 type ComicChapterPageProps = {
   params: Promise<{ seasonSlug: string; chapterSlug: string }>;
+  searchParams: Promise<{ lang?: string }>;
 };
 
-export default async function ComicChapterPage({ params }: ComicChapterPageProps) {
+export default async function ComicChapterPage({ params, searchParams }: ComicChapterPageProps) {
   const { seasonSlug, chapterSlug } = await params;
-  const chapter = await getPublishedComicChapterBySlugs(seasonSlug, chapterSlug);
+  const query = await searchParams;
+  const languageState = await getComicLanguageState(query);
+  const chapter = await getPublishedComicChapterBySlugs(
+    seasonSlug,
+    chapterSlug,
+    languageState.language
+  );
+  const isChinese = languageState.language === "zh";
 
   if (!chapter) {
     notFound();
@@ -17,10 +27,18 @@ export default async function ComicChapterPage({ params }: ComicChapterPageProps
   return (
     <section className="section">
       <div className="container">
-        <div className="stack-row">
-          <Link href={`/comic/${seasonSlug}`} className="button button--secondary">
-            Back to season
+        <div className="stack-row comic-page-toolbar">
+          <Link
+            href={getComicLanguageHref(`/comic/${seasonSlug}`, languageState.language)}
+            className="button button--secondary"
+          >
+            {isChinese ? "返回本季" : "Back to season"}
           </Link>
+          <ComicLanguageSwitcher
+            basePath={`/comic/${seasonSlug}/${chapterSlug}`}
+            language={languageState.language}
+            show={languageState.showSwitcher}
+          />
         </div>
 
         <div className="page-hero">
@@ -30,7 +48,9 @@ export default async function ComicChapterPage({ params }: ComicChapterPageProps
           <h1>{chapter.title}</h1>
           <p>{chapter.summary}</p>
           <div className="page-hero__stats">
-            <span className="pill">{chapter.episodes.length} published episodes</span>
+            <span className="pill">
+              {chapter.episodes.length} {isChinese ? "集已发布" : "published episodes"}
+            </span>
           </div>
         </div>
 
@@ -38,7 +58,13 @@ export default async function ComicChapterPage({ params }: ComicChapterPageProps
           {chapter.episodes.map((episode) => (
             <article key={episode.id} className="panel comic-card comic-card--episode">
               {episode.coverImageUrl ? (
-                <Link href={`/comic/${seasonSlug}/${chapterSlug}/${episode.slug}`} className="comic-card__image-link">
+                <Link
+                  href={getComicLanguageHref(
+                    `/comic/${seasonSlug}/${chapterSlug}/${episode.slug}`,
+                    languageState.language
+                  )}
+                  className="comic-card__image-link"
+                >
                   <div className="comic-card__cover">
                     <img
                       src={episode.coverImageUrl}
@@ -48,7 +74,13 @@ export default async function ComicChapterPage({ params }: ComicChapterPageProps
                   </div>
                 </Link>
               ) : episode.assets[0] ? (
-                <Link href={`/comic/${seasonSlug}/${chapterSlug}/${episode.slug}`} className="comic-card__image-link">
+                <Link
+                  href={getComicLanguageHref(
+                    `/comic/${seasonSlug}/${chapterSlug}/${episode.slug}`,
+                    languageState.language
+                  )}
+                  className="comic-card__image-link"
+                >
                   <div className="comic-card__cover">
                     <img
                       src={episode.assets[0].imageUrl}
@@ -63,14 +95,19 @@ export default async function ComicChapterPage({ params }: ComicChapterPageProps
                 <h2>{episode.title}</h2>
                 <p>{episode.summary}</p>
                 <div className="stack-row">
-                  <span className="pill">{episode.assets.length} comic pages</span>
+                  <span className="pill">
+                    {episode.assets.length} {isChinese ? "页漫画" : "comic pages"}
+                  </span>
                 </div>
                 <div className="stack-row">
                   <Link
-                    href={`/comic/${seasonSlug}/${chapterSlug}/${episode.slug}`}
+                    href={getComicLanguageHref(
+                      `/comic/${seasonSlug}/${chapterSlug}/${episode.slug}`,
+                      languageState.language
+                    )}
                     className="button button--primary"
                   >
-                    Read episode
+                    {isChinese ? "阅读本集" : "Read episode"}
                   </Link>
                 </div>
               </div>

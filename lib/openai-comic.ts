@@ -32,6 +32,15 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- If a story beat mentions holding, pointing, grabbing, writing, pushing, opening, carrying, or handing something over, translate that action into telekinetic object movement while keeping every character handless.",
   "- Avoid adding extra characters, props, logos, product labels, watermarks, signatures, or random text."
 ].join("\n");
+const COMIC_CHINESE_NAME_LOCKS = [
+  "Character Chinese name locks:",
+  "- Muci = 慕西",
+  "- Artrans = 安川西",
+  "- Nia = 尼亚",
+  "- Padaruna = 啪嗒瑞娜",
+  "- Padarana = 啪嗒安娜",
+  "- Snacri = 斯奈奎"
+].join("\n");
 
 type ComicProjectContext = {
   title: string;
@@ -147,6 +156,12 @@ export type GenerateComicPageImageInput = {
 export type GeneratedComicPageImageAsset = {
   mimeType: string;
   base64Data: string;
+};
+
+export type ComicPageImageReferenceAsset = {
+  mimeType: string;
+  base64Data: string;
+  fileName: string;
 };
 
 type GenerateComicPromptPackageInput = {
@@ -468,6 +483,79 @@ export async function generateComicPageImageWithAi(
     }
 
     throw new Error("Comic image API did not return a comic page image.");
+  }
+
+  return parseImageBase64Response(base64Data);
+}
+
+export async function generateChineseComicPageVersionWithAi(input: {
+  sourceImage: ComicPageImageReferenceAsset;
+  pageNumber: number;
+  episodeTitle: string;
+}): Promise<GeneratedComicPageImageAsset> {
+  const imageApiSettings = getComicImageApiSettings();
+
+  if (!imageApiSettings.apiKey) {
+    throw new Error("Comic image API key is not configured.");
+  }
+
+  const formData = new FormData();
+  const sourceBuffer = Buffer.from(input.sourceImage.base64Data, "base64");
+  formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
+  formData.append(
+    "prompt",
+    [
+      "Create a Simplified Chinese version of the supplied approved comic page.",
+      "Edit only the visible text on the page. Translate speech balloons, captions, signs, labels, and small readable English page text into natural Simplified Chinese.",
+      "Keep the page art, panel layout, camera angles, character poses, character proportions, facial expressions, linework, gutters, page size, and composition unchanged.",
+      "Do not redraw or redesign any character. Preserve the clean black-and-white manga style, pure white mascot body fills, and crisp black ink linework.",
+      "Keep text short enough to fit the original balloon or sign areas. Use clean readable Chinese lettering.",
+      "Use these required character names exactly when names appear:",
+      COMIC_CHINESE_NAME_LOCKS,
+      "Do not add new English text, watermarks, logos, signatures, extra panels, or extra characters.",
+      `Episode: ${input.episodeTitle}`,
+      `Page: ${input.pageNumber}`
+    ].join("\n")
+  );
+  formData.append("size", "1024x1536");
+  formData.append("quality", "medium");
+  formData.append(
+    "image",
+    new Blob([new Uint8Array(sourceBuffer)], { type: input.sourceImage.mimeType }),
+    input.sourceImage.fileName
+  );
+
+  const response = await fetch(`${imageApiSettings.baseUrl}/images/edits`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${imageApiSettings.apiKey}`
+    },
+    body: formData
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `Comic Chinese page creation failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
+  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
+  const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
+
+  if (!base64Data) {
+    if (imageUrl) {
+      return fetchImageUrlAsBase64(imageUrl);
+    }
+
+    throw new Error("Comic image API did not return a Chinese comic page image.");
   }
 
   return parseImageBase64Response(base64Data);
