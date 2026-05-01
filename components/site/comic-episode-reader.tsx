@@ -35,26 +35,47 @@ export function ComicEpisodeReader({
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const currentPage = pages[currentIndex];
   const isChinese = language === "zh";
+  const canGoPrevious = currentIndex > 0 || Boolean(previousEpisodeHref);
+  const canGoNext = currentIndex < pages.length - 1 || Boolean(nextEpisodeHref);
+
+  function keepScrollAfterUpdate(update: () => void) {
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    update();
+    requestAnimationFrame(() => {
+      window.scrollTo(scrollX, scrollY);
+      requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
+    });
+  }
+
+  function goToPage(index: number) {
+    if (index === currentIndex || index < 0 || index >= pages.length) {
+      return;
+    }
+
+    keepScrollAfterUpdate(() => setCurrentIndex(index));
+  }
 
   function goToPreviousPage() {
     if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+      goToPage(currentIndex - 1);
       return;
     }
 
     if (previousEpisodeHref) {
-      router.push(previousEpisodeHref);
+      router.push(previousEpisodeHref, { scroll: false });
     }
   }
 
   function goToNextPage() {
     if (currentIndex < pages.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      goToPage(currentIndex + 1);
       return;
     }
 
     if (nextEpisodeHref) {
-      router.push(nextEpisodeHref);
+      router.push(nextEpisodeHref, { scroll: false });
     }
   }
 
@@ -94,7 +115,6 @@ export function ComicEpisodeReader({
         onTouchEnd={handleTouchEnd}
       >
         <Image
-          key={currentPage.id}
           src={currentPage.imageUrl}
           alt={currentPage.altText || currentPage.title}
           width={1200}
@@ -103,6 +123,24 @@ export function ComicEpisodeReader({
           priority
           unoptimized
         />
+        <button
+          type="button"
+          className="comic-reader-arrow comic-reader-arrow--prev"
+          onClick={goToPreviousPage}
+          disabled={!canGoPrevious}
+          aria-label={isChinese ? "上一页" : "Previous page"}
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          className="comic-reader-arrow comic-reader-arrow--next"
+          onClick={goToNextPage}
+          disabled={!canGoNext}
+          aria-label={isChinese ? "下一页" : "Next page"}
+        >
+          ›
+        </button>
       </div>
 
       <div className="comic-reader-pagination" aria-label={isChinese ? "漫画页码" : "Comic pages"}>
@@ -111,6 +149,7 @@ export function ComicEpisodeReader({
             href={previousEpisodeHref}
             className="comic-reader-episode-link"
             title={previousEpisodeLabel}
+            scroll={false}
           >
             {isChinese ? "上一话" : "Prev"}
           </Link>
@@ -126,7 +165,7 @@ export function ComicEpisodeReader({
               key={page.id}
               type="button"
               className={index === currentIndex ? "is-active" : undefined}
-              onClick={() => setCurrentIndex(index)}
+              onClick={() => goToPage(index)}
               aria-current={index === currentIndex ? "page" : undefined}
               aria-label={`${isChinese ? "第" : "Page "} ${index + 1}`}
             >
@@ -136,7 +175,12 @@ export function ComicEpisodeReader({
         </div>
 
         {nextEpisodeHref ? (
-          <Link href={nextEpisodeHref} className="comic-reader-episode-link" title={nextEpisodeLabel}>
+          <Link
+            href={nextEpisodeHref}
+            className="comic-reader-episode-link"
+            title={nextEpisodeLabel}
+            scroll={false}
+          >
             {isChinese ? "下一话" : "Next"}
           </Link>
         ) : (

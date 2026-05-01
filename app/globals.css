@@ -4080,9 +4080,13 @@ main {
 }
 
 .comic-reader-stage {
+  position: relative;
   display: flex;
+  align-items: center;
   justify-content: center;
   overflow: hidden;
+  height: min(calc(100vh - 255px), 900px);
+  min-height: 420px;
   border: 1px solid rgba(46, 40, 37, 0.1);
   border-radius: 8px;
   background: #fff;
@@ -4091,11 +4095,52 @@ main {
 }
 
 .comic-reader-image {
-  width: auto;
+  width: 100%;
   max-width: 100%;
-  height: auto;
-  max-height: calc(100vh - 255px);
+  height: 100%;
   object-fit: contain;
+}
+
+.comic-reader-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 76px;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 999px;
+  background: rgba(46, 40, 37, 0.28);
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  font-size: 2.5rem;
+  line-height: 1;
+  transform: translateY(-50%);
+  backdrop-filter: blur(8px);
+  transition:
+    background 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.comic-reader-arrow:hover {
+  background: rgba(46, 40, 37, 0.42);
+  transform: translateY(-50%) scale(1.04);
+}
+
+.comic-reader-arrow:disabled {
+  cursor: default;
+  opacity: 0.18;
+}
+
+.comic-reader-arrow--prev {
+  left: 14px;
+}
+
+.comic-reader-arrow--next {
+  right: 14px;
 }
 
 .comic-reader-pagination {
@@ -4858,6 +4903,23 @@ main {
 }
 
 @media (max-width: 720px) {
+  .site-shell:has(.comic-reader-page) .announcement-bar,
+  .site-shell:has(.comic-reader-page) .site-header {
+    display: none;
+  }
+
+  .comic-reader-page {
+    padding-top: 12px;
+  }
+
+  .comic-reader-page .comic-page-toolbar {
+    margin-bottom: 14px;
+  }
+
+  .comic-reader-page .comic-reader-header {
+    margin-bottom: 14px;
+  }
+
   .site-footer__bottom,
   .product-card__bottom {
     flex-direction: column;
@@ -4966,7 +5028,28 @@ main {
 
   .comic-reader-image {
     width: 100%;
+    height: 100%;
+  }
+
+  .comic-reader-stage {
+    height: calc((100vw - 32px) * 1.5);
+    min-height: 0;
     max-height: none;
+  }
+
+  .comic-reader-arrow {
+    width: 38px;
+    height: 62px;
+    background: rgba(46, 40, 37, 0.24);
+    font-size: 2.1rem;
+  }
+
+  .comic-reader-arrow--prev {
+    left: 8px;
+  }
+
+  .comic-reader-arrow--next {
+    right: 8px;
   }
 
   .comic-reader-pagination {
