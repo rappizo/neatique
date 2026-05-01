@@ -1,15 +1,19 @@
 {
-  "silhouette": "Clean cute teardrop silhouette with a centered point, rounded base, and two small rounded feet at the bottom. Exact match to the Muci model sheet.",
+  "silhouette": "Clean cute compact teardrop silhouette with a centered point, broad rounded base, short rounded body, and two small rounded feet at the bottom. Exact match to the Muci model sheet.",
   "face": "Large dot eyes, open friendly smile, glossy highlight marks near the upper-left side.",
+  "body_fill": "Pure white interior fill with clean black outline, matching the concept/model sheet. No gray body fill, gradient shading, smoky shadows, heavy screentone, or charcoal texture on the character.",
+  "proportions": "Broad, squat, and compact. In a front full-body view, the body height should feel only about 1.2 to 1.35 times the body width. Never tall, thin, stretched, pear-like, or a long raindrop.",
   "body_language": "Approachable, beginner-friendly, soft and balanced. No arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, shoes, or humanoid upper limbs.",
   "object_interaction": "Muci moves nearby objects through gentle telekinesis shown with floating props, motion lines, or subtle manga emphasis marks.",
   "do_not_change": [
     "Keep the centered point.",
     "Keep the highlight marks.",
-    "Keep the rounded base, two small rounded feet, and dot-eye spacing.",
+    "Keep the broad rounded base, compact body proportions, pure white body fill, two small rounded feet, and dot-eye spacing.",
     "Do not harden the default expression.",
     "Do not add hands, arms, fingers, paws, gloves, sleeves, wrists, elbows, shoes, or a humanoid body.",
     "Do not remove, flatten, crop away, or redesign Muci's two small rounded feet in full-body views.",
+    "Do not stretch Muci into a tall narrow droplet or long pear shape.",
+    "Do not fill Muci with gray, gradients, screentone, smoky shadows, or charcoal texture.",
     "Do not redesign Muci away from the model-sheet teardrop."
   ]
 }

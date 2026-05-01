@@ -2,13 +2,15 @@
 
 ## Overall look
 - Black-and-white manga only
-- Clean black ink linework on white paper
-- Grayscale screentone, hatching, manga shadow shapes, and simple white highlight space
+- Clean Japanese manga linework: crisp black ink on pure white paper
+- High-contrast, open, readable panel art with generous white space
+- Sparse grayscale screentone, hatching, manga shadow shapes, and simple white highlight space only where needed
 - Soft rounded silhouettes
 - Friendly mascot readability
 - Campus-comedy warmth with mystery undertones
 - Expressions should be simple, readable, and scalable from chibi reactions to more cinematic framing
 - Do not use full color, colored accents, painterly color lighting, or rendered color palettes for final comic pages
+- Do not use gray wash, muddy charcoal shading, smoky overlays, or heavy airbrush texture.
 
 ## Character consistency rules
 - Always keep each character's silhouette stable before adding emotion.
@@ -18,11 +20,12 @@
 - Do not let random prompts "average out" the cast into the same droplet.
 - Every character is a handless mascot being with no arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs.
 - Preserve any feet, lower body nubs, base shape, or tiny legs exactly as shown in the character's model sheet.
+- Character body interiors must stay pure white like the concept/model sheets. Do not fill mascot bodies with gray, gradients, screentone, or shadow haze.
 - If a beat needs an object moved, use telekinetic object movement instead of hands.
 
 ## Fixed shape language
 - **Artrans**: cream-swirl silhouette, layered spiral volume, half-lidded eyes, sly sleepy face
-- **Muci**: balanced centered teardrop, rounded base, two small rounded feet at the bottom, beginner-friendly open smile, large dot eyes, glossy highlight marks near the upper-left side, cute approachable protagonist energy
+- **Muci**: compact broad centered teardrop, rounded base, short rounded body, two small rounded feet at the bottom, beginner-friendly open smile, large dot eyes, glossy highlight marks near the upper-left side, pure white body fill, cute approachable protagonist energy
 - **Nia**: taller teardrop, sharper point, one angled brow, composed confidence
 - **Padarana**: soft teardrop, closed smiling eyes, emotional warmth
 - **Padaruna**: bright rounded teardrop, energetic openness, highly expressive face
@@ -41,25 +44,29 @@
 
 ## Color and lighting logic
 - Final comic pages are black-and-white manga pages, so lighting is expressed through line weight, screentone density, hatching, white space, and shadow shape.
+- Character bodies, especially Muci, should remain pure white with clean black outlines. Put mood tone in backgrounds, cast shadows, panel framing, and small accents instead of filling characters gray.
 - The core comic world should support warm daylight campus scenes, calm dorm interiors, cool archive spaces, and controlled lab lighting through grayscale value design only.
 - Villain-adjacent or "Glow Standard" scenes can look cleaner, colder, and more over-optimized through sharper contrast and more controlled panel geometry, not color.
 - Emotional repair scenes should feel softer and more breathable through lighter screentone, open white space, and gentler linework.
 
 ## Prompting rules for gpt-image-2
-- Start every page prompt with black-and-white manga only, no color.
+- Start every page prompt with clean high-contrast black-and-white manga only, no color, no gray wash.
 - Always upload the relevant model sheet(s) for every speaking character in the panel.
 - When multiple droplets appear in one panel, call out each silhouette explicitly by name.
 - Keep line style, face placement, feet/lower-body nubs, and body proportions consistent with the provided references.
+- State that character bodies must have pure white fill like the model sheets.
 - State that all characters have no hands or arms.
 - State that feet or lower-body nubs must remain exactly as shown in the model sheet.
 - Translate holding, pointing, grabbing, opening, carrying, writing, pushing, or handing something over into telekinetic object movement with floating objects, motion lines, or subtle manga emphasis marks.
-- For Muci, explicitly repeat the centered teardrop shape, rounded base, two small rounded feet, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
+- For Muci, explicitly repeat the compact broad centered teardrop shape, short rounded body, rounded base, two small rounded feet, pure white body fill, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.
 - If a panel depends on a specific reaction, include the exact expression target in the prompt and mention which reference sheet to upload.
 
 ## Things to avoid
 - Color pages or colored accents
+- Gray wash, muddy gray pages, gray-filled character bodies, over-toned characters, or smoky charcoal rendering
 - Turning every character into the same generic teardrop
+- Stretching Muci into a tall narrow droplet
 - Over-rendering that loses mascot simplicity
 - Random costume or accessory drift
 - Hyper-real textures that fight the comic line language
