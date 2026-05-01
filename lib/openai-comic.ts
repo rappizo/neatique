@@ -1,4 +1,15 @@
-const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL || "https://api.openai.com/v1";
+import { Buffer } from "node:buffer";
+
+function normalizeApiBaseUrl(value: string) {
+  return (value.trim() || "https://api.openai.com/v1").replace(/\/+$/, "");
+}
+
+const OPENAI_API_BASE_URL = normalizeApiBaseUrl(
+  process.env.OPENAI_API_BASE_URL || "https://api.openai.com/v1"
+);
+const OPENAI_COMIC_IMAGE_API_BASE_URL = normalizeApiBaseUrl(
+  process.env.OPENAI_COMIC_IMAGE_API_BASE_URL || OPENAI_API_BASE_URL
+);
 const DEFAULT_OPENAI_COMIC_MODEL =
   process.env.OPENAI_COMIC_MODEL ||
   process.env.OPENAI_POST_MODEL ||
@@ -136,14 +147,37 @@ function getOpenAiApiKey() {
   return (process.env.OPENAI_API_KEY || "").trim();
 }
 
+function getComicImageApiSettings() {
+  const comicImageApiKey = (process.env.OPENAI_COMIC_IMAGE_API_KEY || "").trim();
+
+  if (comicImageApiKey) {
+    return {
+      apiKey: comicImageApiKey,
+      baseUrl: OPENAI_COMIC_IMAGE_API_BASE_URL,
+      apiKeySource: "OPENAI_COMIC_IMAGE_API_KEY"
+    };
+  }
+
+  return {
+    apiKey: getOpenAiApiKey(),
+    baseUrl: OPENAI_API_BASE_URL,
+    apiKeySource: "OPENAI_API_KEY"
+  };
+}
+
 export function getOpenAiComicSettings() {
   const apiKey = getOpenAiApiKey();
+  const imageApiSettings = getComicImageApiSettings();
 
   return {
     ready: Boolean(apiKey),
+    imageReady: Boolean(imageApiSettings.apiKey),
     model: DEFAULT_OPENAI_COMIC_MODEL,
     imageModel: DEFAULT_OPENAI_COMIC_IMAGE_MODEL,
-    apiKeyConfigured: Boolean(apiKey)
+    apiKeyConfigured: Boolean(apiKey),
+    imageApiKeyConfigured: Boolean(imageApiSettings.apiKey),
+    imageApiKeySource: imageApiSettings.apiKeySource,
+    imageApiBaseUrl: imageApiSettings.baseUrl
   };
 }
 
@@ -180,6 +214,38 @@ function extractOpenAiErrorMessage(error: unknown) {
   }
 
   return null;
+}
+
+function parseImageBase64Response(value: string): GeneratedComicPageImageAsset {
+  const dataUrlMatch = value.match(/^data:([^;]+);base64,([\s\S]+)$/);
+
+  if (dataUrlMatch) {
+    return {
+      mimeType: dataUrlMatch[1] || "image/png",
+      base64Data: dataUrlMatch[2].trim()
+    };
+  }
+
+  return {
+    mimeType: "image/png",
+    base64Data: value
+  };
+}
+
+async function fetchImageUrlAsBase64(url: string): Promise<GeneratedComicPageImageAsset> {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Comic image API returned a URL, but downloading it failed with ${response.status}.`);
+  }
+
+  const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "image/png";
+  const arrayBuffer = await response.arrayBuffer();
+
+  return {
+    mimeType: contentType,
+    base64Data: Buffer.from(arrayBuffer).toString("base64")
+  };
 }
 
 function buildCharacterSummary(characters: ComicCharacterContext[]) {
@@ -339,18 +405,18 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
 export async function generateComicPageImageWithAi(
   input: GenerateComicPageImageInput
 ): Promise<GeneratedComicPageImageAsset> {
-  const apiKey = getOpenAiApiKey();
+  const imageApiSettings = getComicImageApiSettings();
 
-  if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+  if (!imageApiSettings.apiKey) {
+    throw new Error("Comic image API key is not configured.");
   }
 
   const prompt = buildComicPageImagePrompt(input);
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/images/generations`, {
+  const response = await fetch(`${imageApiSettings.baseUrl}/images/generations`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${imageApiSettings.apiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -376,15 +442,17 @@ export async function generateComicPageImageWithAi(
 
   const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
   const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
+  const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
 
   if (!base64Data) {
-    throw new Error("OpenAI did not return a comic page image.");
+    if (imageUrl) {
+      return fetchImageUrlAsBase64(imageUrl);
+    }
+
+    throw new Error("Comic image API did not return a comic page image.");
   }
 
-  return {
-    mimeType: "image/png",
-    base64Data
-  };
+  return parseImageBase64Response(base64Data);
 }
 
 export async function generateComicPromptPackageWithAi(

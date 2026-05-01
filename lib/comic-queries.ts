@@ -681,6 +681,9 @@ export async function getComicPublishCenter() {
                     }
                   },
                   promptRuns: {
+                    where: {
+                      promptType: "PAGE_IMAGE_GENERATION"
+                    },
                     orderBy: [{ createdAt: "desc" }],
                     take: 1
                   },
@@ -733,6 +736,7 @@ export async function getComicPublishCenter() {
             const approvedPageCount = getApprovedRequiredPageCount(pageAssets);
             const draftPageCount = draftPages.length;
             const canPublish = approvedPageCount === COMIC_REQUIRED_PAGES_PER_EPISODE;
+            const latestImageGenerationRun = episode.promptRuns[0] || null;
 
             if (canPublish && !episode.published) {
               readyEpisodeCount += 1;
@@ -749,6 +753,12 @@ export async function getComicPublishCenter() {
               draftPageCount,
               requiredPageCount: COMIC_REQUIRED_PAGES_PER_EPISODE,
               canPublish,
+              latestImageGenerationAt: latestImageGenerationRun?.createdAt
+                ? new Date(latestImageGenerationRun.createdAt)
+                : null,
+              latestImageGenerationStatus: latestImageGenerationRun?.status ?? null,
+              latestImageGenerationSummary: latestImageGenerationRun?.outputSummary ?? null,
+              latestImageGenerationError: latestImageGenerationRun?.errorMessage ?? null,
               assets
             };
           })

@@ -842,6 +842,10 @@ export type ComicPublishCenterEpisodeRecord = ComicEpisodeRecord & {
   draftPageCount: number;
   requiredPageCount: number;
   canPublish: boolean;
+  latestImageGenerationAt: Date | null;
+  latestImageGenerationStatus: ComicPromptRunStatus | null;
+  latestImageGenerationSummary: string | null;
+  latestImageGenerationError: string | null;
   assets: ComicEpisodeAssetRecord[];
 };
 

@@ -21,28 +21,33 @@ const STATUS_MESSAGES: Record<string, string> = {
   "missing-project": "Save the comic project bible first so the prompt workflow has canon context."
 };
 
-const IMAGE_RESULT_MESSAGES = {
-  "page-image-generated": {
-    title: "Draft image created",
-    description: "The generated comic page was saved as a draft asset. Review it in this episode or the Publish Center before approving.",
-    tone: "success"
-  },
-  "page-image-failed": {
-    title: "Draft image creation failed",
-    description: "The image request did not complete. Open the latest prompt run entry for the stored error message and try again.",
-    tone: "danger"
-  },
-  "missing-page-prompt": {
-    title: "No page prompt found",
-    description: "Generate a page-by-page prompt package before creating a draft image.",
-    tone: "warning"
-  },
-  "missing-project": {
-    title: "Comic project is missing",
-    description: "Save the comic project bible first so the image workflow has canon context.",
-    tone: "warning"
-  }
-} as const;
+function buildImageResultMessages(errorMessage?: string | null) {
+  return {
+    "page-image-generated": {
+      title: "Draft image created",
+      description:
+        "The generated comic page was saved as a draft asset. Review it in this episode or the Publish Center before approving.",
+      tone: "success"
+    },
+    "page-image-failed": {
+      title: "Draft image creation failed",
+      description: errorMessage
+        ? `OpenAI returned: ${errorMessage}`
+        : "The image request did not complete. Open the latest prompt run entry for the stored error message and try again.",
+      tone: "danger"
+    },
+    "missing-page-prompt": {
+      title: "No page prompt found",
+      description: "Generate a page-by-page prompt package before creating a draft image.",
+      tone: "warning"
+    },
+    "missing-project": {
+      title: "Comic project is missing",
+      description: "Save the comic project bible first so the image workflow has canon context.",
+      tone: "warning"
+    }
+  } as const;
+}
 
 export default async function AdminComicPromptStudioPage({
   searchParams
@@ -55,6 +60,9 @@ export default async function AdminComicPromptStudioPage({
   ]);
 
   const selectedEpisode = pageData.selectedEpisode;
+  const latestImageGenerationRun = selectedEpisode?.promptRuns.find(
+    (run) => run.promptType === "PAGE_IMAGE_GENERATION"
+  );
   const parsedPromptOutput = selectedEpisode
     ? parseComicPromptOutput(
         selectedEpisode.episode.promptPack,
@@ -86,7 +94,10 @@ export default async function AdminComicPromptStudioPage({
         </p>
       ) : null}
 
-      <AdminActionResultDialog status={params.status} messages={IMAGE_RESULT_MESSAGES} />
+      <AdminActionResultDialog
+        status={params.status}
+        messages={buildImageResultMessages(latestImageGenerationRun?.errorMessage)}
+      />
 
       <div className="cards-3">
         <section className="admin-card">

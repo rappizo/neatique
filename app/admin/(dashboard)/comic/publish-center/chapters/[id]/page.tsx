@@ -47,28 +47,33 @@ const STATUS_MESSAGES: Record<string, string> = {
   "missing-page-prompt": "Generate a page-by-page prompt package before creating page images."
 };
 
-const IMAGE_RESULT_MESSAGES = {
-  "page-image-generated": {
-    title: "Draft image created",
-    description: "The generated page image is now saved as a draft candidate on this episode. Review it here, then approve it when it is ready.",
-    tone: "success"
-  },
-  "page-image-failed": {
-    title: "Draft image creation failed",
-    description: "The image request did not complete. Open the episode editor and check the latest prompt run entry for the stored error message.",
-    tone: "danger"
-  },
-  "missing-page-prompt": {
-    title: "No page prompt found",
-    description: "Generate the episode's 10-page prompt package before creating a draft image.",
-    tone: "warning"
-  },
-  "missing-project": {
-    title: "Comic project is missing",
-    description: "Save the comic project bible first so the image workflow has canon context.",
-    tone: "warning"
-  }
-} as const;
+function buildImageResultMessages(errorMessage?: string | null) {
+  return {
+    "page-image-generated": {
+      title: "Draft image created",
+      description:
+        "The generated page image is now saved as a draft candidate on this episode. Review it here, then approve it when it is ready.",
+      tone: "success"
+    },
+    "page-image-failed": {
+      title: "Draft image creation failed",
+      description: errorMessage
+        ? `OpenAI returned: ${errorMessage}`
+        : "The image request did not complete. Open the episode editor and check the latest prompt run entry for the stored error message.",
+      tone: "danger"
+    },
+    "missing-page-prompt": {
+      title: "No page prompt found",
+      description: "Generate the episode's 10-page prompt package before creating a draft image.",
+      tone: "warning"
+    },
+    "missing-project": {
+      title: "Comic project is missing",
+      description: "Save the comic project bible first so the image workflow has canon context.",
+      tone: "warning"
+    }
+  } as const;
+}
 
 const COMIC_REQUIRED_PAGES_PER_EPISODE = 10;
 const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
@@ -184,6 +189,13 @@ export default async function AdminComicPublishChapterPage({
   const readyEpisodeCount = chapter.episodes.filter(
     (episode) => episode.canPublish && !episode.published
   ).length;
+  const latestImageGenerationError = chapter.episodes
+    .filter((episode) => episode.latestImageGenerationAt)
+    .sort(
+      (left, right) =>
+        (right.latestImageGenerationAt?.getTime() || 0) -
+        (left.latestImageGenerationAt?.getTime() || 0)
+    )[0]?.latestImageGenerationError;
 
   return (
     <div className="admin-page admin-page--comic-publish">
@@ -213,7 +225,10 @@ export default async function AdminComicPublishChapterPage({
         </p>
       ) : null}
 
-      <AdminActionResultDialog status={query.status} messages={IMAGE_RESULT_MESSAGES} />
+      <AdminActionResultDialog
+        status={query.status}
+        messages={buildImageResultMessages(latestImageGenerationError)}
+      />
 
       <div className="cards-3">
         <section className="admin-card">
