@@ -261,6 +261,42 @@ function findReferenceRecord(
   });
 }
 
+function findReferenceRecordByPath(
+  records: ComicChapterSceneReferenceRecord[],
+  requestedPath: string
+) {
+  const normalizedPath = normalizeComicReferencePath(requestedPath);
+  const requestedFile = getFileNameFromPath(requestedPath);
+  const comparableRequest = normalizeComparable(requestedFile);
+
+  return records.find((record) => {
+    return (
+      record.relativePath === normalizedPath ||
+      record.fileName.toLowerCase() === requestedFile.toLowerCase() ||
+      normalizeComparable(record.fileName) === comparableRequest
+    );
+  });
+}
+
+function getPrimaryReferenceRecordForUpload(
+  upload: StoredPromptUpload,
+  records: ComicChapterSceneReferenceRecord[],
+  fallbackFolder: string
+) {
+  const manifestRecord =
+    records.find((record) => /model|sheet|front|master/i.test(record.fileName)) ||
+    records[0] ||
+    null;
+
+  if (manifestRecord) {
+    return manifestRecord;
+  }
+
+  return upload.bucket === "CHARACTER"
+    ? toPrimaryReferenceRecord(fallbackFolder, "model-sheet.png", upload.label)
+    : null;
+}
+
 function addReferenceImage(
   bucket: ComicResolvedReferenceImage["bucket"],
   slug: string,
@@ -299,8 +335,14 @@ function addRequiredUploadReferences(
   byPath: Map<string, ComicResolvedReferenceImage>
 ) {
   for (const upload of input.requiredUploads) {
+    const records = getReferenceRecordsForUpload(upload, input.seasonSlug, input.chapterSlug);
+    const fallbackFolder = getReferenceFolderForUpload(upload, input.seasonSlug, input.chapterSlug);
+    const primaryRecord = getPrimaryReferenceRecordForUpload(upload, records, fallbackFolder);
+
     for (const relativePath of upload.relativePaths) {
-      const record = toRecordFromPath(relativePath, upload.label);
+      const record =
+        findReferenceRecordByPath(records, relativePath) ||
+        (upload.bucket === "CHARACTER" ? primaryRecord : null);
 
       if (!record) {
         continue;
@@ -320,17 +362,7 @@ function addRequiredUploadReferences(
       );
     }
 
-    const records = getReferenceRecordsForUpload(upload, input.seasonSlug, input.chapterSlug);
-    const fallbackFolder = getReferenceFolderForUpload(upload, input.seasonSlug, input.chapterSlug);
-
     if (upload.uploadImageNames.length === 0) {
-      const primaryRecord =
-        records.find((record) => /model|sheet|front|master/i.test(record.fileName)) ||
-        records[0] ||
-        (upload.bucket === "CHARACTER"
-          ? toPrimaryReferenceRecord(fallbackFolder, "model-sheet.png", upload.label)
-          : null);
-
       if (primaryRecord) {
         addReferenceImage(
           upload.bucket,
@@ -352,7 +384,7 @@ function addRequiredUploadReferences(
     for (const uploadName of upload.uploadImageNames) {
       const matchedRecord =
         findReferenceRecord(records, uploadName) ||
-        toPrimaryReferenceRecord(fallbackFolder, getFileNameFromPath(uploadName), upload.label);
+        (upload.bucket === "CHARACTER" ? primaryRecord : null);
 
       if (!matchedRecord) {
         continue;

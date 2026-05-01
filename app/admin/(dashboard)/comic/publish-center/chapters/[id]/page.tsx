@@ -17,6 +17,7 @@ import {
 } from "@/app/admin/comic-editor-actions";
 import {
   generateComicPromptPackageAction,
+  restoreComicPagePromptRevisionAction,
   reviseComicPagePromptAction
 } from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
@@ -48,13 +49,15 @@ const STATUS_MESSAGES: Record<string, string> = {
   "page-image-generated": "Comic page image generated and saved as a draft asset.",
   "page-image-failed": "Comic page image generation failed. Check the episode prompt run history.",
   "page-prompt-revised": "Comic page prompt updated.",
+  "page-prompt-restored": "Comic page prompt restored from history.",
   "page-prompt-revision-failed": "Comic page prompt revision failed. Check the episode prompt run history.",
   "missing-approved-pages": "Approve pages 1-10 before publishing this episode.",
   "missing-approved-page": "Approve an English page image before creating a Chinese version.",
   "missing-asset": "That comic page asset could not be found.",
   "missing-source-image": "This approved page does not have stored image data for AI editing.",
   "missing-prompt-suggestion": "Enter a prompt suggestion before updating this page prompt.",
-  "missing-page-prompt": "Generate a page-by-page prompt package before creating page images."
+  "missing-page-prompt": "Generate a page-by-page prompt package before creating page images.",
+  "missing-prompt-revision": "That prompt revision history entry could not be restored."
 };
 
 function buildImageResultMessages(errorMessage?: string | null) {
@@ -542,32 +545,28 @@ export default async function AdminComicPublishChapterPage({
                                   ) : null}
                                   <div className="stack-row">
                                     {revision.previousPromptPack ? (
-                                      <CopyTextButton
-                                        text={revision.previousPromptPack}
-                                        label="Copy previous prompt"
-                                        copiedLabel="Previous copied"
-                                      />
+                                      <form action={restoreComicPagePromptRevisionAction}>
+                                        <input type="hidden" name="episodeId" value={episode.id} />
+                                        <input type="hidden" name="revisionId" value={revision.id} />
+                                        <input type="hidden" name="pageNumber" value={pageNumber} />
+                                        <input type="hidden" name="restoreVersion" value="previous" />
+                                        <input type="hidden" name="redirectTo" value={redirectTo} />
+                                        <button type="submit" className="button button--ghost">
+                                          Restore previous prompt
+                                        </button>
+                                      </form>
                                     ) : null}
                                     {revision.revisedPromptPack ? (
-                                      <CopyTextButton
-                                        text={revision.revisedPromptPack}
-                                        label="Copy revised prompt"
-                                        copiedLabel="Revised copied"
-                                      />
-                                    ) : null}
-                                    {revision.previousReferenceChecklist ? (
-                                      <CopyTextButton
-                                        text={revision.previousReferenceChecklist}
-                                        label="Copy previous refs"
-                                        copiedLabel="Previous refs copied"
-                                      />
-                                    ) : null}
-                                    {revision.revisedReferenceChecklist ? (
-                                      <CopyTextButton
-                                        text={revision.revisedReferenceChecklist}
-                                        label="Copy revised refs"
-                                        copiedLabel="Revised refs copied"
-                                      />
+                                      <form action={restoreComicPagePromptRevisionAction}>
+                                        <input type="hidden" name="episodeId" value={episode.id} />
+                                        <input type="hidden" name="revisionId" value={revision.id} />
+                                        <input type="hidden" name="pageNumber" value={pageNumber} />
+                                        <input type="hidden" name="restoreVersion" value="revised" />
+                                        <input type="hidden" name="redirectTo" value={redirectTo} />
+                                        <button type="submit" className="button button--secondary">
+                                          Restore revised prompt
+                                        </button>
+                                      </form>
                                     ) : null}
                                   </div>
                                 </article>

@@ -282,6 +282,232 @@ export async function generateComicPageImageAction(formData: FormData) {
   redirect(buildComicRedirect(redirectTo, nextStatus));
 }
 
+function safeParseRecord(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, any>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function toNullablePromptText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function toStoredPromptPanels(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((panel) => ({
+      panelNumber: Number(panel?.panelNumber),
+      panelTitle: typeof panel?.panelTitle === "string" ? panel.panelTitle.trim() : "",
+      storyBeat: typeof panel?.storyBeat === "string" ? panel.storyBeat.trim() : ""
+    }))
+    .filter((panel) => panel.panelNumber >= 1 && panel.panelTitle && panel.storyBeat)
+    .sort((left, right) => left.panelNumber - right.panelNumber);
+}
+
+function normalizePromptRestoreVersion(value: string) {
+  return value === "revised" ? "revised" : "previous";
+}
+
+export async function restoreComicPagePromptRevisionAction(formData: FormData) {
+  await requireAdminSession();
+
+  const episodeId = toPlainString(formData.get("episodeId"));
+  const revisionId = toPlainString(formData.get("revisionId"));
+  const pageNumber = toInt(formData.get("pageNumber"), 0);
+  const restoreVersion = normalizePromptRestoreVersion(toPlainString(formData.get("restoreVersion")));
+  const redirectTo =
+    toPlainString(formData.get("redirectTo")) || `/admin/comic/prompt-studio?episodeId=${episodeId}`;
+
+  if (!episodeId) {
+    redirect(buildComicRedirect("/admin/comic/prompt-studio", "missing-episode"));
+  }
+
+  if (!pageNumber) {
+    redirect(buildComicRedirect(redirectTo, "missing-page-prompt"));
+  }
+
+  if (!revisionId) {
+    redirect(buildComicRedirect(redirectTo, "missing-prompt-revision"));
+  }
+
+  const [episode, revision] = await Promise.all([
+    prisma.comicEpisode.findUnique({
+      where: { id: episodeId },
+      include: {
+        chapter: {
+          include: {
+            season: {
+              include: {
+                project: true
+              }
+            }
+          }
+        }
+      }
+    }),
+    prisma.comicPromptRun.findFirst({
+      where: {
+        id: revisionId,
+        episodeId,
+        promptType: "PAGE_PROMPT_REVISION"
+      }
+    })
+  ]);
+
+  if (!episode?.chapter.season.project) {
+    redirect(buildComicRedirect(redirectTo, "missing-project"));
+  }
+
+  if (!revision) {
+    redirect(buildComicRedirect(redirectTo, "missing-prompt-revision"));
+  }
+
+  const parsedPromptOutput = parseComicPromptOutput(episode.promptPack, episode.requiredReferences);
+  const page = parsedPromptOutput?.pages.find((candidate) => candidate.pageNumber === pageNumber);
+
+  if (!parsedPromptOutput || !page) {
+    redirect(buildComicRedirect(redirectTo, "missing-page-prompt"));
+  }
+
+  const revisionContext = safeParseRecord(revision.inputContext);
+  const previousPage =
+    revisionContext?.currentPage &&
+    typeof revisionContext.currentPage === "object" &&
+    !Array.isArray(revisionContext.currentPage)
+      ? (revisionContext.currentPage as Record<string, unknown>)
+      : null;
+  const restoredPromptPack =
+    restoreVersion === "previous"
+      ? toNullablePromptText(previousPage?.promptPackCopyText)
+      : toNullablePromptText(revision.promptPack);
+  const restoredReferenceChecklist =
+    restoreVersion === "previous"
+      ? toNullablePromptText(previousPage?.referenceNotesCopyText)
+      : toNullablePromptText(revision.referenceChecklist);
+
+  if (!restoredPromptPack) {
+    redirect(buildComicRedirect(redirectTo, "missing-prompt-revision"));
+  }
+
+  const restoredPanels =
+    restoreVersion === "previous" ? toStoredPromptPanels(previousPage?.panels) : [];
+  const restoredPagePurpose =
+    restoreVersion === "previous"
+      ? toNullablePromptText(previousPage?.pagePurpose) || page.pagePurpose
+      : page.pagePurpose;
+  const restoredPanelCount =
+    restoreVersion === "previous" && Number(previousPage?.panelCount) > 0
+      ? Number(previousPage?.panelCount)
+      : page.panelCount;
+  const nextPages = parsedPromptOutput.pages.map((candidate) =>
+    candidate.pageNumber === pageNumber
+      ? {
+          ...candidate,
+          panelCount: restoredPanelCount,
+          pagePurpose: restoredPagePurpose,
+          promptPackCopyText: restoredPromptPack,
+          referenceNotesCopyText: restoredReferenceChecklist || page.referenceNotesCopyText,
+          panels: restoredPanels.length > 0 ? restoredPanels : candidate.panels
+        }
+      : candidate
+  );
+  const inputContext = JSON.stringify(
+    {
+      project: episode.chapter.season.project.title,
+      season: episode.chapter.season.title,
+      chapter: episode.chapter.title,
+      episode: episode.title,
+      pageNumber,
+      promptSuggestion:
+        restoreVersion === "previous"
+          ? "Restored the prompt from before this revision."
+          : "Restored the revised prompt from this history entry.",
+      restoredFromRevisionId: revision.id,
+      restoreVersion,
+      currentPage: {
+        pagePurpose: page.pagePurpose,
+        panelCount: page.panelCount,
+        promptPackCopyText: page.promptPackCopyText,
+        referenceNotesCopyText: page.referenceNotesCopyText,
+        panels: page.panels
+      }
+    },
+    null,
+    2
+  );
+
+  await prisma.$transaction([
+    prisma.comicEpisode.update({
+      where: { id: episodeId },
+      data: {
+        promptPack: JSON.stringify(
+          {
+            episodeLogline: parsedPromptOutput.episodeLogline,
+            episodeSynopsis: parsedPromptOutput.episodeSynopsis,
+            pages: nextPages.map((nextPage) => ({
+              pageNumber: nextPage.pageNumber,
+              panelCount: nextPage.panelCount,
+              pagePurpose: nextPage.pagePurpose,
+              promptPackCopyText: nextPage.promptPackCopyText,
+              panels: nextPage.panels,
+              referenceNotesCopyText: nextPage.referenceNotesCopyText,
+              requiredUploads: nextPage.requiredUploads
+            }))
+          },
+          null,
+          2
+        ),
+        requiredReferences: JSON.stringify(
+          {
+            globalGptImage2Notes: parsedPromptOutput.globalGptImage2Notes,
+            pages: nextPages.map((nextPage) => ({
+              pageNumber: nextPage.pageNumber,
+              panelCount: nextPage.panelCount,
+              referenceNotesCopyText: nextPage.referenceNotesCopyText,
+              requiredUploads: nextPage.requiredUploads
+            }))
+          },
+          null,
+          2
+        )
+      }
+    }),
+    prisma.comicPromptRun.create({
+      data: {
+        episodeId,
+        promptType: "PAGE_PROMPT_REVISION",
+        model:
+          process.env.OPENAI_COMIC_MODEL ||
+          process.env.OPENAI_POST_MODEL ||
+          process.env.OPENAI_EMAIL_MODEL ||
+          "gpt-5.5",
+        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+        status: "READY",
+        inputContext,
+        outputSummary: `Restored ${episode.title} page ${pageNumber} ${restoreVersion} prompt from revision history.`,
+        promptPack: restoredPromptPack,
+        referenceChecklist: restoredReferenceChecklist || page.referenceNotesCopyText
+      }
+    })
+  ]);
+
+  revalidateComicRoutes({
+    seasonSlug: episode.chapter.season.slug,
+    chapterSlug: episode.chapter.slug,
+    episodeSlug: episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "page-prompt-restored"));
+}
+
 export async function reviseComicPagePromptAction(formData: FormData) {
   await requireAdminSession();
 
