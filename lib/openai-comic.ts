@@ -32,6 +32,7 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- For any full-body Muci view, show the two small rounded feet exactly like the model sheet. Do not crop them away, hide them, replace them with a flat base, or remove them.",
   "- All characters in this world have no hands and no arms. Never draw arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs on any character.",
   "- Preserve every character's small feet, lower body nubs, base shape, or tiny legs exactly as shown in each character's model sheet.",
+  "- Mouth state lock: characters who are not actively speaking must have closed mouths, tiny neutral mouths, or quiet expression marks only. Open mouths are allowed only for the character currently speaking, shouting, gasping, singing, or making an explicit vocal sound in that panel.",
   "- Characters interact with nearby objects through gentle telekinesis. Show objects floating, tilting, sliding, or opening near them with small motion lines, glow cues, or manga emphasis marks instead of hands touching objects.",
   "- If a story beat mentions holding, pointing, grabbing, writing, pushing, opening, carrying, or handing something over, translate that action into telekinetic object movement while keeping every character handless.",
   "- Avoid adding extra characters, props, logos, product labels, watermarks, signatures, or random text."
@@ -461,6 +462,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- The actual reference images attached to this API request are binding visual references. Copy their silhouettes, proportions, face placement, highlight placement, body fill, and feet exactly where those characters or scenes appear.",
     "- Foot visibility check: any full-body character must show small rounded feet or foot nubs with clear space below the body; do not crop off feet.",
     "- Sunny Spritz check: if Sunny appears full-body, her two small rounded feet must be visible directly under the soft five-point star body.",
+    "- Mouth state check: draw closed mouths for characters who are not speaking in that panel; only the active speaker or explicit vocal reaction may have an open mouth.",
     "- If dialogue balloons are needed, keep text minimal, clean, and readable; otherwise use expressive acting and leave balloons simple.",
     "",
     "Story context:",
@@ -1087,6 +1089,7 @@ export async function generateComicPromptPackageWithAi(
                 "Every visual prompt must enforce clean high-contrast black-and-white manga output only, with pure white character fills and no gray wash.",
                 "Every visual prompt must enforce that all characters have no hands and no arms, while preserving small rounded feet, foot nubs, or lower-body nubs exactly as shown in their model sheets.",
                 "Every full-body character view must include the character's visible small feet with clear lower-frame space. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body.",
+                "Every visual prompt must enforce mouth-state continuity: characters who are not speaking keep closed or tiny neutral mouths; only the active speaker or explicit vocal reaction may have an open mouth.",
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
                 "Muci must always match the Muci model sheet and written appearance lock exactly: compact cute friendly teardrop mascot, centered point, broad rounded base, short rounded body proportions, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, soft approachable protagonist energy.",
                 "Muci must never become tall, thin, stretched, elongated, pear-like, or a long raindrop. Keep him broad, squat, soft, and close to the model-sheet width-to-height proportion.",
@@ -1155,6 +1158,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block must state clean black-and-white manga only, no color, no gray wash, pure white character bodies.",
                 "- Every promptPackCopyText block must state that characters have no hands or arms, while preserving model-sheet small feet, foot nubs, or lower-body nubs exactly.",
                 "- Every promptPackCopyText block must include a lower-frame foot visibility check for full-body characters.",
+                "- Every promptPackCopyText block must include a mouth-state check: non-speaking characters keep closed mouths, and only speaking or explicitly vocal characters may have open mouths.",
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Every Muci prompt must explicitly preserve his model-sheet identity, compact broad centered-teardrop design, pure white body fill, and two small rounded feet.",
@@ -1165,7 +1169,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Prefer the chapter-specific scene reference files whenever the page happens in a known chapter scene location.",
                 "- Required uploads must be organized per page, and each item must include real upload image file names plus the matching relative paths.",
                 "- Use CHARACTER for character model sheets, SCENE for reusable master location refs, and CHAPTER_SCENE for chapter-only location sheets.",
-                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, reference reuse, clean high-contrast black-and-white manga style, pure white character fills, model-sheet exactness, and handless telekinetic action across all 10 pages.",
+                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, reference reuse, clean high-contrast black-and-white manga style, pure white character fills, model-sheet exactness, mouth-state continuity, and handless telekinetic action across all 10 pages.",
                 "- Keep the tone useful, concrete, and ready for actual image production."
               ].join("\n")
             }
