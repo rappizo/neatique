@@ -9,6 +9,7 @@ import {
   ComicImageTaskQueueProvider,
   ComicRevisePromptQueueForm
 } from "@/components/admin/comic-image-task-queue";
+import { ComicPublishEpisodeDetails } from "@/components/admin/comic-publish-episode-details";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
@@ -246,6 +247,10 @@ function buildRedirectTo(chapterId: string, episodeId: string) {
   return `/admin/comic/publish-center/chapters/${chapterId}#episode-${episodeId}`;
 }
 
+function buildEpisodeDownloadHref(episodeId: string, language: "en" | "zh") {
+  return `/api/admin/comic/episode-download?episodeId=${encodeURIComponent(episodeId)}&language=${language}`;
+}
+
 export default async function AdminComicPublishChapterPage({
   params,
   searchParams
@@ -268,6 +273,10 @@ export default async function AdminComicPublishChapterPage({
   );
   const approvedPageCount = chapter.episodes.reduce(
     (sum, episode) => sum + episode.approvedPageCount,
+    0
+  );
+  const approvedChinesePageCount = chapter.episodes.reduce(
+    (sum, episode) => sum + episode.approvedChinesePageCount,
     0
   );
   const readyEpisodeCount = chapter.episodes.filter(
@@ -337,12 +346,19 @@ export default async function AdminComicPublishChapterPage({
           <h3>
             {approvedPageCount} / {requiredPageCount}
           </h3>
-          <p>Each episode needs 10 approved pages before publishing.</p>
+          <p>English public pages need 10 approved images per episode.</p>
+        </section>
+        <section className="admin-card">
+          <p className="eyebrow">Chinese approved</p>
+          <h3>
+            {approvedChinesePageCount} / {requiredPageCount}
+          </h3>
+          <p>Chinese public pages and downloads use the same 10-page approval rule.</p>
         </section>
         <section className="admin-card">
           <p className="eyebrow">Ready</p>
           <h3>{readyEpisodeCount} episodes</h3>
-          <p>Ready episodes can be published directly to the public comic library.</p>
+          <p>Publish stays disabled until the English version has all 10 approved pages.</p>
         </section>
       </div>
 
@@ -355,30 +371,25 @@ export default async function AdminComicPublishChapterPage({
                 pages: []
               };
             const redirectTo = buildRedirectTo(chapter.id, episode.id);
+            const englishDownloadReady = episode.canPublish;
+            const chineseDownloadReady = episode.canPublishChinese;
 
             return (
-              <section
+              <ComicPublishEpisodeDetails
                 key={episode.id}
                 id={`episode-${episode.id}`}
-                className="admin-form admin-comic-publish-episode"
+                storageKey={`neatique:comic-publish-center:${chapter.id}:episode:${episode.id}:open`}
+                episodeNumber={episode.episodeNumber}
+                title={episode.title}
+                summary={episode.summary}
+                published={episode.published}
+                englishApprovedCount={episode.approvedPageCount}
+                chineseApprovedCount={episode.approvedChinesePageCount}
+                requiredPageCount={episode.requiredPageCount}
+                draftPageCount={episode.draftPageCount}
+                hasPromptPackage={Boolean(promptState.parsedPromptOutput)}
               >
-                <div className="admin-comic-publish-episode__header">
-                  <div>
-                    <p className="eyebrow">
-                      Episode {episode.episodeNumber} / {episode.published ? "Published" : "Draft"}
-                    </p>
-                    <h2>{episode.title}</h2>
-                    <p className="form-note">{episode.summary || "No episode summary yet."}</p>
-                    <div className="stack-row">
-                      <span className="pill">
-                        {episode.approvedPageCount} / {episode.requiredPageCount} approved
-                      </span>
-                      <span className="pill">{episode.draftPageCount} draft images</span>
-                      <span className="pill">
-                        {promptState.parsedPromptOutput ? "10-page prompts loaded" : "No prompts yet"}
-                      </span>
-                    </div>
-                  </div>
+                <div className="admin-comic-publish-episode__controls">
                   <div className="admin-comic-publish-episode__actions">
                     <Link href={`/admin/comic/episodes/${episode.id}`} className="button button--secondary">
                       Episode editor
@@ -415,6 +426,29 @@ export default async function AdminComicPublishChapterPage({
                         </button>
                       </form>
                     ) : null}
+                    <details className="admin-comic-download-menu">
+                      <summary className="button button--ghost">Download</summary>
+                      <div className="admin-comic-download-menu__panel">
+                        {englishDownloadReady ? (
+                          <a href={buildEpisodeDownloadHref(episode.id, "en")}>
+                            English ZIP
+                          </a>
+                        ) : (
+                          <span className="is-disabled">
+                            English ZIP ({episode.approvedPageCount}/{episode.requiredPageCount})
+                          </span>
+                        )}
+                        {chineseDownloadReady ? (
+                          <a href={buildEpisodeDownloadHref(episode.id, "zh")}>
+                            Chinese ZIP
+                          </a>
+                        ) : (
+                          <span className="is-disabled">
+                            Chinese ZIP ({episode.approvedChinesePageCount}/{episode.requiredPageCount})
+                          </span>
+                        )}
+                      </div>
+                    </details>
                   </div>
                 </div>
 
@@ -806,7 +840,7 @@ export default async function AdminComicPublishChapterPage({
                     );
                   })}
                 </div>
-              </section>
+              </ComicPublishEpisodeDetails>
             );
           })}
         </div>

@@ -641,22 +641,46 @@ function isComicPageAsset(asset: ComicPageApprovalCandidate) {
   return COMIC_PAGE_ASSET_TYPES.includes(asset.assetType);
 }
 
+function isChineseComicPageAsset(asset: ComicPageApprovalCandidate) {
+  return asset.assetType === COMIC_CHINESE_PAGE_ASSET_TYPE;
+}
+
 function isRequiredComicPageNumber(pageNumber: number) {
   return pageNumber >= 1 && pageNumber <= COMIC_REQUIRED_PAGES_PER_EPISODE;
 }
 
-function getApprovedRequiredPageCount(assets: ComicPageApprovalCandidate[]) {
+function getApprovedRequiredPageCountByPredicate(
+  assets: ComicPageApprovalCandidate[],
+  isMatchingAsset: (asset: ComicPageApprovalCandidate) => boolean
+) {
   return new Set(
     assets
       .filter(
         (asset) =>
-          isComicPageAsset(asset) && asset.published && isRequiredComicPageNumber(asset.sortOrder)
+          isMatchingAsset(asset) &&
+          asset.published &&
+          isRequiredComicPageNumber(asset.sortOrder)
       )
       .map((asset) => asset.sortOrder)
   ).size;
 }
 
-function hasAllRequiredComicPages(assets: ComicPageApprovalCandidate[]) {
+function getApprovedRequiredPageCount(assets: ComicPageApprovalCandidate[]) {
+  return getApprovedRequiredPageCountByPredicate(assets, isComicPageAsset);
+}
+
+function getApprovedRequiredChinesePageCount(assets: ComicPageApprovalCandidate[]) {
+  return getApprovedRequiredPageCountByPredicate(assets, isChineseComicPageAsset);
+}
+
+function hasAllRequiredComicPagesForLanguage(
+  assets: ComicPageApprovalCandidate[],
+  language: ComicLanguage
+) {
+  if (language === "zh") {
+    return getApprovedRequiredChinesePageCount(assets) === COMIC_REQUIRED_PAGES_PER_EPISODE;
+  }
+
   return getApprovedRequiredPageCount(assets) === COMIC_REQUIRED_PAGES_PER_EPISODE;
 }
 
@@ -664,10 +688,10 @@ function getPublicComicAssetsForLanguage(
   assets: ComicEpisodeAssetRecord[],
   language: ComicLanguage
 ) {
-  const englishAssets = assets
+  const matchingAssets = assets
     .filter(
       (asset) =>
-        isComicPageAsset(asset) &&
+        (language === "zh" ? isChineseComicPageAsset(asset) : isComicPageAsset(asset)) &&
         asset.published &&
         isRequiredComicPageNumber(asset.sortOrder)
     )
@@ -679,26 +703,15 @@ function getPublicComicAssetsForLanguage(
       return left.createdAt.getTime() - right.createdAt.getTime();
     });
 
-  if (language !== "zh") {
-    return englishAssets;
-  }
+  const assetByPage = new Map<number, ComicEpisodeAssetRecord>();
 
-  const chineseByPage = new Map<number, ComicEpisodeAssetRecord>();
-  assets
-    .filter(
-      (asset) =>
-        asset.assetType === COMIC_CHINESE_PAGE_ASSET_TYPE &&
-        asset.published &&
-        isRequiredComicPageNumber(asset.sortOrder)
-    )
-    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
-    .forEach((asset) => {
-      if (!chineseByPage.has(asset.sortOrder)) {
-        chineseByPage.set(asset.sortOrder, asset);
-      }
-    });
+  matchingAssets.forEach((asset) => {
+    if (!assetByPage.has(asset.sortOrder)) {
+      assetByPage.set(asset.sortOrder, asset);
+    }
+  });
 
-  return englishAssets.map((asset) => chineseByPage.get(asset.sortOrder) || asset);
+  return Array.from(assetByPage.values());
 }
 
 export async function getComicPublishCenter() {
@@ -780,10 +793,13 @@ export async function getComicPublishCenter() {
 
             const assets = episode.assets.map(mapComicEpisodeAsset);
             const pageAssets = assets.filter(isComicPageAsset);
+            const chinesePageAssets = assets.filter(isChineseComicPageAsset);
             const draftPages = pageAssets.filter((asset) => !asset.published);
             const approvedPageCount = getApprovedRequiredPageCount(pageAssets);
+            const approvedChinesePageCount = getApprovedRequiredChinesePageCount(chinesePageAssets);
             const draftPageCount = draftPages.length;
             const canPublish = approvedPageCount === COMIC_REQUIRED_PAGES_PER_EPISODE;
+            const canPublishChinese = approvedChinesePageCount === COMIC_REQUIRED_PAGES_PER_EPISODE;
             const promptRuns = episode.promptRuns.map(mapComicPromptRun);
             const latestImageGenerationRun =
               promptRuns.find((run) =>
@@ -803,9 +819,11 @@ export async function getComicPublishCenter() {
               chapterTitle: chapter.title,
               chapterSlug: chapter.slug,
               approvedPageCount,
+              approvedChinesePageCount,
               draftPageCount,
               requiredPageCount: COMIC_REQUIRED_PAGES_PER_EPISODE,
               canPublish,
+              canPublishChinese,
               latestImageGenerationAt: latestImageGenerationRun?.createdAt
                 ? new Date(latestImageGenerationRun.createdAt)
                 : null,
@@ -914,7 +932,7 @@ export async function getPublishedComicLibrary(language: ComicLanguage = "en") {
           const chapters = season.chapters
             .map((chapter): ComicPublicChapterRecord => {
               const episodes = chapter.episodes
-                .filter((episode) => hasAllRequiredComicPages(episode.assets))
+                .filter((episode) => hasAllRequiredComicPagesForLanguage(episode.assets, language))
                 .map((episode): ComicPublicEpisodeRecord => ({
                   ...mapComicEpisode(episode),
                   assets: getPublicComicAssetsForLanguage(

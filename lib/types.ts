@@ -853,9 +853,11 @@ export type ComicPublishCenterEpisodeRecord = ComicEpisodeRecord & {
   chapterTitle: string;
   chapterSlug: string;
   approvedPageCount: number;
+  approvedChinesePageCount: number;
   draftPageCount: number;
   requiredPageCount: number;
   canPublish: boolean;
+  canPublishChinese: boolean;
   latestImageGenerationAt: Date | null;
   latestImageGenerationStatus: ComicPromptRunStatus | null;
   latestImageGenerationSummary: string | null;
