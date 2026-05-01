@@ -12,11 +12,14 @@ import {
 import { CopyTextButton } from "@/components/admin/copy-text-button";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
+  approveChineseComicPageAssetAction,
   approveComicEpisodeAssetAction,
   createChineseComicPageVersionAction,
   deleteComicEpisodeAssetAction,
   publishComicEpisodeFromCenterAction,
-  unapproveComicEpisodeAssetAction
+  unapproveChineseComicPageAssetAction,
+  unapproveComicEpisodeAssetAction,
+  unpublishComicEpisodeFromCenterAction
 } from "@/app/admin/comic-editor-actions";
 import { restoreComicPagePromptRevisionAction } from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
@@ -40,9 +43,13 @@ const STATUS_MESSAGES: Record<string, string> = {
   "page-approved": "Comic page approved.",
   "page-unapproved": "Comic page approval was removed.",
   "page-rejected": "Comic page image was rejected and deleted.",
-  "page-chinese-created": "Chinese comic page version created.",
+  "page-chinese-created": "Chinese comic page draft created. Approve it before it appears on the public Chinese page.",
+  "page-chinese-approved": "Chinese comic page approved.",
+  "page-chinese-unapproved": "Chinese comic page approval was removed.",
   "page-chinese-failed": "Chinese comic page version creation failed. Check the episode prompt run history.",
   "episode-published": "Episode published to the public comic library.",
+  "episode-unpublished": "Episode unpublished. Approved pages are still saved, but the episode is hidden from the public comic library.",
+  "unpublish-before-approval-change": "Unpublish this episode before removing or deleting an approved comic page.",
   "prompt-generated": "A fresh 10-page prompt package is ready.",
   "prompt-failed": "Comic prompt generation failed. Check the episode prompt run history.",
   "page-image-generated": "Comic page image generated and saved as a draft asset.",
@@ -149,17 +156,20 @@ function getPageAssets(episode: ComicPublishCenterEpisodeRecord, pageNumber: num
     });
 }
 
-function getChinesePageAsset(episode: ComicPublishCenterEpisodeRecord, pageNumber: number) {
-  return (
-    episode.assets
-      .filter(
-        (asset) =>
-          asset.assetType === COMIC_CHINESE_PAGE_ASSET_TYPE &&
-          asset.published &&
-          asset.sortOrder === pageNumber
-      )
-      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())[0] || null
-  );
+function getChinesePageAssets(episode: ComicPublishCenterEpisodeRecord, pageNumber: number) {
+  return episode.assets
+    .filter(
+      (asset) =>
+        asset.assetType === COMIC_CHINESE_PAGE_ASSET_TYPE &&
+        asset.sortOrder === pageNumber
+    )
+    .sort((left, right) => {
+      if (left.published !== right.published) {
+        return left.published ? -1 : 1;
+      }
+
+      return right.createdAt.getTime() - left.createdAt.getTime();
+    });
 }
 
 async function getEpisodePromptPages(
@@ -175,6 +185,7 @@ async function getEpisodePromptPages(
     Array.from({ length: COMIC_REQUIRED_PAGES_PER_EPISODE }, async (_, index) => {
       const pageNumber = index + 1;
       const assets = getPageAssets(episode, pageNumber);
+      const chineseAssets = getChinesePageAssets(episode, pageNumber);
       const promptPage = promptPageMap.get(pageNumber) || null;
       const referenceImages = promptPage
         ? await resolveComicPageReferenceImages({
@@ -199,7 +210,8 @@ async function getEpisodePromptPages(
           .slice(0, 3),
         assets,
         approvedAsset: assets.find((asset) => asset.published) || null,
-        chineseAsset: getChinesePageAsset(episode, pageNumber)
+        chineseAssets,
+        approvedChineseAsset: chineseAssets.find((asset) => asset.published) || null
       };
     })
   );
@@ -394,11 +406,29 @@ export default async function AdminComicPublishChapterPage({
                         modalDescription="The episode, chapter, and season will be made public with the approved page images."
                       />
                     </form>
+                    {episode.published ? (
+                      <form action={unpublishComicEpisodeFromCenterAction}>
+                        <input type="hidden" name="episodeId" value={episode.id} />
+                        <input type="hidden" name="redirectTo" value={redirectTo} />
+                        <button type="submit" className="button button--ghost">
+                          Unpublish episode
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 </div>
 
                 <div className="admin-comic-publish-page-grid">
-                  {promptState.pages.map(({ pageNumber, promptPage, referenceImages, promptRevisionHistory, assets, approvedAsset, chineseAsset }) => {
+                  {promptState.pages.map(({
+                    pageNumber,
+                    promptPage,
+                    referenceImages,
+                    promptRevisionHistory,
+                    assets,
+                    approvedAsset,
+                    chineseAssets,
+                    approvedChineseAsset
+                  }) => {
                     const uploadNames = getUploadNames(promptPage);
                     const pageStatus = approvedAsset
                       ? "Approved"
@@ -435,7 +465,10 @@ export default async function AdminComicPublishChapterPage({
                           <span className="pill">{promptPage?.panelCount || 0} panels</span>
                           <span className="pill">{assets.length} image candidates</span>
                           <span className="pill">{referenceImages.length} direct refs</span>
-                          {chineseAsset ? <span className="pill">Chinese version ready</span> : null}
+                          {approvedChineseAsset ? <span className="pill">Chinese approved</span> : null}
+                          {!approvedChineseAsset && chineseAssets.length > 0 ? (
+                            <span className="pill">Chinese draft ready</span>
+                          ) : null}
                         </div>
 
                         {promptPage ? (
@@ -640,8 +673,8 @@ export default async function AdminComicPublishChapterPage({
                                       <input type="hidden" name="redirectTo" value={redirectTo} />
                                       <PendingSubmitButton
                                         idleLabel={
-                                          chineseAsset
-                                            ? "Recreate Chinese Version"
+                                          approvedChineseAsset
+                                            ? "Create Chinese Draft"
                                             : "Create Chinese Version"
                                         }
                                         pendingLabel="Creating Chinese..."
@@ -651,14 +684,14 @@ export default async function AdminComicPublishChapterPage({
                                       />
                                     </form>
                                   ) : null}
-                                  {asset.published && chineseAsset ? (
+                                  {asset.published && approvedChineseAsset ? (
                                     <a
-                                      href={chineseAsset.imageUrl}
+                                      href={approvedChineseAsset.imageUrl}
                                       target="_blank"
                                       rel="noreferrer"
                                       className="button button--ghost"
                                     >
-                                      View Chinese Version
+                                      View Approved Chinese
                                     </a>
                                   ) : null}
                                   <form action={deleteComicEpisodeAssetAction}>
@@ -677,6 +710,81 @@ export default async function AdminComicPublishChapterPage({
                             </p>
                           )}
                         </div>
+
+                        {chineseAssets.length > 0 ? (
+                          <div className="admin-comic-page-section">
+                            <div className="admin-comic-section-heading">
+                              <h4>Chinese versions</h4>
+                              <span className="pill">
+                                {approvedChineseAsset ? "1 approved" : "Approval needed"}
+                              </span>
+                            </div>
+                            <div className="admin-comic-publish-assets">
+                              {chineseAssets.map((asset) => (
+                                <div key={asset.id} className="admin-comic-publish-asset">
+                                  <a
+                                    href={asset.imageUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="admin-comic-publish-asset__image"
+                                  >
+                                    <Image
+                                      src={asset.imageUrl}
+                                      alt={asset.altText || asset.title}
+                                      width={240}
+                                      height={360}
+                                      unoptimized
+                                    />
+                                  </a>
+                                  <div className="admin-comic-publish-asset__body">
+                                    <div className="admin-table__cell-stack">
+                                      <strong>{asset.title}</strong>
+                                      <span className="form-note">
+                                        Chinese version / {formatDate(asset.createdAt)}
+                                      </span>
+                                    </div>
+                                    <span className={getAssetStatusClass(asset)}>
+                                      {asset.published ? "Chinese Approved" : "Chinese Draft"}
+                                    </span>
+                                    <form
+                                      action={
+                                        asset.published
+                                          ? unapproveChineseComicPageAssetAction
+                                          : approveChineseComicPageAssetAction
+                                      }
+                                    >
+                                      <input type="hidden" name="id" value={asset.id} />
+                                      <input type="hidden" name="redirectTo" value={redirectTo} />
+                                      <button
+                                        type="submit"
+                                        className={
+                                          asset.published ? "button button--ghost" : "button button--primary"
+                                        }
+                                      >
+                                        {asset.published ? "Remove Chinese approval" : "Approve Chinese version"}
+                                      </button>
+                                    </form>
+                                    <a
+                                      href={asset.imageUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="button button--ghost"
+                                    >
+                                      View Chinese Version
+                                    </a>
+                                    <form action={deleteComicEpisodeAssetAction}>
+                                      <input type="hidden" name="id" value={asset.id} />
+                                      <input type="hidden" name="redirectTo" value={redirectTo} />
+                                      <button type="submit" className="button button--ghost">
+                                        Reject Chinese image
+                                      </button>
+                                    </form>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
 
                         <div className="admin-comic-publish-page__actions">
                           {promptPage ? (

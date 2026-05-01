@@ -10,9 +10,13 @@ type AdminComicPublishCenterPageProps = {
 const STATUS_MESSAGES: Record<string, string> = {
   "page-approved": "Comic page approved.",
   "page-unapproved": "Comic page approval was removed.",
+  "page-chinese-approved": "Chinese comic page approved.",
+  "page-chinese-unapproved": "Chinese comic page approval was removed.",
   "page-uploaded": "Comic page image uploaded as a draft.",
   "page-uploaded-approved": "Comic page image uploaded and approved.",
   "episode-published": "Episode published to the public comic library.",
+  "episode-unpublished": "Episode unpublished. Approved pages are still saved.",
+  "unpublish-before-approval-change": "Unpublish this episode before removing or deleting an approved comic page.",
   "missing-approved-pages": "Approve pages 1-10 before publishing this episode.",
   "missing-upload": "Choose an image file before uploading.",
   "upload-too-large": "Comic page uploads must stay under 20MB.",

@@ -670,6 +670,20 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
     redirect(buildComicRedirect(requestedRedirectTo || "/admin/comic", "missing-asset"));
   }
 
+  if (
+    asset.episode.published &&
+    asset.published &&
+    isComicApprovalAssetType(asset.assetType) &&
+    isComicPublishPageNumber(asset.sortOrder)
+  ) {
+    redirect(
+      buildComicRedirect(
+        requestedRedirectTo || `/admin/comic/episodes/${asset.episodeId}`,
+        "unpublish-before-approval-change"
+      )
+    );
+  }
+
   await prisma.comicEpisodeAsset.delete({
     where: { id }
   });
@@ -691,9 +705,18 @@ const COMIC_PUBLISH_PAGE_COUNT = 10;
 const COMIC_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
 const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
+const COMIC_APPROVAL_ASSET_TYPES = [...COMIC_PAGE_ASSET_TYPES, COMIC_CHINESE_PAGE_ASSET_TYPE];
 
 function isComicPageAssetType(assetType: string) {
   return COMIC_PAGE_ASSET_TYPES.includes(assetType);
+}
+
+function isChineseComicPageAssetType(assetType: string) {
+  return assetType === COMIC_CHINESE_PAGE_ASSET_TYPE;
+}
+
+function isComicApprovalAssetType(assetType: string) {
+  return COMIC_APPROVAL_ASSET_TYPES.includes(assetType);
 }
 
 function isComicPublishPageNumber(pageNumber: number) {
@@ -733,6 +756,14 @@ export async function approveComicEpisodeAssetAction(formData: FormData) {
     redirect(buildComicRedirect(redirectTo, "missing-asset"));
   }
 
+  if (!isComicPageAssetType(asset.assetType) || !isComicPublishPageNumber(asset.sortOrder)) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  if (asset.episode.published) {
+    redirect(buildComicRedirect(redirectTo, "unpublish-before-approval-change"));
+  }
+
   await prisma.$transaction([
     prisma.comicEpisodeAsset.updateMany({
       where: {
@@ -740,6 +771,16 @@ export async function approveComicEpisodeAssetAction(formData: FormData) {
         sortOrder: asset.sortOrder,
         id: { not: asset.id },
         assetType: { in: COMIC_PAGE_ASSET_TYPES }
+      },
+      data: {
+        published: false
+      }
+    }),
+    prisma.comicEpisodeAsset.updateMany({
+      where: {
+        episodeId: asset.episodeId,
+        sortOrder: asset.sortOrder,
+        assetType: COMIC_CHINESE_PAGE_ASSET_TYPE
       },
       data: {
         published: false
@@ -790,6 +831,159 @@ export async function unapproveComicEpisodeAssetAction(formData: FormData) {
     redirect(buildComicRedirect(redirectTo, "missing-asset"));
   }
 
+  if (!isComicPageAssetType(asset.assetType) || !isComicPublishPageNumber(asset.sortOrder)) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  if (asset.episode.published) {
+    redirect(buildComicRedirect(redirectTo, "unpublish-before-approval-change"));
+  }
+
+  await prisma.comicEpisodeAsset.update({
+    where: { id },
+    data: {
+      published: false
+    }
+  });
+
+  await prisma.comicEpisodeAsset.updateMany({
+    where: {
+      episodeId: asset.episodeId,
+      sortOrder: asset.sortOrder,
+      assetType: COMIC_CHINESE_PAGE_ASSET_TYPE
+    },
+    data: {
+      published: false
+    }
+  });
+
+  revalidateComicRoutes({
+    seasonSlug: asset.episode.chapter.season.slug,
+    chapterSlug: asset.episode.chapter.slug,
+    episodeSlug: asset.episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "page-unapproved"));
+}
+
+export async function approveChineseComicPageAssetAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = getComicPublishRedirect(formData);
+
+  if (!id) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  const asset = await prisma.comicEpisodeAsset.findUnique({
+    where: { id },
+    include: {
+      episode: {
+        include: {
+          assets: {
+            where: {
+              published: true,
+              assetType: { in: COMIC_PAGE_ASSET_TYPES }
+            },
+            select: {
+              sortOrder: true
+            }
+          },
+          chapter: {
+            include: {
+              season: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!asset) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  if (!isChineseComicPageAssetType(asset.assetType) || !isComicPublishPageNumber(asset.sortOrder)) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  if (asset.episode.published) {
+    redirect(buildComicRedirect(redirectTo, "unpublish-before-approval-change"));
+  }
+
+  const hasApprovedEnglishPage = asset.episode.assets.some(
+    (candidate) => candidate.sortOrder === asset.sortOrder
+  );
+
+  if (!hasApprovedEnglishPage) {
+    redirect(buildComicRedirect(redirectTo, "missing-approved-page"));
+  }
+
+  await prisma.$transaction([
+    prisma.comicEpisodeAsset.updateMany({
+      where: {
+        episodeId: asset.episodeId,
+        sortOrder: asset.sortOrder,
+        id: { not: asset.id },
+        assetType: COMIC_CHINESE_PAGE_ASSET_TYPE
+      },
+      data: {
+        published: false
+      }
+    }),
+    prisma.comicEpisodeAsset.update({
+      where: { id },
+      data: {
+        published: true
+      }
+    })
+  ]);
+
+  revalidateComicRoutes({
+    seasonSlug: asset.episode.chapter.season.slug,
+    chapterSlug: asset.episode.chapter.slug,
+    episodeSlug: asset.episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "page-chinese-approved"));
+}
+
+export async function unapproveChineseComicPageAssetAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = getComicPublishRedirect(formData);
+
+  if (!id) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  const asset = await prisma.comicEpisodeAsset.findUnique({
+    where: { id },
+    include: {
+      episode: {
+        include: {
+          chapter: {
+            include: {
+              season: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!asset) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  if (!isChineseComicPageAssetType(asset.assetType) || !isComicPublishPageNumber(asset.sortOrder)) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  if (asset.episode.published) {
+    redirect(buildComicRedirect(redirectTo, "unpublish-before-approval-change"));
+  }
+
   await prisma.comicEpisodeAsset.update({
     where: { id },
     data: {
@@ -802,7 +996,7 @@ export async function unapproveComicEpisodeAssetAction(formData: FormData) {
     chapterSlug: asset.episode.chapter.slug,
     episodeSlug: asset.episode.slug
   });
-  redirect(buildComicRedirect(redirectTo, "page-unapproved"));
+  redirect(buildComicRedirect(redirectTo, "page-chinese-unapproved"));
 }
 
 export async function createChineseComicPageVersionAction(formData: FormData) {
@@ -877,7 +1071,7 @@ export async function createChineseComicPageVersionAction(formData: FormData) {
         altText: `${asset.altText || asset.title} Chinese version`,
         caption: asset.caption,
         sortOrder: asset.sortOrder,
-        published: true
+        published: false
       },
       select: {
         id: true
@@ -886,14 +1080,6 @@ export async function createChineseComicPageVersionAction(formData: FormData) {
     const imageUrl = `/media/comic/${createdAsset.id}?v=${Date.now()}`;
 
     await prisma.$transaction([
-      prisma.comicEpisodeAsset.deleteMany({
-        where: {
-          episodeId: asset.episodeId,
-          sortOrder: asset.sortOrder,
-          assetType: COMIC_CHINESE_PAGE_ASSET_TYPE,
-          id: { not: createdAsset.id }
-        }
-      }),
       prisma.comicEpisodeAsset.update({
         where: { id: createdAsset.id },
         data: { imageUrl }
@@ -910,7 +1096,7 @@ export async function createChineseComicPageVersionAction(formData: FormData) {
           imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
           status: "READY",
           inputContext,
-          outputSummary: `Created Chinese version for ${asset.episode.title} page ${asset.sortOrder}.`
+          outputSummary: `Created Chinese draft version for ${asset.episode.title} page ${asset.sortOrder}.`
         }
       })
     ]);
@@ -1017,6 +1203,11 @@ export async function uploadComicPageAssetAction(formData: FormData) {
   const title =
     toPlainString(formData.get("title")) ||
     `${episode.title} - Uploaded Page ${String(pageNumber).padStart(2, "0")}`;
+
+  if (shouldApprove && episode.published) {
+    redirect(buildComicRedirect(redirectTo, "unpublish-before-approval-change"));
+  }
+
   const imageBuffer = Buffer.from(await file.arrayBuffer());
 
   const createdAsset = await prisma.comicEpisodeAsset.create({
@@ -1049,6 +1240,16 @@ export async function uploadComicPageAssetAction(formData: FormData) {
           sortOrder: pageNumber,
           id: { not: createdAsset.id },
           assetType: { in: COMIC_PAGE_ASSET_TYPES }
+        },
+        data: {
+          published: false
+        }
+      }),
+      prisma.comicEpisodeAsset.updateMany({
+        where: {
+          episodeId,
+          sortOrder: pageNumber,
+          assetType: COMIC_CHINESE_PAGE_ASSET_TYPE
         },
         data: {
           published: false
@@ -1157,4 +1358,45 @@ export async function publishComicEpisodeFromCenterAction(formData: FormData) {
     episodeSlug: episode.slug
   });
   redirect(buildComicRedirect(redirectTo, "episode-published"));
+}
+
+export async function unpublishComicEpisodeFromCenterAction(formData: FormData) {
+  await requireAdminSession();
+
+  const episodeId = toPlainString(formData.get("episodeId"));
+  const redirectTo = getComicPublishRedirect(formData);
+
+  if (!episodeId) {
+    redirect(buildComicRedirect(redirectTo, "missing-episode"));
+  }
+
+  const episode = await prisma.comicEpisode.findUnique({
+    where: { id: episodeId },
+    include: {
+      chapter: {
+        include: {
+          season: true
+        }
+      }
+    }
+  });
+
+  if (!episode) {
+    redirect(buildComicRedirect(redirectTo, "missing-episode"));
+  }
+
+  await prisma.comicEpisode.update({
+    where: { id: episodeId },
+    data: {
+      published: false,
+      publishedAt: null
+    }
+  });
+
+  revalidateComicRoutes({
+    seasonSlug: episode.chapter.season.slug,
+    chapterSlug: episode.chapter.slug,
+    episodeSlug: episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "episode-unpublished"));
 }
