@@ -15,11 +15,13 @@
 ## Character consistency rules
 - Always keep each character's silhouette stable before adding emotion.
 - Characters must be recognizable even in silhouette-only poses.
-- Model-sheet reference images are the top authority for body shape, face placement, eye style, highlight marks, proportions, feet/lower-body nubs, and point direction.
+- Model-sheet reference images are the top authority for body shape, face placement, eye style, highlight marks, proportions, small feet/lower-body nubs, and point direction.
 - Treat model sheets as exact identity locks, not loose inspiration.
 - Do not let random prompts "average out" the cast into the same droplet.
 - Every character is a handless mascot being with no arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs.
-- Preserve any feet, lower body nubs, base shape, or tiny legs exactly as shown in the character's model sheet.
+- Every character has small rounded feet or foot nubs in full-body views.
+- Preserve every character's feet, lower body nubs, base shape, or tiny legs exactly as shown in the character's model sheet.
+- Leave clear lower-frame space in full-body shots so the small feet or foot nubs remain visible; never crop through the feet.
 - Character body interiors must stay pure white like the concept/model sheets. Do not fill mascot bodies with gray, gradients, screentone, or shadow haze.
 - If a beat needs an object moved, use telekinetic object movement instead of hands.
 
@@ -30,7 +32,7 @@
 - **Padarana**: soft teardrop, closed smiling eyes, emotional warmth
 - **Padaruna**: bright rounded teardrop, energetic openness, highly expressive face
 - **Snacri**: simple stable droplet, quieter asymmetry, minimalist read
-- **Sunny Spritz**: soft five-point star silhouette, bright open smile, orientation-host energy
+- **Sunny Spritz**: soft five-point star silhouette, two small rounded feet directly under the lower star points, bright open smile, orientation-host energy
 - **Coach Ray**: broad pentagonal silhouette, planted authority, drill-instructor read
 - **Mira Mistwell**: rounded-square silhouette, neat balance, quiet administrative authority
 - **Professor Cera Lin**: pointed pentagonal silhouette, controlled posture, academic precision
@@ -53,10 +55,12 @@
 - Start every page prompt with clean high-contrast black-and-white manga only, no color, no gray wash.
 - Always upload the relevant model sheet(s) for every speaking character in the panel.
 - When multiple droplets appear in one panel, call out each silhouette explicitly by name.
-- Keep line style, face placement, feet/lower-body nubs, and body proportions consistent with the provided references.
+- Keep line style, face placement, small feet/lower-body nubs, and body proportions consistent with the provided references.
 - State that character bodies must have pure white fill like the model sheets.
 - State that all characters have no hands or arms.
-- State that feet or lower-body nubs must remain exactly as shown in the model sheet.
+- State that every full-body character must show small feet or lower-body nubs exactly as shown in the model sheet.
+- Include a lower-frame foot visibility check in every full-body prompt so feet are not cropped away.
+- For Sunny Spritz, explicitly preserve two small rounded feet directly under her soft five-point star body whenever she appears full-body.
 - Translate holding, pointing, grabbing, opening, carrying, writing, pushing, or handing something over into telekinetic object movement with floating objects, motion lines, or subtle manga emphasis marks.
 - For Muci, explicitly repeat the compact broad centered teardrop shape, short rounded body, rounded base, two small rounded feet, pure white body fill, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.
@@ -73,6 +77,8 @@
 - "Cute" poses that break the character's established personality rhythm
 - Any arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs
 - Removing Muci's two small rounded feet in full-body views
+- Removing Sunny Spritz's small rounded feet in full-body views
+- Cropping a full-body character at the lower edge so the feet disappear
 - Muci redesigns, shifted highlight marks, animal-like features, humanoid bodies, or altered teardrop proportions
 
 ## Dialogue voice locks

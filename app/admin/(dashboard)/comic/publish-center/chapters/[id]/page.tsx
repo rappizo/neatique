@@ -9,12 +9,12 @@ import {
   createChineseComicPageVersionAction,
   deleteComicEpisodeAssetAction,
   publishComicEpisodeFromCenterAction,
-  unapproveComicEpisodeAssetAction,
-  uploadComicPageAssetAction
+  unapproveComicEpisodeAssetAction
 } from "@/app/admin/comic-editor-actions";
 import {
   generateComicPageImageAction,
-  generateComicPromptPackageAction
+  generateComicPromptPackageAction,
+  reviseComicPagePromptAction
 } from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
@@ -37,20 +37,18 @@ const STATUS_MESSAGES: Record<string, string> = {
   "page-rejected": "Comic page image was rejected and deleted.",
   "page-chinese-created": "Chinese comic page version created.",
   "page-chinese-failed": "Chinese comic page version creation failed. Check the episode prompt run history.",
-  "page-uploaded": "Comic page image uploaded as a draft.",
-  "page-uploaded-approved": "Comic page image uploaded and approved.",
   "episode-published": "Episode published to the public comic library.",
   "prompt-generated": "A fresh 10-page prompt package is ready.",
   "prompt-failed": "Comic prompt generation failed. Check the episode prompt run history.",
   "page-image-generated": "Comic page image generated and saved as a draft asset.",
   "page-image-failed": "Comic page image generation failed. Check the episode prompt run history.",
+  "page-prompt-revised": "Comic page prompt updated.",
+  "page-prompt-revision-failed": "Comic page prompt revision failed. Check the episode prompt run history.",
   "missing-approved-pages": "Approve pages 1-10 before publishing this episode.",
   "missing-approved-page": "Approve an English page image before creating a Chinese version.",
   "missing-asset": "That comic page asset could not be found.",
   "missing-source-image": "This approved page does not have stored image data for AI editing.",
-  "missing-upload": "Choose an image file before uploading.",
-  "upload-too-large": "Comic page uploads must stay under 20MB.",
-  "upload-type": "Upload PNG, JPG, WEBP, or AVIF images only.",
+  "missing-prompt-suggestion": "Enter a prompt suggestion before updating this page prompt.",
   "missing-page-prompt": "Generate a page-by-page prompt package before creating page images."
 };
 
@@ -236,8 +234,8 @@ export default async function AdminComicPublishChapterPage({
         </p>
         <h1>{chapter.title}</h1>
         <p>
-          Work through each episode page by page. Generated images and uploaded outside-AI images
-          stay private until one image is approved for every page from 1 to 10.
+          Work through each episode page by page. Generated images stay private until one image is
+          approved for every page from 1 to 10.
         </p>
       </div>
 
@@ -508,8 +506,7 @@ export default async function AdminComicPublishChapterPage({
                             ))
                           ) : (
                             <p className="form-note">
-                              No page image candidates yet. Generate one here or upload an image
-                              from your outside AI tool.
+                              No page image candidates yet. Generate one here from the stored page prompt.
                             </p>
                           )}
                         </div>
@@ -530,44 +527,35 @@ export default async function AdminComicPublishChapterPage({
                             </form>
                           ) : null}
 
-                          <details className="admin-comic-publish-upload">
-                            <summary className="admin-details-summary">Upload external image</summary>
-                            <form action={uploadComicPageAssetAction} encType="multipart/form-data">
+                          {promptPage ? (
+                            <form
+                              action={reviseComicPagePromptAction}
+                              className="admin-comic-prompt-suggestion-form"
+                            >
                               <input type="hidden" name="episodeId" value={episode.id} />
                               <input type="hidden" name="pageNumber" value={pageNumber} />
                               <input type="hidden" name="redirectTo" value={redirectTo} />
-                              <input type="hidden" name="approveAfterUpload" value="true" />
                               <div className="field">
-                                <label htmlFor={`upload-file-${episode.id}-${pageNumber}`}>Image file</label>
-                                <input
-                                  id={`upload-file-${episode.id}-${pageNumber}`}
-                                  name="comicPageFile"
-                                  type="file"
-                                  accept="image/png,image/jpeg,image/webp,image/avif"
+                                <label htmlFor={`prompt-suggestion-${episode.id}-${pageNumber}`}>
+                                  Prompt suggestion
+                                </label>
+                                <textarea
+                                  id={`prompt-suggestion-${episode.id}-${pageNumber}`}
+                                  name="promptSuggestion"
+                                  rows={3}
+                                  placeholder="Describe what should change in Chinese or English..."
                                   required
                                 />
                               </div>
-                              <div className="field">
-                                <label htmlFor={`upload-title-${episode.id}-${pageNumber}`}>Asset title</label>
-                                <input
-                                  id={`upload-title-${episode.id}-${pageNumber}`}
-                                  name="title"
-                                  defaultValue={`${episode.title} - Uploaded ${formatPageLabel(pageNumber)}`}
-                                />
-                              </div>
-                              <div className="field">
-                                <label htmlFor={`upload-alt-${episode.id}-${pageNumber}`}>Alt text</label>
-                                <input
-                                  id={`upload-alt-${episode.id}-${pageNumber}`}
-                                  name="altText"
-                                  defaultValue={`${episode.title} comic ${formatPageLabel(pageNumber)}`}
-                                />
-                              </div>
-                              <button type="submit" className="button button--primary">
-                                Upload and approve
-                              </button>
+                              <PendingSubmitButton
+                                idleLabel="Update page prompt"
+                                pendingLabel="Updating..."
+                                className="button button--ghost"
+                                modalTitle={`Updating ${formatPageLabel(pageNumber)} prompt`}
+                                modalDescription="The model is revising this one page prompt from your suggestion while preserving character locks and continuity."
+                              />
                             </form>
-                          </details>
+                          ) : null}
                         </div>
                       </article>
                     );

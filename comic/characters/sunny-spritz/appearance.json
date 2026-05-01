@@ -1,9 +1,11 @@
 {
-  "silhouette": "Rounded five-point star silhouette with soft inflated points.",
+  "silhouette": "Rounded five-point star silhouette with soft inflated points and two small rounded feet directly under the lower star points in full-body views.",
   "face": "Large dot eyes, upbeat smile, glossy highlight marks near the upper left side.",
   "body_language": "Bouncy, welcoming, and always ready to launch into the next activity.",
   "do_not_change": [
     "Keep the star silhouette readable.",
+    "Keep the two small rounded feet visible in full-body views.",
+    "Leave clear lower-frame space so the small feet are not cropped away.",
     "Keep the friendly open smile.",
     "Do not make the points sharp or threatening."
   ]

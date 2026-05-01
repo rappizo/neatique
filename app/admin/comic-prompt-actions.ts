@@ -408,3 +408,192 @@ export async function generateComicPageImageAction(formData: FormData) {
 
   redirect(buildComicRedirect(redirectTo, nextStatus));
 }
+
+export async function reviseComicPagePromptAction(formData: FormData) {
+  await requireAdminSession();
+
+  const episodeId = toPlainString(formData.get("episodeId"));
+  const pageNumber = toInt(formData.get("pageNumber"), 0);
+  const promptSuggestion = toPlainString(formData.get("promptSuggestion"));
+  const redirectTo =
+    toPlainString(formData.get("redirectTo")) || `/admin/comic/prompt-studio?episodeId=${episodeId}`;
+
+  if (!episodeId) {
+    redirect(buildComicRedirect("/admin/comic/prompt-studio", "missing-episode"));
+  }
+
+  if (!pageNumber) {
+    redirect(buildComicRedirect(redirectTo, "missing-page-prompt"));
+  }
+
+  if (!promptSuggestion) {
+    redirect(buildComicRedirect(redirectTo, "missing-prompt-suggestion"));
+  }
+
+  const episode = await prisma.comicEpisode.findUnique({
+    where: { id: episodeId },
+    include: {
+      chapter: {
+        include: {
+          season: {
+            include: {
+              project: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!episode?.chapter.season.project) {
+    redirect(buildComicRedirect(redirectTo, "missing-project"));
+  }
+
+  const parsedPromptOutput = parseComicPromptOutput(episode.promptPack, episode.requiredReferences);
+  const page = parsedPromptOutput?.pages.find((candidate) => candidate.pageNumber === pageNumber);
+
+  if (!parsedPromptOutput || !page) {
+    redirect(buildComicRedirect(redirectTo, "missing-page-prompt"));
+  }
+
+  const inputContext = JSON.stringify(
+    {
+      project: episode.chapter.season.project.title,
+      season: episode.chapter.season.title,
+      chapter: episode.chapter.title,
+      episode: episode.title,
+      pageNumber,
+      promptSuggestion,
+      currentPage: {
+        pagePurpose: page.pagePurpose,
+        panelCount: page.panelCount,
+        promptPackCopyText: page.promptPackCopyText,
+        referenceNotesCopyText: page.referenceNotesCopyText,
+        panels: page.panels
+      }
+    },
+    null,
+    2
+  );
+
+  let nextStatus = "page-prompt-revised";
+
+  try {
+    const { reviseComicPagePromptWithAi } = await import("@/lib/openai-comic");
+    const revisedPage = await reviseComicPagePromptWithAi({
+      episodeTitle: episode.title,
+      episodeSummary: episode.summary,
+      pageNumber: page.pageNumber,
+      panelCount: page.panelCount,
+      pagePurpose: page.pagePurpose,
+      promptPackCopyText: page.promptPackCopyText,
+      referenceNotesCopyText: page.referenceNotesCopyText,
+      globalGptImage2Notes: parsedPromptOutput.globalGptImage2Notes,
+      panels: page.panels,
+      promptSuggestion
+    });
+
+    const nextPages = parsedPromptOutput.pages.map((candidate) =>
+      candidate.pageNumber === pageNumber
+        ? {
+            ...candidate,
+            pageNumber: revisedPage.pageNumber,
+            panelCount: revisedPage.panelCount,
+            pagePurpose: revisedPage.pagePurpose,
+            promptPackCopyText: revisedPage.promptPackCopyText,
+            referenceNotesCopyText: revisedPage.referenceNotesCopyText,
+            panels: revisedPage.panels
+          }
+        : candidate
+    );
+
+    await prisma.$transaction([
+      prisma.comicEpisode.update({
+        where: { id: episodeId },
+        data: {
+          promptPack: JSON.stringify(
+            {
+              episodeLogline: parsedPromptOutput.episodeLogline,
+              episodeSynopsis: parsedPromptOutput.episodeSynopsis,
+              pages: nextPages.map((nextPage) => ({
+                pageNumber: nextPage.pageNumber,
+                panelCount: nextPage.panelCount,
+                pagePurpose: nextPage.pagePurpose,
+                promptPackCopyText: nextPage.promptPackCopyText,
+                panels: nextPage.panels,
+                referenceNotesCopyText: nextPage.referenceNotesCopyText,
+                requiredUploads: nextPage.requiredUploads
+              }))
+            },
+            null,
+            2
+          ),
+          requiredReferences: JSON.stringify(
+            {
+              globalGptImage2Notes: parsedPromptOutput.globalGptImage2Notes,
+              pages: nextPages.map((nextPage) => ({
+                pageNumber: nextPage.pageNumber,
+                panelCount: nextPage.panelCount,
+                referenceNotesCopyText: nextPage.referenceNotesCopyText,
+                requiredUploads: nextPage.requiredUploads
+              }))
+            },
+            null,
+            2
+          )
+        }
+      }),
+      prisma.comicPromptRun.create({
+        data: {
+          episodeId,
+          promptType: "PAGE_PROMPT_REVISION",
+          model:
+            process.env.OPENAI_COMIC_MODEL ||
+            process.env.OPENAI_POST_MODEL ||
+            process.env.OPENAI_EMAIL_MODEL ||
+            "gpt-5.5",
+          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          status: "READY",
+          inputContext,
+          outputSummary: `Revised ${episode.title} page ${pageNumber} prompt from admin suggestion.`,
+          promptPack: revisedPage.promptPackCopyText,
+          referenceChecklist: revisedPage.referenceNotesCopyText
+        }
+      })
+    ]);
+
+    revalidateComicRoutes({
+      seasonSlug: episode.chapter.season.slug,
+      chapterSlug: episode.chapter.slug,
+      episodeSlug: episode.slug
+    });
+  } catch (error) {
+    nextStatus = "page-prompt-revision-failed";
+    await prisma.comicPromptRun.create({
+      data: {
+        episodeId,
+        promptType: "PAGE_PROMPT_REVISION",
+        model:
+          process.env.OPENAI_COMIC_MODEL ||
+          process.env.OPENAI_POST_MODEL ||
+          process.env.OPENAI_EMAIL_MODEL ||
+          "gpt-5.5",
+        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+        status: "FAILED",
+        inputContext,
+        outputSummary: `Page ${pageNumber} prompt revision failed.`,
+        promptPack: page.promptPackCopyText,
+        referenceChecklist: page.referenceNotesCopyText,
+        errorMessage: error instanceof Error ? error.message : "Unknown comic page prompt revision error."
+      }
+    });
+
+    revalidateComicRoutes({
+      seasonSlug: episode.chapter.season.slug,
+      chapterSlug: episode.chapter.slug,
+      episodeSlug: episode.slug
+    });
+  }
+
+  redirect(buildComicRedirect(redirectTo, nextStatus));
+}

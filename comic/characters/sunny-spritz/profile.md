@@ -8,6 +8,7 @@ New-student orientation leader, welcome-week hype engine, and one of the comic's
 
 ## Appearance lock
 - Rounded five-point star silhouette with soft inflated points
+- Two small rounded feet directly under the lower star points, visible in full-body views
 - Large dot eyes, upbeat smile, glossy highlight marks near the upper left side
 - Energetic proportions that should read bright, approachable, and impossible to ignore
 - Should feel visually buoyant, like she is already mid-cheer even when standing still
@@ -31,8 +32,10 @@ Sunny Spritz speaks in a hyper-enthusiastic, fast, cheerful orientation-leader v
 ## Non-negotiable visual references
 - Use `refs/model-sheet.png` as the primary shape lock
 - Keep the soft star silhouette readable in all panel sizes
+- Preserve the two small rounded feet directly under the star body in full-body views
+- Leave clear lower-frame space so the small feet are not cropped away
 - Preserve the friendly smile and upper-left highlight marks
 - Do not flatten her into a generic droplet
 
 ## Reusable prompt notes
-When prompting Sunny Spritz, emphasize "soft five-point star mascot, hyper-enthusiastic campus leader, cheerful welcome-week energy, bright open smile, glossy highlight marks, talks like orientation is the biggest event on earth."
+When prompting Sunny Spritz, emphasize "soft five-point star mascot, two small rounded feet directly under the lower star points, full-body framing leaves the feet visible, hyper-enthusiastic campus leader, cheerful welcome-week energy, bright open smile, glossy highlight marks, talks like orientation is the biggest event on earth."

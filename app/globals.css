@@ -4287,8 +4287,7 @@ main {
   line-height: 1.18;
 }
 
-.admin-comic-publish-details,
-.admin-comic-publish-upload {
+.admin-comic-publish-details {
   display: grid;
   gap: 12px;
 }
@@ -4349,8 +4348,10 @@ main {
   display: contents;
 }
 
-.admin-comic-publish-upload form {
-  margin-top: 4px;
+.admin-comic-publish-page__actions > .admin-comic-prompt-suggestion-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 2px;
   padding: 14px;
   border-radius: 18px;
   border: 1px solid rgba(237, 115, 97, 0.16);

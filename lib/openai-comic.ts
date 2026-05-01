@@ -22,24 +22,27 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Character bodies must have pure white interior fill like the model sheets. Do not fill Muci or other mascot characters with gray, gradient shading, heavy screentone, airbrush texture, or smoky shadows.",
   "- Keep screentone and hatching light and controlled; use it mainly for backgrounds, cast shadows, and mood accents, not as a gray overlay across the whole page.",
   "- Keep the overall feeling cute, clean, soft, polished, and classic shonen-manga readable, not gritty, horror-styled, sketchy, or over-rendered.",
-  "- Character model sheets are the highest visual authority and must be treated as exact identity locks, not inspiration. Match the uploaded model sheet for silhouette, face placement, eye spacing, highlight placement, line weight, body proportions, feet/leg nubs, and point direction.",
+  "- Character model sheets are the highest visual authority and must be treated as exact identity locks, not inspiration. Match the uploaded model sheet for silhouette, face placement, eye spacing, highlight placement, line weight, body proportions, small feet, leg nubs, and point direction.",
+  "- Every character has small rounded feet or foot nubs in full-body views. Never remove feet from any character. Sunny Spritz must keep small rounded feet under her star body.",
+  "- In full-body shots, leave clear white space under each character's body so the small feet or foot nubs are visible; never crop the lower frame edge through the feet.",
+  "- For Sunny Spritz, draw two small rounded feet directly beneath the lower points of her soft five-point star body. Do not let the star points replace the feet, hide the feet, or crop the feet away.",
   "- Do not redesign Muci. Muci must stay a compact cute friendly teardrop mascot with a centered point, broad rounded base, large dot eyes, an open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, and soft approachable protagonist energy.",
   "- Muci's proportions must stay squat and rounded like the model sheet, not tall or stretched: the full front-view body should feel broad and compact, with body height only about 1.2 to 1.35 times the body width. Avoid long narrow droplet proportions.",
   "- For any full-body Muci view, show the two small rounded feet exactly like the model sheet. Do not crop them away, hide them, replace them with a flat base, or remove them.",
   "- All characters in this world have no hands and no arms. Never draw arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs on any character.",
-  "- Preserve any feet, lower body nubs, base shape, or tiny legs exactly as shown in each character's model sheet.",
+  "- Preserve every character's small feet, lower body nubs, base shape, or tiny legs exactly as shown in each character's model sheet.",
   "- Characters interact with nearby objects through gentle telekinesis. Show objects floating, tilting, sliding, or opening near them with small motion lines, glow cues, or manga emphasis marks instead of hands touching objects.",
   "- If a story beat mentions holding, pointing, grabbing, writing, pushing, opening, carrying, or handing something over, translate that action into telekinetic object movement while keeping every character handless.",
   "- Avoid adding extra characters, props, logos, product labels, watermarks, signatures, or random text."
 ].join("\n");
 const COMIC_CHINESE_NAME_LOCKS = [
   "Character Chinese name locks:",
-  "- Muci = 慕西",
-  "- Artrans = 安川西",
-  "- Nia = 尼亚",
-  "- Padaruna = 啪嗒瑞娜",
-  "- Padarana = 啪嗒安娜",
-  "- Snacri = 斯奈奎"
+  "- Muci = \u6155\u897f",
+  "- Artrans = \u5b89\u5ddd\u897f",
+  "- Nia = \u5c3c\u4e9a",
+  "- Padaruna = \u556a\u55d2\u745e\u5a1c",
+  "- Padarana = \u556a\u55d2\u5b89\u5a1c",
+  "- Snacri = \u65af\u5948\u594e"
 ].join("\n");
 
 type ComicProjectContext = {
@@ -135,6 +138,36 @@ export type GeneratedComicPromptPackage = {
   pagePlan: string;
   pages: GeneratedComicPagePrompt[];
   globalGptImage2Notes: string;
+};
+
+export type ReviseComicPagePromptInput = {
+  episodeTitle: string;
+  episodeSummary: string;
+  pageNumber: number;
+  pagePurpose: string;
+  panelCount: number;
+  promptPackCopyText: string;
+  referenceNotesCopyText: string;
+  globalGptImage2Notes: string | null;
+  panels: Array<{
+    panelNumber: number;
+    panelTitle: string;
+    storyBeat: string;
+  }>;
+  promptSuggestion: string;
+};
+
+export type RevisedComicPagePrompt = {
+  pageNumber: number;
+  panelCount: number;
+  pagePurpose: string;
+  promptPackCopyText: string;
+  referenceNotesCopyText: string;
+  panels: Array<{
+    panelNumber: number;
+    panelTitle: string;
+    storyBeat: string;
+  }>;
 };
 
 export type GenerateComicPageImageInput = {
@@ -404,6 +437,8 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Keep the page suitable for a polished brand comic, not a rough storyboard.",
     "- Preserve character shape, facial expression language, and scene continuity from the reference notes.",
     "- Treat all listed character model sheets as exact identity references, not loose inspiration.",
+    "- Foot visibility check: any full-body character must show small rounded feet or foot nubs with clear space below the body; do not crop off feet.",
+    "- Sunny Spritz check: if Sunny appears full-body, her two small rounded feet must be visible directly under the soft five-point star body.",
     "- If dialogue balloons are needed, keep text minimal, clean, and readable; otherwise use expressive acting and leave balloons simple.",
     "",
     "Story context:",
@@ -561,6 +596,194 @@ export async function generateChineseComicPageVersionWithAi(input: {
   return parseImageBase64Response(base64Data);
 }
 
+export async function reviseComicPagePromptWithAi(
+  input: ReviseComicPagePromptInput
+): Promise<RevisedComicPagePrompt> {
+  const apiKey = getOpenAiApiKey();
+
+  if (!apiKey) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
+  const schema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      pageNumber: { type: "integer", minimum: input.pageNumber, maximum: input.pageNumber },
+      panelCount: { type: "integer", enum: [2, 3] },
+      pagePurpose: { type: "string", minLength: 12, maxLength: 220 },
+      promptPackCopyText: { type: "string", minLength: 180, maxLength: 3000 },
+      referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 2600 },
+      panels: {
+        type: "array",
+        minItems: 2,
+        maxItems: 3,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            panelNumber: { type: "integer", minimum: 1, maximum: 3 },
+            panelTitle: { type: "string", minLength: 4, maxLength: 90 },
+            storyBeat: { type: "string", minLength: 12, maxLength: 220 }
+          },
+          required: ["panelNumber", "panelTitle", "storyBeat"]
+        }
+      }
+    },
+    required: [
+      "pageNumber",
+      "panelCount",
+      "pagePurpose",
+      "promptPackCopyText",
+      "referenceNotesCopyText",
+      "panels"
+    ]
+  };
+
+  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: DEFAULT_OPENAI_COMIC_MODEL,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                "You revise one Neatique comic page prompt for image generation.",
+                "Use the user's prompt suggestion, which may be in Chinese or English, as the requested creative direction.",
+                "Return only valid JSON matching the schema.",
+                "Revise only this one page. Keep the page number fixed.",
+                "Keep the page production-ready for gpt-image-2.",
+                "Preserve the existing story continuity unless the suggestion explicitly asks for a composition change.",
+                "Do not remove required character or scene continuity details.",
+                "All revised prompt text must enforce these production locks:",
+                COMIC_VISUAL_PRODUCTION_LOCKS,
+                "All characters have small rounded feet or foot nubs in full-body views. Full-body framing must leave the feet visible. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body."
+              ].join("\n")
+            }
+          ]
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                "Episode context:",
+                `Title: ${input.episodeTitle}`,
+                `Summary: ${input.episodeSummary || "No summary stored."}`,
+                "",
+                "Current page:",
+                JSON.stringify(
+                  {
+                    pageNumber: input.pageNumber,
+                    panelCount: input.panelCount,
+                    pagePurpose: input.pagePurpose,
+                    promptPackCopyText: input.promptPackCopyText,
+                    referenceNotesCopyText: input.referenceNotesCopyText,
+                    globalGptImage2Notes: input.globalGptImage2Notes,
+                    panels: input.panels
+                  },
+                  null,
+                  2
+                ),
+                "",
+                "Prompt suggestion from admin:",
+                input.promptSuggestion,
+                "",
+                "Revision requirements:",
+                "- Keep the same pageNumber.",
+                "- Keep panelCount at 2 or 3.",
+                "- Improve pagePurpose, promptPackCopyText, referenceNotesCopyText, and panel story beats to reflect the suggestion.",
+                "- Keep character model-sheet identity locked.",
+                "- Make sure every full-body character keeps visible small rounded feet or foot nubs with the lower frame edge below the feet.",
+                "- If Sunny Spritz appears, explicitly preserve two small rounded feet directly under her soft five-point star body.",
+                "- Keep all characters handless and armless; use telekinesis for object interaction.",
+                "- Keep clean high-contrast black-and-white manga style, pure white character bodies, and no gray wash."
+              ].join("\n")
+            }
+          ]
+        }
+      ],
+      reasoning: {
+        effort: "medium"
+      },
+      text: {
+        format: {
+          type: "json_schema",
+          name: "revised_comic_page_prompt",
+          strict: true,
+          schema
+        }
+      }
+    })
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `OpenAI page prompt revision failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const outputText = getResponseOutputText(parsed);
+  const revised = outputText ? safeJsonParse(outputText) : null;
+
+  if (!revised || typeof revised !== "object" || Array.isArray(revised)) {
+    throw new Error("OpenAI did not return a valid revised page prompt.");
+  }
+
+  const record = revised as Record<string, any>;
+  const panels = Array.isArray(record.panels)
+    ? record.panels
+        .map((panel) => ({
+          panelNumber: Number(panel.panelNumber),
+          panelTitle: typeof panel.panelTitle === "string" ? panel.panelTitle.trim() : "",
+          storyBeat: typeof panel.storyBeat === "string" ? panel.storyBeat.trim() : ""
+        }))
+        .filter((panel) => panel.panelNumber >= 1 && panel.panelTitle && panel.storyBeat)
+    : [];
+
+  if (panels.length < 2) {
+    throw new Error("OpenAI returned too few revised panel beats.");
+  }
+
+  const normalizedPanels = panels.slice(0, 3).map((panel, index) => ({
+    ...panel,
+    panelNumber: index + 1
+  }));
+
+  return {
+    pageNumber: input.pageNumber,
+    panelCount: normalizedPanels.length,
+    pagePurpose:
+      typeof record.pagePurpose === "string" && record.pagePurpose.trim()
+        ? record.pagePurpose.trim()
+        : input.pagePurpose,
+    promptPackCopyText:
+      typeof record.promptPackCopyText === "string" && record.promptPackCopyText.trim()
+        ? record.promptPackCopyText.trim()
+        : input.promptPackCopyText,
+    referenceNotesCopyText:
+      typeof record.referenceNotesCopyText === "string" && record.referenceNotesCopyText.trim()
+        ? record.referenceNotesCopyText.trim()
+        : input.referenceNotesCopyText,
+    panels: normalizedPanels
+  };
+}
+
 export async function generateComicPromptPackageWithAi(
   input: GenerateComicPromptPackageInput
 ): Promise<GeneratedComicPromptPackage> {
@@ -688,7 +911,8 @@ export async function generateComicPromptPackageWithAi(
                 "Your job is to turn a season/chapter/episode outline into a production-ready comic prompt package.",
                 "Keep characters visually stable, emotionally consistent, and aligned with their stored canon.",
                 "Every visual prompt must enforce clean high-contrast black-and-white manga output only, with pure white character fills and no gray wash.",
-                "Every visual prompt must enforce that all characters have no hands and no arms, while preserving any feet or lower-body nubs exactly as shown in their model sheets.",
+                "Every visual prompt must enforce that all characters have no hands and no arms, while preserving small rounded feet, foot nubs, or lower-body nubs exactly as shown in their model sheets.",
+                "Every full-body character view must include the character's visible small feet with clear lower-frame space. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body.",
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
                 "Muci must always match the Muci model sheet and written appearance lock exactly: compact cute friendly teardrop mascot, centered point, broad rounded base, short rounded body proportions, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, soft approachable protagonist energy.",
                 "Muci must never become tall, thin, stretched, elongated, pear-like, or a long raindrop. Keep him broad, squat, soft, and close to the model-sheet width-to-height proportion.",
@@ -755,7 +979,9 @@ export async function generateComicPromptPackageWithAi(
                 "- A page may contain 2 panels only when the beat is visually important enough to justify extra space.",
                 `- Assume the image generation step will use ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
                 "- Every promptPackCopyText block must state clean black-and-white manga only, no color, no gray wash, pure white character bodies.",
-                "- Every promptPackCopyText block must state that characters have no hands or arms, while preserving model-sheet feet or lower-body nubs exactly.",
+                "- Every promptPackCopyText block must state that characters have no hands or arms, while preserving model-sheet small feet, foot nubs, or lower-body nubs exactly.",
+                "- Every promptPackCopyText block must include a lower-frame foot visibility check for full-body characters.",
+                "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Every Muci prompt must explicitly preserve his model-sheet identity, compact broad centered-teardrop design, pure white body fill, and two small rounded feet.",
                 "- Every referenceNotesCopyText block must remind production that character model sheets are exact identity locks, not loose inspiration.",
