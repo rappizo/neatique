@@ -5,7 +5,9 @@ import { AdminActionResultDialog } from "@/components/admin/admin-action-result-
 import {
   ComicEditImageQueueForm,
   ComicGenerateImageQueueButton,
-  ComicImageTaskQueueProvider
+  ComicGeneratePromptPackageQueueButton,
+  ComicImageTaskQueueProvider,
+  ComicRevisePromptQueueForm
 } from "@/components/admin/comic-image-task-queue";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
@@ -16,11 +18,7 @@ import {
   publishComicEpisodeFromCenterAction,
   unapproveComicEpisodeAssetAction
 } from "@/app/admin/comic-editor-actions";
-import {
-  generateComicPromptPackageAction,
-  restoreComicPagePromptRevisionAction,
-  reviseComicPagePromptAction
-} from "@/app/admin/comic-prompt-actions";
+import { restoreComicPagePromptRevisionAction } from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { resolveComicPageReferenceImages } from "@/lib/comic-reference-images";
@@ -379,17 +377,12 @@ export default async function AdminComicPublishChapterPage({
                     >
                       Prompt studio
                     </Link>
-                    <form action={generateComicPromptPackageAction}>
-                      <input type="hidden" name="episodeId" value={episode.id} />
-                      <input type="hidden" name="redirectTo" value={redirectTo} />
-                      <PendingSubmitButton
-                        idleLabel={promptState.parsedPromptOutput ? "Regenerate prompts" : "Generate prompts"}
-                        pendingLabel="Generating..."
-                        className="button button--secondary"
-                        modalTitle="Generating comic prompts"
-                        modalDescription="The system is building a 10-page prompt package for this episode."
-                      />
-                    </form>
+                    <ComicGeneratePromptPackageQueueButton
+                      episodeId={episode.id}
+                      idleLabel={promptState.parsedPromptOutput ? "Regenerate prompts" : "Generate prompts"}
+                      className="button button--secondary"
+                      taskLabel={`Prompts: ${episode.title}`}
+                    />
                     <form action={publishComicEpisodeFromCenterAction}>
                       <input type="hidden" name="episodeId" value={episode.id} />
                       <input type="hidden" name="redirectTo" value={redirectTo} />
@@ -695,33 +688,10 @@ export default async function AdminComicPublishChapterPage({
                           ) : null}
 
                           {promptPage ? (
-                            <form
-                              action={reviseComicPagePromptAction}
-                              className="admin-comic-prompt-suggestion-form"
-                            >
-                              <input type="hidden" name="episodeId" value={episode.id} />
-                              <input type="hidden" name="pageNumber" value={pageNumber} />
-                              <input type="hidden" name="redirectTo" value={redirectTo} />
-                              <div className="field">
-                                <label htmlFor={`prompt-suggestion-${episode.id}-${pageNumber}`}>
-                                  Prompt suggestion
-                                </label>
-                                <textarea
-                                  id={`prompt-suggestion-${episode.id}-${pageNumber}`}
-                                  name="promptSuggestion"
-                                  rows={3}
-                                  placeholder="Describe what should change in Chinese or English..."
-                                  required
-                                />
-                              </div>
-                              <PendingSubmitButton
-                                idleLabel="Update page prompt"
-                                pendingLabel="Updating..."
-                                className="button button--ghost"
-                                modalTitle={`Updating ${formatPageLabel(pageNumber)} prompt`}
-                                modalDescription="The model is revising this one page prompt from your suggestion while preserving character locks and continuity."
-                              />
-                            </form>
+                            <ComicRevisePromptQueueForm
+                              episodeId={episode.id}
+                              pageNumber={pageNumber}
+                            />
                           ) : null}
                         </div>
                       </article>

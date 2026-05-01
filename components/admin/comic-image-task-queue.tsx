@@ -14,7 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 
 type ComicImageTaskStatus = "queued" | "running" | "success" | "failed";
-type ComicImageTaskKind = "generate" | "edit";
+type ComicImageTaskKind = "generate" | "edit" | "prompt-package" | "prompt-revision";
 
 type ComicImageTask = {
   id: string;
@@ -31,6 +31,7 @@ type ComicImageTask = {
   imageUrl?: string;
   sourceAssetId?: string;
   editInstruction?: string;
+  promptSuggestion?: string;
 };
 
 type ComicImageTaskQueueContextValue = {
@@ -42,6 +43,13 @@ type ComicImageTaskQueueContextValue = {
     episodeId: string;
     pageNumber: number;
     editInstruction: string;
+    label?: string;
+  }) => string;
+  enqueuePromptPackage: (input: { episodeId: string; label?: string }) => string;
+  enqueuePromptRevision: (input: {
+    episodeId: string;
+    pageNumber: number;
+    promptSuggestion: string;
     label?: string;
   }) => string;
   getLatestPageTask: (episodeId: string, pageNumber: number) => ComicImageTask | null;
@@ -115,17 +123,31 @@ export function ComicImageTaskQueueProvider({
       const endpoint =
         task.kind === "edit"
           ? "/api/admin/comic/page-image-edit"
-          : "/api/admin/comic/page-image-generation";
+          : task.kind === "prompt-package"
+            ? "/api/admin/comic/prompt-package-generation"
+            : task.kind === "prompt-revision"
+              ? "/api/admin/comic/page-prompt-revision"
+              : "/api/admin/comic/page-image-generation";
       const requestBody =
         task.kind === "edit"
           ? {
               assetId: task.sourceAssetId,
               editInstruction: task.editInstruction
             }
-          : {
-              episodeId: task.episodeId,
-              pageNumber: task.pageNumber
-            };
+          : task.kind === "prompt-package"
+            ? {
+                episodeId: task.episodeId
+              }
+            : task.kind === "prompt-revision"
+              ? {
+                  episodeId: task.episodeId,
+                  pageNumber: task.pageNumber,
+                  promptSuggestion: task.promptSuggestion
+                }
+              : {
+                  episodeId: task.episodeId,
+                  pageNumber: task.pageNumber
+                };
 
       void fetch(endpoint, {
         method: "POST",
@@ -266,6 +288,80 @@ export function ComicImageTaskQueueProvider({
     []
   );
 
+  const enqueuePromptPackage = useCallback((input: { episodeId: string; label?: string }) => {
+    const activeTask = tasksRef.current.find(
+      (task) =>
+        task.kind === "prompt-package" &&
+        task.episodeId === input.episodeId &&
+        (task.status === "queued" || task.status === "running")
+    );
+
+    if (activeTask) {
+      return activeTask.id;
+    }
+
+    const id = createTaskId("prompt-package", input.episodeId, 0);
+    const label = input.label || "Prompt package";
+
+    setTasks((currentTasks) => [
+      ...currentTasks,
+      {
+        id,
+        kind: "prompt-package",
+        episodeId: input.episodeId,
+        pageNumber: 0,
+        label,
+        status: "queued",
+        createdAt: Date.now()
+      }
+    ]);
+
+    return id;
+  }, []);
+
+  const enqueuePromptRevision = useCallback(
+    (input: {
+      episodeId: string;
+      pageNumber: number;
+      promptSuggestion: string;
+      label?: string;
+    }) => {
+      const promptSuggestion = input.promptSuggestion.trim();
+      const activeTask = tasksRef.current.find(
+        (task) =>
+          task.kind === "prompt-revision" &&
+          task.episodeId === input.episodeId &&
+          task.pageNumber === input.pageNumber &&
+          task.promptSuggestion === promptSuggestion &&
+          (task.status === "queued" || task.status === "running")
+      );
+
+      if (activeTask) {
+        return activeTask.id;
+      }
+
+      const id = createTaskId("prompt-revision", input.episodeId, input.pageNumber);
+      const label = input.label || `Revise ${formatPageLabel(input.pageNumber)} prompt`;
+
+      setTasks((currentTasks) => [
+        ...currentTasks,
+        {
+          id,
+          kind: "prompt-revision",
+          episodeId: input.episodeId,
+          pageNumber: input.pageNumber,
+          label,
+          status: "queued",
+          createdAt: Date.now(),
+          promptSuggestion
+        }
+      ]);
+
+      return id;
+    },
+    []
+  );
+
   const getLatestPageTask = useCallback((episodeId: string, pageNumber: number) => {
     const pageTasks = tasksRef.current
       .filter((task) => task.episodeId === episodeId && task.pageNumber === pageNumber)
@@ -286,10 +382,21 @@ export function ComicImageTaskQueueProvider({
       tasks,
       enqueue,
       enqueueEdit,
+      enqueuePromptPackage,
+      enqueuePromptRevision,
       getLatestPageTask,
       clearCompleted
     }),
-    [maxConcurrent, tasks, enqueue, enqueueEdit, getLatestPageTask, clearCompleted]
+    [
+      maxConcurrent,
+      tasks,
+      enqueue,
+      enqueueEdit,
+      enqueuePromptPackage,
+      enqueuePromptRevision,
+      getLatestPageTask,
+      clearCompleted
+    ]
   );
 
   return (
@@ -392,7 +499,7 @@ export function ComicEditImageQueueForm({
       label: `Edit ${formatPageLabel(pageNumber)}`
     });
     setEditInstruction("");
-    setNotice("Added to Image tasks.");
+    setNotice("Added to Comic tasks.");
   }
 
   return (
@@ -422,6 +529,118 @@ export function ComicEditImageQueueForm({
   );
 }
 
+export function ComicGeneratePromptPackageQueueButton({
+  episodeId,
+  className = "button button--secondary",
+  idleLabel = "Generate prompt package",
+  disabled = false,
+  taskLabel = "Prompt package"
+}: {
+  episodeId: string;
+  className?: string;
+  idleLabel?: string;
+  disabled?: boolean;
+  taskLabel?: string;
+}) {
+  const { enqueuePromptPackage, tasks } = useComicImageTaskQueue();
+  const task =
+    [...tasks]
+      .filter(
+        (candidate) =>
+          candidate.kind === "prompt-package" && candidate.episodeId === episodeId
+      )
+      .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
+  const isActive = task?.status === "queued" || task?.status === "running";
+  const label =
+    task?.status === "queued"
+      ? "Queued..."
+      : task?.status === "running"
+        ? "Generating prompts..."
+        : task?.status === "success"
+          ? "Regenerate prompt package"
+          : task?.status === "failed"
+            ? "Retry prompt package"
+            : idleLabel;
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={disabled || isActive}
+      aria-busy={task?.status === "running"}
+      onClick={() => enqueuePromptPackage({ episodeId, label: taskLabel })}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function ComicRevisePromptQueueForm({
+  episodeId,
+  pageNumber
+}: {
+  episodeId: string;
+  pageNumber: number;
+}) {
+  const { enqueuePromptRevision, tasks } = useComicImageTaskQueue();
+  const [promptSuggestion, setPromptSuggestion] = useState("");
+  const [notice, setNotice] = useState("");
+  const activeRevisionCount = tasks.filter(
+    (task) =>
+      task.kind === "prompt-revision" &&
+      task.episodeId === episodeId &&
+      task.pageNumber === pageNumber &&
+      (task.status === "queued" || task.status === "running")
+  ).length;
+  const trimmedSuggestion = promptSuggestion.trim();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!trimmedSuggestion) {
+      setNotice("Enter a prompt suggestion first.");
+      return;
+    }
+
+    enqueuePromptRevision({
+      episodeId,
+      pageNumber,
+      promptSuggestion: trimmedSuggestion,
+      label: `Revise ${formatPageLabel(pageNumber)} prompt`
+    });
+    setPromptSuggestion("");
+    setNotice("Added to Comic tasks.");
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="admin-comic-prompt-suggestion-form">
+      <div className="field">
+        <label htmlFor={`prompt-suggestion-${episodeId}-${pageNumber}`}>
+          Prompt suggestion
+        </label>
+        <textarea
+          id={`prompt-suggestion-${episodeId}-${pageNumber}`}
+          name="promptSuggestion"
+          rows={3}
+          placeholder="Describe what should change in Chinese or English..."
+          value={promptSuggestion}
+          onChange={(event) => {
+            setPromptSuggestion(event.target.value);
+            if (notice) {
+              setNotice("");
+            }
+          }}
+          required
+        />
+      </div>
+      <button type="submit" className="button button--ghost" disabled={!trimmedSuggestion}>
+        {activeRevisionCount > 0 ? "Queue another prompt update" : "Update page prompt"}
+      </button>
+      {notice ? <span className="form-note">{notice}</span> : null}
+    </form>
+  );
+}
+
 function ComicImageTaskQueuePanel() {
   const { tasks, maxConcurrent, clearCompleted } = useComicImageTaskQueue();
 
@@ -440,7 +659,7 @@ function ComicImageTaskQueuePanel() {
     <aside className="admin-comic-task-panel" aria-live="polite">
       <div className="admin-comic-task-panel__header">
         <div>
-          <p className="eyebrow">Image tasks</p>
+          <p className="eyebrow">Comic tasks</p>
           <strong>
             {runningCount} / {maxConcurrent} running
           </strong>

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { AdminActionResultDialog } from "@/components/admin/admin-action-result-dialog";
-import { ComicImageTaskQueueProvider } from "@/components/admin/comic-image-task-queue";
+import {
+  ComicGeneratePromptPackageQueueButton,
+  ComicImageTaskQueueProvider
+} from "@/components/admin/comic-image-task-queue";
 import { ComicPromptPageLists } from "@/components/admin/comic-prompt-page-lists";
-import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
-import { generateComicPromptPackageAction } from "@/app/admin/comic-prompt-actions";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { getOpenAiComicSettings } from "@/lib/openai-comic";
 import { getComicPromptStudioPage } from "@/lib/comic-queries";
@@ -215,21 +216,11 @@ export default async function AdminComicPromptStudioPage({
               </p>
             )}
 
-            <form action={generateComicPromptPackageAction}>
-              <input type="hidden" name="episodeId" value={selectedEpisode.episode.id} />
-              <input
-                type="hidden"
-                name="redirectTo"
-                value={`/admin/comic/prompt-studio?episodeId=${selectedEpisode.episode.id}`}
-              />
-              <PendingSubmitButton
-                idleLabel="Generate prompt package"
-                pendingLabel="Generating prompt package..."
-                modalTitle="Generating the comic prompt package"
-                modalDescription="The model is turning this episode into a 10-page script pack, page-by-page prompts, and a gpt-image-2 upload checklist."
-                disabled={!openAiSettings.ready || !pageData.project}
-              />
-            </form>
+            <ComicGeneratePromptPackageQueueButton
+              episodeId={selectedEpisode.episode.id}
+              taskLabel={`Prompts: ${selectedEpisode.episode.title}`}
+              disabled={!openAiSettings.ready || !pageData.project}
+            />
           </section>
 
           <section className="admin-form">

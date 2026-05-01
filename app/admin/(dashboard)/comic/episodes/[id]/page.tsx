@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  ComicGeneratePromptPackageQueueButton,
+  ComicImageTaskQueueProvider
+} from "@/components/admin/comic-image-task-queue";
 import { ComicPromptPageLists } from "@/components/admin/comic-prompt-page-lists";
-import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
   createComicEpisodeAssetAction,
   deleteComicEpisodeAssetAction,
   updateComicEpisodeAction,
   updateComicEpisodeAssetAction
 } from "@/app/admin/comic-editor-actions";
-import { generateComicPromptPackageAction } from "@/app/admin/comic-prompt-actions";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { formatDate, formatTime } from "@/lib/format";
 import { getComicEpisodeById } from "@/lib/comic-queries";
@@ -64,6 +66,7 @@ export default async function AdminComicEpisodeDetailPage({
     assets.length > 0 ? Math.max(...assets.map((asset) => asset.sortOrder)) + 1 : 1;
 
   return (
+    <ComicImageTaskQueueProvider maxConcurrent={5}>
     <div className="admin-page">
       <div className="stack-row">
         <Link href={`/admin/comic/chapters/${chapter.id}`} className="button button--secondary">
@@ -285,16 +288,11 @@ export default async function AdminComicEpisodeDetailPage({
           </div>
         </div>
 
-        <form action={generateComicPromptPackageAction}>
-          <input type="hidden" name="episodeId" value={episode.id} />
-          <input type="hidden" name="redirectTo" value={`/admin/comic/episodes/${episode.id}`} />
-          <PendingSubmitButton
-            idleLabel="Generate comic prompt package"
-            pendingLabel="Generating comic prompts..."
-            modalTitle="Building the episode prompt package"
-            modalDescription="The system is reading the project bible, character locks, and scene locks, then writing a fresh script, panel plan, and gpt-image-2 upload checklist."
-          />
-        </form>
+        <ComicGeneratePromptPackageQueueButton
+          episodeId={episode.id}
+          idleLabel="Generate comic prompt package"
+          taskLabel={`Prompts: ${episode.title}`}
+        />
       </section>
 
       {parsedEpisodePromptOutput ? (
@@ -574,5 +572,6 @@ export default async function AdminComicEpisodeDetailPage({
         )}
       </section>
     </div>
+    </ComicImageTaskQueueProvider>
   );
 }
