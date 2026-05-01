@@ -646,8 +646,9 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
   await requireAdminSession();
 
   const id = toPlainString(formData.get("id"));
+  const requestedRedirectTo = toPlainString(formData.get("redirectTo"));
   if (!id) {
-    redirect(buildComicRedirect("/admin/comic", "missing-asset"));
+    redirect(buildComicRedirect(requestedRedirectTo || "/admin/comic", "missing-asset"));
   }
 
   const asset = await prisma.comicEpisodeAsset.findUnique({
@@ -666,7 +667,7 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
   });
 
   if (!asset) {
-    redirect(buildComicRedirect("/admin/comic", "missing-asset"));
+    redirect(buildComicRedirect(requestedRedirectTo || "/admin/comic", "missing-asset"));
   }
 
   await prisma.comicEpisodeAsset.delete({
@@ -678,7 +679,12 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
     chapterSlug: asset.episode.chapter.slug,
     episodeSlug: asset.episode.slug
   });
-  redirect(buildComicRedirect(`/admin/comic/episodes/${asset.episodeId}`, "asset-deleted"));
+  redirect(
+    buildComicRedirect(
+      requestedRedirectTo || `/admin/comic/episodes/${asset.episodeId}`,
+      requestedRedirectTo ? "page-rejected" : "asset-deleted"
+    )
+  );
 }
 
 const COMIC_PUBLISH_PAGE_COUNT = 10;

@@ -1,14 +1,15 @@
 {
-  "silhouette": "Clean cute teardrop silhouette with a centered point and rounded base. Exact match to the Muci model sheet.",
+  "silhouette": "Clean cute teardrop silhouette with a centered point, rounded base, and two small rounded feet at the bottom. Exact match to the Muci model sheet.",
   "face": "Large dot eyes, open friendly smile, glossy highlight marks near the upper-left side.",
-  "body_language": "Approachable, beginner-friendly, soft and balanced. No arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, feet, shoes, or humanoid limbs.",
+  "body_language": "Approachable, beginner-friendly, soft and balanced. No arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, shoes, or humanoid upper limbs.",
   "object_interaction": "Muci moves nearby objects through gentle telekinesis shown with floating props, motion lines, or subtle manga emphasis marks.",
   "do_not_change": [
     "Keep the centered point.",
     "Keep the highlight marks.",
-    "Keep the rounded base and dot-eye spacing.",
+    "Keep the rounded base, two small rounded feet, and dot-eye spacing.",
     "Do not harden the default expression.",
-    "Do not add hands, arms, fingers, paws, gloves, sleeves, wrists, elbows, feet, shoes, or a humanoid body.",
+    "Do not add hands, arms, fingers, paws, gloves, sleeves, wrists, elbows, shoes, or a humanoid body.",
+    "Do not remove, flatten, crop away, or redesign Muci's two small rounded feet in full-body views.",
     "Do not redesign Muci away from the model-sheet teardrop."
   ]
 }

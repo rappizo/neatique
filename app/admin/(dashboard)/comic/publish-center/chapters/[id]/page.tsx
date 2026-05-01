@@ -6,6 +6,7 @@ import { CopyTextButton } from "@/components/admin/copy-text-button";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
   approveComicEpisodeAssetAction,
+  deleteComicEpisodeAssetAction,
   publishComicEpisodeFromCenterAction,
   unapproveComicEpisodeAssetAction,
   uploadComicPageAssetAction
@@ -32,6 +33,7 @@ type AdminComicPublishChapterPageProps = {
 const STATUS_MESSAGES: Record<string, string> = {
   "page-approved": "Comic page approved.",
   "page-unapproved": "Comic page approval was removed.",
+  "page-rejected": "Comic page image was rejected and deleted.",
   "page-uploaded": "Comic page image uploaded as a draft.",
   "page-uploaded-approved": "Comic page image uploaded and approved.",
   "episode-published": "Episode published to the public comic library.",
@@ -444,6 +446,13 @@ export default async function AdminComicPublishChapterPage({
                                       className={asset.published ? "button button--ghost" : "button button--primary"}
                                     >
                                       {asset.published ? "Remove approval" : "Approve this page"}
+                                    </button>
+                                  </form>
+                                  <form action={deleteComicEpisodeAssetAction}>
+                                    <input type="hidden" name="id" value={asset.id} />
+                                    <input type="hidden" name="redirectTo" value={redirectTo} />
+                                    <button type="submit" className="button button--ghost">
+                                      Reject image
                                     </button>
                                   </form>
                                 </div>

@@ -13,15 +13,16 @@
 ## Character consistency rules
 - Always keep each character's silhouette stable before adding emotion.
 - Characters must be recognizable even in silhouette-only poses.
-- Model-sheet reference images are the top authority for body shape, face placement, eye style, highlight marks, proportions, and point direction.
+- Model-sheet reference images are the top authority for body shape, face placement, eye style, highlight marks, proportions, feet/lower-body nubs, and point direction.
 - Treat model sheets as exact identity locks, not loose inspiration.
 - Do not let random prompts "average out" the cast into the same droplet.
-- Every character is a limbless mascot being with no arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid limbs.
+- Every character is a handless mascot being with no arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs.
+- Preserve any feet, lower body nubs, base shape, or tiny legs exactly as shown in the character's model sheet.
 - If a beat needs an object moved, use telekinetic object movement instead of hands.
 
 ## Fixed shape language
 - **Artrans**: cream-swirl silhouette, layered spiral volume, half-lidded eyes, sly sleepy face
-- **Muci**: balanced centered teardrop, rounded base, beginner-friendly open smile, large dot eyes, glossy highlight marks near the upper-left side, cute approachable protagonist energy
+- **Muci**: balanced centered teardrop, rounded base, two small rounded feet at the bottom, beginner-friendly open smile, large dot eyes, glossy highlight marks near the upper-left side, cute approachable protagonist energy
 - **Nia**: taller teardrop, sharper point, one angled brow, composed confidence
 - **Padarana**: soft teardrop, closed smiling eyes, emotional warmth
 - **Padaruna**: bright rounded teardrop, energetic openness, highly expressive face
@@ -48,10 +49,11 @@
 - Start every page prompt with black-and-white manga only, no color.
 - Always upload the relevant model sheet(s) for every speaking character in the panel.
 - When multiple droplets appear in one panel, call out each silhouette explicitly by name.
-- Keep line style, face placement, and body proportions consistent with the provided references.
-- State that all characters have no hands or limbs.
+- Keep line style, face placement, feet/lower-body nubs, and body proportions consistent with the provided references.
+- State that all characters have no hands or arms.
+- State that feet or lower-body nubs must remain exactly as shown in the model sheet.
 - Translate holding, pointing, grabbing, opening, carrying, writing, pushing, or handing something over into telekinetic object movement with floating objects, motion lines, or subtle manga emphasis marks.
-- For Muci, explicitly repeat the centered teardrop shape, rounded base, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
+- For Muci, explicitly repeat the centered teardrop shape, rounded base, two small rounded feet, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.
 - If a panel depends on a specific reaction, include the exact expression target in the prompt and mention which reference sheet to upload.
 
@@ -62,7 +64,8 @@
 - Random costume or accessory drift
 - Hyper-real textures that fight the comic line language
 - "Cute" poses that break the character's established personality rhythm
-- Any arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid limbs
+- Any arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs
+- Removing Muci's two small rounded feet in full-body views
 - Muci redesigns, shifted highlight marks, animal-like features, humanoid bodies, or altered teardrop proportions
 
 ## Dialogue voice locks
