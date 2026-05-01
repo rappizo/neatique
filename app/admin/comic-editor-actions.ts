@@ -1,5 +1,6 @@
 "use server";
 
+import { Buffer } from "node:buffer";
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
@@ -678,4 +679,309 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
     episodeSlug: asset.episode.slug
   });
   redirect(buildComicRedirect(`/admin/comic/episodes/${asset.episodeId}`, "asset-deleted"));
+}
+
+const COMIC_PUBLISH_PAGE_COUNT = 10;
+const COMIC_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
+const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
+
+function isComicPageAssetType(assetType: string) {
+  return COMIC_PAGE_ASSET_TYPES.includes(assetType);
+}
+
+function isComicPublishPageNumber(pageNumber: number) {
+  return pageNumber >= 1 && pageNumber <= COMIC_PUBLISH_PAGE_COUNT;
+}
+
+function getComicPublishRedirect(formData: FormData, fallback = "/admin/comic/publish-center") {
+  return toPlainString(formData.get("redirectTo")) || fallback;
+}
+
+export async function approveComicEpisodeAssetAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = getComicPublishRedirect(formData);
+
+  if (!id) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  const asset = await prisma.comicEpisodeAsset.findUnique({
+    where: { id },
+    include: {
+      episode: {
+        include: {
+          chapter: {
+            include: {
+              season: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!asset) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  await prisma.$transaction([
+    prisma.comicEpisodeAsset.updateMany({
+      where: {
+        episodeId: asset.episodeId,
+        sortOrder: asset.sortOrder,
+        id: { not: asset.id },
+        assetType: { in: COMIC_PAGE_ASSET_TYPES }
+      },
+      data: {
+        published: false
+      }
+    }),
+    prisma.comicEpisodeAsset.update({
+      where: { id },
+      data: {
+        published: true
+      }
+    })
+  ]);
+
+  revalidateComicRoutes({
+    seasonSlug: asset.episode.chapter.season.slug,
+    chapterSlug: asset.episode.chapter.slug,
+    episodeSlug: asset.episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "page-approved"));
+}
+
+export async function unapproveComicEpisodeAssetAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = getComicPublishRedirect(formData);
+
+  if (!id) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  const asset = await prisma.comicEpisodeAsset.findUnique({
+    where: { id },
+    include: {
+      episode: {
+        include: {
+          chapter: {
+            include: {
+              season: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!asset) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  await prisma.comicEpisodeAsset.update({
+    where: { id },
+    data: {
+      published: false
+    }
+  });
+
+  revalidateComicRoutes({
+    seasonSlug: asset.episode.chapter.season.slug,
+    chapterSlug: asset.episode.chapter.slug,
+    episodeSlug: asset.episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "page-unapproved"));
+}
+
+export async function uploadComicPageAssetAction(formData: FormData) {
+  await requireAdminSession();
+
+  const episodeId = toPlainString(formData.get("episodeId"));
+  const redirectTo = getComicPublishRedirect(formData);
+  const pageNumber = Math.max(
+    1,
+    Math.min(COMIC_PUBLISH_PAGE_COUNT, toInt(formData.get("pageNumber"), 1))
+  );
+  const file = formData.get("comicPageFile");
+  const shouldApprove = toBool(formData.get("approveAfterUpload"));
+
+  if (!episodeId) {
+    redirect(buildComicRedirect(redirectTo, "missing-episode"));
+  }
+
+  const episode = await prisma.comicEpisode.findUnique({
+    where: { id: episodeId },
+    include: {
+      chapter: {
+        include: {
+          season: true
+        }
+      }
+    }
+  });
+
+  if (!episode) {
+    redirect(buildComicRedirect(redirectTo, "missing-episode"));
+  }
+
+  if (!(file instanceof File) || file.size <= 0) {
+    redirect(buildComicRedirect(redirectTo, "missing-upload"));
+  }
+
+  if (file.size > COMIC_UPLOAD_MAX_BYTES) {
+    redirect(buildComicRedirect(redirectTo, "upload-too-large"));
+  }
+
+  if (!/^image\/(png|jpe?g|webp|avif)$/i.test(file.type)) {
+    redirect(buildComicRedirect(redirectTo, "upload-type"));
+  }
+
+  const title =
+    toPlainString(formData.get("title")) ||
+    `${episode.title} - Uploaded Page ${String(pageNumber).padStart(2, "0")}`;
+  const imageBuffer = Buffer.from(await file.arrayBuffer());
+
+  const createdAsset = await prisma.comicEpisodeAsset.create({
+    data: {
+      episodeId,
+      assetType: "UPLOADED_PAGE",
+      title,
+      imageUrl: "/media/comic/pending",
+      imageData: imageBuffer.toString("base64"),
+      imageMimeType: file.type || "image/png",
+      altText:
+        toPlainString(formData.get("altText")) ||
+        `${episode.title} uploaded comic page ${pageNumber}`,
+      caption: normalizeLongText(formData.get("caption")) || null,
+      sortOrder: pageNumber,
+      published: shouldApprove
+    },
+    select: {
+      id: true
+    }
+  });
+
+  const imageUrl = `/media/comic/${createdAsset.id}?v=${Date.now()}`;
+
+  if (shouldApprove) {
+    await prisma.$transaction([
+      prisma.comicEpisodeAsset.updateMany({
+        where: {
+          episodeId,
+          sortOrder: pageNumber,
+          id: { not: createdAsset.id },
+          assetType: { in: COMIC_PAGE_ASSET_TYPES }
+        },
+        data: {
+          published: false
+        }
+      }),
+      prisma.comicEpisodeAsset.update({
+        where: { id: createdAsset.id },
+        data: {
+          imageUrl,
+          published: true
+        }
+      })
+    ]);
+  } else {
+    await prisma.comicEpisodeAsset.update({
+      where: { id: createdAsset.id },
+      data: {
+        imageUrl
+      }
+    });
+  }
+
+  revalidateComicRoutes({
+    seasonSlug: episode.chapter.season.slug,
+    chapterSlug: episode.chapter.slug,
+    episodeSlug: episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, shouldApprove ? "page-uploaded-approved" : "page-uploaded"));
+}
+
+export async function publishComicEpisodeFromCenterAction(formData: FormData) {
+  await requireAdminSession();
+
+  const episodeId = toPlainString(formData.get("episodeId"));
+  const redirectTo = getComicPublishRedirect(formData);
+
+  if (!episodeId) {
+    redirect(buildComicRedirect(redirectTo, "missing-episode"));
+  }
+
+  const episode = await prisma.comicEpisode.findUnique({
+    where: { id: episodeId },
+    include: {
+      assets: {
+        where: {
+          published: true,
+          assetType: { in: COMIC_PAGE_ASSET_TYPES }
+        },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      },
+      chapter: {
+        include: {
+          season: true
+        }
+      }
+    }
+  });
+
+  if (!episode) {
+    redirect(buildComicRedirect(redirectTo, "missing-episode"));
+  }
+
+  const approvedPageNumbers = new Set(
+    episode.assets
+      .filter((asset) => isComicPageAssetType(asset.assetType) && isComicPublishPageNumber(asset.sortOrder))
+      .map((asset) => asset.sortOrder)
+  );
+
+  const hasAllRequiredPages = Array.from(
+    { length: COMIC_PUBLISH_PAGE_COUNT },
+    (_, index) => index + 1
+  ).every((pageNumber) => approvedPageNumbers.has(pageNumber));
+
+  if (!hasAllRequiredPages) {
+    redirect(buildComicRedirect(redirectTo, "missing-approved-pages"));
+  }
+
+  const firstPageAsset = episode.assets[0];
+
+  await prisma.$transaction([
+    prisma.comicSeason.update({
+      where: { id: episode.chapter.seasonId },
+      data: { published: true }
+    }),
+    prisma.comicChapter.update({
+      where: { id: episode.chapterId },
+      data: { published: true }
+    }),
+    prisma.comicEpisode.update({
+      where: { id: episodeId },
+      data: {
+        published: true,
+        publishedAt: episode.publishedAt || new Date(),
+        coverImageUrl: episode.coverImageUrl || firstPageAsset?.imageUrl || null,
+        coverImageAlt:
+          episode.coverImageAlt ||
+          firstPageAsset?.altText ||
+          `${episode.title} comic episode cover`
+      }
+    })
+  ]);
+
+  revalidateComicRoutes({
+    seasonSlug: episode.chapter.season.slug,
+    chapterSlug: episode.chapter.slug,
+    episodeSlug: episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "episode-published"));
 }

@@ -8,6 +8,7 @@ import type {
   ComicEpisodeAssetRecord,
   ComicEpisodeDetailRecord,
   ComicEpisodeRecord,
+  ComicPublishCenterRecord,
   ComicProjectRecord,
   ComicPromptRunRecord,
   ComicPromptStudioPageRecord,
@@ -623,6 +624,155 @@ export async function getComicPromptStudioPage(selectedEpisodeId?: string | null
   );
 }
 
+const COMIC_REQUIRED_PAGES_PER_EPISODE = 10;
+const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
+
+type ComicPageApprovalCandidate = Pick<
+  ComicEpisodeAssetRecord,
+  "assetType" | "published" | "sortOrder"
+>;
+
+function isComicPageAsset(asset: ComicPageApprovalCandidate) {
+  return COMIC_PAGE_ASSET_TYPES.includes(asset.assetType);
+}
+
+function isRequiredComicPageNumber(pageNumber: number) {
+  return pageNumber >= 1 && pageNumber <= COMIC_REQUIRED_PAGES_PER_EPISODE;
+}
+
+function getApprovedRequiredPageCount(assets: ComicPageApprovalCandidate[]) {
+  return new Set(
+    assets
+      .filter(
+        (asset) =>
+          isComicPageAsset(asset) && asset.published && isRequiredComicPageNumber(asset.sortOrder)
+      )
+      .map((asset) => asset.sortOrder)
+  ).size;
+}
+
+function hasAllRequiredComicPages(assets: ComicPageApprovalCandidate[]) {
+  return getApprovedRequiredPageCount(assets) === COMIC_REQUIRED_PAGES_PER_EPISODE;
+}
+
+export async function getComicPublishCenter() {
+  return withComicFallback<ComicPublishCenterRecord>(
+    async () => {
+      const seasons = await prisma.comicSeason.findMany({
+        include: {
+          _count: {
+            select: {
+              chapters: true
+            }
+          },
+          chapters: {
+            include: {
+              _count: {
+                select: {
+                  episodes: true
+                }
+              },
+              episodes: {
+                include: {
+                  _count: {
+                    select: {
+                      assets: true,
+                      promptRuns: true
+                    }
+                  },
+                  promptRuns: {
+                    orderBy: [{ createdAt: "desc" }],
+                    take: 1
+                  },
+                  assets: {
+                    select: {
+                      id: true,
+                      assetType: true,
+                      title: true,
+                      imageUrl: true,
+                      altText: true,
+                      caption: true,
+                      sortOrder: true,
+                      published: true,
+                      episodeId: true,
+                      createdAt: true,
+                      updatedAt: true
+                    },
+                    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+                  }
+                },
+                orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
+              }
+            },
+            orderBy: [{ chapterNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
+          }
+        },
+        orderBy: [{ seasonNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
+      });
+
+      let episodeCount = 0;
+      let readyEpisodeCount = 0;
+      let publishedEpisodeCount = 0;
+      let draftAssetCount = 0;
+
+      const mappedSeasons = seasons.map((season) => ({
+        ...mapComicSeason(season),
+        chapters: season.chapters.map((chapter) => ({
+          ...mapComicChapter(chapter),
+          seasonTitle: season.title,
+          seasonSlug: season.slug,
+          episodes: chapter.episodes.map((episode) => {
+            episodeCount += 1;
+            if (episode.published) {
+              publishedEpisodeCount += 1;
+            }
+
+            const assets = episode.assets.map(mapComicEpisodeAsset);
+            const pageAssets = assets.filter(isComicPageAsset);
+            const draftPages = pageAssets.filter((asset) => !asset.published);
+            const approvedPageCount = getApprovedRequiredPageCount(pageAssets);
+            const draftPageCount = draftPages.length;
+            const canPublish = approvedPageCount === COMIC_REQUIRED_PAGES_PER_EPISODE;
+
+            if (canPublish && !episode.published) {
+              readyEpisodeCount += 1;
+            }
+            draftAssetCount += draftPageCount;
+
+            return {
+              ...mapComicEpisode(episode),
+              seasonTitle: season.title,
+              seasonSlug: season.slug,
+              chapterTitle: chapter.title,
+              chapterSlug: chapter.slug,
+              approvedPageCount,
+              draftPageCount,
+              requiredPageCount: COMIC_REQUIRED_PAGES_PER_EPISODE,
+              canPublish,
+              assets
+            };
+          })
+        }))
+      }));
+
+      return {
+        seasons: mappedSeasons,
+        episodeCount,
+        readyEpisodeCount,
+        publishedEpisodeCount,
+        draftAssetCount
+      };
+    },
+    {
+      seasons: [],
+      episodeCount: 0,
+      readyEpisodeCount: 0,
+      publishedEpisodeCount: 0,
+      draftAssetCount: 0
+    }
+  );
+}
+
 export async function getPublishedComicLibrary() {
   return withComicFallback<ComicPublicSeasonRecord[]>(
     async () => {
@@ -637,7 +787,9 @@ export async function getPublishedComicLibrary() {
                   published: true,
                   assets: {
                     some: {
-                      published: true
+                      published: true,
+                      assetType: { in: COMIC_PAGE_ASSET_TYPES },
+                      sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
                     }
                   }
                 }
@@ -654,7 +806,9 @@ export async function getPublishedComicLibrary() {
                   published: true,
                   assets: {
                     some: {
-                      published: true
+                      published: true,
+                      assetType: { in: COMIC_PAGE_ASSET_TYPES },
+                      sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
                     }
                   }
                 }
@@ -666,13 +820,19 @@ export async function getPublishedComicLibrary() {
                   published: true,
                   assets: {
                     some: {
-                      published: true
+                      published: true,
+                      assetType: { in: COMIC_PAGE_ASSET_TYPES },
+                      sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
                     }
                   }
                 },
                 include: {
                   assets: {
-                    where: { published: true },
+                    where: {
+                      published: true,
+                      assetType: { in: COMIC_PAGE_ASSET_TYPES },
+                      sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
+                    },
                     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
                   }
                 },
@@ -685,22 +845,36 @@ export async function getPublishedComicLibrary() {
         orderBy: [{ seasonNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
       });
 
-      return seasons.map((season) => ({
-        ...mapComicSeason(season),
-        chapters: season.chapters.map((chapter): ComicPublicChapterRecord => ({
-          ...mapComicChapter(chapter),
-          seasonTitle: season.title,
-          seasonSlug: season.slug,
-          episodes: chapter.episodes.map((episode): ComicPublicEpisodeRecord => ({
-            ...mapComicEpisode(episode),
-            assets: episode.assets.map(mapComicEpisodeAsset),
-            seasonTitle: season.title,
-            seasonSlug: season.slug,
-            chapterTitle: chapter.title,
-            chapterSlug: chapter.slug
-          }))
-        }))
-      }));
+      return seasons
+        .map((season) => {
+          const chapters = season.chapters
+            .map((chapter): ComicPublicChapterRecord => {
+              const episodes = chapter.episodes
+                .filter((episode) => hasAllRequiredComicPages(episode.assets))
+                .map((episode): ComicPublicEpisodeRecord => ({
+                  ...mapComicEpisode(episode),
+                  assets: episode.assets.map(mapComicEpisodeAsset),
+                  seasonTitle: season.title,
+                  seasonSlug: season.slug,
+                  chapterTitle: chapter.title,
+                  chapterSlug: chapter.slug
+                }));
+
+              return {
+                ...mapComicChapter(chapter),
+                seasonTitle: season.title,
+                seasonSlug: season.slug,
+                episodes
+              };
+            })
+            .filter((chapter) => chapter.episodes.length > 0);
+
+          return {
+            ...mapComicSeason(season),
+            chapters
+          };
+        })
+        .filter((season) => season.chapters.length > 0);
     },
     []
   );

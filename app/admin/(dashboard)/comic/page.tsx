@@ -84,6 +84,11 @@ export default async function AdminComicOverviewPage({
             <span className="pill">Public route /comic</span>
             <span className="pill">Draft-safe workflow</span>
           </div>
+          <div className="stack-row">
+            <Link href="/admin/comic/publish-center" className="button button--primary">
+              Open publish center
+            </Link>
+          </div>
         </section>
       </div>
 

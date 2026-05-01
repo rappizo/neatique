@@ -4125,6 +4125,149 @@ main {
   color: var(--ink);
 }
 
+.admin-comic-publish-stack {
+  display: grid;
+  gap: 24px;
+}
+
+.admin-comic-publish-episode {
+  scroll-margin-top: 24px;
+}
+
+.admin-comic-publish-episode__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, max-content);
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-comic-publish-episode__header h2 {
+  margin: 0 0 8px;
+  font-family: Baskerville, "Palatino Linotype", serif;
+  font-size: clamp(1.6rem, 2.6vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.admin-comic-publish-episode__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.admin-comic-publish-episode__actions form {
+  display: contents;
+}
+
+.admin-comic-publish-page-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-comic-publish-page {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-height: 100%;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 248, 244, 0.88));
+  box-shadow: 0 14px 36px rgba(120, 72, 60, 0.07);
+}
+
+.admin-comic-publish-page.is-approved {
+  border-color: rgba(85, 168, 117, 0.34);
+  background:
+    linear-gradient(135deg, rgba(247, 255, 250, 0.96), rgba(255, 255, 255, 0.92));
+}
+
+.admin-comic-publish-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-comic-publish-page__header h3 {
+  margin: 0;
+  font-family: Baskerville, "Palatino Linotype", serif;
+  font-size: 1.35rem;
+  line-height: 1.18;
+}
+
+.admin-comic-publish-details,
+.admin-comic-publish-upload {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-comic-publish-prompt {
+  display: grid;
+  gap: 14px;
+  padding-top: 12px;
+}
+
+.admin-comic-publish-assets {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-comic-publish-asset {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.admin-comic-publish-asset__image {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 2 / 3;
+  border-radius: 14px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.admin-comic-publish-asset__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.admin-comic-publish-asset__body {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.admin-comic-publish-asset__body form {
+  display: contents;
+}
+
+.admin-comic-publish-page__actions {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.admin-comic-publish-page__actions > form {
+  display: contents;
+}
+
+.admin-comic-publish-upload form {
+  margin-top: 4px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(237, 115, 97, 0.16);
+  background: rgba(255, 255, 255, 0.86);
+}
+
 @media (max-width: 1080px) {
   .admin-follow-email-form__controls,
   .admin-follow-email-grid {
@@ -4157,7 +4300,8 @@ main {
 
   .admin-mailbox-settings,
   .admin-mailbox-shell,
-  .admin-mailbox-message__meta {
+  .admin-mailbox-message__meta,
+  .admin-comic-publish-episode__header {
     grid-template-columns: 1fr;
   }
 
@@ -4323,16 +4467,20 @@ main {
   .ritual-spotlight__media,
   .home-mosaic,
   .admin-comic-copy-grid,
-  .admin-comic-prompt-page-grid {
+  .admin-comic-prompt-page-grid,
+  .admin-comic-publish-page-grid,
+  .admin-comic-publish-asset {
     grid-template-columns: 1fr;
   }
 
   .admin-comic-page-list-item__header,
-  .admin-comic-section-heading {
+  .admin-comic-section-heading,
+  .admin-comic-publish-page__header {
     display: grid;
   }
 
-  .admin-comic-page-list-item__actions {
+  .admin-comic-page-list-item__actions,
+  .admin-comic-publish-episode__actions {
     justify-content: flex-start;
     min-width: 0;
   }

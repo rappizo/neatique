@@ -833,6 +833,36 @@ export type ComicPromptStudioPageRecord = {
   selectedEpisode: ComicEpisodeDetailRecord | null;
 };
 
+export type ComicPublishCenterEpisodeRecord = ComicEpisodeRecord & {
+  seasonTitle: string;
+  seasonSlug: string;
+  chapterTitle: string;
+  chapterSlug: string;
+  approvedPageCount: number;
+  draftPageCount: number;
+  requiredPageCount: number;
+  canPublish: boolean;
+  assets: ComicEpisodeAssetRecord[];
+};
+
+export type ComicPublishCenterChapterRecord = ComicChapterRecord & {
+  seasonTitle: string;
+  seasonSlug: string;
+  episodes: ComicPublishCenterEpisodeRecord[];
+};
+
+export type ComicPublishCenterSeasonRecord = ComicSeasonRecord & {
+  chapters: ComicPublishCenterChapterRecord[];
+};
+
+export type ComicPublishCenterRecord = {
+  seasons: ComicPublishCenterSeasonRecord[];
+  episodeCount: number;
+  readyEpisodeCount: number;
+  publishedEpisodeCount: number;
+  draftAssetCount: number;
+};
+
 export type ComicPublicEpisodeRecord = ComicEpisodeRecord & {
   assets: ComicEpisodeAssetRecord[];
   seasonTitle: string;
