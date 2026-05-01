@@ -26,6 +26,7 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Character model sheets are the highest visual authority and must be treated as exact identity locks, not inspiration. Match the uploaded model sheet for silhouette, face placement, eye spacing, highlight placement, line weight, body proportions, small feet, leg nubs, and point direction.",
   "- Every character has small rounded feet or foot nubs in full-body views. Never remove feet from any character. Sunny Spritz must keep small rounded feet under her star body.",
   "- In full-body shots, leave clear white space under each character's body so the small feet or foot nubs are visible; never crop the lower frame edge through the feet.",
+  "- Feet and body must be visually connected as one continuous mascot form, matching the model sheets. Do not draw a hard horizontal outline, seam, shoe line, dividing stroke, or solid separating line between the body and feet.",
   "- For Sunny Spritz, draw two small rounded feet directly beneath the lower points of her soft five-point star body. Do not let the star points replace the feet, hide the feet, or crop the feet away.",
   "- Do not redesign Muci. Muci must stay a compact cute friendly teardrop mascot with a centered point, broad rounded base, large dot eyes, an open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, and soft approachable protagonist energy.",
   "- Muci's proportions must stay squat and rounded like the model sheet, not tall or stretched: the full front-view body should feel broad and compact, with body height only about 1.2 to 1.35 times the body width. Avoid long narrow droplet proportions.",
@@ -461,6 +462,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Treat all listed character model sheets as exact identity references, not loose inspiration.",
     "- The actual reference images attached to this API request are binding visual references. Copy their silhouettes, proportions, face placement, highlight placement, body fill, and feet exactly where those characters or scenes appear.",
     "- Foot visibility check: any full-body character must show small rounded feet or foot nubs with clear space below the body; do not crop off feet.",
+    "- Foot connection check: feet must connect naturally to the body with the same continuous white body fill; do not add a hard separating line between the feet and body.",
     "- Sunny Spritz check: if Sunny appears full-body, her two small rounded feet must be visible directly under the soft five-point star body.",
     "- Mouth state check: draw closed mouths for characters who are not speaking in that panel; only the active speaker or explicit vocal reaction may have an open mouth.",
     "- If dialogue balloons are needed, keep text minimal, clean, and readable; otherwise use expressive acting and leave balloons simple.",
@@ -715,7 +717,7 @@ export async function editComicPageImageWithAi(input: {
       "Make only the requested local/simple change. Preserve the existing page as much as possible.",
       "Keep the same panel layout, page size, camera angles, composition, gutters, character identities, character proportions, facial expressions, clean black-and-white manga linework, pure white mascot body fills, and readable page rhythm.",
       "Do not regenerate the page from scratch. Do not add new panels, extra characters, random props, watermarks, signatures, logos, or unrelated text.",
-      "Keep all characters handless and armless. Preserve visible small rounded feet or foot nubs in any full-body character view. Do not crop, flatten, hide, or remove the feet while editing.",
+      "Keep all characters handless and armless. Preserve visible small rounded feet or foot nubs in any full-body character view. Do not crop, flatten, hide, remove, or separate the feet from the body with hard dividing lines while editing.",
       "Do not elongate Muci or any mascot body. Keep the same cute, compact, model-sheet proportions and pure white body fill.",
       "If the edit request affects text, keep the wording short and fitted to the original balloon/sign space.",
       "If the edit request conflicts with the locked comic style or character model consistency, make the closest safe edit while preserving the original character/page identity.",
@@ -839,7 +841,7 @@ export async function reviseComicPagePromptWithAi(
                 "Do not remove required character or scene continuity details.",
                 "All revised prompt text must enforce these production locks:",
                 COMIC_VISUAL_PRODUCTION_LOCKS,
-                "All characters have small rounded feet or foot nubs in full-body views. Full-body framing must leave the feet visible. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body."
+                "All characters have small rounded feet or foot nubs in full-body views. Full-body framing must leave the feet visible. Feet must connect naturally to the body without hard separating lines. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body."
               ].join("\n")
             }
           ]
@@ -879,6 +881,7 @@ export async function reviseComicPagePromptWithAi(
                 "- Keep the full page content, all panels, all important reference instructions, and the final visual locks. Do not cut off the prompt mid-sentence.",
                 "- Keep character model-sheet identity locked.",
                 "- Make sure every full-body character keeps visible small rounded feet or foot nubs with the lower frame edge below the feet.",
+                "- Keep the feet connected to the body as one continuous mascot form; do not add a hard horizontal dividing line, shoe line, or solid seam between body and feet.",
                 "- If Sunny Spritz appears, explicitly preserve two small rounded feet directly under her soft five-point star body.",
                 "- Keep all characters handless and armless; use telekinesis for object interaction.",
                 "- Keep clean high-contrast black-and-white manga style, pure white character bodies, and no gray wash."
@@ -1089,6 +1092,7 @@ export async function generateComicPromptPackageWithAi(
                 "Every visual prompt must enforce clean high-contrast black-and-white manga output only, with pure white character fills and no gray wash.",
                 "Every visual prompt must enforce that all characters have no hands and no arms, while preserving small rounded feet, foot nubs, or lower-body nubs exactly as shown in their model sheets.",
                 "Every full-body character view must include the character's visible small feet with clear lower-frame space. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body.",
+                "Every visual prompt must enforce connected feet: the feet and body are one continuous mascot form with no hard horizontal outline, shoe line, or solid separating stroke between them.",
                 "Every visual prompt must enforce mouth-state continuity: characters who are not speaking keep closed or tiny neutral mouths; only the active speaker or explicit vocal reaction may have an open mouth.",
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
                 "Muci must always match the Muci model sheet and written appearance lock exactly: compact cute friendly teardrop mascot, centered point, broad rounded base, short rounded body proportions, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, soft approachable protagonist energy.",
@@ -1158,6 +1162,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block must state clean black-and-white manga only, no color, no gray wash, pure white character bodies.",
                 "- Every promptPackCopyText block must state that characters have no hands or arms, while preserving model-sheet small feet, foot nubs, or lower-body nubs exactly.",
                 "- Every promptPackCopyText block must include a lower-frame foot visibility check for full-body characters.",
+                "- Every promptPackCopyText block must state that feet connect naturally to the body without a hard dividing line, shoe line, seam, or solid separating stroke.",
                 "- Every promptPackCopyText block must include a mouth-state check: non-speaking characters keep closed mouths, and only speaking or explicitly vocal characters may have open mouths.",
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
