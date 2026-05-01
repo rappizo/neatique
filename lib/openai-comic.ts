@@ -3,7 +3,7 @@ const DEFAULT_OPENAI_COMIC_MODEL =
   process.env.OPENAI_COMIC_MODEL ||
   process.env.OPENAI_POST_MODEL ||
   process.env.OPENAI_EMAIL_MODEL ||
-  "gpt-5.4-mini";
+  "gpt-5.5";
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 
 type ComicProjectContext = {

@@ -16,11 +16,14 @@ export const DEFAULT_PROJECT_DATA = {
 };
 
 export function buildComicRedirect(basePath: string, status: string) {
-  const [pathname, queryString = ""] = basePath.split("?");
+  const hashIndex = basePath.indexOf("#");
+  const pathWithQuery = hashIndex >= 0 ? basePath.slice(0, hashIndex) : basePath;
+  const hashFragment = hashIndex >= 0 ? basePath.slice(hashIndex) : "";
+  const [pathname, queryString = ""] = pathWithQuery.split("?");
   const params = new URLSearchParams(queryString);
   params.set("status", status);
   const nextQuery = params.toString();
-  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+  return `${nextQuery ? `${pathname}?${nextQuery}` : pathname}${hashFragment}`;
 }
 
 export async function ensureComicProjectId(inputProjectId?: string) {
@@ -63,6 +66,7 @@ export function revalidateComicRoutes(slugs?: {
   revalidatePath("/admin/comic/scenes");
   revalidatePath("/admin/comic/seasons");
   revalidatePath("/admin/comic/prompt-studio");
+  revalidatePath("/admin/comic/publish-center");
   revalidatePath("/comic");
 
   if (slugs?.seasonSlug) {

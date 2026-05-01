@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdminActionResultDialog } from "@/components/admin/admin-action-result-dialog";
 import { ComicPromptPageLists } from "@/components/admin/comic-prompt-page-lists";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { generateComicPromptPackageAction } from "@/app/admin/comic-prompt-actions";
@@ -19,6 +20,29 @@ const STATUS_MESSAGES: Record<string, string> = {
   "missing-page-prompt": "Generate a page-by-page prompt package before creating page images.",
   "missing-project": "Save the comic project bible first so the prompt workflow has canon context."
 };
+
+const IMAGE_RESULT_MESSAGES = {
+  "page-image-generated": {
+    title: "Draft image created",
+    description: "The generated comic page was saved as a draft asset. Review it in this episode or the Publish Center before approving.",
+    tone: "success"
+  },
+  "page-image-failed": {
+    title: "Draft image creation failed",
+    description: "The image request did not complete. Open the latest prompt run entry for the stored error message and try again.",
+    tone: "danger"
+  },
+  "missing-page-prompt": {
+    title: "No page prompt found",
+    description: "Generate a page-by-page prompt package before creating a draft image.",
+    tone: "warning"
+  },
+  "missing-project": {
+    title: "Comic project is missing",
+    description: "Save the comic project bible first so the image workflow has canon context.",
+    tone: "warning"
+  }
+} as const;
 
 export default async function AdminComicPromptStudioPage({
   searchParams
@@ -61,6 +85,8 @@ export default async function AdminComicPromptStudioPage({
           {STATUS_MESSAGES[params.status] || `Comic action completed: ${params.status}.`}
         </p>
       ) : null}
+
+      <AdminActionResultDialog status={params.status} messages={IMAGE_RESULT_MESSAGES} />
 
       <div className="cards-3">
         <section className="admin-card">

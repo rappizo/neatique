@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { AdminActionResultDialog } from "@/components/admin/admin-action-result-dialog";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
@@ -45,6 +46,29 @@ const STATUS_MESSAGES: Record<string, string> = {
   "upload-type": "Upload PNG, JPG, WEBP, or AVIF images only.",
   "missing-page-prompt": "Generate a page-by-page prompt package before creating page images."
 };
+
+const IMAGE_RESULT_MESSAGES = {
+  "page-image-generated": {
+    title: "Draft image created",
+    description: "The generated page image is now saved as a draft candidate on this episode. Review it here, then approve it when it is ready.",
+    tone: "success"
+  },
+  "page-image-failed": {
+    title: "Draft image creation failed",
+    description: "The image request did not complete. Open the episode editor and check the latest prompt run entry for the stored error message.",
+    tone: "danger"
+  },
+  "missing-page-prompt": {
+    title: "No page prompt found",
+    description: "Generate the episode's 10-page prompt package before creating a draft image.",
+    tone: "warning"
+  },
+  "missing-project": {
+    title: "Comic project is missing",
+    description: "Save the comic project bible first so the image workflow has canon context.",
+    tone: "warning"
+  }
+} as const;
 
 const COMIC_REQUIRED_PAGES_PER_EPISODE = 10;
 const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
@@ -188,6 +212,8 @@ export default async function AdminComicPublishChapterPage({
           {STATUS_MESSAGES[query.status] || `Comic action completed: ${query.status}.`}
         </p>
       ) : null}
+
+      <AdminActionResultDialog status={query.status} messages={IMAGE_RESULT_MESSAGES} />
 
       <div className="cards-3">
         <section className="admin-card">
@@ -424,9 +450,9 @@ export default async function AdminComicPublishChapterPage({
                               <input type="hidden" name="redirectTo" value={redirectTo} />
                               <PendingSubmitButton
                                 idleLabel="Generate draft image"
-                                pendingLabel="Generating..."
+                                pendingLabel="Creating..."
                                 className="button button--secondary"
-                                modalTitle={`Generating ${formatPageLabel(pageNumber)}`}
+                                modalTitle={`Creating ${formatPageLabel(pageNumber)}`}
                                 modalDescription="The image API is creating one draft comic page from the stored prompt and reference notes."
                               />
                             </form>

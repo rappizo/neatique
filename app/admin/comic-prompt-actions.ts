@@ -190,7 +190,7 @@ export async function generateComicPromptPackageAction(formData: FormData) {
             process.env.OPENAI_COMIC_MODEL ||
             process.env.OPENAI_POST_MODEL ||
             process.env.OPENAI_EMAIL_MODEL ||
-            "gpt-5.4-mini",
+            "gpt-5.5",
           imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
           status: "READY",
           inputContext,
@@ -228,7 +228,7 @@ export async function generateComicPromptPackageAction(formData: FormData) {
           process.env.OPENAI_COMIC_MODEL ||
           process.env.OPENAI_POST_MODEL ||
           process.env.OPENAI_EMAIL_MODEL ||
-          "gpt-5.4-mini",
+          "gpt-5.5",
         imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
         status: "FAILED",
         inputContext,
@@ -362,7 +362,7 @@ export async function generateComicPageImageAction(formData: FormData) {
             process.env.OPENAI_COMIC_MODEL ||
             process.env.OPENAI_POST_MODEL ||
             process.env.OPENAI_EMAIL_MODEL ||
-            "gpt-5.4-mini",
+            "gpt-5.5",
           imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
           status: "READY",
           inputContext,
@@ -388,7 +388,7 @@ export async function generateComicPageImageAction(formData: FormData) {
           process.env.OPENAI_COMIC_MODEL ||
           process.env.OPENAI_POST_MODEL ||
           process.env.OPENAI_EMAIL_MODEL ||
-          "gpt-5.4-mini",
+          "gpt-5.5",
         imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
         status: "FAILED",
         inputContext,

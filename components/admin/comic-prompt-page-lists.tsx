@@ -185,10 +185,10 @@ export function ComicPromptPageLists({
                         <input type="hidden" name="pageNumber" value={page.pageNumber} />
                         <input type="hidden" name="redirectTo" value={redirectTo} />
                         <PendingSubmitButton
-                          idleLabel="Generate Page"
-                          pendingLabel="Generating..."
-                          modalTitle={`Generating ${formatPageLabel(page.pageNumber)}`}
-                          modalDescription="The image API is reading this page's character notes, scene references, panel beats, and prompt pack to create one 2:3 comic page."
+                          idleLabel="Generate draft image"
+                          pendingLabel="Creating..."
+                          modalTitle={`Creating ${formatPageLabel(page.pageNumber)}`}
+                          modalDescription="The image API is reading this page's character notes, scene references, panel beats, and prompt pack to create one draft comic page."
                         />
                       </form>
                     ) : null}
