@@ -1,4 +1,5 @@
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
+import { isNextRedirectError } from "@/lib/comic-action-errors";
 import { prisma } from "@/lib/db";
 
 const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
@@ -170,6 +171,10 @@ export async function editComicPageImageForAsset(input: {
       message: `Edited ${asset.episode.title} page ${asset.sortOrder}.`
     };
   } catch (error) {
+    if (isNextRedirectError(error)) {
+      throw error;
+    }
+
     const errorMessage = error instanceof Error ? error.message : "Unknown comic page image edit error.";
 
     await prisma.comicPromptRun.create({

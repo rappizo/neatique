@@ -22,6 +22,7 @@ import type {
 } from "@/lib/types";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { prisma } from "@/lib/db";
+import { getDisplayableComicErrorMessage } from "@/lib/comic-action-errors";
 import { getComicChapterSceneReferenceState } from "@/lib/comic-reference-manifest";
 import type { ComicLanguage } from "@/lib/comic-language";
 
@@ -203,7 +204,7 @@ function mapComicPromptRun(run: any): ComicPromptRunRecord {
     outputSummary: run.outputSummary,
     promptPack: run.promptPack ?? null,
     referenceChecklist: run.referenceChecklist ?? null,
-    errorMessage: run.errorMessage ?? null,
+    errorMessage: getDisplayableComicErrorMessage(run.errorMessage),
     episodeId: run.episodeId,
     createdAt: new Date(run.createdAt),
     updatedAt: new Date(run.updatedAt)

@@ -852,6 +852,7 @@ export async function createChineseComicPageVersionAction(formData: FormData) {
     null,
     2
   );
+  let status = "page-chinese-failed";
 
   try {
     const { generateChineseComicPageVersionWithAi } = await import("@/lib/openai-comic");
@@ -919,7 +920,7 @@ export async function createChineseComicPageVersionAction(formData: FormData) {
       chapterSlug: asset.episode.chapter.slug,
       episodeSlug: asset.episode.slug
     });
-    redirect(buildComicRedirect(redirectTo, "page-chinese-created"));
+    status = "page-chinese-created";
   } catch (error) {
     await prisma.comicPromptRun.create({
       data: {
@@ -943,8 +944,9 @@ export async function createChineseComicPageVersionAction(formData: FormData) {
       chapterSlug: asset.episode.chapter.slug,
       episodeSlug: asset.episode.slug
     });
-    redirect(buildComicRedirect(redirectTo, "page-chinese-failed"));
   }
+
+  redirect(buildComicRedirect(redirectTo, status));
 }
 
 export async function editComicPageAssetAction(formData: FormData) {

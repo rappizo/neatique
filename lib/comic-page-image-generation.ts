@@ -4,6 +4,7 @@ import {
   loadComicReferenceImageFiles,
   resolveComicPageReferenceImages
 } from "@/lib/comic-reference-images";
+import { isNextRedirectError } from "@/lib/comic-action-errors";
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 
 export type ComicPageImageGenerationStatus =
@@ -199,6 +200,10 @@ export async function generateComicPageImageForEpisode(input: {
       message: `Generated ${episode.title} page ${page.pageNumber}.`
     };
   } catch (error) {
+    if (isNextRedirectError(error)) {
+      throw error;
+    }
+
     const errorMessage =
       error instanceof Error ? error.message : "Unknown comic page image generation error.";
 
