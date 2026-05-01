@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  outputFileTracingExcludes: {
+    "/*": ["./.git/**/*", "./.next/cache/**/*", "./comic/**/*", "./public/comic-reference/**/*"]
+  },
   images: {
     localPatterns: [
       {
@@ -14,6 +17,9 @@ const nextConfig: NextConfig = {
       },
       {
         pathname: "/products/**"
+      },
+      {
+        pathname: "/comic-reference/**"
       }
     ],
     minimumCacheTTL: 2_678_400,

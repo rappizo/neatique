@@ -1,6 +1,163 @@
 {
-  "generatedAt": null,
-  "characters": {},
+  "generatedAt": "2026-05-01T08:25:38.645Z",
+  "characters": {
+    "artrans": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/artrans/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "coach-ray": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/coach-ray/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "dewey-dot": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/dewey-dot/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "mira-mistwell": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/mira-mistwell/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "muci": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/muci/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "nia": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/nia/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "padarana": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/padarana/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "padaruna": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/padaruna/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "professor-cera-lin": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/professor-cera-lin/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "snacri": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/snacri/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "sunny-spritz": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/sunny-spritz/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ],
+    "vela-sheen": [
+      {
+        "label": "Model Sheet",
+        "fileName": "model-sheet.png",
+        "relativePath": "comic/characters/vela-sheen/refs/model-sheet.png",
+        "extension": "png"
+      }
+    ]
+  },
   "scenes": {},
-  "chapters": {}
+  "chapters": {
+    "season-01/chapter-01-orientation-week-is-a-scam": {
+      "folder": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs",
+      "references": [
+        {
+          "label": "Barrier Sciences Hall",
+          "fileName": "Barrier Sciences Hall.png",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Barrier Sciences Hall.png",
+          "extension": "png"
+        },
+        {
+          "label": "Dorm Hallway",
+          "fileName": "dorm hallway.png",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/dorm hallway.png",
+          "extension": "png"
+        },
+        {
+          "label": "Founder Walk",
+          "fileName": "Founder Walk.png",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Founder Walk.png",
+          "extension": "png"
+        },
+        {
+          "label": "Neatique Main",
+          "fileName": "Neatique Main.png",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Neatique Main.png",
+          "extension": "png"
+        },
+        {
+          "label": "Old Restricted Hallway",
+          "fileName": "old restricted hallway.png",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/old restricted hallway.png",
+          "extension": "png"
+        },
+        {
+          "label": "Residence Hall",
+          "fileName": "Residence hall.png",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Residence hall.png",
+          "extension": "png"
+        },
+        {
+          "label": "Student Room",
+          "fileName": "student room.png",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/student room.png",
+          "extension": "png"
+        },
+        {
+          "label": "Student Store",
+          "fileName": "Student Store.png",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Student Store.png",
+          "extension": "png"
+        },
+        {
+          "label": "Sunscreen Field",
+          "fileName": "Sunscreen Field.png",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Sunscreen Field.png",
+          "extension": "png"
+        }
+      ]
+    }
+  }
 }

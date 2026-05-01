@@ -1,6 +1,10 @@
-import { access, readdir, readFile, stat } from "node:fs/promises";
-import path from "node:path";
 import type { StoredPromptUpload } from "@/lib/comic-prompt-output";
+import {
+  getComicCharacterReferenceFiles,
+  getComicChapterSceneReferenceState,
+  getComicReferenceCharacterSlugs,
+  getComicSceneReferenceFiles
+} from "@/lib/comic-reference-manifest";
 import {
   getComicChapterSceneReferenceFolder,
   getComicCharacterReferenceFolder,
@@ -11,13 +15,29 @@ import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 const COMIC_REFERENCE_ROOT = "comic";
 const MAX_COMIC_REFERENCE_IMAGES = 16;
 const SUPPORTED_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+const FALLBACK_CHARACTER_SLUGS = [
+  "artrans",
+  "coach-ray",
+  "dewey-dot",
+  "mira-mistwell",
+  "muci",
+  "nia",
+  "padarana",
+  "padaruna",
+  "professor-cera-lin",
+  "snacri",
+  "sunny-spritz",
+  "vela-sheen"
+];
 const CHARACTER_REFERENCE_ALIASES: Record<string, string[]> = {
-  artrans: ["安川西"],
-  muci: ["慕西"],
-  nia: ["尼亚"],
-  padarana: ["啪嗒安娜"],
-  padaruna: ["啪嗒瑞娜"],
-  snacri: ["斯奈奎"]
+  artrans: ["\u5b89\u5ddd\u897f"],
+  muci: ["\u6155\u897f"],
+  nia: ["\u5c3c\u4e9a"],
+  padarana: ["\u556a\u55d2\u5b89\u5a1c"],
+  padaruna: ["\u556a\u55d2\u745e\u5a1c"],
+  snacri: ["\u65af\u5948\u594e"],
+  "sunny-spritz": ["Sunny", "Sunny Spritz"],
+  "vela-sheen": ["Vela", "Vela Sheen"]
 };
 const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
@@ -41,7 +61,7 @@ export type ComicResolvedReferenceImage = {
 };
 
 export type ComicReferenceImageFile = ComicResolvedReferenceImage & {
-  data: Buffer;
+  data: Uint8Array;
 };
 
 type ResolveComicPageReferenceImagesInput = {
@@ -56,18 +76,22 @@ function normalizeSlashes(value: string) {
 }
 
 function getExtension(fileName: string) {
-  return path.extname(fileName).toLowerCase();
+  const normalized = normalizeSlashes(fileName);
+  const filePart = normalized.split("/").filter(Boolean).pop() || normalized;
+  const match = filePart.match(/\.[a-z0-9]+$/i);
+  return match ? match[0].toLowerCase() : "";
 }
 
 function isSupportedReferenceImage(fileName: string) {
   return SUPPORTED_IMAGE_EXTENSIONS.has(getExtension(fileName));
 }
 
-function toDisplayLabel(fileName: string) {
-  const extension = path.extname(fileName);
-  const base = fileName.slice(0, extension ? -extension.length : undefined);
+function stripExtension(fileName: string) {
+  return fileName.replace(/\.[a-z0-9]+$/i, "");
+}
 
-  return base
+function toDisplayLabel(fileName: string) {
+  return stripExtension(fileName)
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
@@ -94,23 +118,6 @@ export function normalizeComicReferencePath(relativePath: string) {
   return normalized;
 }
 
-export function getComicReferenceAbsolutePath(relativePath: string) {
-  const normalized = normalizeComicReferencePath(relativePath);
-
-  if (!normalized) {
-    return null;
-  }
-
-  const root = path.join(process.cwd(), COMIC_REFERENCE_ROOT);
-  const targetPath = path.normalize(path.join(process.cwd(), normalized));
-
-  if (!targetPath.startsWith(root)) {
-    return null;
-  }
-
-  return targetPath;
-}
-
 export function toComicReferenceMediaUrl(relativePath: string) {
   const normalized = normalizeComicReferencePath(relativePath);
 
@@ -118,58 +125,36 @@ export function toComicReferenceMediaUrl(relativePath: string) {
     return "";
   }
 
-  return `/media/comic-reference/${normalized
+  return `/comic-reference/${normalized
     .split("/")
     .map((part) => encodeURIComponent(part))
     .join("/")}`;
 }
 
-async function fileExists(relativePath: string) {
-  const targetPath = getComicReferenceAbsolutePath(relativePath);
+function getComicReferenceBaseUrl() {
+  const explicitBaseUrl = process.env.OPENAI_COMIC_REFERENCE_BASE_URL;
+  const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  const vercelBaseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "";
+  const configuredBaseUrl =
+    explicitBaseUrl ||
+    (publicBaseUrl && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(publicBaseUrl)
+      ? publicBaseUrl
+      : "") ||
+    vercelBaseUrl ||
+    publicBaseUrl ||
+    "http://localhost:3000";
 
-  if (!targetPath) {
-    return false;
-  }
-
-  try {
-    await access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
+  return configuredBaseUrl.replace(/\/+$/, "");
 }
 
-async function listReferenceFolder(relativeFolder: string): Promise<ComicChapterSceneReferenceRecord[]> {
-  const normalizedFolder = normalizeSlashes(relativeFolder).replace(/^\/+/, "");
+function toComicReferenceAbsoluteUrl(relativePath: string) {
+  const mediaUrl = toComicReferenceMediaUrl(relativePath);
 
-  if (
-    !normalizedFolder.startsWith(`${COMIC_REFERENCE_ROOT}/`) ||
-    normalizedFolder.includes("\0") ||
-    normalizedFolder.split("/").includes("..")
-  ) {
-    return [];
+  if (!mediaUrl) {
+    return null;
   }
 
-  const folderPath = path.join(process.cwd(), normalizedFolder);
-
-  try {
-    const entries = await readdir(folderPath, { withFileTypes: true });
-
-    return entries
-      .filter((entry) => entry.isFile())
-      .map((entry) => entry.name)
-      .filter((fileName) => fileName.toLowerCase() !== "readme.md")
-      .filter(isSupportedReferenceImage)
-      .sort((left, right) => left.localeCompare(right))
-      .map((fileName) => ({
-        label: toDisplayLabel(fileName),
-        fileName,
-        relativePath: normalizeSlashes(path.join(normalizedFolder, fileName)),
-        extension: getExtension(fileName).replace(/^\./, "")
-      }));
-  } catch {
-    return [];
-  }
+  return new URL(mediaUrl, `${getComicReferenceBaseUrl()}/`).toString();
 }
 
 function normalizeComparable(value: string) {
@@ -195,11 +180,76 @@ function isTextMentioned(text: string, value: string) {
   return comparableText.includes(comparableValue);
 }
 
+function getFileNameFromPath(value: string) {
+  return normalizeSlashes(value).split("/").filter(Boolean).pop() || value;
+}
+
+function toRecordFromPath(relativePath: string, label?: string): ComicChapterSceneReferenceRecord | null {
+  const normalized = normalizeComicReferencePath(relativePath);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const fileName = getFileNameFromPath(normalized);
+
+  return {
+    label: label || toDisplayLabel(fileName),
+    fileName,
+    relativePath: normalized,
+    extension: getExtension(fileName).replace(/^\./, "")
+  };
+}
+
+function toPrimaryReferenceRecord(
+  folder: string,
+  fileName: string,
+  label?: string
+): ComicChapterSceneReferenceRecord | null {
+  if (!fileName || !isSupportedReferenceImage(fileName)) {
+    return null;
+  }
+
+  return toRecordFromPath(`${folder}/${fileName}`, label);
+}
+
+function getReferenceRecordsForUpload(
+  upload: StoredPromptUpload,
+  seasonSlug: string,
+  chapterSlug: string
+) {
+  if (upload.bucket === "CHARACTER") {
+    return getComicCharacterReferenceFiles(upload.slug);
+  }
+
+  if (upload.bucket === "SCENE") {
+    return getComicSceneReferenceFiles(upload.slug);
+  }
+
+  return getComicChapterSceneReferenceState(seasonSlug, chapterSlug).chapterSceneReferences;
+}
+
+function getReferenceFolderForUpload(
+  upload: StoredPromptUpload,
+  seasonSlug: string,
+  chapterSlug: string
+) {
+  if (upload.bucket === "CHARACTER") {
+    return getComicCharacterReferenceFolder(upload.slug);
+  }
+
+  if (upload.bucket === "SCENE") {
+    return getComicSceneReferenceFolder(upload.slug);
+  }
+
+  return getComicChapterSceneReferenceFolder(seasonSlug, chapterSlug);
+}
+
 function findReferenceRecord(
   records: ComicChapterSceneReferenceRecord[],
   requestedName: string
 ) {
-  const requestedFile = normalizeSlashes(requestedName).split("/").filter(Boolean).pop() || requestedName;
+  const requestedFile = getFileNameFromPath(requestedName);
   const comparableRequest = normalizeComparable(requestedFile);
 
   return records.find((record) => {
@@ -211,7 +261,7 @@ function findReferenceRecord(
   });
 }
 
-async function addReferenceImage(
+function addReferenceImage(
   bucket: ComicResolvedReferenceImage["bucket"],
   slug: string,
   source: ComicResolvedReferenceImage["source"],
@@ -225,12 +275,9 @@ async function addReferenceImage(
 ) {
   const normalized = normalizeComicReferencePath(record.relativePath);
 
-  if (!normalized || byPath.has(normalized) || !(await fileExists(normalized))) {
+  if (!normalized || byPath.has(normalized)) {
     return;
   }
-
-  const targetPath = getComicReferenceAbsolutePath(normalized);
-  const fileStats = targetPath ? await stat(targetPath) : null;
 
   byPath.set(normalized, {
     bucket,
@@ -240,51 +287,30 @@ async function addReferenceImage(
     relativePath: normalized,
     imageUrl: toComicReferenceMediaUrl(normalized),
     mimeType: getMimeType(record.fileName),
-    sizeBytes: fileStats?.size || 0,
+    sizeBytes: 0,
     whyThisMatters: metadata.whyThisMatters || "Used as a direct image reference for this page.",
     contentSummary: metadata.contentSummary || record.label,
     source
   });
 }
 
-function getReferenceFoldersForUpload(
-  upload: StoredPromptUpload,
-  seasonSlug: string,
-  chapterSlug: string
-) {
-  if (upload.bucket === "CHARACTER") {
-    return [getComicCharacterReferenceFolder(upload.slug)];
-  }
-
-  if (upload.bucket === "SCENE") {
-    return [getComicSceneReferenceFolder(upload.slug)];
-  }
-
-  return [getComicChapterSceneReferenceFolder(seasonSlug, chapterSlug)];
-}
-
-async function addRequiredUploadReferences(
+function addRequiredUploadReferences(
   input: ResolveComicPageReferenceImagesInput,
   byPath: Map<string, ComicResolvedReferenceImage>
 ) {
   for (const upload of input.requiredUploads) {
     for (const relativePath of upload.relativePaths) {
-      const normalized = normalizeComicReferencePath(relativePath);
+      const record = toRecordFromPath(relativePath, upload.label);
 
-      if (!normalized) {
+      if (!record) {
         continue;
       }
 
-      await addReferenceImage(
+      addReferenceImage(
         upload.bucket,
         upload.slug,
         "prompt-required-upload",
-        {
-          label: upload.label,
-          fileName: normalized.split("/").pop() || upload.label,
-          relativePath: normalized,
-          extension: getExtension(normalized).replace(/^\./, "")
-        },
+        record,
         {
           label: upload.label,
           whyThisMatters: upload.whyThisMatters,
@@ -294,34 +320,45 @@ async function addRequiredUploadReferences(
       );
     }
 
-    const folders = getReferenceFoldersForUpload(upload, input.seasonSlug, input.chapterSlug);
-    const recordsByFolder = await Promise.all(folders.map((folder) => listReferenceFolder(folder)));
-    const records = recordsByFolder.flat();
+    const records = getReferenceRecordsForUpload(upload, input.seasonSlug, input.chapterSlug);
+    const fallbackFolder = getReferenceFolderForUpload(upload, input.seasonSlug, input.chapterSlug);
 
-    if (upload.uploadImageNames.length === 0 && records.length > 0) {
-      await addReferenceImage(
-        upload.bucket,
-        upload.slug,
-        "prompt-required-upload",
-        records[0],
-        {
-          label: upload.label || records[0].label,
-          whyThisMatters: upload.whyThisMatters,
-          contentSummary: upload.contentSummary
-        },
-        byPath
-      );
+    if (upload.uploadImageNames.length === 0) {
+      const primaryRecord =
+        records.find((record) => /model|sheet|front|master/i.test(record.fileName)) ||
+        records[0] ||
+        (upload.bucket === "CHARACTER"
+          ? toPrimaryReferenceRecord(fallbackFolder, "model-sheet.png", upload.label)
+          : null);
+
+      if (primaryRecord) {
+        addReferenceImage(
+          upload.bucket,
+          upload.slug,
+          "prompt-required-upload",
+          primaryRecord,
+          {
+            label: upload.label || primaryRecord.label,
+            whyThisMatters: upload.whyThisMatters,
+            contentSummary: upload.contentSummary
+          },
+          byPath
+        );
+      }
+
       continue;
     }
 
     for (const uploadName of upload.uploadImageNames) {
-      const matchedRecord = findReferenceRecord(records, uploadName);
+      const matchedRecord =
+        findReferenceRecord(records, uploadName) ||
+        toPrimaryReferenceRecord(fallbackFolder, getFileNameFromPath(uploadName), upload.label);
 
       if (!matchedRecord) {
         continue;
       }
 
-      await addReferenceImage(
+      addReferenceImage(
         upload.bucket,
         upload.slug,
         "prompt-required-upload",
@@ -337,23 +374,17 @@ async function addRequiredUploadReferences(
   }
 }
 
-async function addDetectedCharacterReferences(
+function getCharacterSlugsForDetection() {
+  return Array.from(
+    new Set([...getComicReferenceCharacterSlugs(), ...FALLBACK_CHARACTER_SLUGS])
+  ).sort((left, right) => left.localeCompare(right));
+}
+
+function addDetectedCharacterReferences(
   input: ResolveComicPageReferenceImagesInput,
   byPath: Map<string, ComicResolvedReferenceImage>
 ) {
-  const charactersRoot = path.join(process.cwd(), COMIC_REFERENCE_ROOT, "characters");
-  let characterSlugs: string[] = [];
-
-  try {
-    characterSlugs = (await readdir(charactersRoot, { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .sort((left, right) => left.localeCompare(right));
-  } catch {
-    return;
-  }
-
-  for (const slug of characterSlugs) {
+  for (const slug of getCharacterSlugsForDetection()) {
     const displayName = slug
       .split("-")
       .filter(Boolean)
@@ -366,15 +397,17 @@ async function addDetectedCharacterReferences(
       continue;
     }
 
-    const records = await listReferenceFolder(getComicCharacterReferenceFolder(slug));
+    const records = getComicCharacterReferenceFiles(slug);
     const primaryRecord =
-      records.find((record) => /model|sheet|front|master/i.test(record.fileName)) || records[0];
+      records.find((record) => /model|sheet|front|master/i.test(record.fileName)) ||
+      records[0] ||
+      toPrimaryReferenceRecord(getComicCharacterReferenceFolder(slug), "model-sheet.png", `${displayName} reference`);
 
     if (!primaryRecord) {
       continue;
     }
 
-    await addReferenceImage(
+    addReferenceImage(
       "DETECTED_CHARACTER",
       slug,
       "auto-detected",
@@ -389,13 +422,14 @@ async function addDetectedCharacterReferences(
   }
 }
 
-async function addDetectedChapterSceneReferences(
+function addDetectedChapterSceneReferences(
   input: ResolveComicPageReferenceImagesInput,
   byPath: Map<string, ComicResolvedReferenceImage>
 ) {
-  const records = await listReferenceFolder(
-    getComicChapterSceneReferenceFolder(input.seasonSlug, input.chapterSlug)
-  );
+  const records = getComicChapterSceneReferenceState(
+    input.seasonSlug,
+    input.chapterSlug
+  ).chapterSceneReferences;
 
   for (const record of records) {
     if (
@@ -405,7 +439,7 @@ async function addDetectedChapterSceneReferences(
       continue;
     }
 
-    await addReferenceImage(
+    addReferenceImage(
       "DETECTED_CHAPTER_SCENE",
       normalizeComparable(record.label).replace(/\s+/g, "-") || "chapter-scene",
       "auto-detected",
@@ -448,33 +482,11 @@ export async function resolveComicPageReferenceImages(
 ) {
   const byPath = new Map<string, ComicResolvedReferenceImage>();
 
-  await addRequiredUploadReferences(input, byPath);
-  await addDetectedCharacterReferences(input, byPath);
-  await addDetectedChapterSceneReferences(input, byPath);
+  addRequiredUploadReferences(input, byPath);
+  addDetectedCharacterReferences(input, byPath);
+  addDetectedChapterSceneReferences(input, byPath);
 
   return sortResolvedReferences(Array.from(byPath.values())).slice(0, MAX_COMIC_REFERENCE_IMAGES);
-}
-
-export async function readComicReferenceImage(relativePath: string) {
-  const normalized = normalizeComicReferencePath(relativePath);
-  const targetPath = normalized ? getComicReferenceAbsolutePath(normalized) : null;
-
-  if (!normalized || !targetPath) {
-    return null;
-  }
-
-  try {
-    const data = await readFile(targetPath);
-
-    return {
-      data,
-      relativePath: normalized,
-      fileName: path.basename(normalized),
-      mimeType: getMimeType(normalized)
-    };
-  } catch {
-    return null;
-  }
 }
 
 export async function loadComicReferenceImageFiles(
@@ -482,17 +494,32 @@ export async function loadComicReferenceImageFiles(
 ): Promise<ComicReferenceImageFile[]> {
   const files = await Promise.all(
     references.map(async (reference) => {
-      const image = await readComicReferenceImage(reference.relativePath);
+      const absoluteUrl = toComicReferenceAbsoluteUrl(reference.relativePath);
 
-      if (!image) {
+      if (!absoluteUrl) {
         return null;
       }
 
-      return {
-        ...reference,
-        data: image.data,
-        mimeType: image.mimeType
-      };
+      try {
+        const response = await fetch(absoluteUrl);
+
+        if (!response.ok) {
+          return null;
+        }
+
+        const mimeType =
+          response.headers.get("content-type")?.split(";")[0]?.trim() ||
+          reference.mimeType ||
+          getMimeType(reference.fileName);
+
+        return {
+          ...reference,
+          data: new Uint8Array(await response.arrayBuffer()),
+          mimeType
+        };
+      } catch {
+        return null;
+      }
     })
   );
 

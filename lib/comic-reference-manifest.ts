@@ -1,6 +1,4 @@
 import manifestJson from "@/data/comic-reference-manifest.json";
-import { readdirSync } from "node:fs";
-import path from "node:path";
 import { getComicChapterSceneReferenceFolder, getComicChapterSceneReferenceKey } from "@/lib/comic-paths";
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 
@@ -22,43 +20,6 @@ const EMPTY_MANIFEST: ComicReferenceManifest = {
   scenes: {},
   chapters: {}
 };
-const SUPPORTED_COMIC_REFERENCE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
-
-function toDisplayLabel(fileName: string) {
-  const extension = path.extname(fileName);
-  const base = fileName.slice(0, extension ? -extension.length : undefined);
-
-  return base
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function toRelativeWorkspacePath(targetPath: string) {
-  return path.relative(process.cwd(), targetPath).replace(/\\/g, "/");
-}
-
-function listReferenceFilesFromFolder(relativeFolder: string) {
-  const folderPath = path.join(process.cwd(), relativeFolder);
-
-  try {
-    return readdirSync(folderPath, { withFileTypes: true })
-      .filter((entry) => entry.isFile())
-      .map((entry) => entry.name)
-      .filter((fileName) => fileName.toLowerCase() !== "readme.md")
-      .filter((fileName) => SUPPORTED_COMIC_REFERENCE_EXTENSIONS.has(path.extname(fileName).toLowerCase()))
-      .sort((left, right) => left.localeCompare(right))
-      .map((fileName) => ({
-        label: toDisplayLabel(fileName),
-        fileName,
-        relativePath: toRelativeWorkspacePath(path.join(folderPath, fileName)),
-        extension: path.extname(fileName).replace(/^\./, "").toLowerCase()
-      }));
-  } catch {
-    return [];
-  }
-}
 
 function normalizeReferenceRecord(
   value: ComicChapterSceneReferenceRecord
@@ -97,20 +58,16 @@ export function getComicReferenceManifestGeneratedAt() {
 
 export function getComicCharacterReferenceFiles(slug: string) {
   const manifest = getManifest();
-  const manifestRecords = sortReferenceRecords(manifest.characters[slug] || []);
-
-  return manifestRecords.length > 0
-    ? manifestRecords
-    : listReferenceFilesFromFolder(`comic/characters/${slug}/refs`);
+  return sortReferenceRecords(manifest.characters[slug] || []);
 }
 
 export function getComicSceneReferenceFiles(slug: string) {
   const manifest = getManifest();
-  const manifestRecords = sortReferenceRecords(manifest.scenes[slug] || []);
+  return sortReferenceRecords(manifest.scenes[slug] || []);
+}
 
-  return manifestRecords.length > 0
-    ? manifestRecords
-    : listReferenceFilesFromFolder(`comic/scenes/${slug}/refs`);
+export function getComicReferenceCharacterSlugs() {
+  return Object.keys(getManifest().characters).sort((left, right) => left.localeCompare(right));
 }
 
 export function getComicChapterSceneReferenceState(seasonSlug: string, chapterSlug: string) {
@@ -121,9 +78,8 @@ export function getComicChapterSceneReferenceState(seasonSlug: string, chapterSl
 
   return {
     chapterSceneReferenceFolder: chapterEntry?.folder || fallbackFolder,
-    chapterSceneReferences:
-      chapterEntry?.references?.length
-        ? sortReferenceRecords(chapterEntry.references)
-        : listReferenceFilesFromFolder(fallbackFolder)
+    chapterSceneReferences: chapterEntry?.references?.length
+      ? sortReferenceRecords(chapterEntry.references)
+      : []
   };
 }

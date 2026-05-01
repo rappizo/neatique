@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "dev": "tsx scripts/sync-comic-reference-assets.ts && next dev",
+    "build": "tsx scripts/sync-comic-reference-assets.ts && next build && tsx scripts/check-next-function-traces.ts",
+    "vercel-build": "prisma generate && prisma migrate deploy && tsx scripts/sync-comic-reference-assets.ts && next build && tsx scripts/check-next-function-traces.ts",
     "start": "next start",
     "test": "tsx --test tests/*.test.ts",
     "lint": "next lint",
@@ -17,6 +17,7 @@
     "db:reviews:reset": "node prisma/reset-reviews.js",
     "db:studio": "prisma studio",
     "comic:sync": "tsx scripts/sync-comic-workspace.ts",
+    "comic:references": "tsx scripts/sync-comic-reference-assets.ts",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "postinstall": "prisma generate"
   },
