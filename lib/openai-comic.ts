@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import type { ComicReferenceImageFile } from "@/lib/comic-reference-images";
 
 function normalizeApiBaseUrl(value: string) {
   return (value.trim() || "https://api.openai.com/v1").replace(/\/+$/, "");
@@ -184,6 +185,7 @@ export type GenerateComicPageImageInput = {
   globalGptImage2Notes: string | null;
   panels: GeneratedComicPanelPrompt[];
   requiredUploads: GeneratedComicPageUpload[];
+  referenceImages?: ComicReferenceImageFile[];
 };
 
 export type GeneratedComicPageImageAsset = {
@@ -409,6 +411,25 @@ function buildComicPageUploadSummary(uploads: GeneratedComicPageUpload[]) {
     .join("\n\n");
 }
 
+function buildComicPageReferenceImageSummary(referenceImages: ComicReferenceImageFile[] = []) {
+  if (referenceImages.length === 0) {
+    return "No actual reference images were attached to this request.";
+  }
+
+  return referenceImages
+    .map((reference, index) =>
+      [
+        `${index + 1}. ${reference.label}`,
+        `   File: ${reference.fileName}`,
+        `   Path: ${reference.relativePath}`,
+        `   Type: ${reference.bucket}`,
+        `   Why it matters: ${reference.whyThisMatters}`,
+        `   Visual lock: ${reference.contentSummary}`
+      ].join("\n")
+    )
+    .join("\n\n");
+}
+
 function buildComicPagePanelSummary(panels: GeneratedComicPanelPrompt[]) {
   if (panels.length === 0) {
     return "No panel beats were listed for this page.";
@@ -437,6 +458,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Keep the page suitable for a polished brand comic, not a rough storyboard.",
     "- Preserve character shape, facial expression language, and scene continuity from the reference notes.",
     "- Treat all listed character model sheets as exact identity references, not loose inspiration.",
+    "- The actual reference images attached to this API request are binding visual references. Copy their silhouettes, proportions, face placement, highlight placement, body fill, and feet exactly where those characters or scenes appear.",
     "- Foot visibility check: any full-body character must show small rounded feet or foot nubs with clear space below the body; do not crop off feet.",
     "- Sunny Spritz check: if Sunny appears full-body, her two small rounded feet must be visible directly under the soft five-point star body.",
     "- If dialogue balloons are needed, keep text minimal, clean, and readable; otherwise use expressive acting and leave balloons simple.",
@@ -451,6 +473,9 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "",
     "Required references for visual continuity:",
     buildComicPageUploadSummary(input.requiredUploads),
+    "",
+    "Actual reference images attached to this image API call:",
+    buildComicPageReferenceImageSummary(input.referenceImages),
     "",
     "Panel-by-panel content to illustrate:",
     buildComicPagePanelSummary(input.panels),
@@ -480,6 +505,66 @@ export async function generateComicPageImageWithAi(
   }
 
   const prompt = buildComicPageImagePrompt(input);
+  const referenceImages = (input.referenceImages || []).slice(0, 16);
+
+  if (referenceImages.length > 0) {
+    const formData = new FormData();
+    formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
+    formData.append("prompt", prompt);
+    formData.append("size", "1024x1536");
+    formData.append("quality", "medium");
+    formData.append("n", "1");
+
+    const inputFidelity = (process.env.OPENAI_COMIC_IMAGE_INPUT_FIDELITY || "high").trim();
+    if (inputFidelity) {
+      formData.append("input_fidelity", inputFidelity);
+    }
+
+    for (const referenceImage of referenceImages) {
+      const blob = new Blob([new Uint8Array(referenceImage.data)], {
+        type: referenceImage.mimeType
+      });
+      formData.append("image[]", blob, referenceImage.fileName);
+    }
+
+    const response = await fetch(`${imageApiSettings.baseUrl}/images/edits`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${imageApiSettings.apiKey}`
+      },
+      body: formData
+    });
+
+    const rawText = await response.text();
+    const parsed = rawText ? safeJsonParse(rawText) : null;
+
+    if (!response.ok) {
+      const parsedRecord =
+        parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+      const message =
+        (parsedRecord && "error" in parsedRecord
+          ? extractOpenAiErrorMessage(parsedRecord.error)
+          : null) || `OpenAI comic page image reference edit failed with ${response.status}.`;
+      throw new Error(message);
+    }
+
+    const data =
+      parsed && typeof parsed === "object" && Array.isArray((parsed as any).data)
+        ? (parsed as any).data
+        : [];
+    const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
+    const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
+
+    if (!base64Data) {
+      if (imageUrl) {
+        return fetchImageUrlAsBase64(imageUrl);
+      }
+
+      throw new Error("Comic image API did not return a reference-guided comic page image.");
+    }
+
+    return parseImageBase64Response(base64Data);
+  }
 
   const response = await fetch(`${imageApiSettings.baseUrl}/images/generations`, {
     method: "POST",
@@ -611,9 +696,9 @@ export async function reviseComicPagePromptWithAi(
     properties: {
       pageNumber: { type: "integer", minimum: input.pageNumber, maximum: input.pageNumber },
       panelCount: { type: "integer", enum: [2, 3] },
-      pagePurpose: { type: "string", minLength: 12, maxLength: 220 },
-      promptPackCopyText: { type: "string", minLength: 180, maxLength: 3000 },
-      referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 2600 },
+      pagePurpose: { type: "string", minLength: 12, maxLength: 520 },
+      promptPackCopyText: { type: "string", minLength: 180, maxLength: 12000 },
+      referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 8000 },
       panels: {
         type: "array",
         minItems: 2,
@@ -623,8 +708,8 @@ export async function reviseComicPagePromptWithAi(
           additionalProperties: false,
           properties: {
             panelNumber: { type: "integer", minimum: 1, maximum: 3 },
-            panelTitle: { type: "string", minLength: 4, maxLength: 90 },
-            storyBeat: { type: "string", minLength: 12, maxLength: 220 }
+            panelTitle: { type: "string", minLength: 4, maxLength: 140 },
+            storyBeat: { type: "string", minLength: 12, maxLength: 900 }
           },
           required: ["panelNumber", "panelTitle", "storyBeat"]
         }
@@ -660,6 +745,7 @@ export async function reviseComicPagePromptWithAi(
                 "Return only valid JSON matching the schema.",
                 "Revise only this one page. Keep the page number fixed.",
                 "Keep the page production-ready for gpt-image-2.",
+                "Do not shorten, summarize, or truncate the existing page prompt. The revised prompt must stay complete enough to generate the whole page.",
                 "Preserve the existing story continuity unless the suggestion explicitly asks for a composition change.",
                 "Do not remove required character or scene continuity details.",
                 "All revised prompt text must enforce these production locks:",
@@ -701,6 +787,7 @@ export async function reviseComicPagePromptWithAi(
                 "- Keep the same pageNumber.",
                 "- Keep panelCount at 2 or 3.",
                 "- Improve pagePurpose, promptPackCopyText, referenceNotesCopyText, and panel story beats to reflect the suggestion.",
+                "- Keep the full page content, all panels, all important reference instructions, and the final visual locks. Do not cut off the prompt mid-sentence.",
                 "- Keep character model-sheet identity locked.",
                 "- Make sure every full-body character keeps visible small rounded feet or foot nubs with the lower frame edge below the feet.",
                 "- If Sunny Spritz appears, explicitly preserve two small rounded feet directly under her soft five-point star body.",
@@ -797,10 +884,10 @@ export async function generateComicPromptPackageWithAi(
     type: "object",
     additionalProperties: false,
     properties: {
-      episodeLogline: { type: "string", minLength: 30, maxLength: 220 },
-      episodeSynopsis: { type: "string", minLength: 120, maxLength: 800 },
-      episodeScript: { type: "string", minLength: 500, maxLength: 8000 },
-      pagePlan: { type: "string", minLength: 240, maxLength: 6000 },
+      episodeLogline: { type: "string", minLength: 30, maxLength: 320 },
+      episodeSynopsis: { type: "string", minLength: 120, maxLength: 1200 },
+      episodeScript: { type: "string", minLength: 500, maxLength: 10000 },
+      pagePlan: { type: "string", minLength: 240, maxLength: 8000 },
       pages: {
         type: "array",
         minItems: 10,
@@ -811,9 +898,9 @@ export async function generateComicPromptPackageWithAi(
           properties: {
             pageNumber: { type: "integer", minimum: 1, maximum: 10 },
             panelCount: { type: "integer", enum: [2, 3] },
-            pagePurpose: { type: "string", minLength: 12, maxLength: 220 },
-            promptPackCopyText: { type: "string", minLength: 160, maxLength: 2600 },
-            referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 2200 },
+            pagePurpose: { type: "string", minLength: 12, maxLength: 520 },
+            promptPackCopyText: { type: "string", minLength: 160, maxLength: 6000 },
+            referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 5000 },
             panels: {
               type: "array",
               minItems: 2,
@@ -824,9 +911,9 @@ export async function generateComicPromptPackageWithAi(
                 properties: {
                   pageNumber: { type: "integer", minimum: 1, maximum: 10 },
                   panelNumber: { type: "integer", minimum: 1, maximum: 3 },
-                  panelTitle: { type: "string", minLength: 4, maxLength: 90 },
-                  storyBeat: { type: "string", minLength: 12, maxLength: 180 },
-                  promptText: { type: "string", minLength: 60, maxLength: 900 }
+                  panelTitle: { type: "string", minLength: 4, maxLength: 140 },
+                  storyBeat: { type: "string", minLength: 12, maxLength: 600 },
+                  promptText: { type: "string", minLength: 60, maxLength: 1400 }
                 },
                 required: ["pageNumber", "panelNumber", "panelTitle", "storyBeat", "promptText"]
               }
@@ -842,8 +929,8 @@ export async function generateComicPromptPackageWithAi(
                   bucket: { type: "string", enum: ["CHARACTER", "SCENE", "CHAPTER_SCENE"] },
                   label: { type: "string", minLength: 2, maxLength: 120 },
                   slug: { type: "string", minLength: 1, maxLength: 120 },
-                  whyThisMatters: { type: "string", minLength: 12, maxLength: 240 },
-                  contentSummary: { type: "string", minLength: 12, maxLength: 320 },
+                  whyThisMatters: { type: "string", minLength: 12, maxLength: 420 },
+                  contentSummary: { type: "string", minLength: 12, maxLength: 600 },
                   uploadImageNames: {
                     type: "array",
                     minItems: 1,
@@ -880,7 +967,7 @@ export async function generateComicPromptPackageWithAi(
           ]
         }
       },
-      globalGptImage2Notes: { type: "string", minLength: 120, maxLength: 2600 }
+      globalGptImage2Notes: { type: "string", minLength: 120, maxLength: 5000 }
     },
     required: [
       "episodeLogline",

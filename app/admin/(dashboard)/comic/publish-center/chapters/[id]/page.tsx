@@ -18,9 +18,11 @@ import {
 } from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
+import { resolveComicPageReferenceImages } from "@/lib/comic-reference-images";
 import { formatDate } from "@/lib/format";
 import type {
   ComicEpisodeAssetRecord,
+  ComicPagePromptRevisionRecord,
   ComicPublishCenterChapterRecord,
   ComicPublishCenterEpisodeRecord,
   ComicPublishCenterSeasonRecord
@@ -139,26 +141,51 @@ function getChinesePageAsset(episode: ComicPublishCenterEpisodeRecord, pageNumbe
   );
 }
 
-function getEpisodePromptPages(episode: ComicPublishCenterEpisodeRecord) {
+async function getEpisodePromptPages(
+  episode: ComicPublishCenterEpisodeRecord,
+  seasonSlug: string,
+  chapterSlug: string
+) {
   const parsedPromptOutput = parseComicPromptOutput(episode.promptPack, episode.requiredReferences);
   const promptPageMap = new Map<number, PromptPage>(
     (parsedPromptOutput?.pages || []).map((page) => [page.pageNumber, page])
   );
-
-  return {
-    parsedPromptOutput,
-    pages: Array.from({ length: COMIC_REQUIRED_PAGES_PER_EPISODE }, (_, index) => {
+  const pages = await Promise.all(
+    Array.from({ length: COMIC_REQUIRED_PAGES_PER_EPISODE }, async (_, index) => {
       const pageNumber = index + 1;
       const assets = getPageAssets(episode, pageNumber);
+      const promptPage = promptPageMap.get(pageNumber) || null;
+      const referenceImages = promptPage
+        ? await resolveComicPageReferenceImages({
+            requiredUploads: promptPage.requiredUploads,
+            seasonSlug,
+            chapterSlug,
+            promptText: [
+              promptPage.pagePurpose,
+              promptPage.promptPackCopyText,
+              promptPage.referenceNotesCopyText,
+              promptPage.panels.map((panel) => panel.storyBeat).join("\n")
+            ].join("\n\n")
+          })
+        : [];
 
       return {
         pageNumber,
-        promptPage: promptPageMap.get(pageNumber) || null,
+        promptPage,
+        referenceImages,
+        promptRevisionHistory: episode.promptRevisionHistory
+          .filter((revision) => revision.pageNumber === pageNumber)
+          .slice(0, 3),
         assets,
         approvedAsset: assets.find((asset) => asset.published) || null,
         chineseAsset: getChinesePageAsset(episode, pageNumber)
       };
     })
+  );
+
+  return {
+    parsedPromptOutput,
+    pages
   };
 }
 
@@ -170,6 +197,10 @@ function getUploadNames(page: PromptPage | null) {
   return Array.from(
     new Set(page.requiredUploads.flatMap((upload) => upload.uploadImageNames).filter(Boolean))
   );
+}
+
+function getRevisionStatusLabel(revision: ComicPagePromptRevisionRecord) {
+  return revision.status === "READY" ? "Updated" : revision.status;
 }
 
 function getAssetStatusClass(asset: ComicEpisodeAssetRecord) {
@@ -216,6 +247,14 @@ export default async function AdminComicPublishChapterPage({
         (right.latestImageGenerationAt?.getTime() || 0) -
         (left.latestImageGenerationAt?.getTime() || 0)
     )[0]?.latestImageGenerationError;
+  const episodePromptStates = new Map(
+    await Promise.all(
+      chapter.episodes.map(async (episode) => [
+        episode.id,
+        await getEpisodePromptPages(episode, season.slug, chapter.slug)
+      ] as const)
+    )
+  );
 
   return (
     <div className="admin-page admin-page--comic-publish">
@@ -276,7 +315,11 @@ export default async function AdminComicPublishChapterPage({
       {chapter.episodes.length > 0 ? (
         <div className="admin-comic-publish-stack">
           {chapter.episodes.map((episode) => {
-            const promptState = getEpisodePromptPages(episode);
+            const promptState =
+              episodePromptStates.get(episode.id) || {
+                parsedPromptOutput: null,
+                pages: []
+              };
             const redirectTo = buildRedirectTo(chapter.id, episode.id);
 
             return (
@@ -338,7 +381,7 @@ export default async function AdminComicPublishChapterPage({
                 </div>
 
                 <div className="admin-comic-publish-page-grid">
-                  {promptState.pages.map(({ pageNumber, promptPage, assets, approvedAsset, chineseAsset }) => {
+                  {promptState.pages.map(({ pageNumber, promptPage, referenceImages, promptRevisionHistory, assets, approvedAsset, chineseAsset }) => {
                     const uploadNames = getUploadNames(promptPage);
                     const pageStatus = approvedAsset
                       ? "Approved"
@@ -374,9 +417,50 @@ export default async function AdminComicPublishChapterPage({
                         <div className="stack-row">
                           <span className="pill">{promptPage?.panelCount || 0} panels</span>
                           <span className="pill">{assets.length} image candidates</span>
-                          <span className="pill">{uploadNames.length} refs</span>
+                          <span className="pill">{referenceImages.length} direct refs</span>
                           {chineseAsset ? <span className="pill">Chinese version ready</span> : null}
                         </div>
+
+                        {promptPage ? (
+                          <div className="admin-comic-reference-preview">
+                            <div className="admin-comic-reference-preview__header">
+                              <strong>Reference images sent to image API</strong>
+                              <span className="form-note">
+                                {referenceImages.length > 0
+                                  ? `${referenceImages.length} image${referenceImages.length === 1 ? "" : "s"}`
+                                  : "No direct image references resolved"}
+                              </span>
+                            </div>
+                            {referenceImages.length > 0 ? (
+                              <div className="admin-comic-reference-grid">
+                                {referenceImages.map((reference) => (
+                                  <a
+                                    key={`${episode.id}-${pageNumber}-${reference.relativePath}`}
+                                    href={reference.imageUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="admin-comic-reference-card"
+                                  >
+                                    <Image
+                                      src={reference.imageUrl}
+                                      alt={reference.label}
+                                      width={120}
+                                      height={120}
+                                      unoptimized
+                                    />
+                                    <span>{reference.label}</span>
+                                    <small>{reference.fileName}</small>
+                                  </a>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="form-note">
+                                This page will fall back to text-only generation unless the prompt
+                                mentions a known character or required upload path.
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
 
                         {promptPage ? (
                           <details className="admin-comic-publish-details">
@@ -419,6 +503,71 @@ export default async function AdminComicPublishChapterPage({
                                   ))}
                                 </div>
                               ) : null}
+                            </div>
+                          </details>
+                        ) : null}
+
+                        {promptRevisionHistory.length > 0 ? (
+                          <details className="admin-comic-prompt-history">
+                            <summary className="admin-details-summary">
+                              Prompt revision history ({promptRevisionHistory.length})
+                            </summary>
+                            <div className="admin-comic-prompt-history__list">
+                              {promptRevisionHistory.map((revision) => (
+                                <article key={revision.id} className="admin-comic-prompt-history__item">
+                                  <div className="admin-comic-prompt-history__header">
+                                    <div>
+                                      <strong>{getRevisionStatusLabel(revision)}</strong>
+                                      <span className="form-note">{formatDate(revision.createdAt)}</span>
+                                    </div>
+                                    <span
+                                      className={
+                                        revision.status === "READY"
+                                          ? "admin-table__status-badge admin-table__status-badge--success"
+                                          : "admin-table__status-badge admin-table__status-badge--warning"
+                                      }
+                                    >
+                                      {revision.status}
+                                    </span>
+                                  </div>
+                                  {revision.promptSuggestion ? (
+                                    <p className="form-note">Suggestion: {revision.promptSuggestion}</p>
+                                  ) : null}
+                                  {revision.errorMessage ? (
+                                    <p className="form-note">Error: {revision.errorMessage}</p>
+                                  ) : null}
+                                  <div className="stack-row">
+                                    {revision.previousPromptPack ? (
+                                      <CopyTextButton
+                                        text={revision.previousPromptPack}
+                                        label="Copy previous prompt"
+                                        copiedLabel="Previous copied"
+                                      />
+                                    ) : null}
+                                    {revision.revisedPromptPack ? (
+                                      <CopyTextButton
+                                        text={revision.revisedPromptPack}
+                                        label="Copy revised prompt"
+                                        copiedLabel="Revised copied"
+                                      />
+                                    ) : null}
+                                    {revision.previousReferenceChecklist ? (
+                                      <CopyTextButton
+                                        text={revision.previousReferenceChecklist}
+                                        label="Copy previous refs"
+                                        copiedLabel="Previous refs copied"
+                                      />
+                                    ) : null}
+                                    {revision.revisedReferenceChecklist ? (
+                                      <CopyTextButton
+                                        text={revision.revisedReferenceChecklist}
+                                        label="Copy revised refs"
+                                        copiedLabel="Revised refs copied"
+                                      />
+                                    ) : null}
+                                  </div>
+                                </article>
+                              ))}
                             </div>
                           </details>
                         ) : null}
@@ -522,7 +671,7 @@ export default async function AdminComicPublishChapterPage({
                                 pendingLabel="Creating..."
                                 className="button button--secondary"
                                 modalTitle={`Creating ${formatPageLabel(pageNumber)}`}
-                                modalDescription="The image API is creating one draft comic page from the stored prompt and reference notes."
+                                modalDescription="The image API is creating one draft comic page from the stored prompt and the direct reference images shown above."
                               />
                             </form>
                           ) : null}

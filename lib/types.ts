@@ -718,6 +718,20 @@ export type ComicPromptRunRecord = {
   updatedAt: Date;
 };
 
+export type ComicPagePromptRevisionRecord = {
+  id: string;
+  pageNumber: number;
+  status: ComicPromptRunStatus;
+  promptSuggestion: string | null;
+  previousPromptPack: string | null;
+  previousReferenceChecklist: string | null;
+  revisedPromptPack: string | null;
+  revisedReferenceChecklist: string | null;
+  outputSummary: string;
+  errorMessage: string | null;
+  createdAt: Date;
+};
+
 export type ComicEpisodeRecord = {
   id: string;
   episodeNumber: number;
@@ -846,6 +860,7 @@ export type ComicPublishCenterEpisodeRecord = ComicEpisodeRecord & {
   latestImageGenerationStatus: ComicPromptRunStatus | null;
   latestImageGenerationSummary: string | null;
   latestImageGenerationError: string | null;
+  promptRevisionHistory: ComicPagePromptRevisionRecord[];
   assets: ComicEpisodeAssetRecord[];
 };
 

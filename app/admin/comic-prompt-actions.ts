@@ -5,6 +5,10 @@ import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import {
+  loadComicReferenceImageFiles,
+  resolveComicPageReferenceImages
+} from "@/lib/comic-reference-images";
+import {
   getComicCharacterReferenceFiles,
   getComicChapterSceneReferenceState,
   getComicSceneReferenceFiles
@@ -306,7 +310,20 @@ export async function generateComicPageImageAction(formData: FormData) {
       ...panel,
       promptText: panel.storyBeat
     })),
-    requiredUploads: page.requiredUploads
+    requiredUploads: page.requiredUploads,
+    referenceImages: await loadComicReferenceImageFiles(
+      await resolveComicPageReferenceImages({
+        requiredUploads: page.requiredUploads,
+        seasonSlug: episode.chapter.season.slug,
+        chapterSlug: episode.chapter.slug,
+        promptText: [
+          page.pagePurpose,
+          page.promptPackCopyText,
+          page.referenceNotesCopyText,
+          page.panels.map((panel) => panel.storyBeat).join("\n")
+        ].join("\n\n")
+      })
+    )
   };
   const inputPrompt = buildComicPageImagePrompt(imageInput);
   const inputContext = JSON.stringify(
@@ -319,6 +336,13 @@ export async function generateComicPageImageAction(formData: FormData) {
       panelCount: page.panelCount,
       pagePurpose: page.pagePurpose,
       uploadImages: page.requiredUploads.flatMap((upload) => upload.uploadImageNames),
+      referenceImages: imageInput.referenceImages.map((reference) => ({
+        label: reference.label,
+        fileName: reference.fileName,
+        relativePath: reference.relativePath,
+        source: reference.source,
+        bucket: reference.bucket
+      })),
       prompt: inputPrompt
     },
     null,
@@ -366,7 +390,7 @@ export async function generateComicPageImageAction(formData: FormData) {
           imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
           status: "READY",
           inputContext,
-          outputSummary: `Generated ${episode.title} page ${page.pageNumber}.`,
+          outputSummary: `Generated ${episode.title} page ${page.pageNumber} with ${imageInput.referenceImages.length} direct reference image${imageInput.referenceImages.length === 1 ? "" : "s"}.`,
           promptPack: page.promptPackCopyText,
           referenceChecklist: page.referenceNotesCopyText
         }

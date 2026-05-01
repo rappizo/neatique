@@ -8,6 +8,7 @@ import type {
   ComicEpisodeAssetRecord,
   ComicEpisodeDetailRecord,
   ComicEpisodeRecord,
+  ComicPagePromptRevisionRecord,
   ComicPublishCenterRecord,
   ComicProjectRecord,
   ComicPromptRunRecord,
@@ -726,10 +727,12 @@ export async function getComicPublishCenter() {
                   },
                   promptRuns: {
                     where: {
-                      promptType: "PAGE_IMAGE_GENERATION"
+                      promptType: {
+                        in: ["PAGE_IMAGE_GENERATION", "PAGE_PROMPT_REVISION"]
+                      }
                     },
                     orderBy: [{ createdAt: "desc" }],
-                    take: 1
+                    take: 200
                   },
                   assets: {
                     select: {
@@ -780,7 +783,10 @@ export async function getComicPublishCenter() {
             const approvedPageCount = getApprovedRequiredPageCount(pageAssets);
             const draftPageCount = draftPages.length;
             const canPublish = approvedPageCount === COMIC_REQUIRED_PAGES_PER_EPISODE;
-            const latestImageGenerationRun = episode.promptRuns[0] || null;
+            const promptRuns = episode.promptRuns.map(mapComicPromptRun);
+            const latestImageGenerationRun =
+              promptRuns.find((run) => run.promptType === "PAGE_IMAGE_GENERATION") || null;
+            const promptRevisionHistory = getLatestComicPagePromptRevisionHistory(promptRuns);
 
             if (canPublish && !episode.published) {
               readyEpisodeCount += 1;
@@ -803,6 +809,7 @@ export async function getComicPublishCenter() {
               latestImageGenerationStatus: latestImageGenerationRun?.status ?? null,
               latestImageGenerationSummary: latestImageGenerationRun?.outputSummary ?? null,
               latestImageGenerationError: latestImageGenerationRun?.errorMessage ?? null,
+              promptRevisionHistory,
               assets
             };
           })
@@ -943,6 +950,78 @@ export async function getPublishedComicSeasonBySlug(
 ) {
   const seasons = await getPublishedComicLibrary(language);
   return seasons.find((season) => season.slug === seasonSlug) ?? null;
+}
+
+function safeParseComicPromptRunContext(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, any>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function toNullableString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function mapComicPagePromptRevisionRun(run: ComicPromptRunRecord): ComicPagePromptRevisionRecord | null {
+  if (run.promptType !== "PAGE_PROMPT_REVISION") {
+    return null;
+  }
+
+  const context = safeParseComicPromptRunContext(run.inputContext);
+  const pageNumber = Number(context?.pageNumber);
+
+  if (!Number.isFinite(pageNumber) || pageNumber < 1) {
+    return null;
+  }
+
+  const currentPage =
+    context?.currentPage && typeof context.currentPage === "object" && !Array.isArray(context.currentPage)
+      ? (context.currentPage as Record<string, unknown>)
+      : null;
+
+  return {
+    id: run.id,
+    pageNumber,
+    status: run.status,
+    promptSuggestion: toNullableString(context?.promptSuggestion),
+    previousPromptPack: toNullableString(currentPage?.promptPackCopyText),
+    previousReferenceChecklist: toNullableString(currentPage?.referenceNotesCopyText),
+    revisedPromptPack: run.status === "READY" ? run.promptPack : null,
+    revisedReferenceChecklist: run.status === "READY" ? run.referenceChecklist : null,
+    outputSummary: run.outputSummary,
+    errorMessage: run.errorMessage,
+    createdAt: run.createdAt
+  };
+}
+
+function getLatestComicPagePromptRevisionHistory(promptRuns: ComicPromptRunRecord[]) {
+  const revisions: ComicPagePromptRevisionRecord[] = [];
+  const countByPage = new Map<number, number>();
+
+  for (const run of promptRuns) {
+    const revision = mapComicPagePromptRevisionRun(run);
+
+    if (!revision) {
+      continue;
+    }
+
+    const currentCount = countByPage.get(revision.pageNumber) || 0;
+
+    if (currentCount >= 3) {
+      continue;
+    }
+
+    revisions.push(revision);
+    countByPage.set(revision.pageNumber, currentCount + 1);
+  }
+
+  return revisions;
 }
 
 export async function getPublishedComicChapterBySlugs(
