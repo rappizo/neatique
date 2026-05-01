@@ -1,6 +1,5 @@
+import { ComicGenerateImageQueueButton } from "@/components/admin/comic-image-task-queue";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
-import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
-import { generateComicPageImageAction } from "@/app/admin/comic-prompt-actions";
 
 type PromptPanelView = {
   panelNumber: number;
@@ -180,17 +179,10 @@ export function ComicPromptPageLists({
                   </div>
                   <div className="admin-comic-page-list-item__actions">
                     {canGeneratePages ? (
-                      <form action={generateComicPageImageAction} className="admin-comic-generate-page-form">
-                        <input type="hidden" name="episodeId" value={episodeId} />
-                        <input type="hidden" name="pageNumber" value={page.pageNumber} />
-                        <input type="hidden" name="redirectTo" value={redirectTo} />
-                        <PendingSubmitButton
-                          idleLabel="Generate draft image"
-                          pendingLabel="Creating..."
-                          modalTitle={`Creating ${formatPageLabel(page.pageNumber)}`}
-                          modalDescription="The image API is reading this page's character notes, scene references, panel beats, and prompt pack to create one draft comic page."
-                        />
-                      </form>
+                      <ComicGenerateImageQueueButton
+                        episodeId={episodeId || ""}
+                        pageNumber={page.pageNumber}
+                      />
                     ) : null}
                     <CopyTextButton
                       text={pageProductionText}

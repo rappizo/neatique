@@ -2,6 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { AdminActionResultDialog } from "@/components/admin/admin-action-result-dialog";
+import {
+  ComicGenerateImageQueueButton,
+  ComicImageTaskQueueProvider
+} from "@/components/admin/comic-image-task-queue";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
@@ -12,7 +16,6 @@ import {
   unapproveComicEpisodeAssetAction
 } from "@/app/admin/comic-editor-actions";
 import {
-  generateComicPageImageAction,
   generateComicPromptPackageAction,
   reviseComicPagePromptAction
 } from "@/app/admin/comic-prompt-actions";
@@ -257,7 +260,8 @@ export default async function AdminComicPublishChapterPage({
   );
 
   return (
-    <div className="admin-page admin-page--comic-publish">
+    <ComicImageTaskQueueProvider maxConcurrent={5}>
+      <div className="admin-page admin-page--comic-publish">
       <div className="stack-row">
         <Link href="/admin/comic/publish-center" className="button button--secondary">
           Back to publish center
@@ -662,18 +666,11 @@ export default async function AdminComicPublishChapterPage({
 
                         <div className="admin-comic-publish-page__actions">
                           {promptPage ? (
-                            <form action={generateComicPageImageAction}>
-                              <input type="hidden" name="episodeId" value={episode.id} />
-                              <input type="hidden" name="pageNumber" value={pageNumber} />
-                              <input type="hidden" name="redirectTo" value={redirectTo} />
-                              <PendingSubmitButton
-                                idleLabel="Generate draft image"
-                                pendingLabel="Creating..."
-                                className="button button--secondary"
-                                modalTitle={`Creating ${formatPageLabel(pageNumber)}`}
-                                modalDescription="The image API is creating one draft comic page from the stored prompt and the direct reference images shown above."
-                              />
-                            </form>
+                            <ComicGenerateImageQueueButton
+                              episodeId={episode.id}
+                              pageNumber={pageNumber}
+                              className="button button--secondary"
+                            />
                           ) : null}
 
                           {promptPage ? (
@@ -726,6 +723,7 @@ export default async function AdminComicPublishChapterPage({
           </Link>
         </section>
       )}
-    </div>
+      </div>
+    </ComicImageTaskQueueProvider>
   );
 }

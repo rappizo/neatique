@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminActionResultDialog } from "@/components/admin/admin-action-result-dialog";
+import { ComicImageTaskQueueProvider } from "@/components/admin/comic-image-task-queue";
 import { ComicPromptPageLists } from "@/components/admin/comic-prompt-page-lists";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { generateComicPromptPackageAction } from "@/app/admin/comic-prompt-actions";
@@ -71,7 +72,8 @@ export default async function AdminComicPromptStudioPage({
     : null;
 
   return (
-    <div className="admin-page">
+    <ComicImageTaskQueueProvider maxConcurrent={5}>
+      <div className="admin-page">
       <div className="stack-row">
         <Link href="/admin/comic" className="button button--secondary">
           Back to comic
@@ -283,6 +285,7 @@ export default async function AdminComicPromptStudioPage({
           </p>
         </section>
       )}
-    </div>
+      </div>
+    </ComicImageTaskQueueProvider>
   );
 }

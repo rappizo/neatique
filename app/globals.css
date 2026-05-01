@@ -3456,6 +3456,95 @@ main {
   line-height: 1.7;
 }
 
+.admin-comic-task-panel {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 80;
+  display: grid;
+  gap: 12px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 44px));
+  overflow: auto;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(237, 115, 97, 0.18);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 60px rgba(46, 40, 37, 0.18);
+}
+
+.admin-comic-task-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.admin-comic-task-panel__header > div {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-comic-task-panel__header .button {
+  padding: 8px 12px;
+}
+
+.admin-comic-task-panel__list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-comic-task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 248, 244, 0.78);
+}
+
+.admin-comic-task--running {
+  border-color: rgba(237, 115, 97, 0.28);
+}
+
+.admin-comic-task--success {
+  border-color: rgba(85, 168, 117, 0.28);
+  background: rgba(247, 255, 250, 0.9);
+}
+
+.admin-comic-task--failed {
+  border-color: rgba(217, 85, 67, 0.28);
+  background: rgba(255, 246, 244, 0.9);
+}
+
+.admin-comic-task > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-comic-task strong,
+.admin-comic-task span,
+.admin-comic-task small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-comic-task > span {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.admin-comic-task small {
+  color: var(--danger);
+}
+
 .admin-login {
   min-height: 100vh;
   display: grid;
@@ -4055,14 +4144,6 @@ main {
   justify-content: flex-end;
   gap: 10px;
   min-width: 280px;
-}
-
-.admin-comic-generate-page-form {
-  display: contents;
-}
-
-.admin-comic-generate-page-form .button {
-  box-shadow: 0 12px 28px rgba(237, 115, 97, 0.18);
 }
 
 .admin-comic-page-section {
