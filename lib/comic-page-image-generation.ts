@@ -4,6 +4,7 @@ import {
   loadComicReferenceImageFiles,
   resolveComicPageReferenceImages
 } from "@/lib/comic-reference-images";
+import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
 import { isNextRedirectError } from "@/lib/comic-action-errors";
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 
@@ -80,18 +81,24 @@ export async function generateComicPageImageForEpisode(input: {
   }
 
   const { buildComicPageImagePrompt, generateComicPageImageWithAi } = await import("@/lib/openai-comic");
-  const referenceImages = await loadComicReferenceImageFiles(
-    await resolveComicPageReferenceImages({
-      requiredUploads: page.requiredUploads,
-      seasonSlug: episode.chapter.season.slug,
-      chapterSlug: episode.chapter.slug,
-      promptText: [
-        page.pagePurpose,
-        page.promptPackCopyText,
-        page.referenceNotesCopyText,
-        page.panels.map((panel) => panel.storyBeat).join("\n")
-      ].join("\n\n")
-    })
+  const resolvedReferenceImages = await resolveComicPageReferenceImages({
+    requiredUploads: page.requiredUploads,
+    seasonSlug: episode.chapter.season.slug,
+    chapterSlug: episode.chapter.slug,
+    promptText: [
+      page.pagePurpose,
+      page.promptPackCopyText,
+      page.referenceNotesCopyText,
+      page.panels.map((panel) => panel.storyBeat).join("\n")
+    ].join("\n\n")
+  });
+  const referenceImages = await loadComicReferenceImageFiles(resolvedReferenceImages);
+  const characterLocks = await loadComicCharacterIdentityLocks(
+    resolvedReferenceImages
+      .filter((reference) =>
+        ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket)
+      )
+      .map((reference) => reference.slug)
   );
   const imageInput = {
     projectTitle: episode.chapter.season.project.title,
@@ -111,7 +118,8 @@ export async function generateComicPageImageForEpisode(input: {
       promptText: panel.storyBeat
     })),
     requiredUploads: page.requiredUploads,
-    referenceImages
+    referenceImages,
+    characterLocks
   };
   const inputPrompt = buildComicPageImagePrompt(imageInput);
   const inputContext = JSON.stringify(
@@ -130,6 +138,12 @@ export async function generateComicPageImageForEpisode(input: {
         relativePath: reference.relativePath,
         source: reference.source,
         bucket: reference.bucket
+      })),
+      characterLocks: imageInput.characterLocks.map((character) => ({
+        slug: character.slug,
+        name: character.name,
+        referenceFiles: character.referenceFiles.map((file) => file.fileName),
+        hasProfileMarkdown: Boolean(character.profileMarkdown)
       })),
       prompt: inputPrompt
     },

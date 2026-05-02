@@ -14,7 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 
 type ComicImageTaskStatus = "queued" | "running" | "success" | "failed";
-type ComicImageTaskKind = "generate" | "edit" | "prompt-package" | "prompt-revision";
+type ComicImageTaskKind = "generate" | "edit" | "prompt-package" | "prompt-revision" | "outline";
 
 type ComicImageTask = {
   id: string;
@@ -32,6 +32,9 @@ type ComicImageTask = {
   sourceAssetId?: string;
   editInstruction?: string;
   promptSuggestion?: string;
+  outlineTaskType?: string;
+  targetId?: string;
+  revisionNotes?: string;
 };
 
 type ComicImageTaskQueueContextValue = {
@@ -50,6 +53,12 @@ type ComicImageTaskQueueContextValue = {
     episodeId: string;
     pageNumber: number;
     promptSuggestion: string;
+    label?: string;
+  }) => string;
+  enqueueOutlineTask: (input: {
+    taskType: string;
+    targetId: string;
+    revisionNotes?: string;
     label?: string;
   }) => string;
   getLatestPageTask: (episodeId: string, pageNumber: number) => ComicImageTask | null;
@@ -127,6 +136,8 @@ export function ComicImageTaskQueueProvider({
             ? "/api/admin/comic/prompt-package-generation"
             : task.kind === "prompt-revision"
               ? "/api/admin/comic/page-prompt-revision"
+              : task.kind === "outline"
+                ? "/api/admin/comic/outline-generation"
               : "/api/admin/comic/page-image-generation";
       const requestBody =
         task.kind === "edit"
@@ -144,6 +155,12 @@ export function ComicImageTaskQueueProvider({
                   pageNumber: task.pageNumber,
                   promptSuggestion: task.promptSuggestion
                 }
+              : task.kind === "outline"
+                ? {
+                    taskType: task.outlineTaskType,
+                    targetId: task.targetId,
+                    revisionNotes: task.revisionNotes
+                  }
               : {
                   episodeId: task.episodeId,
                   pageNumber: task.pageNumber
@@ -362,6 +379,51 @@ export function ComicImageTaskQueueProvider({
     []
   );
 
+  const enqueueOutlineTask = useCallback(
+    (input: {
+      taskType: string;
+      targetId: string;
+      revisionNotes?: string;
+      label?: string;
+    }) => {
+      const revisionNotes = input.revisionNotes?.trim() || "";
+      const activeTask = tasksRef.current.find(
+        (task) =>
+          task.kind === "outline" &&
+          task.outlineTaskType === input.taskType &&
+          task.targetId === input.targetId &&
+          task.revisionNotes === revisionNotes &&
+          (task.status === "queued" || task.status === "running")
+      );
+
+      if (activeTask) {
+        return activeTask.id;
+      }
+
+      const id = createTaskId("outline", input.targetId || "outline", 0);
+      const label = input.label || "Outline task";
+
+      setTasks((currentTasks) => [
+        ...currentTasks,
+        {
+          id,
+          kind: "outline",
+          episodeId: "",
+          pageNumber: 0,
+          label,
+          status: "queued",
+          createdAt: Date.now(),
+          outlineTaskType: input.taskType,
+          targetId: input.targetId,
+          revisionNotes
+        }
+      ]);
+
+      return id;
+    },
+    []
+  );
+
   const getLatestPageTask = useCallback((episodeId: string, pageNumber: number) => {
     const pageTasks = tasksRef.current
       .filter((task) => task.episodeId === episodeId && task.pageNumber === pageNumber)
@@ -384,6 +446,7 @@ export function ComicImageTaskQueueProvider({
       enqueueEdit,
       enqueuePromptPackage,
       enqueuePromptRevision,
+      enqueueOutlineTask,
       getLatestPageTask,
       clearCompleted
     }),
@@ -394,6 +457,7 @@ export function ComicImageTaskQueueProvider({
       enqueueEdit,
       enqueuePromptPackage,
       enqueuePromptRevision,
+      enqueueOutlineTask,
       getLatestPageTask,
       clearCompleted
     ]
@@ -637,6 +701,93 @@ export function ComicRevisePromptQueueForm({
         {activeRevisionCount > 0 ? "Queue another prompt update" : "Update page prompt"}
       </button>
       {notice ? <span className="form-note">{notice}</span> : null}
+    </form>
+  );
+}
+
+export function ComicOutlineQueueForm({
+  taskType,
+  targetId,
+  taskLabel,
+  idleLabel,
+  disabled = false,
+  disabledReason
+}: {
+  taskType: string;
+  targetId: string;
+  taskLabel: string;
+  idleLabel: string;
+  disabled?: boolean;
+  disabledReason?: string;
+}) {
+  const { enqueueOutlineTask, tasks } = useComicImageTaskQueue();
+  const [revisionNotes, setRevisionNotes] = useState("");
+  const [notice, setNotice] = useState("");
+  const trimmedNotes = revisionNotes.trim();
+  const task =
+    [...tasks]
+      .filter(
+        (candidate) =>
+          candidate.kind === "outline" &&
+          candidate.outlineTaskType === taskType &&
+          candidate.targetId === targetId
+      )
+      .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
+  const isActive = task?.status === "queued" || task?.status === "running";
+  const label =
+    task?.status === "queued"
+      ? "Queued..."
+      : task?.status === "running"
+        ? "Working..."
+        : task?.status === "success"
+          ? idleLabel
+          : task?.status === "failed"
+            ? `Retry ${idleLabel}`
+            : idleLabel;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    enqueueOutlineTask({
+      taskType,
+      targetId,
+      revisionNotes: trimmedNotes,
+      label: taskLabel
+    });
+    setRevisionNotes("");
+    setNotice("Added to Comic tasks.");
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="admin-comic-outline-form">
+      <div className="field">
+        <label htmlFor={`outline-task-${taskType}-${targetId}`}>修改 / 翻译要求</label>
+        <textarea
+          id={`outline-task-${taskType}-${targetId}`}
+          name="revisionNotes"
+          rows={3}
+          placeholder="可留空；也可以写：节奏更轻松、保留术语英文、加强 Nia 的动机..."
+          value={revisionNotes}
+          onChange={(event) => {
+            setRevisionNotes(event.target.value);
+            if (notice) {
+              setNotice("");
+            }
+          }}
+        />
+      </div>
+      <div className="stack-row">
+        <button
+          type="submit"
+          className="button button--primary"
+          disabled={disabled || isActive}
+          aria-busy={task?.status === "running"}
+        >
+          {label}
+        </button>
+        {disabled && disabledReason ? <span className="form-note">{disabledReason}</span> : null}
+        {notice ? <span className="form-note">{notice}</span> : null}
+      </div>
     </form>
   );
 }

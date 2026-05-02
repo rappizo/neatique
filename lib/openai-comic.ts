@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import type { ComicReferenceImageFile } from "@/lib/comic-reference-images";
+import type { ComicCharacterIdentityLock } from "@/lib/comic-character-identity";
 
 function normalizeApiBaseUrl(value: string) {
   return (value.trim() || "https://api.openai.com/v1").replace(/\/+$/, "");
@@ -67,6 +68,7 @@ type ComicCharacterContext = {
   referenceFolder: string;
   referenceNotes: string | null;
   referenceFiles: ComicReferenceFileContext[];
+  profileMarkdown?: string | null;
 };
 
 type ComicSceneContext = {
@@ -188,6 +190,7 @@ export type GenerateComicPageImageInput = {
   panels: GeneratedComicPanelPrompt[];
   requiredUploads: GeneratedComicPageUpload[];
   referenceImages?: ComicReferenceImageFile[];
+  characterLocks?: ComicCharacterIdentityLock[];
 };
 
 export type GeneratedComicPageImageAsset = {
@@ -949,6 +952,9 @@ function buildCharacterSummary(characters: ComicCharacterContext[]) {
           `  Speech guide: ${character.speechGuide}`,
           `  Reference folder: ${character.referenceFolder}`,
           `  Reference notes: ${character.referenceNotes || "None"}`,
+          character.profileMarkdown
+            ? `  Canon profile MD:\n${character.profileMarkdown}`
+            : "  Canon profile MD: Not available.",
           "  Available reference files:",
           buildReferenceFileSummary(character.referenceFiles)
         ].join("\n")
@@ -1049,6 +1055,34 @@ function buildComicPageReferenceImageSummary(referenceImages: ComicReferenceImag
     .join("\n\n");
 }
 
+function buildComicPageCharacterIdentityLockSummary(
+  characterLocks: ComicCharacterIdentityLock[] = []
+) {
+  if (characterLocks.length === 0) {
+    return "No character profile MD locks were loaded for this page.";
+  }
+
+  return characterLocks
+    .map((character) =>
+      [
+        `${character.name} (${character.slug})`,
+        `Role: ${character.role}`,
+        `Appearance lock from database: ${character.appearance}`,
+        `Personality lock: ${character.personality}`,
+        character.referenceNotes ? `Reference notes: ${character.referenceNotes}` : null,
+        character.profileMarkdown
+          ? `Profile MD source of truth:\n${character.profileMarkdown}`
+          : "Profile MD source of truth: not available.",
+        `Reference image files: ${
+          character.referenceFiles.map((file) => file.fileName).join(", ") || "None"
+        }`
+      ]
+        .filter(Boolean)
+        .join("\n")
+    )
+    .join("\n\n---\n\n");
+}
+
 function buildComicPagePanelSummary(panels: GeneratedComicPanelPrompt[]) {
   if (panels.length === 0) {
     return "No panel beats were listed for this page.";
@@ -1078,6 +1112,8 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Preserve character shape, facial expression language, and scene continuity from the reference notes.",
     "- Treat all listed character model sheets as exact identity references, not loose inspiration.",
     "- The actual reference images attached to this API request are binding visual references. Copy their silhouettes, proportions, face placement, highlight placement, body fill, and feet exactly where those characters or scenes appear.",
+    "- Treat each character's Profile MD lock and attached model-sheet image as a paired identity contract: the MD tells you what details must stay distinct, and the image tells you the exact shape to draw.",
+    "- When multiple mascot characters appear, compare their Profile MD locks before drawing. Do not blend silhouettes, faces, highlights, feet, expressions, or body proportions across characters.",
     "- Foot visibility check: any full-body character must show small rounded feet or foot nubs with clear space below the body; do not crop off feet.",
     "- Foot connection check: feet must connect naturally to the body with the same continuous white body fill; do not add a hard separating line between the feet and body.",
     "- Sunny Spritz check: if Sunny appears full-body, her two small rounded feet must be visible directly under the soft five-point star body.",
@@ -1097,6 +1133,9 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "",
     "Actual reference images attached to this image API call:",
     buildComicPageReferenceImageSummary(input.referenceImages),
+    "",
+    "Character Profile MD identity locks loaded for this page:",
+    buildComicPageCharacterIdentityLockSummary(input.characterLocks),
     "",
     "Panel-by-panel content to illustrate:",
     buildComicPagePanelSummary(input.panels),
@@ -1708,6 +1747,8 @@ export async function generateComicPromptPackageWithAi(
                 "The input outlines may be written in Chinese, but every generated script, page plan, panel beat, image prompt, and reference note must be written in English.",
                 "Keep character names in English exactly as provided; do not translate character names in any prompt output.",
                 "Keep characters visually stable, emotionally consistent, and aligned with their stored canon.",
+                "Treat each character's Canon profile MD as a binding identity contract. Use it together with the listed model-sheet image files whenever that character appears.",
+                "When similar mascot characters appear, explicitly preserve their differences in silhouette, face placement, highlights, feet, mouth style, body proportions, and default expression.",
                 "Every visual prompt must enforce clean high-contrast black-and-white manga output only, with pure white character fills and no gray wash.",
                 "Every visual prompt must enforce that all characters have no hands and no arms, while preserving small rounded feet, foot nubs, or lower-body nubs exactly as shown in their model sheets.",
                 "Every full-body character view must include the character's visible small feet with clear lower-frame space. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body.",
@@ -1789,6 +1830,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Every Muci prompt must explicitly preserve his model-sheet identity, compact broad centered-teardrop design, pure white body fill, and two small rounded feet.",
                 "- Every referenceNotesCopyText block must remind production that character model sheets are exact identity locks, not loose inspiration.",
+                "- Every referenceNotesCopyText block must also remind production to read the character Profile MD lock together with the uploaded model sheet before drawing that character.",
                 "- For every page, return a promptPackCopyText block that can be pasted directly into the image-generation tool.",
                 "- For every page, return a referenceNotesCopyText block that can also be pasted directly into the image-generation tool or production notes.",
                 "- For every panel, tell the team which visual beat is happening and what needs to stay stable.",

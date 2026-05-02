@@ -6,6 +6,7 @@ import {
   getComicChapterSceneReferenceState,
   getComicSceneReferenceFiles
 } from "@/lib/comic-reference-manifest";
+import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
 
 export type ComicPromptPackageGenerationStatus =
   | "prompt-generated"
@@ -105,6 +106,12 @@ export async function generateComicPromptPackageForEpisode(input: {
     episode.chapter.season.slug,
     episode.chapter.slug
   );
+  const characterIdentityLocks = await loadComicCharacterIdentityLocks(
+    characters.map((character) => character.slug)
+  );
+  const characterIdentityLockBySlug = new Map(
+    characterIdentityLocks.map((character) => [character.slug, character])
+  );
 
   const inputContext = JSON.stringify(
     {
@@ -133,7 +140,8 @@ export async function generateComicPromptPackageForEpisode(input: {
       ),
       characterReferenceFiles: characters.map((character) => ({
         slug: character.slug,
-        files: getComicCharacterReferenceFiles(character.slug).map((file) => file.fileName)
+        files: getComicCharacterReferenceFiles(character.slug).map((file) => file.fileName),
+        hasProfileMarkdown: Boolean(characterIdentityLockBySlug.get(character.slug)?.profileMarkdown)
       })),
       sceneReferenceFiles: scenes.map((scene) => ({
         slug: scene.slug,
@@ -179,7 +187,8 @@ export async function generateComicPromptPackageForEpisode(input: {
         speechGuide: character.speechGuide,
         referenceFolder: character.referenceFolder,
         referenceNotes: character.referenceNotes,
-        referenceFiles: getComicCharacterReferenceFiles(character.slug)
+        referenceFiles: getComicCharacterReferenceFiles(character.slug),
+        profileMarkdown: characterIdentityLockBySlug.get(character.slug)?.profileMarkdown || null
       })),
       scenes: scenes.map((scene) => ({
         name: scene.name,
