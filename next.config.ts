@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
-    "/*": ["./.git/**/*", "./.next/cache/**/*", "./comic/**/*", "./public/comic-reference/**/*"]
+    "/**/*": [".git/**/*", ".next/cache/**/*", "comic/**/*", "public/comic-reference/**/*"]
   },
   images: {
     localPatterns: [

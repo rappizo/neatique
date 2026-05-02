@@ -4749,6 +4749,33 @@ main {
   gap: 10px;
 }
 
+.admin-comic-reference-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+}
+
+.admin-comic-reference-strip img,
+.admin-comic-reference-strip span {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: #fff;
+}
+
+.admin-comic-reference-strip img {
+  object-fit: contain;
+}
+
+.admin-comic-reference-strip span {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .admin-comic-reference-card {
   display: grid;
   gap: 6px;
@@ -4780,6 +4807,77 @@ main {
 
 .admin-comic-reference-card small {
   color: var(--muted);
+}
+
+.admin-comic-lock-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-comic-lock-block {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.admin-comic-lock-block--wide {
+  grid-column: 1 / -1;
+}
+
+.admin-comic-lock-block h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.admin-comic-lock-block pre {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+
+.admin-comic-lock-history {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-comic-lock-history__item {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.admin-comic-lock-history__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-comic-lock-history__header > div {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-comic-lock-history__header span,
+.admin-comic-lock-history summary {
+  color: var(--muted);
+}
+
+.admin-comic-lock-history summary {
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .admin-comic-prompt-history {
@@ -5113,6 +5211,7 @@ main {
   .ritual-spotlight__media,
   .home-mosaic,
   .admin-comic-copy-grid,
+  .admin-comic-lock-grid,
   .admin-comic-prompt-page-grid,
   .admin-comic-publish-page-grid,
   .admin-comic-outline-layout,
@@ -5121,6 +5220,7 @@ main {
   }
 
   .admin-comic-page-list-item__header,
+  .admin-comic-lock-history__header,
   .admin-comic-section-heading,
   .admin-comic-outline-panel__header,
   .admin-comic-publish-page__header {

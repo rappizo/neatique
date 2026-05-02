@@ -5,6 +5,17 @@ import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { getComicCharacterReferenceFolder, getComicSceneReferenceFolder } from "@/lib/comic-paths";
+import { getComicCharacterReferenceFiles, getComicSceneReferenceFiles } from "@/lib/comic-reference-manifest";
+import {
+  ComicReferenceUploadError,
+  saveComicReferenceUpload
+} from "@/lib/comic-reference-uploads";
+import {
+  getComicCharacterLockHistory,
+  getComicSceneLockHistory,
+  pushComicCharacterLockSnapshot,
+  pushComicSceneLockSnapshot
+} from "@/lib/comic-lock-history";
 import { toBool, toInt, toPlainString } from "@/lib/utils";
 import {
   buildComicRedirect,
@@ -16,6 +27,61 @@ import {
 
 async function loadComicWorkspaceModule() {
   return import("@/lib/comic-workspace");
+}
+
+function hasCharacterLockChanged(
+  existing: {
+    role: string;
+    appearance: string;
+    personality: string;
+    speechGuide: string;
+    referenceNotes: string | null;
+  },
+  next: {
+    role: string;
+    appearance: string;
+    personality: string;
+    speechGuide: string;
+    referenceNotes: string | null;
+  }
+) {
+  return (
+    existing.role !== next.role ||
+    existing.appearance !== next.appearance ||
+    existing.personality !== next.personality ||
+    existing.speechGuide !== next.speechGuide ||
+    (existing.referenceNotes || null) !== (next.referenceNotes || null)
+  );
+}
+
+function hasSceneLockChanged(
+  existing: {
+    summary: string;
+    visualNotes: string;
+    moodNotes: string;
+    referenceNotes: string | null;
+  },
+  next: {
+    summary: string;
+    visualNotes: string;
+    moodNotes: string;
+    referenceNotes: string | null;
+  }
+) {
+  return (
+    existing.summary !== next.summary ||
+    existing.visualNotes !== next.visualNotes ||
+    existing.moodNotes !== next.moodNotes ||
+    (existing.referenceNotes || null) !== (next.referenceNotes || null)
+  );
+}
+
+function getReferenceUploadStatus(error: unknown) {
+  if (error instanceof ComicReferenceUploadError) {
+    return error.status;
+  }
+
+  return "reference-upload-failed";
 }
 
 export async function saveComicProjectAction(formData: FormData) {
@@ -127,17 +193,29 @@ export async function updateComicCharacterAction(formData: FormData) {
     redirect(buildComicRedirect(`/admin/comic/characters/${id}`, "missing-fields"));
   }
 
+  const nextLock = {
+    role: toPlainString(formData.get("role")) || existing.role,
+    appearance: normalizeLongText(formData.get("appearance")) || existing.appearance,
+    personality: normalizeLongText(formData.get("personality")) || existing.personality,
+    speechGuide: normalizeLongText(formData.get("speechGuide")) || existing.speechGuide,
+    referenceNotes: normalizeLongText(formData.get("referenceNotes")) || null
+  };
+
+  if (hasCharacterLockChanged(existing, nextLock)) {
+    await pushComicCharacterLockSnapshot(id, existing, "手动保存前的版本");
+  }
+
   const updated = await prisma.comicCharacter.update({
     where: { id },
     data: {
       name,
       slug,
-      role: toPlainString(formData.get("role")) || existing.role,
-      appearance: normalizeLongText(formData.get("appearance")) || existing.appearance,
-      personality: normalizeLongText(formData.get("personality")) || existing.personality,
-      speechGuide: normalizeLongText(formData.get("speechGuide")) || existing.speechGuide,
+      role: nextLock.role,
+      appearance: nextLock.appearance,
+      personality: nextLock.personality,
+      speechGuide: nextLock.speechGuide,
       referenceFolder: getComicCharacterReferenceFolder(slug),
-      referenceNotes: normalizeLongText(formData.get("referenceNotes")) || null,
+      referenceNotes: nextLock.referenceNotes,
       active: toBool(formData.get("active")),
       sortOrder: Math.max(0, toInt(formData.get("sortOrder"), existing.sortOrder))
     }
@@ -146,6 +224,142 @@ export async function updateComicCharacterAction(formData: FormData) {
   await ensureComicCharacterWorkspace(updated.slug, updated.name);
   revalidateComicRoutes();
   redirect(buildComicRedirect(`/admin/comic/characters/${id}`, "saved"));
+}
+
+export async function uploadComicCharacterReferenceAction(formData: FormData) {
+  await requireAdminSession();
+  const { ensureComicCharacterWorkspace } = await loadComicWorkspaceModule();
+
+  const id = toPlainString(formData.get("id"));
+  if (!id) {
+    redirect(buildComicRedirect("/admin/comic/characters", "missing-character"));
+  }
+
+  const character = await prisma.comicCharacter.findUnique({
+    where: { id }
+  });
+
+  if (!character) {
+    redirect(buildComicRedirect("/admin/comic/characters", "missing-character"));
+  }
+
+  const file = formData.get("referenceImage");
+
+  try {
+    await ensureComicCharacterWorkspace(character.slug, character.name);
+    await saveComicReferenceUpload({
+      bucket: "character",
+      slug: character.slug,
+      relativeFolder: character.referenceFolder,
+      file: file instanceof File ? file : null,
+      requestedFileName: toPlainString(formData.get("fileName")),
+      label: toPlainString(formData.get("label"))
+    });
+  } catch (error) {
+    console.error("Comic character reference upload failed:", error);
+    redirect(buildComicRedirect(`/admin/comic/characters/${id}#references`, getReferenceUploadStatus(error)));
+  }
+
+  revalidateComicRoutes();
+  redirect(buildComicRedirect(`/admin/comic/characters/${id}#references`, "reference-uploaded"));
+}
+
+export async function reviseComicCharacterLockAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  if (!id) {
+    redirect(buildComicRedirect("/admin/comic/characters", "missing-character"));
+  }
+
+  const character = await prisma.comicCharacter.findUnique({
+    where: { id }
+  });
+
+  if (!character) {
+    redirect(buildComicRedirect("/admin/comic/characters", "missing-character"));
+  }
+
+  const revisionInstruction = normalizeLongText(formData.get("revisionInstruction"));
+
+  if (!revisionInstruction) {
+    redirect(buildComicRedirect(`/admin/comic/characters/${id}#lock`, "lock-revision-missing"));
+  }
+
+  try {
+    const { reviseComicCharacterLockWithAi } = await import("@/lib/openai-comic");
+    const revised = await reviseComicCharacterLockWithAi({
+      name: character.name,
+      slug: character.slug,
+      role: character.role,
+      appearance: character.appearance,
+      personality: character.personality,
+      speechGuide: character.speechGuide,
+      referenceNotes: character.referenceNotes,
+      referenceFiles: getComicCharacterReferenceFiles(character.slug),
+      revisionInstruction
+    });
+
+    await pushComicCharacterLockSnapshot(id, character, revisionInstruction);
+    await prisma.comicCharacter.update({
+      where: { id },
+      data: {
+        role: revised.role,
+        appearance: revised.appearance,
+        personality: revised.personality,
+        speechGuide: revised.speechGuide,
+        referenceNotes: revised.referenceNotes || null
+      }
+    });
+  } catch (error) {
+    console.error("Comic character lock revision failed:", error);
+    redirect(buildComicRedirect(`/admin/comic/characters/${id}#lock`, "lock-revision-failed"));
+  }
+
+  revalidateComicRoutes();
+  redirect(buildComicRedirect(`/admin/comic/characters/${id}#lock`, "lock-revised"));
+}
+
+export async function restoreComicCharacterLockAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const snapshotId = toPlainString(formData.get("snapshotId"));
+
+  if (!id || !snapshotId) {
+    redirect(buildComicRedirect("/admin/comic/characters", "missing-character"));
+  }
+
+  const character = await prisma.comicCharacter.findUnique({
+    where: { id }
+  });
+
+  if (!character) {
+    redirect(buildComicRedirect("/admin/comic/characters", "missing-character"));
+  }
+
+  const snapshot = (await getComicCharacterLockHistory(id)).find(
+    (candidate) => candidate.id === snapshotId
+  );
+
+  if (!snapshot) {
+    redirect(buildComicRedirect(`/admin/comic/characters/${id}#history`, "missing-lock-history"));
+  }
+
+  await pushComicCharacterLockSnapshot(id, character, "回溯前的版本");
+  await prisma.comicCharacter.update({
+    where: { id },
+    data: {
+      role: snapshot.role,
+      appearance: snapshot.appearance,
+      personality: snapshot.personality,
+      speechGuide: snapshot.speechGuide,
+      referenceNotes: snapshot.referenceNotes
+    }
+  });
+
+  revalidateComicRoutes();
+  redirect(buildComicRedirect(`/admin/comic/characters/${id}#lock`, "lock-restored"));
 }
 
 export async function createComicSceneAction(formData: FormData) {
@@ -210,16 +424,27 @@ export async function updateComicSceneAction(formData: FormData) {
     redirect(buildComicRedirect(`/admin/comic/scenes/${id}`, "missing-fields"));
   }
 
+  const nextLock = {
+    summary: normalizeLongText(formData.get("summary")) || existing.summary,
+    visualNotes: normalizeLongText(formData.get("visualNotes")) || existing.visualNotes,
+    moodNotes: normalizeLongText(formData.get("moodNotes")) || existing.moodNotes,
+    referenceNotes: normalizeLongText(formData.get("referenceNotes")) || null
+  };
+
+  if (hasSceneLockChanged(existing, nextLock)) {
+    await pushComicSceneLockSnapshot(id, existing, "手动保存前的版本");
+  }
+
   const updated = await prisma.comicScene.update({
     where: { id },
     data: {
       name,
       slug,
-      summary: normalizeLongText(formData.get("summary")) || existing.summary,
-      visualNotes: normalizeLongText(formData.get("visualNotes")) || existing.visualNotes,
-      moodNotes: normalizeLongText(formData.get("moodNotes")) || existing.moodNotes,
+      summary: nextLock.summary,
+      visualNotes: nextLock.visualNotes,
+      moodNotes: nextLock.moodNotes,
       referenceFolder: getComicSceneReferenceFolder(slug),
-      referenceNotes: normalizeLongText(formData.get("referenceNotes")) || null,
+      referenceNotes: nextLock.referenceNotes,
       active: toBool(formData.get("active")),
       sortOrder: Math.max(0, toInt(formData.get("sortOrder"), existing.sortOrder))
     }
@@ -228,6 +453,139 @@ export async function updateComicSceneAction(formData: FormData) {
   await ensureComicSceneWorkspace(updated.slug, updated.name);
   revalidateComicRoutes();
   redirect(buildComicRedirect(`/admin/comic/scenes/${id}`, "saved"));
+}
+
+export async function uploadComicSceneReferenceAction(formData: FormData) {
+  await requireAdminSession();
+  const { ensureComicSceneWorkspace } = await loadComicWorkspaceModule();
+
+  const id = toPlainString(formData.get("id"));
+  if (!id) {
+    redirect(buildComicRedirect("/admin/comic/scenes", "missing-scene"));
+  }
+
+  const scene = await prisma.comicScene.findUnique({
+    where: { id }
+  });
+
+  if (!scene) {
+    redirect(buildComicRedirect("/admin/comic/scenes", "missing-scene"));
+  }
+
+  const file = formData.get("referenceImage");
+
+  try {
+    await ensureComicSceneWorkspace(scene.slug, scene.name);
+    await saveComicReferenceUpload({
+      bucket: "scene",
+      slug: scene.slug,
+      relativeFolder: scene.referenceFolder,
+      file: file instanceof File ? file : null,
+      requestedFileName: toPlainString(formData.get("fileName")),
+      label: toPlainString(formData.get("label"))
+    });
+  } catch (error) {
+    console.error("Comic scene reference upload failed:", error);
+    redirect(buildComicRedirect(`/admin/comic/scenes/${id}#references`, getReferenceUploadStatus(error)));
+  }
+
+  revalidateComicRoutes();
+  redirect(buildComicRedirect(`/admin/comic/scenes/${id}#references`, "reference-uploaded"));
+}
+
+export async function reviseComicSceneLockAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  if (!id) {
+    redirect(buildComicRedirect("/admin/comic/scenes", "missing-scene"));
+  }
+
+  const scene = await prisma.comicScene.findUnique({
+    where: { id }
+  });
+
+  if (!scene) {
+    redirect(buildComicRedirect("/admin/comic/scenes", "missing-scene"));
+  }
+
+  const revisionInstruction = normalizeLongText(formData.get("revisionInstruction"));
+
+  if (!revisionInstruction) {
+    redirect(buildComicRedirect(`/admin/comic/scenes/${id}#lock`, "lock-revision-missing"));
+  }
+
+  try {
+    const { reviseComicSceneLockWithAi } = await import("@/lib/openai-comic");
+    const revised = await reviseComicSceneLockWithAi({
+      name: scene.name,
+      slug: scene.slug,
+      summary: scene.summary,
+      visualNotes: scene.visualNotes,
+      moodNotes: scene.moodNotes,
+      referenceNotes: scene.referenceNotes,
+      referenceFiles: getComicSceneReferenceFiles(scene.slug),
+      revisionInstruction
+    });
+
+    await pushComicSceneLockSnapshot(id, scene, revisionInstruction);
+    await prisma.comicScene.update({
+      where: { id },
+      data: {
+        summary: revised.summary,
+        visualNotes: revised.visualNotes,
+        moodNotes: revised.moodNotes,
+        referenceNotes: revised.referenceNotes || null
+      }
+    });
+  } catch (error) {
+    console.error("Comic scene lock revision failed:", error);
+    redirect(buildComicRedirect(`/admin/comic/scenes/${id}#lock`, "lock-revision-failed"));
+  }
+
+  revalidateComicRoutes();
+  redirect(buildComicRedirect(`/admin/comic/scenes/${id}#lock`, "lock-revised"));
+}
+
+export async function restoreComicSceneLockAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const snapshotId = toPlainString(formData.get("snapshotId"));
+
+  if (!id || !snapshotId) {
+    redirect(buildComicRedirect("/admin/comic/scenes", "missing-scene"));
+  }
+
+  const scene = await prisma.comicScene.findUnique({
+    where: { id }
+  });
+
+  if (!scene) {
+    redirect(buildComicRedirect("/admin/comic/scenes", "missing-scene"));
+  }
+
+  const snapshot = (await getComicSceneLockHistory(id)).find(
+    (candidate) => candidate.id === snapshotId
+  );
+
+  if (!snapshot) {
+    redirect(buildComicRedirect(`/admin/comic/scenes/${id}#history`, "missing-lock-history"));
+  }
+
+  await pushComicSceneLockSnapshot(id, scene, "回溯前的版本");
+  await prisma.comicScene.update({
+    where: { id },
+    data: {
+      summary: snapshot.summary,
+      visualNotes: snapshot.visualNotes,
+      moodNotes: snapshot.moodNotes,
+      referenceNotes: snapshot.referenceNotes
+    }
+  });
+
+  revalidateComicRoutes();
+  redirect(buildComicRedirect(`/admin/comic/scenes/${id}#lock`, "lock-restored"));
 }
 
 export async function createComicSeasonAction(formData: FormData) {

@@ -175,6 +175,44 @@ export type RevisedComicPagePrompt = {
   }>;
 };
 
+export type RevisedComicCharacterLock = {
+  role: string;
+  appearance: string;
+  personality: string;
+  speechGuide: string;
+  referenceNotes: string;
+};
+
+export type RevisedComicSceneLock = {
+  summary: string;
+  visualNotes: string;
+  moodNotes: string;
+  referenceNotes: string;
+};
+
+export type ReviseComicCharacterLockInput = {
+  name: string;
+  slug: string;
+  role: string;
+  appearance: string;
+  personality: string;
+  speechGuide: string;
+  referenceNotes: string | null;
+  referenceFiles?: ComicReferenceFileContext[];
+  revisionInstruction: string;
+};
+
+export type ReviseComicSceneLockInput = {
+  name: string;
+  slug: string;
+  summary: string;
+  visualNotes: string;
+  moodNotes: string;
+  referenceNotes: string | null;
+  referenceFiles?: ComicReferenceFileContext[];
+  revisionInstruction: string;
+};
+
 export type GenerateComicPageImageInput = {
   projectTitle: string;
   seasonTitle: string;
@@ -867,6 +905,237 @@ export function getOpenAiComicSettings() {
     imageApiKeySource: imageApiSettings.apiKeySource,
     imageApiBaseUrl: imageApiSettings.baseUrl
   };
+}
+
+function formatComicReferenceFileContext(files: ComicReferenceFileContext[] = []) {
+  if (files.length === 0) {
+    return "No uploaded reference images are listed yet.";
+  }
+
+  return files
+    .map((file) => `- ${file.label}: ${file.relativePath}`)
+    .join("\n");
+}
+
+function buildComicLockRevisionSystemPrompt() {
+  return [
+    "You are Neatique's comic continuity editor.",
+    "Rewrite lock documents conservatively so character and scene consistency improves without changing canon.",
+    "Write admin-facing lock content in Simplified Chinese, but keep every character name, slug, image filename, and important existing English visual term exactly when needed.",
+    "Make visual differences concrete, inspectable, and non-negotiable. Avoid vague style words.",
+    "Return only valid JSON matching the requested schema."
+  ].join(" ");
+}
+
+function buildCharacterLockRevisionPrompt(input: ReviseComicCharacterLockInput) {
+  return [
+    `Character name: ${input.name}`,
+    `Character slug: ${input.slug}`,
+    "",
+    "Current lock:",
+    `Role: ${input.role}`,
+    `Appearance:\n${input.appearance}`,
+    `Personality:\n${input.personality}`,
+    `Speech guide:\n${input.speechGuide}`,
+    `Reference notes:\n${input.referenceNotes || "None"}`,
+    "",
+    "Uploaded reference images:",
+    formatComicReferenceFileContext(input.referenceFiles),
+    "",
+    "User modification request:",
+    input.revisionInstruction,
+    "",
+    "Revision requirements:",
+    "- Keep the same character identity and English name.",
+    "- Strengthen silhouette, face placement, proportions, distinctive marks, body details, expression rules, and what must never change.",
+    "- If uploaded images exist, explicitly tell future prompts to treat them as exact model-sheet identity locks.",
+    "- Do not invent a new backstory unless the request asks for it.",
+    "- Preserve useful existing details and only revise what the request targets.",
+    "- role should stay short. appearance, personality, speechGuide, and referenceNotes should be production-ready lock text."
+  ].join("\n");
+}
+
+function buildSceneLockRevisionPrompt(input: ReviseComicSceneLockInput) {
+  return [
+    `Scene name: ${input.name}`,
+    `Scene slug: ${input.slug}`,
+    "",
+    "Current lock:",
+    `Summary:\n${input.summary}`,
+    `Visual notes:\n${input.visualNotes}`,
+    `Mood notes:\n${input.moodNotes}`,
+    `Reference notes:\n${input.referenceNotes || "None"}`,
+    "",
+    "Uploaded reference images:",
+    formatComicReferenceFileContext(input.referenceFiles),
+    "",
+    "User modification request:",
+    input.revisionInstruction,
+    "",
+    "Revision requirements:",
+    "- Keep the same reusable location identity.",
+    "- Strengthen layout, anchor props, camera-safe landmarks, lighting states, mood rules, scale, and continuity details.",
+    "- If uploaded images exist, explicitly tell future prompts to treat them as exact environment references.",
+    "- Preserve useful existing details and only revise what the request targets.",
+    "- summary should be concise. visualNotes, moodNotes, and referenceNotes should be production-ready lock text."
+  ].join("\n");
+}
+
+function getCharacterLockRevisionSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      role: { type: "string", minLength: 1, maxLength: 160 },
+      appearance: { type: "string", minLength: 80, maxLength: 5000 },
+      personality: { type: "string", minLength: 40, maxLength: 3000 },
+      speechGuide: { type: "string", minLength: 40, maxLength: 3000 },
+      referenceNotes: { type: "string", minLength: 20, maxLength: 3000 }
+    },
+    required: ["role", "appearance", "personality", "speechGuide", "referenceNotes"]
+  };
+}
+
+function getSceneLockRevisionSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      summary: { type: "string", minLength: 40, maxLength: 1000 },
+      visualNotes: { type: "string", minLength: 80, maxLength: 5000 },
+      moodNotes: { type: "string", minLength: 40, maxLength: 3000 },
+      referenceNotes: { type: "string", minLength: 20, maxLength: 3000 }
+    },
+    required: ["summary", "visualNotes", "moodNotes", "referenceNotes"]
+  };
+}
+
+async function requestComicLockRevision<T>(input: {
+  userPrompt: string;
+  schemaName: string;
+  schema: Record<string, unknown>;
+  errorMessage: string;
+  validate: (record: Record<string, unknown>) => T | null;
+}) {
+  const apiKey = getOpenAiApiKey();
+
+  if (!apiKey) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
+  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: DEFAULT_OPENAI_COMIC_MODEL,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: buildComicLockRevisionSystemPrompt()
+            }
+          ]
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: input.userPrompt
+            }
+          ]
+        }
+      ],
+      reasoning: {
+        effort: "medium"
+      },
+      text: {
+        format: {
+          type: "json_schema",
+          name: input.schemaName,
+          strict: true,
+          schema: input.schema
+        }
+      }
+    })
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `OpenAI lock revision failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const outputText = getResponseOutputText(parsed);
+  const payload = outputText ? safeJsonParse(outputText) : null;
+  const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+  const revised = record ? input.validate(record) : null;
+
+  if (!revised) {
+    throw new Error(input.errorMessage);
+  }
+
+  return revised;
+}
+
+function requiredString(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+export async function reviseComicCharacterLockWithAi(
+  input: ReviseComicCharacterLockInput
+): Promise<RevisedComicCharacterLock> {
+  return requestComicLockRevision<RevisedComicCharacterLock>({
+    userPrompt: buildCharacterLockRevisionPrompt(input),
+    schemaName: "comic_character_lock_revision",
+    schema: getCharacterLockRevisionSchema(),
+    errorMessage: "OpenAI did not return a valid character lock revision.",
+    validate: (record) => {
+      const revised = {
+        role: requiredString(record, "role"),
+        appearance: requiredString(record, "appearance"),
+        personality: requiredString(record, "personality"),
+        speechGuide: requiredString(record, "speechGuide"),
+        referenceNotes: requiredString(record, "referenceNotes")
+      };
+
+      return Object.values(revised).every(Boolean) ? revised : null;
+    }
+  });
+}
+
+export async function reviseComicSceneLockWithAi(
+  input: ReviseComicSceneLockInput
+): Promise<RevisedComicSceneLock> {
+  return requestComicLockRevision<RevisedComicSceneLock>({
+    userPrompt: buildSceneLockRevisionPrompt(input),
+    schemaName: "comic_scene_lock_revision",
+    schema: getSceneLockRevisionSchema(),
+    errorMessage: "OpenAI did not return a valid scene lock revision.",
+    validate: (record) => {
+      const revised = {
+        summary: requiredString(record, "summary"),
+        visualNotes: requiredString(record, "visualNotes"),
+        moodNotes: requiredString(record, "moodNotes"),
+        referenceNotes: requiredString(record, "referenceNotes")
+      };
+
+      return Object.values(revised).every(Boolean) ? revised : null;
+    }
+  });
 }
 
 function getResponseOutputText(response: any) {

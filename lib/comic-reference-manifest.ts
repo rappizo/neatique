@@ -1,4 +1,4 @@
-import manifestJson from "@/data/comic-reference-manifest.json";
+import manifestJson from "@/data/comic-reference-manifest.generated";
 import { getComicChapterSceneReferenceFolder, getComicChapterSceneReferenceKey } from "@/lib/comic-paths";
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 

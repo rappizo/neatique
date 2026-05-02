@@ -20,6 +20,11 @@ const COMIC_ROOT = path.resolve(WORKSPACE_ROOT, "comic");
 const PUBLIC_ROOT = path.resolve(WORKSPACE_ROOT, "public");
 const PUBLIC_REFERENCE_ROOT = path.resolve(PUBLIC_ROOT, "comic-reference");
 const MANIFEST_PATH = path.resolve(WORKSPACE_ROOT, "data", "comic-reference-manifest.json");
+const MANIFEST_MODULE_PATH = path.resolve(
+  WORKSPACE_ROOT,
+  "data",
+  "comic-reference-manifest.generated.ts"
+);
 const SUPPORTED_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 
 function normalizeSlashes(value: string) {
@@ -214,6 +219,25 @@ async function writeManifest(manifest: ComicReferenceManifest) {
 
   await mkdir(path.dirname(MANIFEST_PATH), { recursive: true });
   await writeFile(MANIFEST_PATH, `${JSON.stringify(nextManifest, null, 2)}\n`, "utf8");
+  await writeFile(MANIFEST_MODULE_PATH, toManifestModule(nextManifest), "utf8");
+}
+
+function toManifestModule(manifest: ComicReferenceManifest) {
+  return [
+    "import type { ComicChapterSceneReferenceRecord } from \"@/lib/types\";",
+    "",
+    "type ComicReferenceManifest = {",
+    "  generatedAt: string | null;",
+    "  characters: Record<string, ComicChapterSceneReferenceRecord[]>;",
+    "  scenes: Record<string, ComicChapterSceneReferenceRecord[]>;",
+    "  chapters: Record<string, { folder: string; references: ComicChapterSceneReferenceRecord[]; }>;",
+    "};",
+    "",
+    `const comicReferenceManifest = ${JSON.stringify(manifest, null, 2)} satisfies ComicReferenceManifest;`,
+    "",
+    "export default comicReferenceManifest;",
+    ""
+  ].join("\n");
 }
 
 async function main() {

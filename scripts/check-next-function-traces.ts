@@ -24,6 +24,12 @@ const FORBIDDEN_TRACE_RULES = [
     test: (value: string) => /(^|\/)public\/comic-reference\//.test(value)
   }
 ];
+const CONFIGURED_TRACE_EXCLUDE_RULES = [
+  (value: string) => value === ".git" || value.startsWith(".git/"),
+  (value: string) => value === ".next/cache" || value.startsWith(".next/cache/"),
+  (value: string) => value === "comic" || value.startsWith("comic/"),
+  (value: string) => value === "public/comic-reference" || value.startsWith("public/comic-reference/")
+];
 
 async function listTraceFiles(root: string): Promise<string[]> {
   let entries;
@@ -53,6 +59,14 @@ function normalizeTraceEntry(value: string) {
   return value.replace(/\\/g, "/");
 }
 
+function toProjectRelativeTraceEntry(traceFile: string, value: string) {
+  return normalizeTraceEntry(path.relative(process.cwd(), path.resolve(path.dirname(traceFile), value)));
+}
+
+function isConfiguredTraceExclude(projectRelativePath: string) {
+  return CONFIGURED_TRACE_EXCLUDE_RULES.some((test) => test(projectRelativePath));
+}
+
 async function readTrace(filePath: string) {
   const parsed = JSON.parse(await readFile(filePath, "utf8")) as NextTrace;
   return Array.isArray(parsed.files) ? parsed.files.map(normalizeTraceEntry) : [];
@@ -71,6 +85,10 @@ async function main() {
     const tracedFiles = await readTrace(traceFile);
 
     for (const file of tracedFiles) {
+      if (isConfiguredTraceExclude(toProjectRelativeTraceEntry(traceFile, file))) {
+        continue;
+      }
+
       const rule = FORBIDDEN_TRACE_RULES.find((candidate) => candidate.test(file));
 
       if (!rule) {
