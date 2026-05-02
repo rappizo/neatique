@@ -68,7 +68,6 @@ export const siteConfig = {
         { href: "/admin/comic/outline-studio", label: "Outline Studio" },
         { href: "/admin/comic/prompt-studio", label: "Prompt Studio" },
         { href: "/admin/comic/publish-center", label: "Publish Center" },
-        { href: "/admin/comic/seasons", label: "Seasons & Chapters" },
         { href: "/admin/comic/characters", label: "Characters" },
         { href: "/admin/comic/scenes", label: "Scenes" },
         { href: "/admin/comic/project", label: "Project Bible" }

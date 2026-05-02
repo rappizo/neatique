@@ -175,13 +175,13 @@ export default async function AdminComicOverviewPage({
           <div>
             <h2>Recent episode work</h2>
             <p className="form-note">
-              Keep moving from overview to chapter breakdown to episode prompt generation without
-              leaving the comic workspace.
+              Keep moving from outline review to episode prompt generation without leaving the
+              comic workspace.
             </p>
           </div>
           <div className="stack-row">
-            <Link href="/admin/comic/seasons" className="button button--secondary">
-              Manage seasons
+            <Link href="/admin/comic/outline-studio" className="button button--secondary">
+              Open outline studio
             </Link>
           </div>
         </div>

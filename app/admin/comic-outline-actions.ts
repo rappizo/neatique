@@ -32,6 +32,10 @@ function hasUsableOutline(value?: string | null) {
   return Boolean(normalized && !PLACEHOLDER_OUTLINES.includes(normalized));
 }
 
+function hasChineseText(value?: string | null) {
+  return /[\u4e00-\u9fff]/.test(value || "");
+}
+
 function toNumberLabel(label: string, value: number) {
   return `${label} ${value}`;
 }
@@ -109,6 +113,238 @@ async function getComicOutlineSupport(projectId: string) {
     characterNames: characters.map((character) => character.name),
     sceneNames: scenes.map((scene) => scene.name)
   };
+}
+
+export async function translateComicProjectOutlineAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = getRedirectTarget(formData);
+  const projectId = await ensureComicProjectId(toPlainString(formData.get("projectId")));
+  const project = await prisma.comicProject.findUnique({
+    where: { id: projectId }
+  });
+
+  if (!project) {
+    redirect(buildComicRedirect(redirectTo, "missing-record"));
+  }
+
+  if (!hasUsableOutline(project.storyOutline)) {
+    redirect(buildComicRedirect(redirectTo, "missing-outline"));
+  }
+
+  if (hasChineseText(project.storyOutline)) {
+    redirect(buildComicRedirect(redirectTo, "outline-already-chinese"));
+  }
+
+  let status = "project-outline-translated";
+
+  try {
+    const { translateChineseComicOutlineWithAi } = await import("@/lib/openai-comic");
+    const support = await getComicOutlineSupport(project.id);
+    const result = await translateChineseComicOutlineWithAi({
+      level: "PROJECT",
+      title: project.title,
+      summary: project.shortDescription,
+      outline: project.storyOutline,
+      translationNotes: getRevisionNotes(formData),
+      characterNames: support.characterNames
+    });
+
+    await prisma.comicProject.update({
+      where: { id: project.id },
+      data: {
+        shortDescription: result.summary,
+        storyOutline: result.outline
+      }
+    });
+  } catch {
+    status = "outline-translation-failed";
+  }
+
+  revalidateComicRoutes();
+  redirect(buildComicRedirect(redirectTo, status));
+}
+
+export async function translateComicSeasonOutlineAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = getRedirectTarget(formData);
+  const seasonId = toPlainString(formData.get("seasonId"));
+
+  if (!seasonId) {
+    redirect(buildComicRedirect(redirectTo, "missing-record"));
+  }
+
+  const season = await prisma.comicSeason.findUnique({
+    where: { id: seasonId }
+  });
+
+  if (!season) {
+    redirect(buildComicRedirect(redirectTo, "missing-record"));
+  }
+
+  if (!hasUsableOutline(season.outline)) {
+    redirect(buildComicRedirect(redirectTo, "missing-outline"));
+  }
+
+  if (hasChineseText(season.outline)) {
+    redirect(buildComicRedirect(redirectTo, "outline-already-chinese"));
+  }
+
+  let status = "season-outline-translated";
+
+  try {
+    const { translateChineseComicOutlineWithAi } = await import("@/lib/openai-comic");
+    const support = await getComicOutlineSupport(season.projectId);
+    const result = await translateChineseComicOutlineWithAi({
+      level: "SEASON",
+      title: season.title,
+      summary: season.summary,
+      outline: season.outline,
+      translationNotes: getRevisionNotes(formData),
+      characterNames: support.characterNames
+    });
+
+    await prisma.comicSeason.update({
+      where: { id: season.id },
+      data: {
+        summary: result.summary,
+        outline: result.outline
+      }
+    });
+  } catch {
+    status = "outline-translation-failed";
+  }
+
+  revalidateComicRoutes({ seasonSlug: season.slug });
+  redirect(buildComicRedirect(redirectTo, status));
+}
+
+export async function translateComicChapterOutlineAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = getRedirectTarget(formData);
+  const chapterId = toPlainString(formData.get("chapterId"));
+
+  if (!chapterId) {
+    redirect(buildComicRedirect(redirectTo, "missing-record"));
+  }
+
+  const chapter = await prisma.comicChapter.findUnique({
+    where: { id: chapterId },
+    include: {
+      season: true
+    }
+  });
+
+  if (!chapter) {
+    redirect(buildComicRedirect(redirectTo, "missing-record"));
+  }
+
+  if (!hasUsableOutline(chapter.outline)) {
+    redirect(buildComicRedirect(redirectTo, "missing-outline"));
+  }
+
+  if (hasChineseText(chapter.outline)) {
+    redirect(buildComicRedirect(redirectTo, "outline-already-chinese"));
+  }
+
+  let status = "chapter-outline-translated";
+
+  try {
+    const { translateChineseComicOutlineWithAi } = await import("@/lib/openai-comic");
+    const support = await getComicOutlineSupport(chapter.season.projectId);
+    const result = await translateChineseComicOutlineWithAi({
+      level: "CHAPTER",
+      title: chapter.title,
+      summary: chapter.summary,
+      outline: chapter.outline,
+      translationNotes: getRevisionNotes(formData),
+      characterNames: support.characterNames
+    });
+
+    await prisma.comicChapter.update({
+      where: { id: chapter.id },
+      data: {
+        summary: result.summary,
+        outline: result.outline
+      }
+    });
+  } catch {
+    status = "outline-translation-failed";
+  }
+
+  revalidateComicRoutes({
+    seasonSlug: chapter.season.slug,
+    chapterSlug: chapter.slug
+  });
+  redirect(buildComicRedirect(redirectTo, status));
+}
+
+export async function translateComicEpisodeOutlineAction(formData: FormData) {
+  await requireAdminSession();
+
+  const redirectTo = getRedirectTarget(formData);
+  const episodeId = toPlainString(formData.get("episodeId"));
+
+  if (!episodeId) {
+    redirect(buildComicRedirect(redirectTo, "missing-record"));
+  }
+
+  const episode = await prisma.comicEpisode.findUnique({
+    where: { id: episodeId },
+    include: {
+      chapter: {
+        include: {
+          season: true
+        }
+      }
+    }
+  });
+
+  if (!episode) {
+    redirect(buildComicRedirect(redirectTo, "missing-record"));
+  }
+
+  if (!hasUsableOutline(episode.outline)) {
+    redirect(buildComicRedirect(redirectTo, "missing-outline"));
+  }
+
+  if (hasChineseText(episode.outline)) {
+    redirect(buildComicRedirect(redirectTo, "outline-already-chinese"));
+  }
+
+  let status = "episode-outline-translated";
+
+  try {
+    const { translateChineseComicOutlineWithAi } = await import("@/lib/openai-comic");
+    const support = await getComicOutlineSupport(episode.chapter.season.projectId);
+    const result = await translateChineseComicOutlineWithAi({
+      level: "EPISODE",
+      title: episode.title,
+      summary: episode.summary,
+      outline: episode.outline,
+      translationNotes: getRevisionNotes(formData),
+      characterNames: support.characterNames
+    });
+
+    await prisma.comicEpisode.update({
+      where: { id: episode.id },
+      data: {
+        summary: result.summary,
+        outline: result.outline
+      }
+    });
+  } catch {
+    status = "outline-translation-failed";
+  }
+
+  revalidateComicRoutes({
+    seasonSlug: episode.chapter.season.slug,
+    chapterSlug: episode.chapter.slug,
+    episodeSlug: episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, status));
 }
 
 export async function generateComicProjectOutlineAction(formData: FormData) {

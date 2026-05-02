@@ -236,6 +236,15 @@ export type GeneratedChineseComicChildOutline = GeneratedChineseComicOutline & {
   id: string;
 };
 
+type TranslateChineseComicOutlineInput = {
+  level: ComicOutlineLevel;
+  title: string;
+  summary?: string | null;
+  outline: string;
+  translationNotes?: string | null;
+  characterNames?: string[];
+};
+
 type GenerateChineseComicOutlineInput = {
   level: ComicOutlineLevel;
   title: string;
@@ -423,6 +432,129 @@ function getSingleChineseOutlineSchema() {
       outline: { type: "string", minLength: 200, maxLength: 8000 }
     },
     required: ["summary", "outline"]
+  };
+}
+
+function buildChineseOutlineTranslationPrompt(input: TranslateChineseComicOutlineInput) {
+  return [
+    `Target level: ${input.level}`,
+    `Target title: ${input.title}`,
+    "",
+    "Translate the existing comic outline into Simplified Chinese without changing the story.",
+    "",
+    "Existing summary:",
+    input.summary || "None",
+    "",
+    "Existing outline:",
+    input.outline,
+    "",
+    formatOutlineNames("Character names that must stay English", input.characterNames),
+    "",
+    input.translationNotes
+      ? `User translation notes:\n${input.translationNotes}`
+      : "User translation notes: Translate faithfully and preserve the existing content.",
+    "",
+    "Translation requirements:",
+    "- Translate, do not regenerate.",
+    "- Preserve the same story facts, sequence, stakes, reveals, relationships, and episode/chapter/season structure.",
+    "- Preserve Markdown headings, bullet structure, numbering, and emphasis where practical.",
+    "- Keep English character names exactly as provided.",
+    "- Keep model/tool terms such as Prompt, gpt-image-2, Season, Chapter, and Episode readable when they function as workflow labels.",
+    "- Do not add new plot beats, remove existing beats, rename characters, or smooth over contradictions by inventing new canon.",
+    "- The summary should be a faithful Chinese version of the existing summary, not a new pitch."
+  ].join("\n");
+}
+
+async function requestChineseComicOutlineTranslation(
+  input: TranslateChineseComicOutlineInput
+): Promise<GeneratedChineseComicOutline> {
+  const apiKey = getOpenAiApiKey();
+
+  if (!apiKey) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
+  if (!input.outline.trim()) {
+    throw new Error("No outline content is available to translate.");
+  }
+
+  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: DEFAULT_OPENAI_COMIC_MODEL,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                "You are Neatique's conservative comic outline translator.",
+                "Translate existing outlines into Simplified Chinese without changing canon.",
+                "Keep character names in English exactly as provided.",
+                "Return only valid JSON matching the schema."
+              ].join(" ")
+            }
+          ]
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: buildChineseOutlineTranslationPrompt(input)
+            }
+          ]
+        }
+      ],
+      reasoning: {
+        effort: "medium"
+      },
+      text: {
+        format: {
+          type: "json_schema",
+          name: "translated_chinese_comic_outline",
+          strict: true,
+          schema: getSingleChineseOutlineSchema()
+        }
+      }
+    })
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `OpenAI outline translation failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const outputText = getResponseOutputText(parsed);
+  const outline = outputText ? safeJsonParse(outputText) : null;
+  const record = outline && typeof outline === "object" ? (outline as Record<string, unknown>) : null;
+
+  if (
+    !record ||
+    typeof record.summary !== "string" ||
+    typeof record.outline !== "string" ||
+    !record.summary.trim() ||
+    !record.outline.trim()
+  ) {
+    throw new Error("OpenAI did not return a valid translated Chinese comic outline.");
+  }
+
+  return {
+    summary: record.summary.trim(),
+    outline: record.outline.trim()
   };
 }
 
@@ -686,6 +818,12 @@ export async function generateChineseComicOutlineWithAi(
   input: GenerateChineseComicOutlineInput
 ): Promise<GeneratedChineseComicOutline> {
   return requestChineseComicOutline(input);
+}
+
+export async function translateChineseComicOutlineWithAi(
+  input: TranslateChineseComicOutlineInput
+): Promise<GeneratedChineseComicOutline> {
+  return requestChineseComicOutlineTranslation(input);
 }
 
 export async function generateChineseComicChildOutlinesWithAi(

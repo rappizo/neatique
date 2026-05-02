@@ -7,7 +7,11 @@ import {
   generateComicEpisodeOutlinesAction,
   generateComicProjectOutlineAction,
   generateComicSeasonOutlineAction,
-  generateComicSeasonOutlinesAction
+  generateComicSeasonOutlinesAction,
+  translateComicChapterOutlineAction,
+  translateComicEpisodeOutlineAction,
+  translateComicProjectOutlineAction,
+  translateComicSeasonOutlineAction
 } from "@/app/admin/comic-outline-actions";
 import { getComicPromptStudioPage } from "@/lib/comic-queries";
 import { getOpenAiComicSettings } from "@/lib/openai-comic";
@@ -34,11 +38,18 @@ const STATUS_MESSAGES: Record<string, string> = {
   "season-outline-generated": "Season 中文大纲已更新。",
   "chapter-outline-generated": "Chapter 中文大纲已更新。",
   "episode-outline-generated": "Episode 中文大纲已更新。",
+  "project-outline-translated": "整部漫画大纲已保守翻译成中文。",
+  "season-outline-translated": "Season 大纲已保守翻译成中文。",
+  "chapter-outline-translated": "Chapter 大纲已保守翻译成中文。",
+  "episode-outline-translated": "Episode 大纲已保守翻译成中文。",
   "season-outlines-generated": "已根据整部漫画大纲生成所有 Season 中文大纲。",
   "chapter-outlines-generated": "已根据 Season 大纲生成所有 Chapter 中文大纲。",
   "episode-outlines-generated": "已根据 Chapter 大纲生成所有 Episode 中文大纲。",
   "outline-failed": "大纲生成失败。请检查 OpenAI key、模型设置或稍后重试。",
+  "outline-translation-failed": "大纲翻译失败。请检查 OpenAI key、模型设置或稍后重试。",
   "missing-parent-outline": "请先生成并确认上一级大纲，再生成下一层级。",
+  "missing-outline": "当前项目还没有可翻译的大纲。",
+  "outline-already-chinese": "当前大纲已经是中文，不需要翻译。",
   "missing-children": "当前层级下面还没有可生成的子项目。",
   "missing-record": "没有找到对应的漫画记录。"
 };
@@ -116,7 +127,7 @@ function OutlineActionForm({
         />
       ))}
       <div className="field">
-        <label htmlFor={textareaId}>修改意见</label>
+        <label htmlFor={textareaId}>修改 / 翻译要求</label>
         <textarea
           id={textareaId}
           name="revisionNotes"
@@ -378,6 +389,16 @@ function ProjectOutlineSection({
   seasonCount: number;
   disabledForAi: boolean;
 }) {
+  const needsTranslation = hasUsableOutline(project?.storyOutline) && !hasChineseText(project?.storyOutline);
+  const primaryAction = needsTranslation
+    ? translateComicProjectOutlineAction
+    : generateComicProjectOutlineAction;
+  const primaryIdleLabel = needsTranslation
+    ? "翻译成中文（不改剧情）"
+    : hasUsableOutline(project?.storyOutline)
+      ? "重新生成整部漫画大纲"
+      : "生成整部漫画大纲";
+
   return (
     <OutlinePanel
       id="project-outline"
@@ -389,15 +410,15 @@ function ProjectOutlineSection({
     >
       <div className="admin-comic-outline-actions">
         <OutlineActionForm
-          action={generateComicProjectOutlineAction}
+          action={primaryAction}
           hiddenFields={[
             { name: "projectId", value: project?.id },
             { name: "redirectTo", value: buildProjectRedirect() }
           ]}
           textareaId="project-outline-revision"
-          idleLabel={hasUsableOutline(project?.storyOutline) ? "重新生成整部漫画大纲" : "生成整部漫画大纲"}
-          pendingLabel="生成中..."
-          modalTitle="生成整部漫画大纲"
+          idleLabel={primaryIdleLabel}
+          pendingLabel={needsTranslation ? "翻译中..." : "生成中..."}
+          modalTitle={needsTranslation ? "翻译整部漫画大纲" : "生成整部漫画大纲"}
           disabled={disabledForAi}
           disabledReason={disabledForAi ? "OPENAI_API_KEY 还没有配置。" : undefined}
         />
@@ -444,6 +465,16 @@ function SeasonOutlineSection({
   disabledForAi: boolean;
   projectOutlineReady: boolean;
 }) {
+  const needsTranslation = hasUsableOutline(season.outline) && !hasChineseText(season.outline);
+  const primaryAction = needsTranslation
+    ? translateComicSeasonOutlineAction
+    : generateComicSeasonOutlineAction;
+  const primaryIdleLabel = needsTranslation
+    ? "翻译成中文（不改剧情）"
+    : hasUsableOutline(season.outline)
+      ? "重新生成 Season 大纲"
+      : "生成 Season 大纲";
+
   return (
     <OutlinePanel
       id={`season-${season.id}`}
@@ -455,15 +486,15 @@ function SeasonOutlineSection({
     >
       <div className="admin-comic-outline-actions">
         <OutlineActionForm
-          action={generateComicSeasonOutlineAction}
+          action={primaryAction}
           hiddenFields={[
             { name: "seasonId", value: season.id },
             { name: "redirectTo", value: buildSeasonRedirect(season.id) }
           ]}
           textareaId={getTextareaId("season", season.id)}
-          idleLabel={hasUsableOutline(season.outline) ? "重新生成 Season 大纲" : "生成 Season 大纲"}
-          pendingLabel="生成中..."
-          modalTitle={`生成 ${seasonLabel(season)} 大纲`}
+          idleLabel={primaryIdleLabel}
+          pendingLabel={needsTranslation ? "翻译中..." : "生成中..."}
+          modalTitle={`${needsTranslation ? "翻译" : "生成"} ${seasonLabel(season)} 大纲`}
           disabled={disabledForAi || !projectOutlineReady}
           disabledReason={
             disabledForAi
@@ -511,6 +542,15 @@ function ChapterOutlineSection({
   disabledForAi: boolean;
 }) {
   const seasonOutlineReady = hasUsableOutline(season.outline);
+  const needsTranslation = hasUsableOutline(chapter.outline) && !hasChineseText(chapter.outline);
+  const primaryAction = needsTranslation
+    ? translateComicChapterOutlineAction
+    : generateComicChapterOutlineAction;
+  const primaryIdleLabel = needsTranslation
+    ? "翻译成中文（不改剧情）"
+    : hasUsableOutline(chapter.outline)
+      ? "重新生成 Chapter 大纲"
+      : "生成 Chapter 大纲";
 
   return (
     <OutlinePanel
@@ -523,15 +563,15 @@ function ChapterOutlineSection({
     >
       <div className="admin-comic-outline-actions">
         <OutlineActionForm
-          action={generateComicChapterOutlineAction}
+          action={primaryAction}
           hiddenFields={[
             { name: "chapterId", value: chapter.id },
             { name: "redirectTo", value: buildChapterRedirect(chapter.id) }
           ]}
           textareaId={getTextareaId("chapter", chapter.id)}
-          idleLabel={hasUsableOutline(chapter.outline) ? "重新生成 Chapter 大纲" : "生成 Chapter 大纲"}
-          pendingLabel="生成中..."
-          modalTitle={`生成 ${chapterLabel(chapter)} 大纲`}
+          idleLabel={primaryIdleLabel}
+          pendingLabel={needsTranslation ? "翻译中..." : "生成中..."}
+          modalTitle={`${needsTranslation ? "翻译" : "生成"} ${chapterLabel(chapter)} 大纲`}
           disabled={disabledForAi || !seasonOutlineReady}
           disabledReason={
             disabledForAi
@@ -577,6 +617,15 @@ function EpisodeOutlineSection({
   disabledForAi: boolean;
 }) {
   const chapterOutlineReady = hasUsableOutline(chapter.outline);
+  const needsTranslation = hasUsableOutline(episode.outline) && !hasChineseText(episode.outline);
+  const primaryAction = needsTranslation
+    ? translateComicEpisodeOutlineAction
+    : generateComicEpisodeOutlineAction;
+  const primaryIdleLabel = needsTranslation
+    ? "翻译成中文（不改剧情）"
+    : hasUsableOutline(episode.outline)
+      ? "重新生成 Episode 大纲"
+      : "生成 Episode 大纲";
 
   return (
     <OutlinePanel
@@ -594,15 +643,15 @@ function EpisodeOutlineSection({
     >
       <div className="admin-comic-outline-actions">
         <OutlineActionForm
-          action={generateComicEpisodeOutlineAction}
+          action={primaryAction}
           hiddenFields={[
             { name: "episodeId", value: episode.id },
             { name: "redirectTo", value: buildEpisodeRedirect(episode.id) }
           ]}
           textareaId={getTextareaId("episode", episode.id)}
-          idleLabel={hasUsableOutline(episode.outline) ? "重新生成 Episode 大纲" : "生成 Episode 大纲"}
-          pendingLabel="生成中..."
-          modalTitle={`生成 ${episodeLabel(episode)} 大纲`}
+          idleLabel={primaryIdleLabel}
+          pendingLabel={needsTranslation ? "翻译中..." : "生成中..."}
+          modalTitle={`${needsTranslation ? "翻译" : "生成"} ${episodeLabel(episode)} 大纲`}
           disabled={disabledForAi || !chapterOutlineReady}
           disabledReason={
             disabledForAi
