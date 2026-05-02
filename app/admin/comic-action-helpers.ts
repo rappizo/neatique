@@ -65,6 +65,7 @@ export function revalidateComicRoutes(slugs?: {
   revalidatePath("/admin/comic/characters");
   revalidatePath("/admin/comic/scenes");
   revalidatePath("/admin/comic/seasons");
+  revalidatePath("/admin/comic/outline-studio");
   revalidatePath("/admin/comic/prompt-studio");
   revalidatePath("/admin/comic/publish-center");
   revalidatePath("/comic");

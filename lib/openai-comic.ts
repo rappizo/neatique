@@ -211,8 +211,487 @@ type GenerateComicPromptPackageInput = {
   chapterSceneReferences: ComicChapterSceneReferenceContext[];
 };
 
+type ComicOutlineLevel = "PROJECT" | "SEASON" | "CHAPTER" | "EPISODE";
+
+type ComicOutlineChainItem = {
+  level: ComicOutlineLevel;
+  title: string;
+  summary?: string | null;
+  outline: string;
+};
+
+type ComicOutlineChildContext = {
+  label: string;
+  title: string;
+  summary?: string | null;
+  outline?: string | null;
+};
+
+export type GeneratedChineseComicOutline = {
+  summary: string;
+  outline: string;
+};
+
+export type GeneratedChineseComicChildOutline = GeneratedChineseComicOutline & {
+  id: string;
+};
+
+type GenerateChineseComicOutlineInput = {
+  level: ComicOutlineLevel;
+  title: string;
+  numberLabel?: string | null;
+  existingSummary?: string | null;
+  existingOutline?: string | null;
+  revisionNotes?: string | null;
+  parentChain?: ComicOutlineChainItem[];
+  siblingOutlines?: ComicOutlineChildContext[];
+  childTargets?: ComicOutlineChildContext[];
+  characterNames?: string[];
+  sceneNames?: string[];
+  worldRules?: string | null;
+  visualStyleGuide?: string | null;
+};
+
+type GenerateChineseComicChildOutlinesInput = {
+  childLevel: Exclude<ComicOutlineLevel, "PROJECT">;
+  parent: ComicOutlineChainItem;
+  parentChain?: ComicOutlineChainItem[];
+  children: Array<{
+    id: string;
+    title: string;
+    numberLabel?: string | null;
+    existingSummary?: string | null;
+    existingOutline?: string | null;
+    childTargets?: ComicOutlineChildContext[];
+  }>;
+  revisionNotes?: string | null;
+  siblingContext?: ComicOutlineChildContext[];
+  characterNames?: string[];
+  sceneNames?: string[];
+  worldRules?: string | null;
+  visualStyleGuide?: string | null;
+};
+
 function getOpenAiApiKey() {
   return (process.env.OPENAI_API_KEY || "").trim();
+}
+
+function formatOutlineChain(chain: ComicOutlineChainItem[] = []) {
+  if (chain.length === 0) {
+    return "No parent outline is available for this level.";
+  }
+
+  return chain
+    .map((item) =>
+      [
+        `${item.level}: ${item.title}`,
+        item.summary ? `Summary: ${item.summary}` : null,
+        `Outline:\n${item.outline}`
+      ]
+        .filter(Boolean)
+        .join("\n")
+    )
+    .join("\n\n---\n\n");
+}
+
+function formatOutlineChildren(children: ComicOutlineChildContext[] = []) {
+  if (children.length === 0) {
+    return "No direct child records are available yet.";
+  }
+
+  return children
+    .map((child) =>
+      [
+        `- ${child.label}: ${child.title}`,
+        child.summary ? `  Existing summary: ${child.summary}` : null,
+        child.outline ? `  Existing outline: ${child.outline}` : null
+      ]
+        .filter(Boolean)
+        .join("\n")
+    )
+    .join("\n");
+}
+
+function formatOutlineNames(label: string, names: string[] = []) {
+  return names.length > 0 ? `${label}: ${names.join(", ")}` : `${label}: None entered yet.`;
+}
+
+function getChineseOutlineSectionGuide(level: ComicOutlineLevel) {
+  if (level === "PROJECT") {
+    return [
+      "## 核心设定",
+      "## 整体主线",
+      "## Season 推进",
+      "## 角色弧光",
+      "## 伏笔与禁区"
+    ].join("\n");
+  }
+
+  if (level === "SEASON") {
+    return [
+      "## 本季目标",
+      "## Chapter 流程",
+      "## 角色推进",
+      "## 关键伏笔",
+      "## 季末钩子"
+    ].join("\n");
+  }
+
+  if (level === "CHAPTER") {
+    return [
+      "## 本章目标",
+      "## Episode 节奏",
+      "## 场景与冲突",
+      "## 角色变化",
+      "## 结尾推进"
+    ].join("\n");
+  }
+
+  return [
+    "## 本集承诺",
+    "## 核心剧情",
+    "## 关键节拍",
+    "## 连续性注意事项",
+    "## Prompt 生成注意事项"
+  ].join("\n");
+}
+
+function buildChineseOutlineSystemPrompt() {
+  return [
+    "You are Neatique's bilingual comic story architect.",
+    "Write all story outlines in Simplified Chinese.",
+    "Keep every character name in English exactly as provided. Do not translate character names.",
+    "Use existing English season, chapter, and episode titles as stable labels unless the user explicitly asks to change them.",
+    "Use the parent outline as binding canon. Child outlines must inherit and refine the parent, not contradict it.",
+    "Keep the output production-ready, concrete, and useful for later English image-prompt generation.",
+    "Return only valid JSON matching the schema."
+  ].join(" ");
+}
+
+function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) {
+  return [
+    `Target level: ${input.level}`,
+    `Target title: ${input.title}`,
+    input.numberLabel ? `Target number label: ${input.numberLabel}` : null,
+    "",
+    "Parent canon chain:",
+    formatOutlineChain(input.parentChain),
+    "",
+    "Existing target content:",
+    `Summary: ${input.existingSummary || "None"}`,
+    `Outline:\n${input.existingOutline || "None"}`,
+    "",
+    "Sibling context:",
+    formatOutlineChildren(input.siblingOutlines),
+    "",
+    "Direct child targets that this outline must prepare:",
+    formatOutlineChildren(input.childTargets),
+    "",
+    formatOutlineNames("Locked character names", input.characterNames),
+    formatOutlineNames("Reusable scene names", input.sceneNames),
+    "",
+    input.worldRules ? `World rules:\n${input.worldRules}` : "World rules: None entered.",
+    "",
+    input.visualStyleGuide
+      ? `Visual style guide:\n${input.visualStyleGuide}`
+      : "Visual style guide: None entered.",
+    "",
+    input.revisionNotes
+      ? `User revision notes:\n${input.revisionNotes}`
+      : "User revision notes: Generate or polish the outline in Chinese.",
+    "",
+    "Required outline section shape:",
+    getChineseOutlineSectionGuide(input.level),
+    "",
+    "Output requirements:",
+    "- summary must be Simplified Chinese, concise, and suitable for a list view.",
+    "- outline must be Markdown in Simplified Chinese.",
+    "- Include concrete story beats, role movement, stakes, reveal timing, and continuity notes.",
+    "- Preserve English character names exactly.",
+    "- Do not produce English prose except for names, titles, model/tool terms, or short labels like Prompt."
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function getSingleChineseOutlineSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      summary: { type: "string", minLength: 20, maxLength: 500 },
+      outline: { type: "string", minLength: 200, maxLength: 8000 }
+    },
+    required: ["summary", "outline"]
+  };
+}
+
+function getChildChineseOutlineSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      outlines: {
+        type: "array",
+        minItems: 1,
+        maxItems: 30,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            id: { type: "string", minLength: 1, maxLength: 160 },
+            summary: { type: "string", minLength: 20, maxLength: 500 },
+            outline: { type: "string", minLength: 200, maxLength: 8000 }
+          },
+          required: ["id", "summary", "outline"]
+        }
+      }
+    },
+    required: ["outlines"]
+  };
+}
+
+async function requestChineseComicOutline(input: GenerateChineseComicOutlineInput) {
+  const apiKey = getOpenAiApiKey();
+
+  if (!apiKey) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
+  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: DEFAULT_OPENAI_COMIC_MODEL,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: buildChineseOutlineSystemPrompt()
+            }
+          ]
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: buildChineseOutlineUserPrompt(input)
+            }
+          ]
+        }
+      ],
+      reasoning: {
+        effort: "medium"
+      },
+      text: {
+        format: {
+          type: "json_schema",
+          name: "chinese_comic_outline",
+          strict: true,
+          schema: getSingleChineseOutlineSchema()
+        }
+      }
+    })
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `OpenAI outline generation failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const outputText = getResponseOutputText(parsed);
+  const outline = outputText ? safeJsonParse(outputText) : null;
+  const record = outline && typeof outline === "object" ? (outline as Record<string, unknown>) : null;
+
+  if (
+    !record ||
+    typeof record.summary !== "string" ||
+    typeof record.outline !== "string" ||
+    !record.summary.trim() ||
+    !record.outline.trim()
+  ) {
+    throw new Error("OpenAI did not return a valid Chinese comic outline.");
+  }
+
+  return {
+    summary: record.summary.trim(),
+    outline: record.outline.trim()
+  };
+}
+
+function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOutlinesInput) {
+  const parentChain = [...(input.parentChain || []), input.parent];
+  const childList = input.children
+    .map((child) =>
+      [
+        `- id: ${child.id}`,
+        `  title: ${child.title}`,
+        child.numberLabel ? `  number label: ${child.numberLabel}` : null,
+        child.existingSummary ? `  existing summary: ${child.existingSummary}` : null,
+        child.existingOutline ? `  existing outline: ${child.existingOutline}` : null,
+        child.childTargets?.length
+          ? `  direct child targets:\n${formatOutlineChildren(child.childTargets)}`
+          : null
+      ]
+        .filter(Boolean)
+        .join("\n")
+    )
+    .join("\n\n");
+
+  return [
+    `Generate Chinese outlines for every ${input.childLevel} below the parent.`,
+    "",
+    "Parent canon chain:",
+    formatOutlineChain(parentChain),
+    "",
+    "Children to generate. Return exactly one outline object for each id:",
+    childList,
+    "",
+    "Sibling context for pacing:",
+    formatOutlineChildren(input.siblingContext),
+    "",
+    formatOutlineNames("Locked character names", input.characterNames),
+    formatOutlineNames("Reusable scene names", input.sceneNames),
+    "",
+    input.worldRules ? `World rules:\n${input.worldRules}` : "World rules: None entered.",
+    "",
+    input.visualStyleGuide
+      ? `Visual style guide:\n${input.visualStyleGuide}`
+      : "Visual style guide: None entered.",
+    "",
+    input.revisionNotes
+      ? `User revision notes:\n${input.revisionNotes}`
+      : "User revision notes: Generate or polish the next-level outlines in Chinese.",
+    "",
+    "Required outline section shape for every child:",
+    getChineseOutlineSectionGuide(input.childLevel),
+    "",
+    "Output requirements:",
+    "- Return exactly the ids given above, with no missing or invented ids.",
+    "- summary and outline must be Simplified Chinese.",
+    "- Keep English character names exactly.",
+    "- Make siblings distinct, sequential, and compatible with the parent outline.",
+    "- Do not write final image prompts here; Episode prompts are generated later in English."
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function requestChineseComicChildOutlines(input: GenerateChineseComicChildOutlinesInput) {
+  const apiKey = getOpenAiApiKey();
+
+  if (!apiKey) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
+  if (input.children.length === 0) {
+    return [];
+  }
+
+  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: DEFAULT_OPENAI_COMIC_MODEL,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: buildChineseOutlineSystemPrompt()
+            }
+          ]
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: buildChineseChildOutlinesUserPrompt(input)
+            }
+          ]
+        }
+      ],
+      reasoning: {
+        effort: "medium"
+      },
+      text: {
+        format: {
+          type: "json_schema",
+          name: "chinese_comic_child_outlines",
+          strict: true,
+          schema: getChildChineseOutlineSchema()
+        }
+      }
+    })
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `OpenAI child outline generation failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const outputText = getResponseOutputText(parsed);
+  const payload = outputText ? safeJsonParse(outputText) : null;
+  const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+  const outlines = Array.isArray(record?.outlines) ? record.outlines : [];
+  const expectedIds = new Set(input.children.map((child) => child.id));
+  const normalized = outlines
+    .map((outline) => {
+      const item = outline && typeof outline === "object" ? (outline as Record<string, unknown>) : null;
+
+      return {
+        id: typeof item?.id === "string" ? item.id.trim() : "",
+        summary: typeof item?.summary === "string" ? item.summary.trim() : "",
+        outline: typeof item?.outline === "string" ? item.outline.trim() : ""
+      };
+    })
+    .filter((outline) => expectedIds.has(outline.id) && outline.summary && outline.outline);
+  const returnedIds = new Set(normalized.map((outline) => outline.id));
+
+  if (input.children.some((child) => !returnedIds.has(child.id))) {
+    throw new Error("OpenAI did not return an outline for every requested child record.");
+  }
+
+  return normalized;
+}
+
+export async function generateChineseComicOutlineWithAi(
+  input: GenerateChineseComicOutlineInput
+): Promise<GeneratedChineseComicOutline> {
+  return requestChineseComicOutline(input);
+}
+
+export async function generateChineseComicChildOutlinesWithAi(
+  input: GenerateChineseComicChildOutlinesInput
+): Promise<GeneratedChineseComicChildOutline[]> {
+  return requestChineseComicChildOutlines(input);
 }
 
 function getComicImageApiSettings() {
@@ -1088,6 +1567,8 @@ export async function generateComicPromptPackageWithAi(
               text: [
                 "You are Neatique's comic story architect and prompt planner.",
                 "Your job is to turn a season/chapter/episode outline into a production-ready comic prompt package.",
+                "The input outlines may be written in Chinese, but every generated script, page plan, panel beat, image prompt, and reference note must be written in English.",
+                "Keep character names in English exactly as provided; do not translate character names in any prompt output.",
                 "Keep characters visually stable, emotionally consistent, and aligned with their stored canon.",
                 "Every visual prompt must enforce clean high-contrast black-and-white manga output only, with pure white character fills and no gray wash.",
                 "Every visual prompt must enforce that all characters have no hands and no arms, while preserving small rounded feet, foot nubs, or lower-body nubs exactly as shown in their model sheets.",
@@ -1154,6 +1635,8 @@ export async function generateComicPromptPackageWithAi(
                 buildChapterSceneReferenceSummary(input.chapterSceneReferences),
                 "",
                 "Output requirements:",
+                "- Write the entire returned JSON content in English, even if the stored outlines are Chinese.",
+                "- Keep every character name in English exactly as provided.",
                 "- Expand the episode into a readable production script.",
                 "- Create a 10-page plan.",
                 "- Every page should normally contain 3 panels.",

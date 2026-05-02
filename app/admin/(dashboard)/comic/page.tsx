@@ -33,9 +33,9 @@ export default async function AdminComicOverviewPage({
         <p className="eyebrow">Comic</p>
         <h1>Build the comic bible, prompt workflow, and publishing pipeline in one place.</h1>
         <p>
-          Start by locking the project canon, characters, and scenes. Then create seasons,
-          chapters, and episodes, generate prompt packs, and publish completed comic episodes to
-          the site.
+          Start by locking the project canon, characters, and scenes. Then generate Chinese
+          outlines from project to episode, build English prompt packs, and publish completed comic
+          episodes to the site.
         </p>
       </div>
 
@@ -123,6 +123,19 @@ export default async function AdminComicOverviewPage({
           <div className="stack-row">
             <Link href="/admin/comic/project" className="button button--primary">
               Open project bible
+            </Link>
+          </div>
+        </section>
+
+        <section className="admin-form">
+          <h2>Outline studio</h2>
+          <p className="form-note">
+            Review the full project → season → chapter → episode outline tree, generate missing
+            Chinese outlines, and regenerate lower layers from confirmed parent outlines.
+          </p>
+          <div className="stack-row">
+            <Link href="/admin/comic/outline-studio" className="button button--primary">
+              Open outline studio
             </Link>
           </div>
         </section>

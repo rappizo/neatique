@@ -4404,6 +4404,144 @@ main {
   color: var(--ink);
 }
 
+.admin-comic-outline-layout {
+  display: grid;
+  grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.admin-comic-outline-nav {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.admin-comic-outline-nav nav,
+.admin-comic-outline-nav details > div {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-comic-outline-nav a,
+.admin-comic-outline-nav summary {
+  display: block;
+  padding: 9px 10px;
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.35;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-comic-outline-nav a {
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-comic-outline-nav summary {
+  font-weight: 700;
+  list-style: none;
+}
+
+.admin-comic-outline-nav summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-comic-outline-nav details > div {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(46, 40, 37, 0.08);
+}
+
+.admin-comic-outline-stack,
+.admin-comic-outline-group,
+.admin-comic-outline-subgroup {
+  display: grid;
+  gap: 20px;
+}
+
+.admin-comic-outline-group,
+.admin-comic-outline-subgroup {
+  scroll-margin-top: 24px;
+}
+
+.admin-comic-outline-panel {
+  scroll-margin-top: 24px;
+}
+
+.admin-comic-outline-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-comic-outline-panel__header h2 {
+  margin-bottom: 10px;
+}
+
+.admin-comic-outline-text {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-comic-outline-summary {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.admin-comic-outline-summary strong {
+  color: var(--ink);
+}
+
+.admin-comic-outline-summary p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.admin-comic-outline-text pre {
+  max-height: 560px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.96rem;
+  line-height: 1.75;
+}
+
+.admin-comic-outline-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(46, 40, 37, 0.08);
+}
+
+.admin-comic-outline-form {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.admin-comic-outline-next-step {
+  display: flex;
+  align-items: flex-end;
+}
+
 .admin-comic-publish-stack {
   display: grid;
   gap: 24px;
@@ -4977,14 +5115,21 @@ main {
   .admin-comic-copy-grid,
   .admin-comic-prompt-page-grid,
   .admin-comic-publish-page-grid,
+  .admin-comic-outline-layout,
   .admin-comic-publish-asset {
     grid-template-columns: 1fr;
   }
 
   .admin-comic-page-list-item__header,
   .admin-comic-section-heading,
+  .admin-comic-outline-panel__header,
   .admin-comic-publish-page__header {
     display: grid;
+  }
+
+  .admin-comic-outline-nav {
+    position: static;
+    max-height: none;
   }
 
   .admin-comic-page-list-item__actions,
