@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { getComicCharacterReferenceFolder, getComicSceneReferenceFolder } from "@/lib/comic-paths";
-import { getComicCharacterReferenceFiles, getComicSceneReferenceFiles } from "@/lib/comic-reference-manifest";
 import {
   ComicReferenceUploadError,
   saveComicReferenceUpload
@@ -285,56 +284,23 @@ export async function reviseComicCharacterLockAction(formData: FormData) {
   await requireAdminSession();
 
   const id = toPlainString(formData.get("id"));
-  if (!id) {
-    redirect(buildComicRedirect("/admin/comic/characters", "missing-character"));
-  }
-
-  const character = await prisma.comicCharacter.findUnique({
-    where: { id }
-  });
-
-  if (!character) {
-    redirect(buildComicRedirect("/admin/comic/characters", "missing-character"));
-  }
-
   const revisionInstruction = normalizeLongText(formData.get("revisionInstruction"));
-
-  if (!revisionInstruction) {
-    redirect(buildComicRedirect(`/admin/comic/characters/${id}#lock`, "lock-revision-missing"));
-  }
+  const redirectTo = id ? `/admin/comic/characters/${id}#lock` : "/admin/comic/characters";
+  let status = "lock-revised";
 
   try {
-    const { reviseComicCharacterLockWithAi } = await import("@/lib/openai-comic");
-    const revised = await reviseComicCharacterLockWithAi({
-      name: character.name,
-      slug: character.slug,
-      role: character.role,
-      appearance: character.appearance,
-      personality: character.personality,
-      speechGuide: character.speechGuide,
-      referenceNotes: character.referenceNotes,
-      referenceFiles: getComicCharacterReferenceFiles(character.slug),
-      revisionInstruction
-    });
-
-    await pushComicCharacterLockSnapshot(id, character, revisionInstruction);
-    await prisma.comicCharacter.update({
-      where: { id },
-      data: {
-        role: revised.role,
-        appearance: revised.appearance,
-        personality: revised.personality,
-        speechGuide: revised.speechGuide,
-        referenceNotes: revised.referenceNotes || null
-      }
-    });
+    const { reviseComicCharacterLock } = await import("@/lib/comic-lock-revision");
+    const result = await reviseComicCharacterLock({ id, revisionInstruction });
+    status = result.status;
   } catch (error) {
     console.error("Comic character lock revision failed:", error);
-    redirect(buildComicRedirect(`/admin/comic/characters/${id}#lock`, "lock-revision-failed"));
+    status =
+      error && typeof error === "object" && "status" in error && typeof error.status === "string"
+        ? error.status
+        : "lock-revision-failed";
   }
 
-  revalidateComicRoutes();
-  redirect(buildComicRedirect(`/admin/comic/characters/${id}#lock`, "lock-revised"));
+  redirect(buildComicRedirect(redirectTo, status));
 }
 
 export async function restoreComicCharacterLockAction(formData: FormData) {
@@ -517,54 +483,23 @@ export async function reviseComicSceneLockAction(formData: FormData) {
   await requireAdminSession();
 
   const id = toPlainString(formData.get("id"));
-  if (!id) {
-    redirect(buildComicRedirect("/admin/comic/scenes", "missing-scene"));
-  }
-
-  const scene = await prisma.comicScene.findUnique({
-    where: { id }
-  });
-
-  if (!scene) {
-    redirect(buildComicRedirect("/admin/comic/scenes", "missing-scene"));
-  }
-
   const revisionInstruction = normalizeLongText(formData.get("revisionInstruction"));
-
-  if (!revisionInstruction) {
-    redirect(buildComicRedirect(`/admin/comic/scenes/${id}#lock`, "lock-revision-missing"));
-  }
+  const redirectTo = id ? `/admin/comic/scenes/${id}#lock` : "/admin/comic/scenes";
+  let status = "lock-revised";
 
   try {
-    const { reviseComicSceneLockWithAi } = await import("@/lib/openai-comic");
-    const revised = await reviseComicSceneLockWithAi({
-      name: scene.name,
-      slug: scene.slug,
-      summary: scene.summary,
-      visualNotes: scene.visualNotes,
-      moodNotes: scene.moodNotes,
-      referenceNotes: scene.referenceNotes,
-      referenceFiles: getComicSceneReferenceFiles(scene.slug),
-      revisionInstruction
-    });
-
-    await pushComicSceneLockSnapshot(id, scene, revisionInstruction);
-    await prisma.comicScene.update({
-      where: { id },
-      data: {
-        summary: revised.summary,
-        visualNotes: revised.visualNotes,
-        moodNotes: revised.moodNotes,
-        referenceNotes: revised.referenceNotes || null
-      }
-    });
+    const { reviseComicSceneLock } = await import("@/lib/comic-lock-revision");
+    const result = await reviseComicSceneLock({ id, revisionInstruction });
+    status = result.status;
   } catch (error) {
     console.error("Comic scene lock revision failed:", error);
-    redirect(buildComicRedirect(`/admin/comic/scenes/${id}#lock`, "lock-revision-failed"));
+    status =
+      error && typeof error === "object" && "status" in error && typeof error.status === "string"
+        ? error.status
+        : "lock-revision-failed";
   }
 
-  revalidateComicRoutes();
-  redirect(buildComicRedirect(`/admin/comic/scenes/${id}#lock`, "lock-revised"));
+  redirect(buildComicRedirect(redirectTo, status));
 }
 
 export async function restoreComicSceneLockAction(formData: FormData) {
@@ -1382,132 +1317,17 @@ export async function createChineseComicPageVersionAction(formData: FormData) {
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = getComicPublishRedirect(formData);
-
-  if (!id) {
-    redirect(buildComicRedirect(redirectTo, "missing-asset"));
-  }
-
-  const asset = await prisma.comicEpisodeAsset.findUnique({
-    where: { id },
-    include: {
-      episode: {
-        include: {
-          chapter: {
-            include: {
-              season: true
-            }
-          }
-        }
-      }
-    }
-  });
-
-  if (!asset) {
-    redirect(buildComicRedirect(redirectTo, "missing-asset"));
-  }
-
-  if (!asset.published || !isComicPageAssetType(asset.assetType) || !isComicPublishPageNumber(asset.sortOrder)) {
-    redirect(buildComicRedirect(redirectTo, "missing-approved-page"));
-  }
-
-  if (!asset.imageData) {
-    redirect(buildComicRedirect(redirectTo, "missing-source-image"));
-  }
-
-  const inputContext = JSON.stringify(
-    {
-      episode: asset.episode.title,
-      pageNumber: asset.sortOrder,
-      sourceAssetId: asset.id,
-      sourceAssetType: asset.assetType
-    },
-    null,
-    2
-  );
   let status = "page-chinese-failed";
 
   try {
-    const { generateChineseComicPageVersionWithAi } = await import("@/lib/openai-comic");
-    const translatedImage = await generateChineseComicPageVersionWithAi({
-      sourceImage: {
-        mimeType: asset.imageMimeType || "image/png",
-        base64Data: asset.imageData,
-        fileName: `${asset.id}.png`
-      },
-      episodeTitle: asset.episode.title,
-      pageNumber: asset.sortOrder
-    });
-
-    const createdAsset = await prisma.comicEpisodeAsset.create({
-      data: {
-        episodeId: asset.episodeId,
-        assetType: COMIC_CHINESE_PAGE_ASSET_TYPE,
-        title: `${asset.title} - Chinese Version`,
-        imageUrl: "/media/comic/pending",
-        imageData: translatedImage.base64Data,
-        imageMimeType: translatedImage.mimeType,
-        altText: `${asset.altText || asset.title} Chinese version`,
-        caption: asset.caption,
-        sortOrder: asset.sortOrder,
-        published: false
-      },
-      select: {
-        id: true
-      }
-    });
-    const imageUrl = `/media/comic/${createdAsset.id}?v=${Date.now()}`;
-
-    await prisma.$transaction([
-      prisma.comicEpisodeAsset.update({
-        where: { id: createdAsset.id },
-        data: { imageUrl }
-      }),
-      prisma.comicPromptRun.create({
-        data: {
-          episodeId: asset.episodeId,
-          promptType: "PAGE_CHINESE_VERSION",
-          model:
-            process.env.OPENAI_COMIC_MODEL ||
-            process.env.OPENAI_POST_MODEL ||
-            process.env.OPENAI_EMAIL_MODEL ||
-            "gpt-5.5",
-          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
-          status: "READY",
-          inputContext,
-          outputSummary: `Created Chinese draft version for ${asset.episode.title} page ${asset.sortOrder}.`
-        }
-      })
-    ]);
-
-    revalidateComicRoutes({
-      seasonSlug: asset.episode.chapter.season.slug,
-      chapterSlug: asset.episode.chapter.slug,
-      episodeSlug: asset.episode.slug
-    });
-    status = "page-chinese-created";
+    const { createChineseComicPageVersion } = await import("@/lib/comic-chinese-page-version");
+    const result = await createChineseComicPageVersion({ assetId: id });
+    status = result.status;
   } catch (error) {
-    await prisma.comicPromptRun.create({
-      data: {
-        episodeId: asset.episodeId,
-        promptType: "PAGE_CHINESE_VERSION",
-        model:
-          process.env.OPENAI_COMIC_MODEL ||
-          process.env.OPENAI_POST_MODEL ||
-          process.env.OPENAI_EMAIL_MODEL ||
-          "gpt-5.5",
-        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
-        status: "FAILED",
-        inputContext,
-        outputSummary: `Chinese version creation failed for page ${asset.sortOrder}.`,
-        errorMessage: error instanceof Error ? error.message : "Unknown Chinese comic page creation error."
-      }
-    });
-
-    revalidateComicRoutes({
-      seasonSlug: asset.episode.chapter.season.slug,
-      chapterSlug: asset.episode.chapter.slug,
-      episodeSlug: asset.episode.slug
-    });
+    status =
+      error && typeof error === "object" && "status" in error && typeof error.status === "string"
+        ? error.status
+        : "page-chinese-failed";
   }
 
   redirect(buildComicRedirect(redirectTo, status));

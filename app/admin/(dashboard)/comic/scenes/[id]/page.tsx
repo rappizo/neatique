@@ -3,10 +3,13 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   restoreComicSceneLockAction,
-  reviseComicSceneLockAction,
   updateComicSceneAction,
   uploadComicSceneReferenceAction
 } from "@/app/admin/comic-editor-actions";
+import {
+  ComicImageTaskQueueProvider,
+  ComicSceneLockRevisionQueueForm
+} from "@/components/admin/comic-image-task-queue";
 import { getComicSceneById } from "@/lib/comic-queries";
 import { getComicSceneLockHistory } from "@/lib/comic-lock-history";
 import { getComicSceneReferenceFiles } from "@/lib/comic-reference-manifest";
@@ -63,7 +66,8 @@ export default async function AdminComicSceneDetailPage({
   ]);
 
   return (
-    <div className="admin-page">
+    <ComicImageTaskQueueProvider maxConcurrent={3}>
+      <div className="admin-page">
       <div className="stack-row">
         <Link href="/admin/comic/scenes" className="button button--secondary">
           返回场景列表
@@ -175,7 +179,8 @@ export default async function AdminComicSceneDetailPage({
           </div>
         </div>
 
-        <form action={reviseComicSceneLockAction}>
+        <ComicSceneLockRevisionQueueForm sceneId={scene.id} sceneName={scene.name} />
+        <form hidden aria-hidden="true">
           <input type="hidden" name="id" value={scene.id} />
           <div className="field">
             <label htmlFor="comic-scene-lock-revision">修改意见</label>
@@ -316,6 +321,7 @@ export default async function AdminComicSceneDetailPage({
           </button>
         </form>
       </section>
-    </div>
+      </div>
+    </ComicImageTaskQueueProvider>
   );
 }

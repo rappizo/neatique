@@ -115,7 +115,8 @@ export async function generateComicPageImageForEpisode(input: {
     panels: page.panels.map((panel) => ({
       pageNumber: page.pageNumber,
       ...panel,
-      promptText: panel.storyBeat
+      promptText: panel.promptText || panel.storyBeat,
+      dialogueLines: panel.dialogueLines || []
     })),
     requiredUploads: page.requiredUploads,
     referenceImages,

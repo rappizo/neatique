@@ -37,7 +37,15 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Mouth state lock: characters who are not actively speaking must have closed mouths, tiny neutral mouths, or quiet expression marks only. Open mouths are allowed only for the character currently speaking, shouting, gasping, singing, or making an explicit vocal sound in that panel.",
   "- Characters interact with nearby objects through gentle telekinesis. Show objects floating, tilting, sliding, or opening near them with small motion lines, glow cues, or manga emphasis marks instead of hands touching objects.",
   "- If a story beat mentions holding, pointing, grabbing, writing, pushing, opening, carrying, or handing something over, translate that action into telekinetic object movement while keeping every character handless.",
-  "- Avoid adding extra characters, props, logos, product labels, watermarks, signatures, or random text."
+  "- Avoid adding extra characters, props, logos, product labels, watermarks, signatures, or random unrelated text. The only visible page text should be the specified dialogue, captions, SFX, signs, or labels from the prompt."
+].join("\n");
+const COMIC_LETTERING_STYLE_LOCKS = [
+  "Comic lettering style locks:",
+  "- Use one consistent lettering style across the whole comic: clean rounded manga hand-lettering, black ink on white balloons or white caption boxes.",
+  "- Speech balloons must have simple white fill, crisp black outlines, consistent line weight, and clear tails pointing to the speaking character.",
+  "- Keep dialogue text short enough to fit inside its balloon with generous padding. Do not shrink text unevenly, mix fonts, or use decorative type.",
+  "- Captions and SFX must use the same clean manga lettering family, with SFX hand-drawn but still readable and consistent.",
+  "- Do not invent extra visible text. Render only the exact dialogue, captions, SFX, signs, or labels named in the page prompt."
 ].join("\n");
 const COMIC_CHINESE_NAME_LOCKS = [
   "Character Chinese name locks:",
@@ -114,6 +122,12 @@ export type GeneratedComicPanelPrompt = {
   panelTitle: string;
   storyBeat: string;
   promptText: string;
+  dialogueLines: GeneratedComicDialogueLine[];
+};
+
+export type GeneratedComicDialogueLine = {
+  speaker: string;
+  text: string;
 };
 
 export type GeneratedComicPageUpload = {
@@ -158,6 +172,8 @@ export type ReviseComicPagePromptInput = {
     panelNumber: number;
     panelTitle: string;
     storyBeat: string;
+    promptText?: string;
+    dialogueLines?: GeneratedComicDialogueLine[];
   }>;
   promptSuggestion: string;
 };
@@ -172,6 +188,8 @@ export type RevisedComicPagePrompt = {
     panelNumber: number;
     panelTitle: string;
     storyBeat: string;
+    promptText: string;
+    dialogueLines: GeneratedComicDialogueLine[];
   }>;
 };
 
@@ -1352,6 +1370,78 @@ function buildComicPageCharacterIdentityLockSummary(
     .join("\n\n---\n\n");
 }
 
+function normalizeComicDialogueLines(value: unknown): GeneratedComicDialogueLine[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((line) => ({
+      speaker:
+        line && typeof line === "object" && typeof (line as any).speaker === "string"
+          ? (line as any).speaker.trim()
+          : "",
+      text:
+        line && typeof line === "object" && typeof (line as any).text === "string"
+          ? (line as any).text.trim()
+          : ""
+    }))
+    .filter((line) => line.speaker && line.text)
+    .slice(0, 4);
+}
+
+function formatComicDialogueLines(lines: GeneratedComicDialogueLine[]) {
+  if (lines.length === 0) {
+    return "No dialogue lines specified.";
+  }
+
+  return lines.map((line) => `${line.speaker}: "${line.text}"`).join("\n");
+}
+
+function buildComicPageDialoguePlan(panels: GeneratedComicPanelPrompt[]) {
+  const panelBlocks = panels.map((panel) =>
+    [
+      `Panel ${panel.panelNumber}: ${panel.panelTitle}`,
+      formatComicDialogueLines(panel.dialogueLines || [])
+    ].join("\n")
+  );
+
+  return panelBlocks.join("\n\n");
+}
+
+function promptIncludesDialogue(prompt: string, panels: GeneratedComicPanelPrompt[]) {
+  const normalizedPrompt = prompt.toLowerCase();
+  const dialogueLines = panels.flatMap((panel) => panel.dialogueLines || []);
+
+  return (
+    dialogueLines.length > 0 &&
+    dialogueLines.every((line) => normalizedPrompt.includes(line.text.toLowerCase()))
+  );
+}
+
+function ensurePromptIncludesDialogueAndLettering(
+  prompt: string,
+  panels: GeneratedComicPanelPrompt[]
+) {
+  const additions: string[] = [];
+
+  if (!promptIncludesDialogue(prompt, panels)) {
+    additions.push(`Dialogue and lettering plan:\n${buildComicPageDialoguePlan(panels)}`);
+  }
+
+  if (!/lettering|speech balloon|speech balloons|caption/i.test(prompt)) {
+    additions.push(COMIC_LETTERING_STYLE_LOCKS);
+  }
+
+  return additions.length > 0 ? `${prompt.trim()}\n\n${additions.join("\n\n")}` : prompt.trim();
+}
+
+function ensureReferenceNotesIncludeLettering(notes: string) {
+  return /lettering|speech balloon|speech balloons|caption/i.test(notes)
+    ? notes.trim()
+    : `${notes.trim()}\n\n${COMIC_LETTERING_STYLE_LOCKS}`;
+}
+
 function buildComicPagePanelSummary(panels: GeneratedComicPanelPrompt[]) {
   if (panels.length === 0) {
     return "No panel beats were listed for this page.";
@@ -1362,6 +1452,7 @@ function buildComicPagePanelSummary(panels: GeneratedComicPanelPrompt[]) {
       [
         `Panel ${panel.panelNumber}: ${panel.panelTitle}`,
         `Story beat: ${panel.storyBeat}`,
+        `Dialogue lines:\n${formatComicDialogueLines(panel.dialogueLines || [])}`,
         `Panel image direction: ${panel.promptText || "Use the page prompt and story beat."}`
       ].join("\n")
     )
@@ -1387,7 +1478,8 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Foot connection check: feet must connect naturally to the body with the same continuous white body fill; do not add a hard separating line between the feet and body.",
     "- Sunny Spritz check: if Sunny appears full-body, her two small rounded feet must be visible directly under the soft five-point star body.",
     "- Mouth state check: draw closed mouths for characters who are not speaking in that panel; only the active speaker or explicit vocal reaction may have an open mouth.",
-    "- If dialogue balloons are needed, keep text minimal, clean, and readable; otherwise use expressive acting and leave balloons simple.",
+    "- Render every specified dialogue line, caption, and SFX from the panel plan. Do not omit dialogue balloons.",
+    COMIC_LETTERING_STYLE_LOCKS,
     "",
     "Story context:",
     `Project: ${input.projectTitle}`,
@@ -1725,9 +1817,24 @@ export async function reviseComicPagePromptWithAi(
           properties: {
             panelNumber: { type: "integer", minimum: 1, maximum: 3 },
             panelTitle: { type: "string", minLength: 4, maxLength: 140 },
-            storyBeat: { type: "string", minLength: 12, maxLength: 900 }
+            storyBeat: { type: "string", minLength: 12, maxLength: 900 },
+            promptText: { type: "string", minLength: 60, maxLength: 1400 },
+            dialogueLines: {
+              type: "array",
+              minItems: 1,
+              maxItems: 4,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  speaker: { type: "string", minLength: 2, maxLength: 80 },
+                  text: { type: "string", minLength: 1, maxLength: 160 }
+                },
+                required: ["speaker", "text"]
+              }
+            }
           },
-          required: ["panelNumber", "panelTitle", "storyBeat"]
+          required: ["panelNumber", "panelTitle", "storyBeat", "promptText", "dialogueLines"]
         }
       }
     },
@@ -1764,8 +1871,11 @@ export async function reviseComicPagePromptWithAi(
                 "Do not shorten, summarize, or truncate the existing page prompt. The revised prompt must stay complete enough to generate the whole page.",
                 "Preserve the existing story continuity unless the suggestion explicitly asks for a composition change.",
                 "Do not remove required character or scene continuity details.",
+                "Every revised panel must include dialogueLines with exact visible dialogue text, plus promptText that explains where balloons/captions/SFX go.",
+                "The revised promptPackCopyText must include a Dialogue and lettering plan section with every dialogue line exactly as it should appear on the page.",
                 "All revised prompt text must enforce these production locks:",
                 COMIC_VISUAL_PRODUCTION_LOCKS,
+                COMIC_LETTERING_STYLE_LOCKS,
                 "All characters have small rounded feet or foot nubs in full-body views. Full-body framing must leave the feet visible. Feet must connect naturally to the body without hard separating lines. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body."
               ].join("\n")
             }
@@ -1804,12 +1914,16 @@ export async function reviseComicPagePromptWithAi(
                 "- Keep panelCount at 2 or 3.",
                 "- Improve pagePurpose, promptPackCopyText, referenceNotesCopyText, and panel story beats to reflect the suggestion.",
                 "- Keep the full page content, all panels, all important reference instructions, and the final visual locks. Do not cut off the prompt mid-sentence.",
+                "- Keep or improve the visible dialogue for every panel. Do not remove all dialogue from the page.",
+                "- Every panel must return dialogueLines with exact speaker names and exact text to render in balloons or captions.",
+                "- The promptPackCopyText must include those exact dialogue lines and must tell gpt-image-2 to render them in consistent clean manga lettering.",
                 "- Keep character model-sheet identity locked.",
                 "- Make sure every full-body character keeps visible small rounded feet or foot nubs with the lower frame edge below the feet.",
                 "- Keep the feet connected to the body as one continuous mascot form; do not add a hard horizontal dividing line, shoe line, or solid seam between body and feet.",
                 "- If Sunny Spritz appears, explicitly preserve two small rounded feet directly under her soft five-point star body.",
                 "- Keep all characters handless and armless; use telekinesis for object interaction.",
-                "- Keep clean high-contrast black-and-white manga style, pure white character bodies, and no gray wash."
+                "- Keep clean high-contrast black-and-white manga style, pure white character bodies, and no gray wash.",
+                "- Use one consistent rounded manga lettering style across speech balloons, captions, and SFX."
               ].join("\n")
             }
           ]
@@ -1855,9 +1969,18 @@ export async function reviseComicPagePromptWithAi(
         .map((panel) => ({
           panelNumber: Number(panel.panelNumber),
           panelTitle: typeof panel.panelTitle === "string" ? panel.panelTitle.trim() : "",
-          storyBeat: typeof panel.storyBeat === "string" ? panel.storyBeat.trim() : ""
+          storyBeat: typeof panel.storyBeat === "string" ? panel.storyBeat.trim() : "",
+          promptText: typeof panel.promptText === "string" ? panel.promptText.trim() : "",
+          dialogueLines: normalizeComicDialogueLines(panel.dialogueLines)
         }))
-        .filter((panel) => panel.panelNumber >= 1 && panel.panelTitle && panel.storyBeat)
+        .filter(
+          (panel) =>
+            panel.panelNumber >= 1 &&
+            panel.panelTitle &&
+            panel.storyBeat &&
+            panel.promptText &&
+            panel.dialogueLines.length > 0
+        )
     : [];
 
   if (panels.length < 2) {
@@ -1866,8 +1989,17 @@ export async function reviseComicPagePromptWithAi(
 
   const normalizedPanels = panels.slice(0, 3).map((panel, index) => ({
     ...panel,
+    pageNumber: input.pageNumber,
     panelNumber: index + 1
   }));
+  const promptPackCopyText =
+    typeof record.promptPackCopyText === "string" && record.promptPackCopyText.trim()
+      ? ensurePromptIncludesDialogueAndLettering(record.promptPackCopyText, normalizedPanels)
+      : ensurePromptIncludesDialogueAndLettering(input.promptPackCopyText, normalizedPanels);
+  const referenceNotesCopyText =
+    typeof record.referenceNotesCopyText === "string" && record.referenceNotesCopyText.trim()
+      ? ensureReferenceNotesIncludeLettering(record.referenceNotesCopyText)
+      : ensureReferenceNotesIncludeLettering(input.referenceNotesCopyText);
 
   return {
     pageNumber: input.pageNumber,
@@ -1876,14 +2008,8 @@ export async function reviseComicPagePromptWithAi(
       typeof record.pagePurpose === "string" && record.pagePurpose.trim()
         ? record.pagePurpose.trim()
         : input.pagePurpose,
-    promptPackCopyText:
-      typeof record.promptPackCopyText === "string" && record.promptPackCopyText.trim()
-        ? record.promptPackCopyText.trim()
-        : input.promptPackCopyText,
-    referenceNotesCopyText:
-      typeof record.referenceNotesCopyText === "string" && record.referenceNotesCopyText.trim()
-        ? record.referenceNotesCopyText.trim()
-        : input.referenceNotesCopyText,
+    promptPackCopyText,
+    referenceNotesCopyText,
     panels: normalizedPanels
   };
 }
@@ -1930,9 +2056,30 @@ export async function generateComicPromptPackageWithAi(
                   panelNumber: { type: "integer", minimum: 1, maximum: 3 },
                   panelTitle: { type: "string", minLength: 4, maxLength: 140 },
                   storyBeat: { type: "string", minLength: 12, maxLength: 600 },
-                  promptText: { type: "string", minLength: 60, maxLength: 1400 }
+                  promptText: { type: "string", minLength: 60, maxLength: 1400 },
+                  dialogueLines: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 4,
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      properties: {
+                        speaker: { type: "string", minLength: 2, maxLength: 80 },
+                        text: { type: "string", minLength: 1, maxLength: 160 }
+                      },
+                      required: ["speaker", "text"]
+                    }
+                  }
                 },
-                required: ["pageNumber", "panelNumber", "panelTitle", "storyBeat", "promptText"]
+                required: [
+                  "pageNumber",
+                  "panelNumber",
+                  "panelTitle",
+                  "storyBeat",
+                  "promptText",
+                  "dialogueLines"
+                ]
               }
             },
             requiredUploads: {
@@ -2023,6 +2170,9 @@ export async function generateComicPromptPackageWithAi(
                 "Every full-body character view must include the character's visible small feet with clear lower-frame space. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body.",
                 "Every visual prompt must enforce connected feet: the feet and body are one continuous mascot form with no hard horizontal outline, shoe line, or solid separating stroke between them.",
                 "Every visual prompt must enforce mouth-state continuity: characters who are not speaking keep closed or tiny neutral mouths; only the active speaker or explicit vocal reaction may have an open mouth.",
+                "Every page and every panel must include usable dialogueLines. Do not produce dialogue-free comic pages.",
+                "Every promptPackCopyText block must include the exact dialogue text to render on the page, organized by panel.",
+                "Every visual prompt must enforce one consistent lettering style for all dialogue balloons, captions, and SFX.",
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
                 "Muci must always match the Muci model sheet and written appearance lock exactly: compact cute friendly teardrop mascot, centered point, broad rounded base, short rounded body proportions, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, soft approachable protagonist energy.",
                 "Muci must never become tall, thin, stretched, elongated, pear-like, or a long raindrop. Keep him broad, squat, soft, and close to the model-sheet width-to-height proportion.",
@@ -2073,6 +2223,9 @@ export async function generateComicPromptPackageWithAi(
                 "Global visual production locks that must appear in the page prompts and notes:",
                 COMIC_VISUAL_PRODUCTION_LOCKS,
                 "",
+                "Global lettering locks that must appear in the page prompts and notes:",
+                COMIC_LETTERING_STYLE_LOCKS,
+                "",
                 "Locked character library:",
                 buildCharacterSummary(input.characters),
                 "",
@@ -2086,10 +2239,17 @@ export async function generateComicPromptPackageWithAi(
                 "- Write the entire returned JSON content in English, even if the stored outlines are Chinese.",
                 "- Keep every character name in English exactly as provided.",
                 "- Expand the episode into a readable production script.",
+                "- The episodeScript must include dialogue, not only prose narration.",
                 "- Create a 10-page plan.",
                 "- Every page should normally contain 3 panels.",
                 "- A page may contain 2 panels only when the beat is visually important enough to justify extra space.",
                 `- Assume the image generation step will use ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
+                "- Every panel must include 1 to 4 dialogueLines with exact visible text. Use a character name as speaker for speech, or Caption/SFX only when a panel truly needs non-spoken text.",
+                "- Each dialogue line should be short, natural, and renderable inside a speech balloon or caption box.",
+                "- Every panel promptText must describe the speech balloon/caption/SFX placement and identify which character is speaking.",
+                "- Every promptPackCopyText block must include a Dialogue and lettering plan section listing every panel's exact dialogue lines.",
+                "- Every promptPackCopyText block must tell gpt-image-2 to render all listed dialogue lines and not omit speech balloons.",
+                "- Every promptPackCopyText block must enforce one consistent clean rounded manga lettering style across balloons, captions, and SFX.",
                 "- Every promptPackCopyText block must state clean black-and-white manga only, no color, no gray wash, pure white character bodies.",
                 "- Every promptPackCopyText block must state that characters have no hands or arms, while preserving model-sheet small feet, foot nubs, or lower-body nubs exactly.",
                 "- Every promptPackCopyText block must include a lower-frame foot visibility check for full-body characters.",
@@ -2106,7 +2266,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Prefer the chapter-specific scene reference files whenever the page happens in a known chapter scene location.",
                 "- Required uploads must be organized per page, and each item must include real upload image file names plus the matching relative paths.",
                 "- Use CHARACTER for character model sheets, SCENE for reusable master location refs, and CHAPTER_SCENE for chapter-only location sheets.",
-                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, reference reuse, clean high-contrast black-and-white manga style, pure white character fills, model-sheet exactness, mouth-state continuity, and handless telekinetic action across all 10 pages.",
+                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, reference reuse, clean high-contrast black-and-white manga style, pure white character fills, model-sheet exactness, mouth-state continuity, handless telekinetic action, exact dialogue rendering, and consistent lettering style across all 10 pages.",
                 "- Keep the tone useful, concrete, and ready for actual image production."
               ].join("\n")
             }
@@ -2172,6 +2332,12 @@ export async function generateComicPromptPackageWithAi(
         (page.panelCount === 2 || page.panelCount === 3) &&
         Array.isArray(page.panels) &&
         page.panels.length === page.panelCount &&
+        page.panels.every(
+          (panel) =>
+            typeof panel.promptText === "string" &&
+            Array.isArray(panel.dialogueLines) &&
+            normalizeComicDialogueLines(panel.dialogueLines).length > 0
+        ) &&
         Array.isArray(page.requiredUploads) &&
         typeof page.promptPackCopyText === "string" &&
         typeof page.referenceNotesCopyText === "string"
@@ -2183,21 +2349,36 @@ export async function generateComicPromptPackageWithAi(
   }
 
   const normalizedPages = pages
-    .map((page) => ({
-      ...page,
-      panels: [...page.panels].sort((left, right) => left.panelNumber - right.panelNumber),
-      requiredUploads: [...page.requiredUploads]
-        .map((upload) => ({
-          ...upload,
-          uploadImageNames: [...upload.uploadImageNames].sort((left, right) => left.localeCompare(right)),
-          relativePaths: [...upload.relativePaths].sort((left, right) => left.localeCompare(right))
+    .map((page) => {
+      const normalizedPanels = [...page.panels]
+        .map((panel) => ({
+          ...panel,
+          promptText: panel.promptText.trim(),
+          dialogueLines: normalizeComicDialogueLines(panel.dialogueLines)
         }))
-        .sort((left, right) => {
-          const bucketOrder = `${left.bucket}-${left.label}`;
-          const nextBucketOrder = `${right.bucket}-${right.label}`;
-          return bucketOrder.localeCompare(nextBucketOrder);
-        })
-    }))
+        .sort((left, right) => left.panelNumber - right.panelNumber);
+
+      return {
+        ...page,
+        promptPackCopyText: ensurePromptIncludesDialogueAndLettering(
+          page.promptPackCopyText,
+          normalizedPanels
+        ),
+        referenceNotesCopyText: ensureReferenceNotesIncludeLettering(page.referenceNotesCopyText),
+        panels: normalizedPanels,
+        requiredUploads: [...page.requiredUploads]
+          .map((upload) => ({
+            ...upload,
+            uploadImageNames: [...upload.uploadImageNames].sort((left, right) => left.localeCompare(right)),
+            relativePaths: [...upload.relativePaths].sort((left, right) => left.localeCompare(right))
+          }))
+          .sort((left, right) => {
+            const bucketOrder = `${left.bucket}-${left.label}`;
+            const nextBucketOrder = `${right.bucket}-${right.label}`;
+            return bucketOrder.localeCompare(nextBucketOrder);
+          })
+      };
+    })
     .sort((left, right) => left.pageNumber - right.pageNumber);
 
   return {
@@ -2206,6 +2387,8 @@ export async function generateComicPromptPackageWithAi(
     episodeScript: normalizedOutput.episodeScript.trim(),
     pagePlan: normalizedOutput.pagePlan.trim(),
     pages: normalizedPages,
-    globalGptImage2Notes: normalizedOutput.globalGptImage2Notes.trim()
+    globalGptImage2Notes: ensureReferenceNotesIncludeLettering(
+      normalizedOutput.globalGptImage2Notes
+    )
   };
 }

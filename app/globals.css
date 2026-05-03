@@ -535,6 +535,24 @@ main {
   font-size: 0.92rem;
 }
 
+.pill--success {
+  border-color: rgba(85, 168, 117, 0.3);
+  background: rgba(247, 255, 250, 0.94);
+  color: #3d7b55;
+}
+
+.pill--warning {
+  border-color: rgba(214, 151, 55, 0.32);
+  background: rgba(255, 251, 238, 0.94);
+  color: #8a6428;
+}
+
+.pill--danger {
+  border-color: rgba(217, 85, 67, 0.32);
+  background: rgba(255, 246, 244, 0.94);
+  color: #a84738;
+}
+
 .choice-pill {
   display: inline-flex;
   align-items: center;
@@ -3553,6 +3571,31 @@ main {
   color: var(--danger);
 }
 
+.admin-comic-task__actions {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
+.admin-comic-task__actions span {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.admin-comic-task__actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .admin-login {
   min-height: 100vh;
   display: grid;
@@ -4268,6 +4311,38 @@ main {
   margin: 0;
   color: var(--ink);
   font-size: 1rem;
+}
+
+.admin-comic-health-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-comic-health-item {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(214, 151, 55, 0.25);
+  background: rgba(255, 251, 238, 0.9);
+  color: #75531d;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.admin-comic-health-item--issue {
+  border-color: rgba(217, 85, 67, 0.28);
+  background: rgba(255, 246, 244, 0.92);
+  color: #9f3f31;
+}
+
+.admin-comic-lock-revision-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(237, 115, 97, 0.16);
+  background: rgba(255, 255, 255, 0.86);
 }
 
 .admin-comic-upload-name-list {

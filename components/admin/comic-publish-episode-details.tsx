@@ -14,6 +14,8 @@ type ComicPublishEpisodeDetailsProps = {
   requiredPageCount: number;
   draftPageCount: number;
   hasPromptPackage: boolean;
+  promptReadyCount?: number;
+  promptIssueCount?: number;
   children: ReactNode;
 };
 
@@ -29,6 +31,8 @@ export function ComicPublishEpisodeDetails({
   requiredPageCount,
   draftPageCount,
   hasPromptPackage,
+  promptReadyCount,
+  promptIssueCount,
   children
 }: ComicPublishEpisodeDetailsProps) {
   const [open, setOpen] = useState(true);
@@ -71,6 +75,11 @@ export function ComicPublishEpisodeDetails({
           <span className="pill">Chinese {chineseApprovedCount} / {requiredPageCount}</span>
           <span className="pill">{draftPageCount} draft images</span>
           <span className="pill">{hasPromptPackage ? "10-page prompts loaded" : "No prompts yet"}</span>
+          {typeof promptReadyCount === "number" ? (
+            <span className={promptIssueCount ? "pill pill--warning" : "pill pill--success"}>
+              Prompt QA {promptReadyCount} / {requiredPageCount}
+            </span>
+          ) : null}
         </div>
       </summary>
       <div className="admin-comic-publish-episode__body">{children}</div>

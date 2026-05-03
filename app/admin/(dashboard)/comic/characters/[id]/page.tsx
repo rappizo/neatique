@@ -3,10 +3,13 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   restoreComicCharacterLockAction,
-  reviseComicCharacterLockAction,
   updateComicCharacterAction,
   uploadComicCharacterReferenceAction
 } from "@/app/admin/comic-editor-actions";
+import {
+  ComicCharacterLockRevisionQueueForm,
+  ComicImageTaskQueueProvider
+} from "@/components/admin/comic-image-task-queue";
 import { getComicCharacterById } from "@/lib/comic-queries";
 import { getComicCharacterLockHistory } from "@/lib/comic-lock-history";
 import { getComicCharacterReferenceFiles } from "@/lib/comic-reference-manifest";
@@ -63,7 +66,8 @@ export default async function AdminComicCharacterDetailPage({
   ]);
 
   return (
-    <div className="admin-page">
+    <ComicImageTaskQueueProvider maxConcurrent={3}>
+      <div className="admin-page">
       <div className="stack-row">
         <Link href="/admin/comic/characters" className="button button--secondary">
           返回角色列表
@@ -179,7 +183,11 @@ export default async function AdminComicCharacterDetailPage({
           </div>
         </div>
 
-        <form action={reviseComicCharacterLockAction}>
+        <ComicCharacterLockRevisionQueueForm
+          characterId={character.id}
+          characterName={character.name}
+        />
+        <form hidden aria-hidden="true">
           <input type="hidden" name="id" value={character.id} />
           <div className="field">
             <label htmlFor="comic-character-lock-revision">修改意见</label>
@@ -333,6 +341,7 @@ export default async function AdminComicCharacterDetailPage({
           </button>
         </form>
       </section>
-    </div>
+      </div>
+    </ComicImageTaskQueueProvider>
   );
 }

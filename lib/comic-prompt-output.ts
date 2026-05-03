@@ -2,6 +2,13 @@ export type StoredPromptPanel = {
   panelNumber: number;
   panelTitle: string;
   storyBeat: string;
+  promptText?: string;
+  dialogueLines?: StoredPromptDialogueLine[];
+};
+
+export type StoredPromptDialogueLine = {
+  speaker: string;
+  text: string;
 };
 
 export type StoredPromptUpload = {
@@ -73,6 +80,50 @@ function isStoredPromptPage(value: unknown): value is StoredPromptPage {
     typeof (value as StoredPromptPage).pagePurpose === "string" &&
     typeof (value as StoredPromptPage).promptPackCopyText === "string" &&
     Array.isArray((value as StoredPromptPage).panels);
+}
+
+function normalizeStoredDialogueLines(value: unknown): StoredPromptDialogueLine[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((line) => ({
+      speaker:
+        line && typeof line === "object" && typeof (line as StoredPromptDialogueLine).speaker === "string"
+          ? (line as StoredPromptDialogueLine).speaker.trim()
+          : "",
+      text:
+        line && typeof line === "object" && typeof (line as StoredPromptDialogueLine).text === "string"
+          ? (line as StoredPromptDialogueLine).text.trim()
+          : ""
+    }))
+    .filter((line) => line.speaker && line.text);
+}
+
+function normalizeStoredPromptPanel(value: unknown): StoredPromptPanel | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const panel = value as Partial<StoredPromptPanel>;
+  const panelNumber = Number(panel.panelNumber);
+  const panelTitle = typeof panel.panelTitle === "string" ? panel.panelTitle.trim() : "";
+  const storyBeat = typeof panel.storyBeat === "string" ? panel.storyBeat.trim() : "";
+
+  if (!Number.isFinite(panelNumber) || panelNumber < 1 || !panelTitle || !storyBeat) {
+    return null;
+  }
+
+  const promptText = typeof panel.promptText === "string" ? panel.promptText.trim() : "";
+
+  return {
+    panelNumber,
+    panelTitle,
+    storyBeat,
+    ...(promptText ? { promptText } : {}),
+    dialogueLines: normalizeStoredDialogueLines(panel.dialogueLines)
+  };
 }
 
 function isStoredReferencePage(value: unknown): value is StoredReferencePage {
@@ -317,7 +368,9 @@ function parseLegacyComicPromptOutput(
         panels: panels.map((panel) => ({
           panelNumber: panel.panelNumber,
           panelTitle: panel.panelTitle,
-          storyBeat: panel.promptText
+          storyBeat: panel.promptText,
+          promptText: panel.promptText,
+          dialogueLines: []
         })),
         requiredUploads: getUniqueLegacyUploads(panels, pageNumber)
       };
@@ -360,7 +413,9 @@ export function parseComicPromptOutput(
           promptPackCopyText: page.promptPackCopyText,
           referenceNotesCopyText:
             referencePage?.referenceNotesCopyText || page.referenceNotesCopyText || "",
-          panels: page.panels,
+          panels: page.panels
+            .map(normalizeStoredPromptPanel)
+            .filter(Boolean) as StoredPromptPanel[],
           requiredUploads
         };
       })

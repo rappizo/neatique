@@ -3,7 +3,10 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { AdminActionResultDialog } from "@/components/admin/admin-action-result-dialog";
 import {
+  ComicChinesePageVersionQueueButton,
   ComicEditImageQueueForm,
+  ComicGenerateAllImagesQueueButton,
+  ComicGenerateAllChinesePagesQueueButton,
   ComicGenerateImageQueueButton,
   ComicGeneratePromptPackageQueueButton,
   ComicImageTaskQueueProvider,
@@ -15,7 +18,6 @@ import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import {
   approveChineseComicPageAssetAction,
   approveComicEpisodeAssetAction,
-  createChineseComicPageVersionAction,
   deleteComicEpisodeAssetAction,
   publishComicEpisodeFromCenterAction,
   unapproveChineseComicPageAssetAction,
@@ -24,6 +26,7 @@ import {
 } from "@/app/admin/comic-editor-actions";
 import { restoreComicPagePromptRevisionAction } from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
+import { getComicPromptHealthSummary } from "@/lib/comic-prompt-health";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { resolveComicPageReferenceImages } from "@/lib/comic-reference-images";
 import { formatDate } from "@/lib/format";
@@ -373,6 +376,20 @@ export default async function AdminComicPublishChapterPage({
             const redirectTo = buildRedirectTo(chapter.id, episode.id);
             const englishDownloadReady = episode.canPublish;
             const chineseDownloadReady = episode.canPublishChinese;
+            const promptHealth = getComicPromptHealthSummary(promptState.parsedPromptOutput);
+            const promptHealthByPage = new Map(
+              promptHealth.pages
+                .filter((pageHealth) => pageHealth.pageNumber > 0)
+                .map((pageHealth) => [pageHealth.pageNumber, pageHealth])
+            );
+            const missingChinesePages = promptState.pages
+              .filter((page) => page.approvedAsset && !page.approvedChineseAsset)
+              .map((page) => ({
+                sourceAssetId: page.approvedAsset?.id || "",
+                episodeId: episode.id,
+                pageNumber: page.pageNumber
+              }))
+              .filter((page) => page.sourceAssetId);
 
             return (
               <ComicPublishEpisodeDetails
@@ -388,6 +405,8 @@ export default async function AdminComicPublishChapterPage({
                 requiredPageCount={episode.requiredPageCount}
                 draftPageCount={episode.draftPageCount}
                 hasPromptPackage={Boolean(promptState.parsedPromptOutput)}
+                promptReadyCount={promptHealth.readyPages}
+                promptIssueCount={promptHealth.issueCount}
               >
                 <div className="admin-comic-publish-episode__controls">
                   <div className="admin-comic-publish-episode__actions">
@@ -406,6 +425,18 @@ export default async function AdminComicPublishChapterPage({
                       className="button button--secondary"
                       taskLabel={`Prompts: ${episode.title}`}
                     />
+                    {promptState.parsedPromptOutput ? (
+                      <ComicGenerateAllImagesQueueButton
+                        episodeId={episode.id}
+                        pageNumbers={promptState.pages
+                          .filter((page) => page.promptPage)
+                          .map((page) => page.pageNumber)}
+                        idleLabel="Generate all page drafts"
+                      />
+                    ) : null}
+                    {missingChinesePages.length > 0 ? (
+                      <ComicGenerateAllChinesePagesQueueButton pages={missingChinesePages} />
+                    ) : null}
                     <form action={publishComicEpisodeFromCenterAction}>
                       <input type="hidden" name="episodeId" value={episode.id} />
                       <input type="hidden" name="redirectTo" value={redirectTo} />
@@ -469,6 +500,7 @@ export default async function AdminComicPublishChapterPage({
                       : assets.length > 0
                         ? "Needs approval"
                         : "Needs image";
+                    const pageHealth = promptHealthByPage.get(pageNumber);
 
                     return (
                       <article
@@ -499,6 +531,11 @@ export default async function AdminComicPublishChapterPage({
                           <span className="pill">{promptPage?.panelCount || 0} panels</span>
                           <span className="pill">{assets.length} image candidates</span>
                           <span className="pill">{referenceImages.length} direct refs</span>
+                          {pageHealth ? (
+                            <span className={pageHealth.ready ? "pill pill--success" : "pill pill--danger"}>
+                              {pageHealth.ready ? "Prompt QA ready" : `${pageHealth.issueCount} prompt issues`}
+                            </span>
+                          ) : null}
                           {approvedChineseAsset ? <span className="pill">Chinese approved</span> : null}
                           {!approvedChineseAsset && chineseAssets.length > 0 ? (
                             <span className="pill">Chinese draft ready</span>
@@ -583,6 +620,22 @@ export default async function AdminComicPublishChapterPage({
                                   {uploadNames.map((uploadName) => (
                                     <span key={`${episode.id}-${pageNumber}-${uploadName}`} className="pill">
                                       {uploadName}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : null}
+                              {pageHealth?.findings.length ? (
+                                <div className="admin-comic-health-list">
+                                  {pageHealth.findings.map((finding, findingIndex) => (
+                                    <span
+                                      key={`${episode.id}-${pageNumber}-${finding.severity}-${findingIndex}`}
+                                      className={
+                                        finding.severity === "issue"
+                                          ? "admin-comic-health-item admin-comic-health-item--issue"
+                                          : "admin-comic-health-item admin-comic-health-item--warning"
+                                      }
+                                    >
+                                      {finding.message}
                                     </span>
                                   ))}
                                 </div>
@@ -702,21 +755,12 @@ export default async function AdminComicPublishChapterPage({
                                     pageNumber={pageNumber}
                                   />
                                   {asset.published ? (
-                                    <form action={createChineseComicPageVersionAction}>
-                                      <input type="hidden" name="id" value={asset.id} />
-                                      <input type="hidden" name="redirectTo" value={redirectTo} />
-                                      <PendingSubmitButton
-                                        idleLabel={
-                                          approvedChineseAsset
-                                            ? "Create Chinese Draft"
-                                            : "Create Chinese Version"
-                                        }
-                                        pendingLabel="Creating Chinese..."
-                                        className="button button--secondary"
-                                        modalTitle={`Creating Chinese ${formatPageLabel(pageNumber)}`}
-                                        modalDescription="The image API is translating visible comic text into Simplified Chinese while preserving the approved page artwork."
-                                      />
-                                    </form>
+                                    <ComicChinesePageVersionQueueButton
+                                      sourceAssetId={asset.id}
+                                      episodeId={episode.id}
+                                      pageNumber={pageNumber}
+                                      hasApprovedChineseAsset={Boolean(approvedChineseAsset)}
+                                    />
                                   ) : null}
                                   {asset.published && approvedChineseAsset ? (
                                     <a

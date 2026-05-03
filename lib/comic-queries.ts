@@ -742,7 +742,12 @@ export async function getComicPublishCenter() {
                   promptRuns: {
                     where: {
                       promptType: {
-                        in: ["PAGE_IMAGE_GENERATION", "PAGE_IMAGE_EDIT", "PAGE_PROMPT_REVISION"]
+                        in: [
+                          "PAGE_IMAGE_GENERATION",
+                          "PAGE_IMAGE_EDIT",
+                          "PAGE_PROMPT_REVISION",
+                          "PAGE_CHINESE_VERSION"
+                        ]
                       }
                     },
                     orderBy: [{ createdAt: "desc" }],

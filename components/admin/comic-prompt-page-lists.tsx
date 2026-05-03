@@ -1,10 +1,19 @@
-import { ComicGenerateImageQueueButton } from "@/components/admin/comic-image-task-queue";
+import {
+  ComicGenerateAllImagesQueueButton,
+  ComicGenerateImageQueueButton
+} from "@/components/admin/comic-image-task-queue";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
+import { getComicPromptHealthSummary } from "@/lib/comic-prompt-health";
 
 type PromptPanelView = {
   panelNumber: number;
   panelTitle: string;
   storyBeat: string;
+  promptText?: string;
+  dialogueLines?: Array<{
+    speaker: string;
+    text: string;
+  }>;
 };
 
 type PromptUploadView = {
@@ -72,7 +81,20 @@ function buildPanelSummary(page: PromptPageView) {
   }
 
   return page.panels
-    .map((panel) => `${formatPanelLabel(panel)}\n${panel.storyBeat}`)
+    .map((panel) => {
+      const dialogueLines = panel.dialogueLines?.length
+        ? panel.dialogueLines.map((line) => `${line.speaker}: "${line.text}"`).join("\n")
+        : "No dialogue lines listed.";
+
+      return [
+        formatPanelLabel(panel),
+        panel.storyBeat,
+        `Dialogue:\n${dialogueLines}`,
+        panel.promptText ? `Panel image direction:\n${panel.promptText}` : null
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
     .join("\n\n");
 }
 
@@ -112,6 +134,17 @@ export function ComicPromptPageLists({
   showGenerateActions = false
 }: ComicPromptPageListsProps) {
   const canGeneratePages = Boolean(showGenerateActions && episodeId && redirectTo);
+  const promptHealth = getComicPromptHealthSummary({
+    episodeLogline,
+    episodeSynopsis,
+    globalGptImage2Notes,
+    pages: promptPages
+  });
+  const pageHealthByNumber = new Map(
+    promptHealth.pages
+      .filter((pageHealth) => pageHealth.pageNumber > 0)
+      .map((pageHealth) => [pageHealth.pageNumber, pageHealth])
+  );
 
   return (
     <div className="admin-comic-prompt-lists">
@@ -141,6 +174,23 @@ export function ComicPromptPageLists({
               stored page context, or copy the kit when you want to run it manually.
             </p>
           </div>
+          <div className="stack-row">
+            <span className={promptHealth.issueCount > 0 ? "pill pill--warning" : "pill pill--success"}>
+              QA {promptHealth.readyPages} / {promptHealth.totalPages} ready
+            </span>
+            {promptHealth.issueCount > 0 ? (
+              <span className="pill pill--danger">{promptHealth.issueCount} issues</span>
+            ) : null}
+            {promptHealth.warningCount > 0 ? (
+              <span className="pill">{promptHealth.warningCount} warnings</span>
+            ) : null}
+          </div>
+          {canGeneratePages ? (
+            <ComicGenerateAllImagesQueueButton
+              episodeId={episodeId || ""}
+              pageNumbers={promptPages.map((page) => page.pageNumber)}
+            />
+          ) : null}
           {globalGptImage2Notes ? (
             <CopyTextButton
               text={globalGptImage2Notes}
@@ -165,6 +215,7 @@ export function ComicPromptPageLists({
           {promptPages.map((page) => {
             const uploadNames = getUniqueUploadNames(page);
             const pageProductionText = buildPageProductionText(page);
+            const pageHealth = pageHealthByNumber.get(page.pageNumber);
 
             return (
               <article key={`page-kit-${page.pageNumber}`} className="admin-comic-page-list-item">
@@ -175,6 +226,17 @@ export function ComicPromptPageLists({
                     <div className="stack-row">
                       <span className="pill">{page.panelCount} panels</span>
                       <span className="pill">{uploadNames.length} upload images</span>
+                      {pageHealth ? (
+                        <>
+                          <span className={pageHealth.ready ? "pill pill--success" : "pill pill--danger"}>
+                            {pageHealth.ready ? "QA ready" : `${pageHealth.issueCount} QA issues`}
+                          </span>
+                          <span className="pill">{pageHealth.dialogueLineCount} dialogue lines</span>
+                          <span className={pageHealth.hasLetteringGuide ? "pill pill--success" : "pill pill--warning"}>
+                            {pageHealth.hasLetteringGuide ? "Lettering locked" : "Lettering missing"}
+                          </span>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                   <div className="admin-comic-page-list-item__actions">
@@ -196,6 +258,23 @@ export function ComicPromptPageLists({
                     />
                   </div>
                 </div>
+
+                {pageHealth?.findings.length ? (
+                  <div className="admin-comic-health-list">
+                    {pageHealth.findings.map((finding, findingIndex) => (
+                      <span
+                        key={`${page.pageNumber}-${finding.severity}-${findingIndex}`}
+                        className={
+                          finding.severity === "issue"
+                            ? "admin-comic-health-item admin-comic-health-item--issue"
+                            : "admin-comic-health-item admin-comic-health-item--warning"
+                        }
+                      >
+                        {finding.message}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
 
                 <div className="admin-comic-page-section">
                   <div>
@@ -294,6 +373,16 @@ export function ComicPromptPageLists({
                       >
                         <strong>{formatPanelLabel(panel)}</strong>
                         <span className="form-note">{panel.storyBeat}</span>
+                        {panel.dialogueLines?.length ? (
+                          <span className="form-note">
+                            Dialogue:{" "}
+                            {panel.dialogueLines
+                              .map((line) => `${line.speaker}: "${line.text}"`)
+                              .join(" / ")}
+                          </span>
+                        ) : (
+                          <span className="form-note">Dialogue: none listed</span>
+                        )}
                       </li>
                     ))}
                   </ol>

@@ -14,7 +14,15 @@ import {
 import { useRouter } from "next/navigation";
 
 type ComicImageTaskStatus = "queued" | "running" | "success" | "failed";
-type ComicImageTaskKind = "generate" | "edit" | "prompt-package" | "prompt-revision" | "outline";
+type ComicImageTaskKind =
+  | "generate"
+  | "edit"
+  | "prompt-package"
+  | "prompt-revision"
+  | "outline"
+  | "character-lock-revision"
+  | "scene-lock-revision"
+  | "chinese-page-version";
 
 type ComicImageTask = {
   id: string;
@@ -35,6 +43,9 @@ type ComicImageTask = {
   outlineTaskType?: string;
   targetId?: string;
   revisionNotes?: string;
+  characterId?: string;
+  sceneId?: string;
+  revisionInstruction?: string;
 };
 
 type ComicImageTaskQueueContextValue = {
@@ -61,11 +72,30 @@ type ComicImageTaskQueueContextValue = {
     revisionNotes?: string;
     label?: string;
   }) => string;
+  enqueueCharacterLockRevision: (input: {
+    characterId: string;
+    revisionInstruction: string;
+    label?: string;
+  }) => string;
+  enqueueSceneLockRevision: (input: {
+    sceneId: string;
+    revisionInstruction: string;
+    label?: string;
+  }) => string;
+  enqueueChinesePageVersion: (input: {
+    assetId: string;
+    episodeId: string;
+    pageNumber: number;
+    label?: string;
+  }) => string;
   getLatestPageTask: (episodeId: string, pageNumber: number) => ComicImageTask | null;
+  retryTask: (taskId: string) => void;
+  cancelTask: (taskId: string) => void;
   clearCompleted: () => void;
 };
 
 const ComicImageTaskQueueContext = createContext<ComicImageTaskQueueContextValue | null>(null);
+const COMIC_TASK_STORAGE_KEY = "neatique:comic-ai-task-queue:v1";
 
 function formatPageLabel(pageNumber: number) {
   return `Page ${String(pageNumber).padStart(2, "0")}`;
@@ -79,6 +109,116 @@ function getTaskSortTime(task: ComicImageTask) {
   return task.completedAt || task.createdAt;
 }
 
+function isStoredComicTask(value: unknown): value is ComicImageTask {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const task = value as Partial<ComicImageTask>;
+  return (
+    typeof task.id === "string" &&
+    typeof task.kind === "string" &&
+    typeof task.label === "string" &&
+    typeof task.status === "string" &&
+    typeof task.createdAt === "number"
+  );
+}
+
+function normalizeStoredComicTasks(value: string | null) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    const tasks = Array.isArray(parsed) ? parsed.filter(isStoredComicTask) : [];
+
+    return tasks
+      .map((task) =>
+        task.status === "running"
+          ? {
+              ...task,
+              status: "failed" as const,
+              completedAt: Date.now(),
+              message: `${task.label} may still have finished on the server.`,
+              errorMessage: "This browser task was interrupted. Refresh the page and retry only if needed."
+            }
+          : task
+      )
+      .slice(-30);
+  } catch {
+    return [];
+  }
+}
+
+function getComicTaskEndpoint(task: ComicImageTask) {
+  switch (task.kind) {
+    case "edit":
+      return "/api/admin/comic/page-image-edit";
+    case "prompt-package":
+      return "/api/admin/comic/prompt-package-generation";
+    case "prompt-revision":
+      return "/api/admin/comic/page-prompt-revision";
+    case "outline":
+      return "/api/admin/comic/outline-generation";
+    case "character-lock-revision":
+      return "/api/admin/comic/character-lock-revision";
+    case "scene-lock-revision":
+      return "/api/admin/comic/scene-lock-revision";
+    case "chinese-page-version":
+      return "/api/admin/comic/chinese-page-version";
+    case "generate":
+    default:
+      return "/api/admin/comic/page-image-generation";
+  }
+}
+
+function getComicTaskRequestBody(task: ComicImageTask) {
+  switch (task.kind) {
+    case "edit":
+      return {
+        assetId: task.sourceAssetId,
+        editInstruction: task.editInstruction
+      };
+    case "prompt-package":
+      return {
+        episodeId: task.episodeId
+      };
+    case "prompt-revision":
+      return {
+        episodeId: task.episodeId,
+        pageNumber: task.pageNumber,
+        promptSuggestion: task.promptSuggestion
+      };
+    case "outline":
+      return {
+        taskType: task.outlineTaskType,
+        targetId: task.targetId,
+        revisionNotes: task.revisionNotes
+      };
+    case "character-lock-revision":
+      return {
+        id: task.characterId,
+        revisionInstruction: task.revisionInstruction
+      };
+    case "scene-lock-revision":
+      return {
+        id: task.sceneId,
+        revisionInstruction: task.revisionInstruction
+      };
+    case "chinese-page-version":
+      return {
+        assetId: task.sourceAssetId
+      };
+    case "generate":
+    default:
+      return {
+        episodeId: task.episodeId,
+        pageNumber: task.pageNumber
+      };
+  }
+}
+
 export function ComicImageTaskQueueProvider({
   children,
   maxConcurrent = 5
@@ -90,9 +230,24 @@ export function ComicImageTaskQueueProvider({
   const [tasks, setTasks] = useState<ComicImageTask[]>([]);
   const tasksRef = useRef<ComicImageTask[]>([]);
   const startedTaskIds = useRef(new Set<string>());
+  const hasLoadedStoredTasks = useRef(false);
 
   useEffect(() => {
+    if (!hasLoadedStoredTasks.current) {
+      hasLoadedStoredTasks.current = true;
+      setTasks(normalizeStoredComicTasks(window.localStorage.getItem(COMIC_TASK_STORAGE_KEY)));
+      return;
+    }
+
     tasksRef.current = tasks;
+    window.localStorage.setItem(
+      COMIC_TASK_STORAGE_KEY,
+      JSON.stringify(
+        [...tasks]
+          .sort((left, right) => getTaskSortTime(left) - getTaskSortTime(right))
+          .slice(-30)
+      )
+    );
   }, [tasks]);
 
   useEffect(() => {
@@ -129,42 +284,8 @@ export function ComicImageTaskQueueProvider({
 
     for (const task of runnableTasks) {
       startedTaskIds.current.add(task.id);
-      const endpoint =
-        task.kind === "edit"
-          ? "/api/admin/comic/page-image-edit"
-          : task.kind === "prompt-package"
-            ? "/api/admin/comic/prompt-package-generation"
-            : task.kind === "prompt-revision"
-              ? "/api/admin/comic/page-prompt-revision"
-              : task.kind === "outline"
-                ? "/api/admin/comic/outline-generation"
-              : "/api/admin/comic/page-image-generation";
-      const requestBody =
-        task.kind === "edit"
-          ? {
-              assetId: task.sourceAssetId,
-              editInstruction: task.editInstruction
-            }
-          : task.kind === "prompt-package"
-            ? {
-                episodeId: task.episodeId
-              }
-            : task.kind === "prompt-revision"
-              ? {
-                  episodeId: task.episodeId,
-                  pageNumber: task.pageNumber,
-                  promptSuggestion: task.promptSuggestion
-                }
-              : task.kind === "outline"
-                ? {
-                    taskType: task.outlineTaskType,
-                    targetId: task.targetId,
-                    revisionNotes: task.revisionNotes
-                  }
-              : {
-                  episodeId: task.episodeId,
-                  pageNumber: task.pageNumber
-                };
+      const endpoint = getComicTaskEndpoint(task);
+      const requestBody = getComicTaskRequestBody(task);
 
       void fetch(endpoint, {
         method: "POST",
@@ -424,12 +545,165 @@ export function ComicImageTaskQueueProvider({
     []
   );
 
+  const enqueueCharacterLockRevision = useCallback(
+    (input: {
+      characterId: string;
+      revisionInstruction: string;
+      label?: string;
+    }) => {
+      const revisionInstruction = input.revisionInstruction.trim();
+      const activeTask = tasksRef.current.find(
+        (task) =>
+          task.kind === "character-lock-revision" &&
+          task.characterId === input.characterId &&
+          task.revisionInstruction === revisionInstruction &&
+          (task.status === "queued" || task.status === "running")
+      );
+
+      if (activeTask) {
+        return activeTask.id;
+      }
+
+      const id = createTaskId("character-lock-revision", input.characterId, 0);
+      const label = input.label || "Character lock revision";
+
+      setTasks((currentTasks) => [
+        ...currentTasks,
+        {
+          id,
+          kind: "character-lock-revision",
+          episodeId: "",
+          pageNumber: 0,
+          label,
+          status: "queued",
+          createdAt: Date.now(),
+          characterId: input.characterId,
+          revisionInstruction
+        }
+      ]);
+
+      return id;
+    },
+    []
+  );
+
+  const enqueueSceneLockRevision = useCallback(
+    (input: {
+      sceneId: string;
+      revisionInstruction: string;
+      label?: string;
+    }) => {
+      const revisionInstruction = input.revisionInstruction.trim();
+      const activeTask = tasksRef.current.find(
+        (task) =>
+          task.kind === "scene-lock-revision" &&
+          task.sceneId === input.sceneId &&
+          task.revisionInstruction === revisionInstruction &&
+          (task.status === "queued" || task.status === "running")
+      );
+
+      if (activeTask) {
+        return activeTask.id;
+      }
+
+      const id = createTaskId("scene-lock-revision", input.sceneId, 0);
+      const label = input.label || "Scene lock revision";
+
+      setTasks((currentTasks) => [
+        ...currentTasks,
+        {
+          id,
+          kind: "scene-lock-revision",
+          episodeId: "",
+          pageNumber: 0,
+          label,
+          status: "queued",
+          createdAt: Date.now(),
+          sceneId: input.sceneId,
+          revisionInstruction
+        }
+      ]);
+
+      return id;
+    },
+    []
+  );
+
+  const enqueueChinesePageVersion = useCallback(
+    (input: {
+      assetId: string;
+      episodeId: string;
+      pageNumber: number;
+      label?: string;
+    }) => {
+      const activeTask = tasksRef.current.find(
+        (task) =>
+          task.kind === "chinese-page-version" &&
+          task.sourceAssetId === input.assetId &&
+          (task.status === "queued" || task.status === "running")
+      );
+
+      if (activeTask) {
+        return activeTask.id;
+      }
+
+      const id = createTaskId("chinese-page-version", input.episodeId, input.pageNumber);
+      const label = input.label || `Chinese ${formatPageLabel(input.pageNumber)}`;
+
+      setTasks((currentTasks) => [
+        ...currentTasks,
+        {
+          id,
+          kind: "chinese-page-version",
+          episodeId: input.episodeId,
+          pageNumber: input.pageNumber,
+          label,
+          status: "queued",
+          createdAt: Date.now(),
+          sourceAssetId: input.assetId
+        }
+      ]);
+
+      return id;
+    },
+    []
+  );
+
   const getLatestPageTask = useCallback((episodeId: string, pageNumber: number) => {
     const pageTasks = tasksRef.current
       .filter((task) => task.episodeId === episodeId && task.pageNumber === pageNumber)
       .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left));
 
     return pageTasks[0] || null;
+  }, []);
+
+  const retryTask = useCallback((taskId: string) => {
+    setTasks((currentTasks) => {
+      const task = currentTasks.find((candidate) => candidate.id === taskId);
+
+      if (!task || task.status !== "failed") {
+        return currentTasks;
+      }
+
+      return [
+        ...currentTasks,
+        {
+          ...task,
+          id: createTaskId(task.kind, task.episodeId || task.targetId || task.sourceAssetId || "task", task.pageNumber),
+          status: "queued",
+          createdAt: Date.now(),
+          completedAt: undefined,
+          message: undefined,
+          errorMessage: undefined
+        }
+      ];
+    });
+  }, []);
+
+  const cancelTask = useCallback((taskId: string) => {
+    setTasks((currentTasks) =>
+      currentTasks.filter((task) => task.id !== taskId || task.status !== "queued")
+    );
   }, []);
 
   const clearCompleted = useCallback(() => {
@@ -447,7 +721,12 @@ export function ComicImageTaskQueueProvider({
       enqueuePromptPackage,
       enqueuePromptRevision,
       enqueueOutlineTask,
+      enqueueCharacterLockRevision,
+      enqueueSceneLockRevision,
+      enqueueChinesePageVersion,
       getLatestPageTask,
+      retryTask,
+      cancelTask,
       clearCompleted
     }),
     [
@@ -458,7 +737,12 @@ export function ComicImageTaskQueueProvider({
       enqueuePromptPackage,
       enqueuePromptRevision,
       enqueueOutlineTask,
+      enqueueCharacterLockRevision,
+      enqueueSceneLockRevision,
+      enqueueChinesePageVersion,
       getLatestPageTask,
+      retryTask,
+      cancelTask,
       clearCompleted
     ]
   );
@@ -523,6 +807,140 @@ export function ComicGenerateImageQueueButton({
       onClick={() => enqueue({ episodeId, pageNumber, label: formatPageLabel(pageNumber) })}
     >
       {label}
+    </button>
+  );
+}
+
+export function ComicGenerateAllImagesQueueButton({
+  episodeId,
+  pageNumbers,
+  className = "button button--secondary",
+  idleLabel = "Generate all draft images"
+}: {
+  episodeId: string;
+  pageNumbers: number[];
+  className?: string;
+  idleLabel?: string;
+}) {
+  const { enqueue, tasks } = useComicImageTaskQueue();
+  const uniquePageNumbers = Array.from(new Set(pageNumbers)).filter((pageNumber) => pageNumber > 0);
+  const activeCount = tasks.filter(
+    (task) =>
+      task.kind === "generate" &&
+      task.episodeId === episodeId &&
+      uniquePageNumbers.includes(task.pageNumber) &&
+      (task.status === "queued" || task.status === "running")
+  ).length;
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={uniquePageNumbers.length === 0}
+      onClick={() => {
+        uniquePageNumbers.forEach((pageNumber) =>
+          enqueue({ episodeId, pageNumber, label: formatPageLabel(pageNumber) })
+        );
+      }}
+    >
+      {activeCount > 0 ? `${activeCount} page images queued` : idleLabel}
+    </button>
+  );
+}
+
+export function ComicChinesePageVersionQueueButton({
+  sourceAssetId,
+  episodeId,
+  pageNumber,
+  hasApprovedChineseAsset = false,
+  className = "button button--secondary"
+}: {
+  sourceAssetId: string;
+  episodeId: string;
+  pageNumber: number;
+  hasApprovedChineseAsset?: boolean;
+  className?: string;
+}) {
+  const { enqueueChinesePageVersion, tasks } = useComicImageTaskQueue();
+  const task =
+    [...tasks]
+      .filter(
+        (candidate) =>
+          candidate.kind === "chinese-page-version" && candidate.sourceAssetId === sourceAssetId
+      )
+      .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
+  const isActive = task?.status === "queued" || task?.status === "running";
+  const label =
+    task?.status === "queued"
+      ? "Queued..."
+      : task?.status === "running"
+        ? "Creating Chinese..."
+        : task?.status === "success"
+          ? "Create another Chinese draft"
+          : task?.status === "failed"
+            ? "Retry Chinese version"
+            : hasApprovedChineseAsset
+              ? "Create Chinese Draft"
+              : "Create Chinese Version";
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={isActive}
+      aria-busy={task?.status === "running"}
+      onClick={() =>
+        enqueueChinesePageVersion({
+          assetId: sourceAssetId,
+          episodeId,
+          pageNumber,
+          label: `Chinese ${formatPageLabel(pageNumber)}`
+        })
+      }
+    >
+      {label}
+    </button>
+  );
+}
+
+export function ComicGenerateAllChinesePagesQueueButton({
+  pages,
+  className = "button button--secondary",
+  idleLabel = "Create missing Chinese drafts"
+}: {
+  pages: Array<{
+    sourceAssetId: string;
+    episodeId: string;
+    pageNumber: number;
+  }>;
+  className?: string;
+  idleLabel?: string;
+}) {
+  const { enqueueChinesePageVersion, tasks } = useComicImageTaskQueue();
+  const activeCount = tasks.filter(
+    (task) =>
+      task.kind === "chinese-page-version" &&
+      pages.some((page) => page.sourceAssetId === task.sourceAssetId) &&
+      (task.status === "queued" || task.status === "running")
+  ).length;
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={pages.length === 0}
+      onClick={() => {
+        pages.forEach((page) =>
+          enqueueChinesePageVersion({
+            assetId: page.sourceAssetId,
+            episodeId: page.episodeId,
+            pageNumber: page.pageNumber,
+            label: `Chinese ${formatPageLabel(page.pageNumber)}`
+          })
+        );
+      }}
+    >
+      {activeCount > 0 ? `${activeCount} Chinese tasks queued` : idleLabel}
     </button>
   );
 }
@@ -705,6 +1123,130 @@ export function ComicRevisePromptQueueForm({
   );
 }
 
+export function ComicCharacterLockRevisionQueueForm({
+  characterId,
+  characterName
+}: {
+  characterId: string;
+  characterName: string;
+}) {
+  const { enqueueCharacterLockRevision, tasks } = useComicImageTaskQueue();
+  const [revisionInstruction, setRevisionInstruction] = useState("");
+  const [notice, setNotice] = useState("");
+  const trimmedInstruction = revisionInstruction.trim();
+  const activeRevisionCount = tasks.filter(
+    (task) =>
+      task.kind === "character-lock-revision" &&
+      task.characterId === characterId &&
+      (task.status === "queued" || task.status === "running")
+  ).length;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!trimmedInstruction) {
+      setNotice("Enter a revision instruction first.");
+      return;
+    }
+
+    enqueueCharacterLockRevision({
+      characterId,
+      revisionInstruction: trimmedInstruction,
+      label: `Character lock: ${characterName}`
+    });
+    setRevisionInstruction("");
+    setNotice("Added to Comic tasks.");
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="admin-comic-lock-revision-form">
+      <div className="field">
+        <label htmlFor={`comic-character-lock-revision-${characterId}`}>Revision instruction</label>
+        <textarea
+          id={`comic-character-lock-revision-${characterId}`}
+          name="revisionInstruction"
+          rows={5}
+          placeholder="Describe exactly what should change in the locked character profile..."
+          value={revisionInstruction}
+          onChange={(event) => {
+            setRevisionInstruction(event.target.value);
+            if (notice) {
+              setNotice("");
+            }
+          }}
+          required
+        />
+      </div>
+      <button type="submit" className="button button--primary" disabled={!trimmedInstruction}>
+        {activeRevisionCount > 0 ? "Queue another lock update" : "Update lock with AI"}
+      </button>
+      {notice ? <span className="form-note">{notice}</span> : null}
+    </form>
+  );
+}
+
+export function ComicSceneLockRevisionQueueForm({
+  sceneId,
+  sceneName
+}: {
+  sceneId: string;
+  sceneName: string;
+}) {
+  const { enqueueSceneLockRevision, tasks } = useComicImageTaskQueue();
+  const [revisionInstruction, setRevisionInstruction] = useState("");
+  const [notice, setNotice] = useState("");
+  const trimmedInstruction = revisionInstruction.trim();
+  const activeRevisionCount = tasks.filter(
+    (task) =>
+      task.kind === "scene-lock-revision" &&
+      task.sceneId === sceneId &&
+      (task.status === "queued" || task.status === "running")
+  ).length;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!trimmedInstruction) {
+      setNotice("Enter a revision instruction first.");
+      return;
+    }
+
+    enqueueSceneLockRevision({
+      sceneId,
+      revisionInstruction: trimmedInstruction,
+      label: `Scene lock: ${sceneName}`
+    });
+    setRevisionInstruction("");
+    setNotice("Added to Comic tasks.");
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="admin-comic-lock-revision-form">
+      <div className="field">
+        <label htmlFor={`comic-scene-lock-revision-${sceneId}`}>Revision instruction</label>
+        <textarea
+          id={`comic-scene-lock-revision-${sceneId}`}
+          name="revisionInstruction"
+          rows={5}
+          placeholder="Describe exactly what should change in the locked scene profile..."
+          value={revisionInstruction}
+          onChange={(event) => {
+            setRevisionInstruction(event.target.value);
+            if (notice) {
+              setNotice("");
+            }
+          }}
+          required
+        />
+      </div>
+      <button type="submit" className="button button--primary" disabled={!trimmedInstruction}>
+        {activeRevisionCount > 0 ? "Queue another lock update" : "Update lock with AI"}
+      </button>
+      {notice ? <span className="form-note">{notice}</span> : null}
+    </form>
+  );
+}
+
 export function ComicOutlineQueueForm({
   taskType,
   targetId,
@@ -793,7 +1335,7 @@ export function ComicOutlineQueueForm({
 }
 
 function ComicImageTaskQueuePanel() {
-  const { tasks, maxConcurrent, clearCompleted } = useComicImageTaskQueue();
+  const { tasks, maxConcurrent, retryTask, cancelTask, clearCompleted } = useComicImageTaskQueue();
 
   if (tasks.length === 0) {
     return null;
@@ -830,7 +1372,19 @@ function ComicImageTaskQueuePanel() {
               <span>{task.message || task.status}</span>
               {task.errorMessage ? <small>{task.errorMessage}</small> : null}
             </div>
-            <span>{task.status}</span>
+            <div className="admin-comic-task__actions">
+              <span>{task.status}</span>
+              {task.status === "failed" ? (
+                <button type="button" onClick={() => retryTask(task.id)}>
+                  Retry
+                </button>
+              ) : null}
+              {task.status === "queued" ? (
+                <button type="button" onClick={() => cancelTask(task.id)}>
+                  Cancel
+                </button>
+              ) : null}
+            </div>
           </div>
         ))}
       </div>

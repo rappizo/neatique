@@ -304,11 +304,25 @@ function toStoredPromptPanels(value: unknown) {
   }
 
   return value
-    .map((panel) => ({
-      panelNumber: Number(panel?.panelNumber),
-      panelTitle: typeof panel?.panelTitle === "string" ? panel.panelTitle.trim() : "",
-      storyBeat: typeof panel?.storyBeat === "string" ? panel.storyBeat.trim() : ""
-    }))
+    .map((panel) => {
+      const dialogueLines = Array.isArray(panel?.dialogueLines)
+        ? panel.dialogueLines
+            .map((line: any) => ({
+              speaker: typeof line?.speaker === "string" ? line.speaker.trim() : "",
+              text: typeof line?.text === "string" ? line.text.trim() : ""
+            }))
+            .filter((line: { speaker: string; text: string }) => line.speaker && line.text)
+        : [];
+      const promptText = typeof panel?.promptText === "string" ? panel.promptText.trim() : "";
+
+      return {
+        panelNumber: Number(panel?.panelNumber),
+        panelTitle: typeof panel?.panelTitle === "string" ? panel.panelTitle.trim() : "",
+        storyBeat: typeof panel?.storyBeat === "string" ? panel.storyBeat.trim() : "",
+        ...(promptText ? { promptText } : {}),
+        dialogueLines
+      };
+    })
     .filter((panel) => panel.panelNumber >= 1 && panel.panelTitle && panel.storyBeat)
     .sort((left, right) => left.panelNumber - right.panelNumber);
 }
