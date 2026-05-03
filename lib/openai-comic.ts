@@ -27,7 +27,7 @@ const OPENAI_COMIC_PROMPT_REASONING_EFFORT =
   process.env.OPENAI_COMIC_PROMPT_REASONING_EFFORT || "low";
 const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 55;
 const DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS = 1000 * 55;
-const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 50;
+const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 52;
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Non-negotiable visual production locks:",
@@ -265,6 +265,7 @@ export type GenerateComicPageImageInput = {
   requiredUploads: GeneratedComicPageUpload[];
   referenceImages?: ComicReferenceImageFile[];
   characterLocks?: ComicCharacterIdentityLock[];
+  generationAttempt?: number;
 };
 
 export type GeneratedComicPageImageAsset = {
@@ -406,8 +407,58 @@ function getOpenAiComicImageAbortSignal() {
   return AbortSignal.timeout(getOpenAiComicImageTimeoutMs());
 }
 
-function getOpenAiComicImageQuality() {
-  return (process.env.OPENAI_COMIC_IMAGE_QUALITY || "medium").trim() || "medium";
+function getOpenAiComicImageQuality(attempt = 1) {
+  const configured = process.env.OPENAI_COMIC_IMAGE_QUALITY?.trim();
+
+  if (configured) {
+    return configured;
+  }
+
+  return attempt >= 2 ? "low" : "medium";
+}
+
+function getOpenAiComicImageOutputFormat() {
+  const configured = (process.env.OPENAI_COMIC_IMAGE_OUTPUT_FORMAT || "webp").trim().toLowerCase();
+
+  return ["png", "jpeg", "webp"].includes(configured) ? configured : "webp";
+}
+
+function getOpenAiComicImageOutputCompression() {
+  const configured = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_OUTPUT_COMPRESSION || "", 10);
+
+  if (!Number.isFinite(configured) || configured <= 0) {
+    return 85;
+  }
+
+  return Math.min(Math.max(configured, 50), 100);
+}
+
+function getOpenAiComicImageMimeType(outputFormat: string) {
+  if (outputFormat === "jpeg") {
+    return "image/jpeg";
+  }
+
+  if (outputFormat === "webp") {
+    return "image/webp";
+  }
+
+  return "image/png";
+}
+
+function getOpenAiComicImageInputFidelity(attempt = 1) {
+  const imageModel = DEFAULT_OPENAI_COMIC_IMAGE_MODEL.trim().toLowerCase();
+
+  if (imageModel === "gpt-image-2") {
+    return "";
+  }
+
+  const configured = process.env.OPENAI_COMIC_IMAGE_INPUT_FIDELITY?.trim();
+
+  if (configured) {
+    return configured;
+  }
+
+  return attempt >= 2 ? "low" : "high";
 }
 
 function isOpenAiTimeoutError(error: unknown) {
@@ -1373,7 +1424,10 @@ function extractOpenAiErrorMessage(error: unknown) {
   return null;
 }
 
-function parseImageBase64Response(value: string): GeneratedComicPageImageAsset {
+function parseImageBase64Response(
+  value: string,
+  fallbackMimeType = "image/png"
+): GeneratedComicPageImageAsset {
   const dataUrlMatch = value.match(/^data:([^;]+);base64,([\s\S]+)$/);
 
   if (dataUrlMatch) {
@@ -1384,7 +1438,7 @@ function parseImageBase64Response(value: string): GeneratedComicPageImageAsset {
   }
 
   return {
-    mimeType: "image/png",
+    mimeType: fallbackMimeType,
     base64Data: value
   };
 }
@@ -1634,6 +1688,67 @@ function ensurePromptIncludesDialogueAndLettering(
   return additions.length > 0 ? `${prompt.trim()}\n\n${additions.join("\n\n")}` : prompt.trim();
 }
 
+function getComicPageImageAttemptGuide(input: GenerateComicPageImageInput) {
+  const attempt = Math.max(input.generationAttempt || 1, 1);
+
+  if (attempt >= 3) {
+    return [
+      "Character-reference priority retry mode:",
+      "- The attached character model sheets remain mandatory identity locks. Do not generate this page without character references.",
+      "- Keep the composition simpler and avoid nonessential background detail, but preserve every character silhouette, face placement, body fill, and feet exactly.",
+      "- Prefer fewer, larger, cleaner drawings over complex crowding so the reference-guided edit can finish reliably."
+    ].join("\n");
+  }
+
+  if (attempt === 2) {
+    return [
+      "Fast reference mode:",
+      "- Use the attached model sheets as strict identity references while keeping the page composition simpler.",
+      "- Avoid overly detailed backgrounds or crowding if they slow generation or risk identity drift."
+    ].join("\n");
+  }
+
+  return "Primary reference mode: use the attached model sheets and scene references as strict identity and continuity locks.";
+}
+
+function isComicCharacterReferenceImage(reference: ComicReferenceImageFile) {
+  return reference.bucket === "CHARACTER" || reference.bucket === "DETECTED_CHARACTER";
+}
+
+function getOpenAiComicImageReferenceLimit() {
+  const maxReferenceImages = Number.parseInt(process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES || "", 10);
+
+  return Number.isFinite(maxReferenceImages) && maxReferenceImages > 0
+    ? Math.min(Math.max(maxReferenceImages, 4), 16)
+    : 8;
+}
+
+function selectComicPageImageReferenceImages(
+  references: ComicReferenceImageFile[],
+  attempt: number
+) {
+  const referenceLimit = getOpenAiComicImageReferenceLimit();
+
+  if (attempt <= 1) {
+    return references.slice(0, referenceLimit);
+  }
+
+  const characterReferences = references.filter(isComicCharacterReferenceImage);
+  const nonCharacterReferences = references.filter((reference) => !isComicCharacterReferenceImage(reference));
+
+  if (characterReferences.length > 0) {
+    const selected = characterReferences.slice(0, referenceLimit);
+
+    if (attempt === 2 && selected.length < referenceLimit) {
+      selected.push(...nonCharacterReferences.slice(0, referenceLimit - selected.length));
+    }
+
+    return selected;
+  }
+
+  return references.slice(0, Math.min(referenceLimit, 2));
+}
+
 function ensureReferenceNotesIncludeLettering(notes: string) {
   return /lettering|speech balloon|speech balloons|caption/i.test(notes)
     ? notes.trim()
@@ -1820,6 +1935,8 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Render every specified dialogue line, caption, and SFX from the panel plan. Do not omit dialogue balloons.",
     COMIC_LETTERING_STYLE_LOCKS,
     "",
+    getComicPageImageAttemptGuide(input),
+    "",
     "Story context:",
     `Project: ${input.projectTitle}`,
     `Season: ${input.seasonTitle}`,
@@ -1864,94 +1981,56 @@ export async function generateComicPageImageWithAi(
     throw new Error("Comic image API key is not configured.");
   }
 
-  const prompt = buildComicPageImagePrompt(input);
-  const maxReferenceImages = Number.parseInt(process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES || "", 10);
-  const referenceImageLimit =
-    Number.isFinite(maxReferenceImages) && maxReferenceImages > 0
-      ? Math.min(Math.max(maxReferenceImages, 4), 16)
-      : 8;
-  const referenceImages = (input.referenceImages || []).slice(0, referenceImageLimit);
-  const imageQuality = getOpenAiComicImageQuality();
+  const attempt = Math.max(input.generationAttempt || 1, 1);
+  const referenceImages = selectComicPageImageReferenceImages(input.referenceImages || [], attempt);
+  const imageQuality = getOpenAiComicImageQuality(attempt);
+  const outputFormat = getOpenAiComicImageOutputFormat();
+  const outputMimeType = getOpenAiComicImageMimeType(outputFormat);
+  const outputCompression = getOpenAiComicImageOutputCompression();
+  const prompt = buildComicPageImagePrompt({
+    ...input,
+    referenceImages
+  });
 
-  if (referenceImages.length > 0) {
-    const formData = new FormData();
-    formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
-    formData.append("prompt", prompt);
-    formData.append("size", "1024x1536");
-    formData.append("quality", imageQuality);
-    formData.append("n", "1");
-
-    const inputFidelity = (process.env.OPENAI_COMIC_IMAGE_INPUT_FIDELITY || "high").trim();
-    if (inputFidelity) {
-      formData.append("input_fidelity", inputFidelity);
-    }
-
-    for (const referenceImage of referenceImages) {
-      const blob = new Blob([new Uint8Array(referenceImage.data)], {
-        type: referenceImage.mimeType
-      });
-      formData.append("image[]", blob, referenceImage.fileName);
-    }
-
-    const response = await fetchOpenAiComicImageResponse(
-      `${imageApiSettings.baseUrl}/images/edits`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${imageApiSettings.apiKey}`
-        },
-        body: formData
-      },
-      "OpenAI comic page image reference edit"
+  if (referenceImages.length === 0) {
+    throw new Error(
+      "No comic reference images were loaded for this page. Regenerate the page prompt or fix the character reference checklist before running image generation."
     );
+  }
 
-    const rawText = await response.text();
-    const parsed = rawText ? safeJsonParse(rawText) : null;
+  const formData = new FormData();
+  formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
+  formData.append("prompt", prompt);
+  formData.append("size", "1024x1536");
+  formData.append("quality", imageQuality);
+  formData.append("output_format", outputFormat);
+  if (outputFormat !== "png") {
+    formData.append("output_compression", String(outputCompression));
+  }
+  formData.append("n", "1");
 
-    if (!response.ok) {
-      const parsedRecord =
-        parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-      const message =
-        (parsedRecord && "error" in parsedRecord
-          ? extractOpenAiErrorMessage(parsedRecord.error)
-          : null) || `OpenAI comic page image reference edit failed with ${response.status}.`;
-      throw new Error(message);
-    }
+  const inputFidelity = getOpenAiComicImageInputFidelity(attempt);
+  if (inputFidelity) {
+    formData.append("input_fidelity", inputFidelity);
+  }
 
-    const data =
-      parsed && typeof parsed === "object" && Array.isArray((parsed as any).data)
-        ? (parsed as any).data
-        : [];
-    const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
-    const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
-
-    if (!base64Data) {
-      if (imageUrl) {
-        return fetchImageUrlAsBase64(imageUrl);
-      }
-
-      throw new Error("Comic image API did not return a reference-guided comic page image.");
-    }
-
-    return parseImageBase64Response(base64Data);
+  for (const referenceImage of referenceImages) {
+    const blob = new Blob([new Uint8Array(referenceImage.data)], {
+      type: referenceImage.mimeType
+    });
+    formData.append("image[]", blob, referenceImage.fileName);
   }
 
   const response = await fetchOpenAiComicImageResponse(
-    `${imageApiSettings.baseUrl}/images/generations`,
+    `${imageApiSettings.baseUrl}/images/edits`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${imageApiSettings.apiKey}`,
-        "Content-Type": "application/json"
+        Authorization: `Bearer ${imageApiSettings.apiKey}`
       },
-      body: JSON.stringify({
-        model: DEFAULT_OPENAI_COMIC_IMAGE_MODEL,
-        prompt,
-        size: "1024x1536",
-        quality: imageQuality
-      })
+      body: formData
     },
-    "OpenAI comic page image generation"
+    "OpenAI comic page image reference edit"
   );
 
   const rawText = await response.text();
@@ -1963,7 +2042,7 @@ export async function generateComicPageImageWithAi(
     const message =
       (parsedRecord && "error" in parsedRecord
         ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI comic page image generation failed with ${response.status}.`;
+        : null) || `OpenAI comic page image reference edit failed with ${response.status}.`;
     throw new Error(message);
   }
 
@@ -1976,10 +2055,10 @@ export async function generateComicPageImageWithAi(
       return fetchImageUrlAsBase64(imageUrl);
     }
 
-    throw new Error("Comic image API did not return a comic page image.");
+    throw new Error("Comic image API did not return a reference-guided comic page image.");
   }
 
-  return parseImageBase64Response(base64Data);
+  return parseImageBase64Response(base64Data, outputMimeType);
 }
 
 export async function generateChineseComicPageVersionWithAi(input: {
@@ -2013,6 +2092,11 @@ export async function generateChineseComicPageVersionWithAi(input: {
   );
   formData.append("size", "1024x1536");
   formData.append("quality", getOpenAiComicImageQuality());
+  const outputFormat = getOpenAiComicImageOutputFormat();
+  formData.append("output_format", outputFormat);
+  if (outputFormat !== "png") {
+    formData.append("output_compression", String(getOpenAiComicImageOutputCompression()));
+  }
   formData.append(
     "image",
     new Blob([new Uint8Array(sourceBuffer)], { type: input.sourceImage.mimeType }),
@@ -2056,7 +2140,7 @@ export async function generateChineseComicPageVersionWithAi(input: {
     throw new Error("Comic image API did not return a Chinese comic page image.");
   }
 
-  return parseImageBase64Response(base64Data);
+  return parseImageBase64Response(base64Data, getOpenAiComicImageMimeType(getOpenAiComicImageOutputFormat()));
 }
 
 export async function editComicPageImageWithAi(input: {
@@ -2104,6 +2188,11 @@ export async function editComicPageImageWithAi(input: {
   );
   formData.append("size", "1024x1536");
   formData.append("quality", getOpenAiComicImageQuality());
+  const outputFormat = getOpenAiComicImageOutputFormat();
+  formData.append("output_format", outputFormat);
+  if (outputFormat !== "png") {
+    formData.append("output_compression", String(getOpenAiComicImageOutputCompression()));
+  }
   formData.append(
     "image",
     new Blob([new Uint8Array(sourceBuffer)], { type: input.sourceImage.mimeType }),
@@ -2147,7 +2236,7 @@ export async function editComicPageImageWithAi(input: {
     throw new Error("Comic image API did not return an edited comic page image.");
   }
 
-  return parseImageBase64Response(base64Data);
+  return parseImageBase64Response(base64Data, getOpenAiComicImageMimeType(getOpenAiComicImageOutputFormat()));
 }
 
 export async function reviseComicPagePromptWithAi(

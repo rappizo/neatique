@@ -41,8 +41,10 @@ export type ComicPageImageGenerationResult = {
 export async function generateComicPageImageForEpisode(input: {
   episodeId: string;
   pageNumber: number;
+  attempt?: number;
 }): Promise<ComicPageImageGenerationResult> {
   const { episodeId, pageNumber } = input;
+  const attempt = Math.max(input.attempt || 1, 1);
 
   if (!episodeId) {
     throw new ComicPageImageGenerationInputError("missing-episode", "Episode is required.");
@@ -134,7 +136,8 @@ export async function generateComicPageImageForEpisode(input: {
     })),
     requiredUploads: page.requiredUploads,
     referenceImages,
-    characterLocks
+    characterLocks,
+    generationAttempt: attempt
   };
   const inputPrompt = buildComicPageImagePrompt(imageInput);
   const inputContext = JSON.stringify(

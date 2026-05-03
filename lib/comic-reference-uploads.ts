@@ -1,6 +1,10 @@
 import { Buffer } from "node:buffer";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  compressComicReferenceImage,
+  getCompressedComicReferenceFileName
+} from "@/lib/comic-reference-compression";
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 
@@ -234,12 +238,12 @@ async function upsertManifestRecord(
 async function createUploadFileName(
   folderPath: string,
   file: File,
+  extension: ".png" | ".jpg",
   requestedFileName?: string | null
 ) {
-  const extension = getUploadExtension(file);
   const sourceName = getFileNameFromInput(requestedFileName || file.name || "reference");
   const baseName = slugify(stripExtension(sourceName)) || "reference";
-  const fileName = `${baseName}${extension}`;
+  const fileName = getCompressedComicReferenceFileName(baseName, extension);
 
   if (requestedFileName?.trim() || !(await pathExists(path.join(folderPath, fileName)))) {
     return fileName;
@@ -270,16 +274,27 @@ export async function saveComicReferenceUpload(input: SaveComicReferenceUploadIn
   const folderPath = assertSafeFolder(input.relativeFolder);
   await mkdir(folderPath, { recursive: true });
 
-  const fileName = await createUploadFileName(folderPath, input.file, input.requestedFileName);
+  const sourceBuffer = Buffer.from(await input.file.arrayBuffer());
+  const compressed = await compressComicReferenceImage({
+    data: sourceBuffer,
+    fileName: input.file.name,
+    mimeType: input.file.type,
+    bucket: input.bucket
+  });
+  const fileName = await createUploadFileName(
+    folderPath,
+    input.file,
+    compressed.extension,
+    input.requestedFileName
+  );
   const workspacePath = path.join(folderPath, fileName);
   const relativePath = normalizeSlashes(path.relative(WORKSPACE_ROOT, workspacePath));
   const publicPath = path.join(PUBLIC_REFERENCE_ROOT, relativePath);
   assertSafePublicReferencePath(publicPath);
 
-  const buffer = Buffer.from(await input.file.arrayBuffer());
-  await writeFile(workspacePath, buffer);
+  await writeFile(workspacePath, compressed.buffer);
   await mkdir(path.dirname(publicPath), { recursive: true });
-  await writeFile(publicPath, buffer);
+  await writeFile(publicPath, compressed.buffer);
 
   const record: ComicChapterSceneReferenceRecord = {
     label: toDisplayLabel(fileName, input.label),

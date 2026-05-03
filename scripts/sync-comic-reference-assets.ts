@@ -1,5 +1,10 @@
-import { copyFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  compressComicReferenceImage,
+  getCompressedComicReferenceFileName,
+  type ComicReferenceCompressionBucket
+} from "@/lib/comic-reference-compression";
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 
 type ComicReferenceManifest = {
@@ -63,13 +68,38 @@ function buildChapterSceneSlug(seasonSlug: string, chapterSlug: string, sceneLab
   return slugify(`${seasonSlug}-${chapterSlug}-${sceneLabel}`);
 }
 
-function toReferenceRecord(absolutePath: string): ComicChapterSceneReferenceRecord {
-  const fileName = path.basename(absolutePath);
+function getReferenceBucketFromRelativePath(relativePath: string): ComicReferenceCompressionBucket {
+  const parts = normalizeSlashes(relativePath).split("/");
+
+  if (parts.length >= 4 && parts[0] === "comic" && parts[1] === "characters" && parts[3] === "refs") {
+    return "character";
+  }
+
+  if (parts.includes("scene-refs")) {
+    return "chapter-scene";
+  }
+
+  if (parts.length >= 4 && parts[0] === "comic" && parts[1] === "scenes" && parts[3] === "refs") {
+    return "scene";
+  }
+
+  return "unknown";
+}
+
+function toCompressedReferenceRelativePath(sourceRelativePath: string, extension: ".png" | ".jpg") {
+  const directory = path.dirname(sourceRelativePath);
+  const fileName = getCompressedComicReferenceFileName(path.basename(sourceRelativePath), extension);
+
+  return normalizeSlashes(path.join(directory, fileName));
+}
+
+function toReferenceRecord(relativePath: string): ComicChapterSceneReferenceRecord {
+  const fileName = path.basename(relativePath);
 
   return {
     label: toDisplayLabel(fileName),
     fileName,
-    relativePath: normalizeSlashes(path.relative(WORKSPACE_ROOT, absolutePath)),
+    relativePath: normalizeSlashes(relativePath),
     extension: getExtension(fileName).replace(/^\./, "")
   };
 }
@@ -212,13 +242,24 @@ async function syncPublicReferenceFiles(imageFiles: string[]) {
   assertSafeGeneratedReferenceRoot();
   await rm(PUBLIC_REFERENCE_ROOT, { recursive: true, force: true });
 
-  await Promise.all(
+  return Promise.all(
     imageFiles.map(async (absolutePath) => {
       const relativePath = path.relative(WORKSPACE_ROOT, absolutePath);
-      const targetPath = path.join(PUBLIC_REFERENCE_ROOT, relativePath);
+      const compressed = await compressComicReferenceImage({
+        data: await readFile(absolutePath),
+        fileName: path.basename(absolutePath),
+        bucket: getReferenceBucketFromRelativePath(relativePath)
+      });
+      const compressedRelativePath = toCompressedReferenceRelativePath(
+        relativePath,
+        compressed.extension
+      );
+      const targetPath = path.join(PUBLIC_REFERENCE_ROOT, compressedRelativePath);
 
       await mkdir(path.dirname(targetPath), { recursive: true });
-      await copyFile(absolutePath, targetPath);
+      await writeFile(targetPath, compressed.buffer);
+
+      return compressedRelativePath;
     })
   );
 }
@@ -261,13 +302,13 @@ function toManifestModule(manifest: ComicReferenceManifest) {
 async function main() {
   const imageFiles = await listImageFiles(COMIC_ROOT);
   const manifest = createEmptyManifest();
+  const syncedReferencePaths = await syncPublicReferenceFiles(imageFiles);
 
-  for (const imageFile of imageFiles) {
-    addRecordToManifest(manifest, toReferenceRecord(imageFile));
+  for (const relativePath of syncedReferencePaths) {
+    addRecordToManifest(manifest, toReferenceRecord(relativePath));
   }
 
   const sortedManifest = sortManifest(manifest);
-  await syncPublicReferenceFiles(imageFiles);
   await writeManifest(sortedManifest);
 
   console.log(

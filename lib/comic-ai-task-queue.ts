@@ -325,12 +325,17 @@ function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayl
   }
 }
 
-async function executeComicAiTask(taskType: ComicAiTaskType, payload: ComicAiTaskPayload) {
+async function executeComicAiTask(
+  taskType: ComicAiTaskType,
+  payload: ComicAiTaskPayload,
+  context: { attempt: number }
+) {
   switch (taskType) {
     case "generate":
       return generateComicPageImageForEpisode({
         episodeId: toStringValue(payload.episodeId),
-        pageNumber: toNumberValue(payload.pageNumber)
+        pageNumber: toNumberValue(payload.pageNumber),
+        attempt: context.attempt
       });
     case "edit":
       return editComicPageImageForAsset({
@@ -614,7 +619,9 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
   const payload = parseTaskPayload(task.payload);
 
   try {
-    const result = (await executeComicAiTask(taskType, payload)) as ComicAiTaskResult;
+    const result = (await executeComicAiTask(taskType, payload, {
+      attempt: task.attempts
+    })) as ComicAiTaskResult;
 
     if (result?.defer === true) {
       const payloadPatch = getPayloadPatch(result);
