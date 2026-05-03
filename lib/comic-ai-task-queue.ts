@@ -85,7 +85,7 @@ type ComicAiTaskResult = {
 
 const ACTIVE_TASK_STATUSES: ComicAiTaskStatus[] = ["QUEUED", "RUNNING"];
 const RETRYABLE_TASK_STATUSES: ComicAiTaskStatus[] = ["FAILED", "CANCELLED"];
-const DEFAULT_STALE_RUNNING_TASK_MS = 1000 * 60 * 12;
+const DEFAULT_STALE_RUNNING_TASK_MS = 1000 * 60 * 3;
 
 function getStaleRunningTaskMs() {
   const configuredMinutes = Number.parseInt(process.env.COMIC_TASK_STALE_MINUTES || "", 10);
@@ -586,7 +586,7 @@ export async function runComicAiTaskQueue(input: { limit?: number } = {}) {
       status: "QUEUED"
     },
     orderBy: [{ createdAt: "asc" }],
-    take: Math.min(Math.max(input.limit || 1, 1), 3)
+    take: Math.min(Math.max(input.limit || 1, 1), 5)
   });
 
   const claimedTasks = (

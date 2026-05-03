@@ -19,6 +19,7 @@ const DEFAULT_OPENAI_COMIC_MODEL =
   "gpt-5.5";
 const OPENAI_COMIC_OUTLINE_REASONING_EFFORT =
   process.env.OPENAI_COMIC_OUTLINE_REASONING_EFFORT || "low";
+const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 50;
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Non-negotiable visual production locks:",
@@ -348,6 +349,20 @@ function getOpenAiApiKey() {
   return (process.env.OPENAI_API_KEY || "").trim();
 }
 
+function getOpenAiComicOutlineTimeoutMs() {
+  const configuredSeconds = Number.parseInt(process.env.OPENAI_COMIC_OUTLINE_TIMEOUT_SECONDS || "", 10);
+
+  if (!Number.isFinite(configuredSeconds) || configuredSeconds <= 0) {
+    return DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS;
+  }
+
+  return Math.min(Math.max(configuredSeconds, 15), 55) * 1000;
+}
+
+function getOpenAiComicOutlineAbortSignal() {
+  return AbortSignal.timeout(getOpenAiComicOutlineTimeoutMs());
+}
+
 function formatOutlineChain(chain: ComicOutlineChainItem[] = []) {
   if (chain.length === 0) {
     return "No parent outline is available for this level.";
@@ -554,6 +569,7 @@ async function requestChineseComicOutlineTranslation(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
+    signal: getOpenAiComicOutlineAbortSignal(),
     body: JSON.stringify({
       model: DEFAULT_OPENAI_COMIC_MODEL,
       input: [
@@ -674,6 +690,7 @@ async function requestChineseComicOutline(input: GenerateChineseComicOutlineInpu
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
+    signal: getOpenAiComicOutlineAbortSignal(),
     body: JSON.stringify({
       model: DEFAULT_OPENAI_COMIC_MODEL,
       input: [
@@ -825,6 +842,7 @@ async function requestChineseComicChildOutlines(input: GenerateChineseComicChild
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
+    signal: getOpenAiComicOutlineAbortSignal(),
     body: JSON.stringify({
       model: DEFAULT_OPENAI_COMIC_MODEL,
       input: [

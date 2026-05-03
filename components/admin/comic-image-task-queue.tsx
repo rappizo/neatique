@@ -209,7 +209,7 @@ export function ComicImageTaskQueueProvider({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          limit: Math.max(1, Math.min(maxConcurrent, 3))
+          limit: Math.max(1, Math.min(maxConcurrent, 5))
         })
       });
       await refreshTasks();

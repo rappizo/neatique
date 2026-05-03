@@ -273,7 +273,7 @@ export default async function AdminComicOutlineStudioPage({
   }
 
   return (
-    <ComicImageTaskQueueProvider maxConcurrent={1}>
+    <ComicImageTaskQueueProvider maxConcurrent={5}>
       <div className="admin-page admin-page--comic-outline">
       <div className="stack-row">
         <Link href="/admin/comic" className="button button--secondary">
@@ -597,42 +597,16 @@ function ChapterOutlineSection({
 }) {
   const seasonOutlineReady = hasUsableOutline(season.outline);
   const chapterOutlineReady = hasUsableOutline(chapter.outline);
-  const firstHalfEpisodes = chapter.episodes.filter(
-    (episode) => episode.episodeNumber >= 1 && episode.episodeNumber <= 5
-  );
-  const secondHalfEpisodes = chapter.episodes.filter(
-    (episode) => episode.episodeNumber >= 6 && episode.episodeNumber <= 10
-  );
   const generationDisabledReason = disabledForAi
     ? "OPENAI_API_KEY 还没有配置。"
     : !seasonOutlineReady
       ? "请先确认 Season 大纲。"
       : undefined;
-  const getEpisodeBatchDisabledReason = (
-    episodeBatch: ComicEpisodeRecord[],
-    rangeLabel: string
-  ) =>
-    disabledForAi
-      ? "OPENAI_API_KEY 还没有配置。"
-      : !chapterOutlineReady
-        ? "请先确认 Chapter 大纲。"
-        : episodeBatch.length === 0
-          ? `本章没有 ${rangeLabel}。`
-          : undefined;
-  const getEpisodeBatchTasks = (episodeBatch: ComicEpisodeRecord[]) =>
-    episodeBatch.map((episode) => ({
-      taskType: "episode-generate",
-      targetId: episode.id,
-      taskLabel: `Generate ${episodeLabel(episode)}`
-    }));
-  const firstHalfDisabledReason = getEpisodeBatchDisabledReason(
-    firstHalfEpisodes,
-    "Episode 1-5"
-  );
-  const secondHalfDisabledReason = getEpisodeBatchDisabledReason(
-    secondHalfEpisodes,
-    "Episode 6-10"
-  );
+  const episodeGenerationDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !chapterOutlineReady
+      ? "请先确认 Chapter 大纲。"
+      : undefined;
 
   return (
     <OutlinePanel
@@ -656,22 +630,15 @@ function ChapterOutlineSection({
               disabled: Boolean(generationDisabledReason),
               disabledReason: generationDisabledReason
             },
-            {
-              actionType: "outline-batch",
-              tasks: getEpisodeBatchTasks(firstHalfEpisodes),
-              idleLabel: "生成Episode 1-5大纲",
+            ...chapter.episodes.map((episode) => ({
+              taskType: "episode-generate",
+              targetId: episode.id,
+              taskLabel: `Generate ${episodeLabel(episode)}`,
+              idleLabel: `生成Episode ${episode.episodeNumber}大纲`,
               includeRevisionNotes: false,
-              disabled: Boolean(firstHalfDisabledReason),
-              disabledReason: firstHalfDisabledReason
-            },
-            {
-              actionType: "outline-batch",
-              tasks: getEpisodeBatchTasks(secondHalfEpisodes),
-              idleLabel: "生成Episode 6-10大纲",
-              includeRevisionNotes: false,
-              disabled: Boolean(secondHalfDisabledReason),
-              disabledReason: secondHalfDisabledReason
-            }
+              disabled: Boolean(episodeGenerationDisabledReason),
+              disabledReason: episodeGenerationDisabledReason
+            }))
           ]}
         />
       </div>
