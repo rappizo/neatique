@@ -60,25 +60,37 @@ export function revalidateComicRoutes(slugs?: {
   chapterSlug?: string | null;
   episodeSlug?: string | null;
 }) {
-  revalidatePath("/admin/comic");
-  revalidatePath("/admin/comic/project");
-  revalidatePath("/admin/comic/characters");
-  revalidatePath("/admin/comic/scenes");
-  revalidatePath("/admin/comic/seasons");
-  revalidatePath("/admin/comic/outline-studio");
-  revalidatePath("/admin/comic/publish-center");
-  revalidatePath("/comic");
+  const safeRevalidatePath = (path: string) => {
+    try {
+      revalidatePath(path);
+    } catch (error) {
+      console.warn(
+        `Skipped comic route revalidation for ${path}: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`
+      );
+    }
+  };
+
+  safeRevalidatePath("/admin/comic");
+  safeRevalidatePath("/admin/comic/project");
+  safeRevalidatePath("/admin/comic/characters");
+  safeRevalidatePath("/admin/comic/scenes");
+  safeRevalidatePath("/admin/comic/seasons");
+  safeRevalidatePath("/admin/comic/outline-studio");
+  safeRevalidatePath("/admin/comic/publish-center");
+  safeRevalidatePath("/comic");
 
   if (slugs?.seasonSlug) {
-    revalidatePath(`/comic/${slugs.seasonSlug}`);
+    safeRevalidatePath(`/comic/${slugs.seasonSlug}`);
   }
 
   if (slugs?.seasonSlug && slugs?.chapterSlug) {
-    revalidatePath(`/comic/${slugs.seasonSlug}/${slugs.chapterSlug}`);
+    safeRevalidatePath(`/comic/${slugs.seasonSlug}/${slugs.chapterSlug}`);
   }
 
   if (slugs?.seasonSlug && slugs?.chapterSlug && slugs?.episodeSlug) {
-    revalidatePath(`/comic/${slugs.seasonSlug}/${slugs.chapterSlug}/${slugs.episodeSlug}`);
+    safeRevalidatePath(`/comic/${slugs.seasonSlug}/${slugs.chapterSlug}/${slugs.episodeSlug}`);
   }
 }
 

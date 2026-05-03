@@ -17,6 +17,8 @@ const DEFAULT_OPENAI_COMIC_MODEL =
   process.env.OPENAI_POST_MODEL ||
   process.env.OPENAI_EMAIL_MODEL ||
   "gpt-5.5";
+const OPENAI_COMIC_OUTLINE_REASONING_EFFORT =
+  process.env.OPENAI_COMIC_OUTLINE_REASONING_EFFORT || "low";
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Non-negotiable visual production locks:",
@@ -479,6 +481,7 @@ function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) 
     "- outline must be Markdown in Simplified Chinese.",
     "- outlineEn must be English Markdown with the same headings, beats, sequence, stakes, and continuity as outline.",
     "- Include concrete story beats, role movement, stakes, reveal timing, and continuity notes.",
+    "- Keep the outline focused and scannable. Prefer concrete bullets over long paragraphs.",
     "- Preserve English character names exactly.",
     "- Keep the Chinese and English versions synchronized. Do not add plot in one language that is missing from the other."
   ]
@@ -579,7 +582,7 @@ async function requestChineseComicOutlineTranslation(
         }
       ],
       reasoning: {
-        effort: "medium"
+        effort: OPENAI_COMIC_OUTLINE_REASONING_EFFORT
       },
       text: {
         format: {
@@ -694,7 +697,7 @@ async function requestChineseComicOutline(input: GenerateChineseComicOutlineInpu
         }
       ],
       reasoning: {
-        effort: "medium"
+        effort: OPENAI_COMIC_OUTLINE_REASONING_EFFORT
       },
       text: {
         format: {
@@ -845,7 +848,7 @@ async function requestChineseComicChildOutlines(input: GenerateChineseComicChild
         }
       ],
       reasoning: {
-        effort: "medium"
+        effort: OPENAI_COMIC_OUTLINE_REASONING_EFFORT
       },
       text: {
         format: {

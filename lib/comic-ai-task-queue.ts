@@ -85,7 +85,17 @@ type ComicAiTaskResult = {
 
 const ACTIVE_TASK_STATUSES: ComicAiTaskStatus[] = ["QUEUED", "RUNNING"];
 const RETRYABLE_TASK_STATUSES: ComicAiTaskStatus[] = ["FAILED", "CANCELLED"];
-const STALE_RUNNING_TASK_MS = 1000 * 60 * 2;
+const DEFAULT_STALE_RUNNING_TASK_MS = 1000 * 60 * 12;
+
+function getStaleRunningTaskMs() {
+  const configuredMinutes = Number.parseInt(process.env.COMIC_TASK_STALE_MINUTES || "", 10);
+
+  if (!Number.isFinite(configuredMinutes) || configuredMinutes <= 0) {
+    return DEFAULT_STALE_RUNNING_TASK_MS;
+  }
+
+  return Math.min(Math.max(configuredMinutes, 3), 60) * 60 * 1000;
+}
 
 function normalizePayloadValue(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -428,7 +438,7 @@ export async function retryComicAiTask(id: string) {
 }
 
 async function recoverStaleRunningTasks() {
-  const staleDate = new Date(Date.now() - STALE_RUNNING_TASK_MS);
+  const staleDate = new Date(Date.now() - getStaleRunningTaskMs());
   const staleTasks = await prisma.comicAiTask.findMany({
     where: {
       status: "RUNNING",
