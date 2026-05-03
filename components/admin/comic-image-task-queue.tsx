@@ -1228,6 +1228,124 @@ export function ComicOutlineQueueForm({
   );
 }
 
+type ComicOutlineMultiAction = {
+  taskType: string;
+  targetId: string;
+  taskLabel: string;
+  idleLabel: string;
+  includeRevisionNotes?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
+};
+
+export function ComicOutlineMultiActionForm({
+  textareaId,
+  actions
+}: {
+  textareaId: string;
+  actions: ComicOutlineMultiAction[];
+}) {
+  const { enqueueOutlineTask, tasks } = useComicImageTaskQueue();
+  const [revisionNotes, setRevisionNotes] = useState("");
+  const [notice, setNotice] = useState("");
+  const trimmedNotes = revisionNotes.trim();
+
+  function getActionTask(action: ComicOutlineMultiAction) {
+    return (
+      [...tasks]
+        .filter(
+          (candidate) =>
+            candidate.kind === "outline" &&
+            candidate.outlineTaskType === action.taskType &&
+            candidate.targetId === action.targetId
+        )
+        .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null
+    );
+  }
+
+  function getActionLabel(action: ComicOutlineMultiAction) {
+    const task = getActionTask(action);
+
+    if (task?.status === "queued") {
+      return "Queued...";
+    }
+
+    if (task?.status === "running") {
+      return "Working...";
+    }
+
+    if (task?.status === "failed") {
+      return `Retry ${action.idleLabel}`;
+    }
+
+    return action.idleLabel;
+  }
+
+  function handleAction(action: ComicOutlineMultiAction) {
+    enqueueOutlineTask({
+      taskType: action.taskType,
+      targetId: action.targetId,
+      revisionNotes: action.includeRevisionNotes ? trimmedNotes : "",
+      label: action.taskLabel
+    });
+    setNotice("Added to Comic tasks.");
+  }
+
+  return (
+    <form className="admin-comic-outline-form" onSubmit={(event) => event.preventDefault()}>
+      <div className="field">
+        <label htmlFor={textareaId}>修改 / 翻译需求</label>
+        <textarea
+          id={textareaId}
+          name="revisionNotes"
+          rows={3}
+          placeholder="可留空；也可以写：节奏更轻松、保留术语英文、加强 Nia 的动机..."
+          value={revisionNotes}
+          onChange={(event) => {
+            setRevisionNotes(event.target.value);
+            if (notice) {
+              setNotice("");
+            }
+          }}
+        />
+      </div>
+      <div className="admin-comic-outline-button-row">
+        {actions.map((action) => {
+          const task = getActionTask(action);
+          const isActive = task?.status === "queued" || task?.status === "running";
+          const disabled = Boolean(action.disabled || isActive);
+
+          return (
+            <button
+              key={`${action.taskType}-${action.targetId}`}
+              type="button"
+              className="button button--primary"
+              disabled={disabled}
+              title={action.disabled ? action.disabledReason : undefined}
+              aria-busy={task?.status === "running"}
+              onClick={() => handleAction(action)}
+            >
+              {getActionLabel(action)}
+            </button>
+          );
+        })}
+      </div>
+      {actions.some((action) => action.disabled && action.disabledReason) ? (
+        <div className="admin-comic-outline-disabled-notes">
+          {actions
+            .filter((action) => action.disabled && action.disabledReason)
+            .map((action) => (
+              <span key={`${action.taskType}-${action.targetId}-reason`} className="form-note">
+                {action.idleLabel}: {action.disabledReason}
+              </span>
+            ))}
+        </div>
+      ) : null}
+      {notice ? <span className="form-note">{notice}</span> : null}
+    </form>
+  );
+}
+
 function ComicImageTaskQueuePanel() {
   const { tasks, maxConcurrent, retryTask, cancelTask, clearCompleted } = useComicImageTaskQueue();
 

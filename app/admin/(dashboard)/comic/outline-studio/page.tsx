@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ComicGeneratePromptPackageQueueButton,
   ComicImageTaskQueueProvider,
+  ComicOutlineMultiActionForm,
   ComicOutlineQueueForm
 } from "@/components/admin/comic-image-task-queue";
 import { getComicOutlineStudioPage } from "@/lib/comic-queries";
@@ -576,13 +577,27 @@ function ChapterOutlineSection({
   disabledForAi: boolean;
 }) {
   const seasonOutlineReady = hasUsableOutline(season.outline);
-  const needsTranslation = hasUsableOutline(chapter.outline) && !hasChineseText(chapter.outline);
-  const primaryTaskType = needsTranslation ? "chapter-translate" : "chapter-generate";
-  const primaryIdleLabel = needsTranslation
-    ? "翻译成中文（不改剧情）"
-    : hasUsableOutline(chapter.outline)
-      ? "重新生成 Chapter 大纲"
-      : "生成 Chapter 大纲";
+  const chapterOutlineReady = hasUsableOutline(chapter.outline);
+  const chapterAlreadyChinese = hasChineseText(chapter.outline);
+  const generationDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !seasonOutlineReady
+      ? "请先确认 Season 大纲。"
+      : undefined;
+  const episodeGenerationDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !chapterOutlineReady
+      ? "请先确认 Chapter 大纲。"
+      : chapter.episodes.length === 0
+        ? "本章还没有 Episode。"
+        : undefined;
+  const translationDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !chapterOutlineReady
+      ? "请先确认 Chapter 大纲。"
+      : chapterAlreadyChinese
+        ? "当前 Chapter 大纲已经是中文。"
+        : undefined;
 
   return (
     <OutlinePanel
@@ -594,36 +609,37 @@ function ChapterOutlineSection({
       meta={<span className="pill">{chapter.episodes.length} episodes</span>}
     >
       <div className="admin-comic-outline-actions">
-        <OutlineActionForm
-          taskType={primaryTaskType}
-          targetId={chapter.id}
-          taskLabel={`${needsTranslation ? "Translate" : "Generate"} ${chapterLabel(chapter)}`}
-          idleLabel={primaryIdleLabel}
-          disabled={disabledForAi || !seasonOutlineReady}
-          disabledReason={
-            disabledForAi
-              ? "OPENAI_API_KEY 还没有配置。"
-              : !seasonOutlineReady
-                ? "请先确认 Season 大纲。"
-                : undefined
-          }
-        />
-        <OutlineActionForm
-          taskType="episodes-generate"
-          targetId={chapter.id}
-          taskLabel={`Generate episodes for ${chapterLabel(chapter)}`}
-          idleLabel="确认并生成所有 Episode 大纲"
-          showRevisionNotes={false}
-          disabled={disabledForAi || !hasUsableOutline(chapter.outline) || chapter.episodes.length === 0}
-          disabledReason={
-            disabledForAi
-              ? "OPENAI_API_KEY 还没有配置。"
-              : !hasUsableOutline(chapter.outline)
-                ? "请先确认 Chapter 大纲。"
-                : chapter.episodes.length === 0
-                  ? "本章还没有 Episode。"
-                  : undefined
-          }
+        <ComicOutlineMultiActionForm
+          textareaId={`chapter-outline-actions-${chapter.id}`}
+          actions={[
+            {
+              taskType: "chapter-generate",
+              targetId: chapter.id,
+              taskLabel: `Regenerate ${chapterLabel(chapter)}`,
+              idleLabel: "根据修改需求重新生成Chapter大纲",
+              includeRevisionNotes: true,
+              disabled: Boolean(generationDisabledReason),
+              disabledReason: generationDisabledReason
+            },
+            {
+              taskType: "episodes-generate",
+              targetId: chapter.id,
+              taskLabel: `Generate episodes for ${chapterLabel(chapter)}`,
+              idleLabel: "确定Chapter大纲并生成对应Episode大纲",
+              includeRevisionNotes: false,
+              disabled: Boolean(episodeGenerationDisabledReason),
+              disabledReason: episodeGenerationDisabledReason
+            },
+            {
+              taskType: "chapter-translate",
+              targetId: chapter.id,
+              taskLabel: `Translate ${chapterLabel(chapter)}`,
+              idleLabel: "翻译成中文（不改剧情）",
+              includeRevisionNotes: true,
+              disabled: Boolean(translationDisabledReason),
+              disabledReason: translationDisabledReason
+            }
+          ]}
         />
       </div>
     </OutlinePanel>

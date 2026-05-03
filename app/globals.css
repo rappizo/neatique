@@ -4712,6 +4712,22 @@ main {
   align-content: start;
 }
 
+.admin-comic-outline-button-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-comic-outline-button-row .button {
+  min-height: 44px;
+}
+
+.admin-comic-outline-disabled-notes {
+  display: grid;
+  gap: 4px;
+}
+
 .admin-comic-outline-next-step {
   display: flex;
   align-items: flex-end;
