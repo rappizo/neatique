@@ -27,6 +27,7 @@ const OPENAI_COMIC_PROMPT_REASONING_EFFORT =
   process.env.OPENAI_COMIC_PROMPT_REASONING_EFFORT || "low";
 const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 55;
 const DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS = 1000 * 55;
+const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 50;
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Non-negotiable visual production locks:",
@@ -383,12 +384,30 @@ function getOpenAiComicPromptTimeoutMs() {
   return Math.min(Math.max(configuredSeconds, 15), 55) * 1000;
 }
 
+function getOpenAiComicImageTimeoutMs() {
+  const configuredSeconds = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_TIMEOUT_SECONDS || "", 10);
+
+  if (!Number.isFinite(configuredSeconds) || configuredSeconds <= 0) {
+    return DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS;
+  }
+
+  return Math.min(Math.max(configuredSeconds, 20), 55) * 1000;
+}
+
 function getOpenAiComicOutlineAbortSignal() {
   return AbortSignal.timeout(getOpenAiComicOutlineTimeoutMs());
 }
 
 function getOpenAiComicPromptAbortSignal() {
   return AbortSignal.timeout(getOpenAiComicPromptTimeoutMs());
+}
+
+function getOpenAiComicImageAbortSignal() {
+  return AbortSignal.timeout(getOpenAiComicImageTimeoutMs());
+}
+
+function getOpenAiComicImageQuality() {
+  return (process.env.OPENAI_COMIC_IMAGE_QUALITY || "medium").trim() || "medium";
 }
 
 function isOpenAiTimeoutError(error: unknown) {
@@ -408,6 +427,31 @@ function isOpenAiTimeoutError(error: unknown) {
 
 function shouldUseOpenAiComicPromptBackgroundMode() {
   return (process.env.OPENAI_COMIC_PROMPT_BACKGROUND || "true").trim().toLowerCase() !== "false";
+}
+
+function getOpenAiComicImageTimeoutMessage(label: string) {
+  return `${label} timed out after ${Math.round(
+    getOpenAiComicImageTimeoutMs() / 1000
+  )} seconds. The image task can be retried automatically; if this keeps happening, lower OPENAI_COMIC_MAX_REFERENCE_IMAGES or OPENAI_COMIC_IMAGE_QUALITY.`;
+}
+
+async function fetchOpenAiComicImageResponse(
+  url: string,
+  init: RequestInit,
+  label: string
+) {
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: getOpenAiComicImageAbortSignal()
+    });
+  } catch (error) {
+    if (isOpenAiTimeoutError(error)) {
+      throw new Error(getOpenAiComicImageTimeoutMessage(label));
+    }
+
+    throw error;
+  }
 }
 
 async function fetchOpenAiComicOutlineResponse(apiKey: string, body: Record<string, unknown>) {
@@ -1346,7 +1390,11 @@ function parseImageBase64Response(value: string): GeneratedComicPageImageAsset {
 }
 
 async function fetchImageUrlAsBase64(url: string): Promise<GeneratedComicPageImageAsset> {
-  const response = await fetch(url);
+  const response = await fetchOpenAiComicImageResponse(
+    url,
+    {},
+    "Comic image result download"
+  );
 
   if (!response.ok) {
     throw new Error(`Comic image API returned a URL, but downloading it failed with ${response.status}.`);
@@ -1462,8 +1510,8 @@ function buildComicPageUploadSummary(uploads: GeneratedComicPageUpload[]) {
     .map((upload) =>
       [
         `- ${upload.label} (${upload.bucket})`,
-        `  Why it matters: ${upload.whyThisMatters}`,
-        `  Visual lock: ${upload.contentSummary}`,
+        `  Why it matters: ${trimPromptContext(upload.whyThisMatters, 220)}`,
+        `  Visual lock: ${trimPromptContext(upload.contentSummary, 260)}`,
         `  Upload image names: ${upload.uploadImageNames.join(", ") || "None listed"}`,
         `  Workspace paths: ${upload.relativePaths.join(", ") || "None listed"}`
       ].join("\n")
@@ -1483,8 +1531,8 @@ function buildComicPageReferenceImageSummary(referenceImages: ComicReferenceImag
         `   File: ${reference.fileName}`,
         `   Path: ${reference.relativePath}`,
         `   Type: ${reference.bucket}`,
-        `   Why it matters: ${reference.whyThisMatters}`,
-        `   Visual lock: ${reference.contentSummary}`
+        `   Why it matters: ${trimPromptContext(reference.whyThisMatters, 220)}`,
+        `   Visual lock: ${trimPromptContext(reference.contentSummary, 260)}`
       ].join("\n")
     )
     .join("\n\n");
@@ -1502,11 +1550,13 @@ function buildComicPageCharacterIdentityLockSummary(
       [
         `${character.name} (${character.slug})`,
         `Role: ${character.role}`,
-        `Appearance lock from database: ${character.appearance}`,
-        `Personality lock: ${character.personality}`,
-        character.referenceNotes ? `Reference notes: ${character.referenceNotes}` : null,
+        `Appearance lock from database: ${trimPromptContext(character.appearance, 1000)}`,
+        `Personality lock: ${trimPromptContext(character.personality, 520)}`,
+        character.referenceNotes
+          ? `Reference notes: ${trimPromptContext(character.referenceNotes, 520)}`
+          : null,
         character.profileMarkdown
-          ? `Profile MD source of truth:\n${character.profileMarkdown}`
+          ? `Profile MD source of truth:\n${trimPromptContext(character.profileMarkdown, 1800)}`
           : "Profile MD source of truth: not available.",
         `Reference image files: ${
           character.referenceFiles.map((file) => file.fileName).join(", ") || "None"
@@ -1761,6 +1811,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Treat all listed character model sheets as exact identity references, not loose inspiration.",
     "- The actual reference images attached to this API request are binding visual references. Copy their silhouettes, proportions, face placement, highlight placement, body fill, and feet exactly where those characters or scenes appear.",
     "- Treat each character's Profile MD lock and attached model-sheet image as a paired identity contract: the MD tells you what details must stay distinct, and the image tells you the exact shape to draw.",
+    "- Only draw the characters named in the panel plan or dialogue for this page. Do not add background mascots just because their references are available.",
     "- When multiple mascot characters appear, compare their Profile MD locks before drawing. Do not blend silhouettes, faces, highlights, feet, expressions, or body proportions across characters.",
     "- Foot visibility check: any full-body character must show small rounded feet or foot nubs with clear space below the body; do not crop off feet.",
     "- Foot connection check: feet must connect naturally to the body with the same continuous white body fill; do not add a hard separating line between the feet and body.",
@@ -1814,14 +1865,20 @@ export async function generateComicPageImageWithAi(
   }
 
   const prompt = buildComicPageImagePrompt(input);
-  const referenceImages = (input.referenceImages || []).slice(0, 16);
+  const maxReferenceImages = Number.parseInt(process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES || "", 10);
+  const referenceImageLimit =
+    Number.isFinite(maxReferenceImages) && maxReferenceImages > 0
+      ? Math.min(Math.max(maxReferenceImages, 4), 16)
+      : 8;
+  const referenceImages = (input.referenceImages || []).slice(0, referenceImageLimit);
+  const imageQuality = getOpenAiComicImageQuality();
 
   if (referenceImages.length > 0) {
     const formData = new FormData();
     formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
     formData.append("prompt", prompt);
     formData.append("size", "1024x1536");
-    formData.append("quality", "medium");
+    formData.append("quality", imageQuality);
     formData.append("n", "1");
 
     const inputFidelity = (process.env.OPENAI_COMIC_IMAGE_INPUT_FIDELITY || "high").trim();
@@ -1836,13 +1893,17 @@ export async function generateComicPageImageWithAi(
       formData.append("image[]", blob, referenceImage.fileName);
     }
 
-    const response = await fetch(`${imageApiSettings.baseUrl}/images/edits`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${imageApiSettings.apiKey}`
+    const response = await fetchOpenAiComicImageResponse(
+      `${imageApiSettings.baseUrl}/images/edits`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${imageApiSettings.apiKey}`
+        },
+        body: formData
       },
-      body: formData
-    });
+      "OpenAI comic page image reference edit"
+    );
 
     const rawText = await response.text();
     const parsed = rawText ? safeJsonParse(rawText) : null;
@@ -1875,19 +1936,23 @@ export async function generateComicPageImageWithAi(
     return parseImageBase64Response(base64Data);
   }
 
-  const response = await fetch(`${imageApiSettings.baseUrl}/images/generations`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${imageApiSettings.apiKey}`,
-      "Content-Type": "application/json"
+  const response = await fetchOpenAiComicImageResponse(
+    `${imageApiSettings.baseUrl}/images/generations`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${imageApiSettings.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: DEFAULT_OPENAI_COMIC_IMAGE_MODEL,
+        prompt,
+        size: "1024x1536",
+        quality: imageQuality
+      })
     },
-    body: JSON.stringify({
-      model: DEFAULT_OPENAI_COMIC_IMAGE_MODEL,
-      prompt,
-      size: "1024x1536",
-      quality: "medium"
-    })
-  });
+    "OpenAI comic page image generation"
+  );
 
   const rawText = await response.text();
   const parsed = rawText ? safeJsonParse(rawText) : null;
@@ -1947,20 +2012,24 @@ export async function generateChineseComicPageVersionWithAi(input: {
     ].join("\n")
   );
   formData.append("size", "1024x1536");
-  formData.append("quality", "medium");
+  formData.append("quality", getOpenAiComicImageQuality());
   formData.append(
     "image",
     new Blob([new Uint8Array(sourceBuffer)], { type: input.sourceImage.mimeType }),
     input.sourceImage.fileName
   );
 
-  const response = await fetch(`${imageApiSettings.baseUrl}/images/edits`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${imageApiSettings.apiKey}`
+  const response = await fetchOpenAiComicImageResponse(
+    `${imageApiSettings.baseUrl}/images/edits`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${imageApiSettings.apiKey}`
+      },
+      body: formData
     },
-    body: formData
-  });
+    "OpenAI Chinese comic page image edit"
+  );
 
   const rawText = await response.text();
   const parsed = rawText ? safeJsonParse(rawText) : null;
@@ -2034,20 +2103,24 @@ export async function editComicPageImageWithAi(input: {
     ].join("\n")
   );
   formData.append("size", "1024x1536");
-  formData.append("quality", "medium");
+  formData.append("quality", getOpenAiComicImageQuality());
   formData.append(
     "image",
     new Blob([new Uint8Array(sourceBuffer)], { type: input.sourceImage.mimeType }),
     input.sourceImage.fileName
   );
 
-  const response = await fetch(`${imageApiSettings.baseUrl}/images/edits`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${imageApiSettings.apiKey}`
+  const response = await fetchOpenAiComicImageResponse(
+    `${imageApiSettings.baseUrl}/images/edits`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${imageApiSettings.apiKey}`
+      },
+      body: formData
     },
-    body: formData
-  });
+    "OpenAI comic page image edit"
+  );
 
   const rawText = await response.text();
   const parsed = rawText ? safeJsonParse(rawText) : null;

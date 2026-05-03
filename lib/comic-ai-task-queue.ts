@@ -88,6 +88,11 @@ type ComicAiTaskResult = {
 const ACTIVE_TASK_STATUSES: ComicAiTaskStatus[] = ["QUEUED", "RUNNING"];
 const RETRYABLE_TASK_STATUSES: ComicAiTaskStatus[] = ["FAILED", "CANCELLED"];
 const DEFAULT_STALE_RUNNING_TASK_MS = 1000 * 60 * 3;
+const IMAGE_HEAVY_TASK_TYPES = new Set<ComicAiTaskType>([
+  "generate",
+  "edit",
+  "chinese-page-version"
+]);
 
 function getStaleRunningTaskMs() {
   const configuredMinutes = Number.parseInt(process.env.COMIC_TASK_STALE_MINUTES || "", 10);
@@ -204,7 +209,19 @@ function getTaskMessage(task: ComicAiTaskModelRecord, result: ComicAiTaskResult 
 }
 
 function getDefaultMaxAttempts(taskType: ComicAiTaskType) {
-  return taskType === "outline" || taskType === "prompt-package" ? 3 : 2;
+  return taskType === "outline" || taskType === "prompt-package" || IMAGE_HEAVY_TASK_TYPES.has(taskType)
+    ? 3
+    : 2;
+}
+
+function getImageTaskConcurrency() {
+  const configured = Number.parseInt(process.env.COMIC_IMAGE_TASK_CONCURRENCY || "", 10);
+
+  if (!Number.isFinite(configured) || configured <= 0) {
+    return 1;
+  }
+
+  return Math.min(Math.max(configured, 1), 3);
 }
 
 function isRetryableComicAiTaskError(errorMessage: string) {
@@ -566,6 +583,32 @@ async function claimComicAiTask(id: string) {
   return prisma.comicAiTask.findUnique({ where: { id } });
 }
 
+function selectQueuedComicAiTasks(tasks: ComicAiTaskModelRecord[], limit: number) {
+  const selected: ComicAiTaskModelRecord[] = [];
+  const imageTaskLimit = getImageTaskConcurrency();
+  let selectedImageTasks = 0;
+
+  for (const task of tasks) {
+    if (selected.length >= limit) {
+      break;
+    }
+
+    const taskType = task.taskType as ComicAiTaskType;
+
+    if (IMAGE_HEAVY_TASK_TYPES.has(taskType)) {
+      if (selectedImageTasks >= imageTaskLimit) {
+        continue;
+      }
+
+      selectedImageTasks += 1;
+    }
+
+    selected.push(task);
+  }
+
+  return selected;
+}
+
 async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
   const taskType = task.taskType as ComicAiTaskType;
   const payload = parseTaskPayload(task.payload);
@@ -693,14 +736,16 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
 
 export async function runComicAiTaskQueue(input: { limit?: number } = {}) {
   await recoverStaleRunningTasks();
+  const limit = Math.min(Math.max(input.limit || 1, 1), 5);
 
-  const queuedTasks = await prisma.comicAiTask.findMany({
+  const queuedTaskCandidates = await prisma.comicAiTask.findMany({
     where: {
       status: "QUEUED"
     },
     orderBy: [{ createdAt: "asc" }],
-    take: Math.min(Math.max(input.limit || 1, 1), 5)
+    take: limit * 4
   });
+  const queuedTasks = selectQueuedComicAiTasks(queuedTaskCandidates, limit);
 
   const claimedTasks = (
     await Promise.all(queuedTasks.map((task) => claimComicAiTask(task.id)))

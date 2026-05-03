@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { StoredPromptUpload } from "@/lib/comic-prompt-output";
 import {
   getComicCharacterReferenceFiles,
@@ -13,7 +15,8 @@ import {
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 
 const COMIC_REFERENCE_ROOT = "comic";
-const MAX_COMIC_REFERENCE_IMAGES = 16;
+const DEFAULT_MAX_COMIC_REFERENCE_IMAGES = 8;
+const DEFAULT_MAX_COMIC_CHARACTER_REFERENCE_IMAGES = 5;
 const SUPPORTED_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 const FALLBACK_CHARACTER_SLUGS = [
   "artrans",
@@ -100,6 +103,26 @@ function toDisplayLabel(fileName: string) {
 
 function getMimeType(fileName: string) {
   return MIME_TYPES[getExtension(fileName)] || "application/octet-stream";
+}
+
+function getMaxComicReferenceImages() {
+  const configured = Number.parseInt(process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES || "", 10);
+
+  if (!Number.isFinite(configured) || configured <= 0) {
+    return DEFAULT_MAX_COMIC_REFERENCE_IMAGES;
+  }
+
+  return Math.min(Math.max(configured, 4), 16);
+}
+
+function getMaxComicCharacterReferenceImages(maxReferences: number) {
+  const configured = Number.parseInt(process.env.OPENAI_COMIC_MAX_CHARACTER_REFERENCES || "", 10);
+
+  if (!Number.isFinite(configured) || configured <= 0) {
+    return Math.min(DEFAULT_MAX_COMIC_CHARACTER_REFERENCE_IMAGES, maxReferences);
+  }
+
+  return Math.min(Math.max(configured, 2), maxReferences);
 }
 
 export function normalizeComicReferencePath(relativePath: string) {
@@ -509,6 +532,48 @@ function sortResolvedReferences(references: ComicResolvedReferenceImage[]) {
   });
 }
 
+function isCharacterReference(reference: ComicResolvedReferenceImage) {
+  return reference.bucket === "CHARACTER" || reference.bucket === "DETECTED_CHARACTER";
+}
+
+function isChapterSceneReference(reference: ComicResolvedReferenceImage) {
+  return reference.bucket === "CHAPTER_SCENE" || reference.bucket === "DETECTED_CHAPTER_SCENE";
+}
+
+function selectResolvedReferences(references: ComicResolvedReferenceImage[]) {
+  const sorted = sortResolvedReferences(references);
+  const maxReferences = getMaxComicReferenceImages();
+  const maxCharacterReferences = getMaxComicCharacterReferenceImages(maxReferences);
+  const selected = new Map<string, ComicResolvedReferenceImage>();
+
+  function addWhere(
+    predicate: (reference: ComicResolvedReferenceImage) => boolean,
+    limit: number
+  ) {
+    let count = 0;
+
+    for (const reference of sorted) {
+      if (selected.size >= maxReferences || count >= limit) {
+        break;
+      }
+
+      if (!predicate(reference) || selected.has(reference.relativePath)) {
+        continue;
+      }
+
+      selected.set(reference.relativePath, reference);
+      count += 1;
+    }
+  }
+
+  addWhere(isCharacterReference, maxCharacterReferences);
+  addWhere(isChapterSceneReference, Math.max(1, Math.min(2, maxReferences - selected.size)));
+  addWhere((reference) => reference.bucket === "SCENE", Math.max(0, maxReferences - selected.size));
+  addWhere(() => true, maxReferences - selected.size);
+
+  return sortResolvedReferences(Array.from(selected.values()));
+}
+
 export async function resolveComicPageReferenceImages(
   input: ResolveComicPageReferenceImagesInput
 ) {
@@ -518,7 +583,21 @@ export async function resolveComicPageReferenceImages(
   addDetectedCharacterReferences(input, byPath);
   addDetectedChapterSceneReferences(input, byPath);
 
-  return sortResolvedReferences(Array.from(byPath.values())).slice(0, MAX_COMIC_REFERENCE_IMAGES);
+  return selectResolvedReferences(Array.from(byPath.values()));
+}
+
+async function readLocalComicReferenceImage(relativePath: string) {
+  const normalized = normalizeComicReferencePath(relativePath);
+
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    return await readFile(join(process.cwd(), "public", "comic-reference", normalized));
+  } catch {
+    return null;
+  }
 }
 
 export async function loadComicReferenceImageFiles(
@@ -526,6 +605,17 @@ export async function loadComicReferenceImageFiles(
 ): Promise<ComicReferenceImageFile[]> {
   const files = await Promise.all(
     references.map(async (reference) => {
+      const localBuffer = await readLocalComicReferenceImage(reference.relativePath);
+
+      if (localBuffer) {
+        return {
+          ...reference,
+          data: new Uint8Array(localBuffer),
+          mimeType: reference.mimeType || getMimeType(reference.fileName),
+          sizeBytes: localBuffer.byteLength
+        };
+      }
+
       const absoluteUrl = toComicReferenceAbsoluteUrl(reference.relativePath);
 
       if (!absoluteUrl) {
@@ -544,10 +634,14 @@ export async function loadComicReferenceImageFiles(
           reference.mimeType ||
           getMimeType(reference.fileName);
 
+        const arrayBuffer = await response.arrayBuffer();
+        const data = new Uint8Array(arrayBuffer);
+
         return {
           ...reference,
-          data: new Uint8Array(await response.arrayBuffer()),
-          mimeType
+          data,
+          mimeType,
+          sizeBytes: Number(response.headers.get("content-length") || data.byteLength)
         };
       } catch {
         return null;

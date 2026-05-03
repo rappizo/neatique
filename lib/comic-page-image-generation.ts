@@ -82,16 +82,29 @@ export async function generateComicPageImageForEpisode(input: {
   }
 
   const { buildComicPageImagePrompt, generateComicPageImageWithAi } = await import("@/lib/openai-comic");
+  const referenceDetectionText = [
+    page.pagePurpose,
+    page.panels
+      .map((panel) =>
+        [
+          panel.panelTitle,
+          panel.storyBeat,
+          panel.promptText,
+          panel.dialogueLines?.map((line) => `${line.speaker}: ${line.text}`).join("\n")
+        ]
+          .filter(Boolean)
+          .join("\n")
+      )
+      .join("\n\n"),
+    page.requiredUploads
+      .map((upload) => [upload.label, upload.slug, upload.contentSummary].join(" "))
+      .join("\n")
+  ].join("\n\n");
   const resolvedReferenceImages = await resolveComicPageReferenceImages({
     requiredUploads: page.requiredUploads,
     seasonSlug: episode.chapter.season.slug,
     chapterSlug: episode.chapter.slug,
-    promptText: [
-      page.pagePurpose,
-      page.promptPackCopyText,
-      page.referenceNotesCopyText,
-      page.panels.map((panel) => panel.storyBeat).join("\n")
-    ].join("\n\n")
+    promptText: referenceDetectionText
   });
   const referenceImages = await loadComicReferenceImageFiles(resolvedReferenceImages);
   const characterLocks = await loadComicCharacterIdentityLocks(
