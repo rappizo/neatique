@@ -1239,6 +1239,21 @@ type ComicOutlineTaskMultiAction = {
   disabledReason?: string;
 };
 
+type ComicOutlineBatchTask = {
+  taskType: string;
+  targetId: string;
+  taskLabel: string;
+};
+
+type ComicOutlineBatchMultiAction = {
+  actionType: "outline-batch";
+  tasks: ComicOutlineBatchTask[];
+  idleLabel: string;
+  includeRevisionNotes?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
+};
+
 type ComicPromptTaskMultiAction = {
   actionType: "prompt-package";
   episodeId: string;
@@ -1257,6 +1272,7 @@ type ComicLinkMultiAction = {
 
 type ComicOutlineMultiAction =
   | ComicOutlineTaskMultiAction
+  | ComicOutlineBatchMultiAction
   | ComicPromptTaskMultiAction
   | ComicLinkMultiAction;
 
@@ -1270,9 +1286,15 @@ function isComicPromptTaskMultiAction(
   return action.actionType === "prompt-package";
 }
 
+function isComicOutlineBatchMultiAction(
+  action: ComicOutlineMultiAction
+): action is ComicOutlineBatchMultiAction {
+  return action.actionType === "outline-batch";
+}
+
 function isComicQueueMultiAction(
   action: ComicOutlineMultiAction
-): action is ComicOutlineTaskMultiAction | ComicPromptTaskMultiAction {
+): action is ComicOutlineTaskMultiAction | ComicOutlineBatchMultiAction | ComicPromptTaskMultiAction {
   return !isComicLinkMultiAction(action);
 }
 
@@ -1290,27 +1312,43 @@ export function ComicOutlineMultiActionForm({
   const disabledActions = actions.filter(
     (
       action
-    ): action is ComicOutlineTaskMultiAction | ComicPromptTaskMultiAction =>
+    ): action is ComicOutlineTaskMultiAction | ComicOutlineBatchMultiAction | ComicPromptTaskMultiAction =>
       isComicQueueMultiAction(action) && Boolean(action.disabled && action.disabledReason)
   );
 
-  function getActionTask(action: ComicOutlineMultiAction) {
+  function getActionTasks(action: ComicOutlineMultiAction) {
     if (isComicLinkMultiAction(action)) {
-      return null;
+      return [];
     }
 
     if (isComicPromptTaskMultiAction(action)) {
-      return (
+      const task =
         [...tasks]
           .filter(
             (candidate) =>
               candidate.kind === "prompt-package" && candidate.episodeId === action.episodeId
           )
-          .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null
-      );
+          .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
+
+      return task ? [task] : [];
     }
 
-    return (
+    if (isComicOutlineBatchMultiAction(action)) {
+      return action.tasks
+        .map((batchTask) =>
+          [...tasks]
+            .filter(
+              (candidate) =>
+                candidate.kind === "outline" &&
+                candidate.outlineTaskType === batchTask.taskType &&
+                candidate.targetId === batchTask.targetId
+            )
+            .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null
+        )
+        .filter((task): task is ComicImageTask => Boolean(task));
+    }
+
+    const task =
       [...tasks]
         .filter(
           (candidate) =>
@@ -1318,16 +1356,31 @@ export function ComicOutlineMultiActionForm({
             candidate.outlineTaskType === action.taskType &&
             candidate.targetId === action.targetId
         )
-        .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null
-    );
+        .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
+
+    return task ? [task] : [];
   }
 
   function getActionLabel(action: ComicOutlineMultiAction) {
-    const task = getActionTask(action);
-
     if (isComicLinkMultiAction(action)) {
       return action.idleLabel;
     }
+
+    const actionTasks = getActionTasks(action);
+    const activeCount = actionTasks.filter(
+      (task) => task.status === "queued" || task.status === "running"
+    ).length;
+    const failedCount = actionTasks.filter((task) => task.status === "failed").length;
+
+    if (isComicOutlineBatchMultiAction(action) && activeCount > 0) {
+      return `${activeCount}/${action.tasks.length} working...`;
+    }
+
+    if (isComicOutlineBatchMultiAction(action) && failedCount > 0) {
+      return `Retry ${action.idleLabel}`;
+    }
+
+    const task = actionTasks[0];
 
     if (task?.status === "queued") {
       return "Queued...";
@@ -1355,6 +1408,19 @@ export function ComicOutlineMultiActionForm({
         label: action.taskLabel
       });
       setNotice("Added to Comic tasks.");
+      return;
+    }
+
+    if (isComicOutlineBatchMultiAction(action)) {
+      action.tasks.forEach((batchTask) => {
+        enqueueOutlineTask({
+          taskType: batchTask.taskType,
+          targetId: batchTask.targetId,
+          revisionNotes: action.includeRevisionNotes ? trimmedNotes : "",
+          label: batchTask.taskLabel
+        });
+      });
+      setNotice(`Added ${action.tasks.length} Comic tasks.`);
       return;
     }
 
@@ -1399,12 +1465,17 @@ export function ComicOutlineMultiActionForm({
             );
           }
 
-          const task = getActionTask(action);
-          const isActive = task?.status === "queued" || task?.status === "running";
+          const actionTasks = getActionTasks(action);
+          const isActive = actionTasks.some(
+            (task) => task.status === "queued" || task.status === "running"
+          );
+          const isRunning = actionTasks.some((task) => task.status === "running");
           const disabled = Boolean(action.disabled || isActive);
           const actionKey = isComicPromptTaskMultiAction(action)
             ? `prompt-${action.episodeId}`
-            : `${action.taskType}-${action.targetId}`;
+            : isComicOutlineBatchMultiAction(action)
+              ? `outline-batch-${action.idleLabel}`
+              : `${action.taskType}-${action.targetId}`;
 
           return (
             <button
@@ -1413,7 +1484,7 @@ export function ComicOutlineMultiActionForm({
               className="button button--primary"
               disabled={disabled}
               title={action.disabled ? action.disabledReason : undefined}
-              aria-busy={task?.status === "running"}
+              aria-busy={isRunning}
               onClick={() => handleAction(action)}
             >
               {getActionLabel(action)}
@@ -1428,6 +1499,8 @@ export function ComicOutlineMultiActionForm({
               key={
                 isComicPromptTaskMultiAction(action)
                   ? `prompt-${action.episodeId}-reason`
+                  : isComicOutlineBatchMultiAction(action)
+                    ? `outline-batch-${action.idleLabel}-reason`
                   : `${action.taskType}-${action.targetId}-reason`
               }
               className="form-note"
