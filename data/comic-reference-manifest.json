@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-01T08:25:38.645Z",
+  "generatedAt": "2026-05-03T03:12:10.692Z",
   "characters": {
     "artrans": [
       {
@@ -98,7 +98,80 @@
       }
     ]
   },
-  "scenes": {},
+  "scenes": {
+    "season-01-chapter-01-orientation-week-is-a-scam-barrier-sciences-hall": [
+      {
+        "label": "Barrier Sciences Hall",
+        "fileName": "Barrier Sciences Hall.png",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Barrier Sciences Hall.png",
+        "extension": "png"
+      }
+    ],
+    "season-01-chapter-01-orientation-week-is-a-scam-dorm-hallway": [
+      {
+        "label": "Dorm Hallway",
+        "fileName": "dorm hallway.png",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/dorm hallway.png",
+        "extension": "png"
+      }
+    ],
+    "season-01-chapter-01-orientation-week-is-a-scam-founder-walk": [
+      {
+        "label": "Founder Walk",
+        "fileName": "Founder Walk.png",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Founder Walk.png",
+        "extension": "png"
+      }
+    ],
+    "season-01-chapter-01-orientation-week-is-a-scam-neatique-main": [
+      {
+        "label": "Neatique Main",
+        "fileName": "Neatique Main.png",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Neatique Main.png",
+        "extension": "png"
+      }
+    ],
+    "season-01-chapter-01-orientation-week-is-a-scam-old-restricted-hallway": [
+      {
+        "label": "Old Restricted Hallway",
+        "fileName": "old restricted hallway.png",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/old restricted hallway.png",
+        "extension": "png"
+      }
+    ],
+    "season-01-chapter-01-orientation-week-is-a-scam-residence-hall": [
+      {
+        "label": "Residence Hall",
+        "fileName": "Residence hall.png",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Residence hall.png",
+        "extension": "png"
+      }
+    ],
+    "season-01-chapter-01-orientation-week-is-a-scam-student-room": [
+      {
+        "label": "Student Room",
+        "fileName": "student room.png",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/student room.png",
+        "extension": "png"
+      }
+    ],
+    "season-01-chapter-01-orientation-week-is-a-scam-student-store": [
+      {
+        "label": "Student Store",
+        "fileName": "Student Store.png",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Student Store.png",
+        "extension": "png"
+      }
+    ],
+    "season-01-chapter-01-orientation-week-is-a-scam-sunscreen-field": [
+      {
+        "label": "Sunscreen Field",
+        "fileName": "Sunscreen Field.png",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Sunscreen Field.png",
+        "extension": "png"
+      }
+    ]
+  },
   "chapters": {
     "season-01/chapter-01-orientation-week-is-a-scam": {
       "folder": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs",

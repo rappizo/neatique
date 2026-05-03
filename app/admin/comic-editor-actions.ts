@@ -84,6 +84,23 @@ function getReferenceUploadStatus(error: unknown) {
   return "reference-upload-failed";
 }
 
+function normalizeComicWorkspaceFolder(value: string) {
+  return value.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/\/+$/, "");
+}
+
+function getSceneReferenceFolderForUpdate(existingReferenceFolder: string, nextSlug: string) {
+  const normalizedExistingFolder = normalizeComicWorkspaceFolder(existingReferenceFolder);
+
+  return normalizedExistingFolder || getComicSceneReferenceFolder(nextSlug);
+}
+
+function usesStandardSceneReferenceFolder(referenceFolder: string, sceneSlug: string) {
+  return (
+    normalizeComicWorkspaceFolder(referenceFolder) ===
+    normalizeComicWorkspaceFolder(getComicSceneReferenceFolder(sceneSlug))
+  );
+}
+
 export async function saveComicProjectAction(formData: FormData) {
   await requireAdminSession();
   const { ensureComicWorkspaceScaffold } = await loadComicWorkspaceModule();
@@ -430,6 +447,7 @@ export async function updateComicSceneAction(formData: FormData) {
     moodNotes: normalizeLongText(formData.get("moodNotes")) || existing.moodNotes,
     referenceNotes: normalizeLongText(formData.get("referenceNotes")) || null
   };
+  const referenceFolder = getSceneReferenceFolderForUpdate(existing.referenceFolder, slug);
 
   if (hasSceneLockChanged(existing, nextLock)) {
     await pushComicSceneLockSnapshot(id, existing, "手动保存前的版本");
@@ -443,14 +461,16 @@ export async function updateComicSceneAction(formData: FormData) {
       summary: nextLock.summary,
       visualNotes: nextLock.visualNotes,
       moodNotes: nextLock.moodNotes,
-      referenceFolder: getComicSceneReferenceFolder(slug),
+      referenceFolder,
       referenceNotes: nextLock.referenceNotes,
       active: toBool(formData.get("active")),
       sortOrder: Math.max(0, toInt(formData.get("sortOrder"), existing.sortOrder))
     }
   });
 
-  await ensureComicSceneWorkspace(updated.slug, updated.name);
+  if (usesStandardSceneReferenceFolder(referenceFolder, updated.slug)) {
+    await ensureComicSceneWorkspace(updated.slug, updated.name);
+  }
   revalidateComicRoutes();
   redirect(buildComicRedirect(`/admin/comic/scenes/${id}`, "saved"));
 }

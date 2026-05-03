@@ -50,6 +50,19 @@ function toDisplayLabel(fileName: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
+
+function buildChapterSceneSlug(seasonSlug: string, chapterSlug: string, sceneLabel: string) {
+  return slugify(`${seasonSlug}-${chapterSlug}-${sceneLabel}`);
+}
+
 function toReferenceRecord(absolutePath: string): ComicChapterSceneReferenceRecord {
   const fileName = path.basename(absolutePath);
 
@@ -152,11 +165,16 @@ function addRecordToManifest(manifest: ComicReferenceManifest, record: ComicChap
     const chapterSlug = parts[3];
     const key = `${seasonSlug}/${chapterSlug}`;
     const folder = `comic/seasons/${seasonSlug}/${chapterSlug}/scene-refs`;
+    const sceneSlug = buildChapterSceneSlug(seasonSlug, chapterSlug, record.label);
 
     manifest.chapters[key] = {
       folder,
       references: [...(manifest.chapters[key]?.references || []), record]
     };
+
+    if (sceneSlug) {
+      manifest.scenes[sceneSlug] = [...(manifest.scenes[sceneSlug] || []), record];
+    }
   }
 }
 

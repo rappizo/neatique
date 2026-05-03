@@ -25,7 +25,7 @@ export type ComicWorkspaceSyncSummary = {
 };
 
 type ComicReferenceManifest = {
-  generatedAt: string;
+  generatedAt: string | null;
   characters: Record<string, ComicChapterSceneReferenceRecord[]>;
   scenes: Record<string, ComicChapterSceneReferenceRecord[]>;
   chapters: Record<
@@ -36,6 +36,13 @@ type ComicReferenceManifest = {
     }
   >;
 };
+
+const MANIFEST_PATH = path.join(process.cwd(), "data", "comic-reference-manifest.json");
+const MANIFEST_MODULE_PATH = path.join(
+  process.cwd(),
+  "data",
+  "comic-reference-manifest.generated.ts"
+);
 
 function normalizeText(value: string) {
   return value.replace(/\r\n/g, "\n").trim();
@@ -199,9 +206,27 @@ function buildChapterSceneSlug(seasonSlug: string, chapterSlug: string, sceneLab
 }
 
 async function writeComicReferenceManifest(manifest: ComicReferenceManifest) {
-  const manifestPath = path.join(process.cwd(), "data", "comic-reference-manifest.json");
-  await mkdir(path.dirname(manifestPath), { recursive: true });
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await mkdir(path.dirname(MANIFEST_PATH), { recursive: true });
+  await writeFile(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await writeFile(MANIFEST_MODULE_PATH, toManifestModule(manifest), "utf8");
+}
+
+function toManifestModule(manifest: ComicReferenceManifest) {
+  return [
+    "import type { ComicChapterSceneReferenceRecord } from \"@/lib/types\";",
+    "",
+    "type ComicReferenceManifest = {",
+    "  generatedAt: string | null;",
+    "  characters: Record<string, ComicChapterSceneReferenceRecord[]>;",
+    "  scenes: Record<string, ComicChapterSceneReferenceRecord[]>;",
+    "  chapters: Record<string, { folder: string; references: ComicChapterSceneReferenceRecord[]; }>;",
+    "};",
+    "",
+    `const comicReferenceManifest = ${JSON.stringify(manifest, null, 2)} satisfies ComicReferenceManifest;`,
+    "",
+    "export default comicReferenceManifest;",
+    ""
+  ].join("\n");
 }
 
 export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSyncSummary> {
@@ -315,6 +340,7 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
   let chapterCount = 0;
   let episodeCount = 0;
   const importedSceneSlugs = new Set<string>();
+  const importedSceneReferenceRecords = new Map<string, ComicChapterSceneReferenceRecord[]>();
   const manifest: ComicReferenceManifest = {
     generatedAt: new Date().toISOString(),
     characters: {},
@@ -453,6 +479,7 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
         });
 
         importedSceneSlugs.add(sceneSlug);
+        importedSceneReferenceRecords.set(sceneSlug, [sceneRef]);
       }
 
       const episodeEntries = (await readdir(chapterRoot, { withFileTypes: true }))
@@ -522,7 +549,9 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
   }
 
   for (const scene of manifestScenes) {
-    manifest.scenes[scene.slug] = await listComicReferenceFiles(scene.referenceFolder);
+    manifest.scenes[scene.slug] =
+      importedSceneReferenceRecords.get(scene.slug) ||
+      (await listComicReferenceFiles(scene.referenceFolder));
   }
 
   const sceneWorkspaceRoot = path.join(comicRoot, "scenes");
