@@ -201,6 +201,42 @@ function getTaskMessage(task: ComicAiTaskModelRecord, result: ComicAiTaskResult 
   return undefined;
 }
 
+function getDefaultMaxAttempts(taskType: ComicAiTaskType) {
+  return taskType === "outline" ? 3 : 2;
+}
+
+function isRetryableComicAiTaskError(errorMessage: string) {
+  const normalized = errorMessage.toLowerCase();
+  const retryableFragments = [
+    "timeout",
+    "timed out",
+    "aborted",
+    "econnreset",
+    "etimedout",
+    "fetch failed",
+    "network",
+    "socket",
+    "rate limit",
+    "429",
+    "500",
+    "502",
+    "503",
+    "504",
+    "temporarily unavailable",
+    "overloaded",
+    "try again",
+    "connection",
+    "can't reach database",
+    "database server"
+  ];
+
+  return retryableFragments.some((fragment) => normalized.includes(fragment));
+}
+
+function getRetryingErrorMessage(errorMessage: string) {
+  return `Previous attempt failed: ${errorMessage} Retrying automatically.`;
+}
+
 function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayload) {
   switch (taskType) {
     case "generate":
@@ -387,7 +423,7 @@ export async function enqueueComicAiTask(input: {
       taskType: input.taskType,
       label: input.label.trim() || "Comic AI task",
       payload,
-      maxAttempts: input.maxAttempts ?? 2,
+      maxAttempts: input.maxAttempts ?? getDefaultMaxAttempts(input.taskType),
       ...lookupFields
     }
   });
@@ -515,22 +551,33 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
           : typeof result.message === "string"
             ? result.message
             : "Comic AI task failed.";
+      const shouldRetry =
+        task.attempts < task.maxAttempts && isRetryableComicAiTaskError(errorMessage);
 
       const update = await prisma.comicAiTask.updateMany({
         where: { id: task.id, status: "RUNNING" },
-        data: {
-          status: "FAILED",
-          result: JSON.stringify(result),
-          errorMessage,
-          completedAt: new Date(),
-          lockedAt: null
-        }
+        data: shouldRetry
+          ? {
+              status: "QUEUED",
+              result: null,
+              errorMessage: getRetryingErrorMessage(errorMessage),
+              completedAt: null,
+              lockedAt: null
+            }
+          : {
+              status: "FAILED",
+              result: JSON.stringify(result),
+              errorMessage,
+              completedAt: new Date(),
+              lockedAt: null
+            }
       });
 
       return {
         id: task.id,
         ok: false,
         skipped: update.count === 0,
+        retrying: shouldRetry && update.count > 0,
         errorMessage:
           update.count > 0 ? errorMessage : "Task was no longer running when the worker finished."
       };
@@ -554,15 +601,16 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown comic AI task error.";
-    const hasAttemptsLeft = task.attempts < task.maxAttempts;
+    const shouldRetry =
+      task.attempts < task.maxAttempts && isRetryableComicAiTaskError(errorMessage);
 
     const update = await prisma.comicAiTask.updateMany({
       where: { id: task.id, status: "RUNNING" },
       data: {
-        status: hasAttemptsLeft ? "QUEUED" : "FAILED",
+        status: shouldRetry ? "QUEUED" : "FAILED",
         result: null,
-        errorMessage,
-        completedAt: hasAttemptsLeft ? null : new Date(),
+        errorMessage: shouldRetry ? getRetryingErrorMessage(errorMessage) : errorMessage,
+        completedAt: shouldRetry ? null : new Date(),
         lockedAt: null
       }
     });
@@ -571,7 +619,7 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
       id: task.id,
       ok: false,
       skipped: update.count === 0,
-      retrying: hasAttemptsLeft,
+      retrying: shouldRetry && update.count > 0,
       errorMessage:
         update.count > 0 ? errorMessage : "Task was no longer running when the worker failed."
     };

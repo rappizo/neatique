@@ -17,9 +17,11 @@ const DEFAULT_OPENAI_COMIC_MODEL =
   process.env.OPENAI_POST_MODEL ||
   process.env.OPENAI_EMAIL_MODEL ||
   "gpt-5.5";
+const DEFAULT_OPENAI_COMIC_OUTLINE_MODEL =
+  process.env.OPENAI_COMIC_OUTLINE_MODEL || DEFAULT_OPENAI_COMIC_MODEL;
 const OPENAI_COMIC_OUTLINE_REASONING_EFFORT =
   process.env.OPENAI_COMIC_OUTLINE_REASONING_EFFORT || "low";
-const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 50;
+const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 55;
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Non-negotiable visual production locks:",
@@ -363,6 +365,45 @@ function getOpenAiComicOutlineAbortSignal() {
   return AbortSignal.timeout(getOpenAiComicOutlineTimeoutMs());
 }
 
+function isOpenAiComicOutlineTimeoutError(error: unknown) {
+  const name =
+    error && typeof error === "object" && "name" in error
+      ? String((error as { name?: unknown }).name || "")
+      : "";
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+
+  return (
+    name === "AbortError" ||
+    name === "TimeoutError" ||
+    message.includes("aborted due to timeout") ||
+    message.includes("operation was aborted")
+  );
+}
+
+async function fetchOpenAiComicOutlineResponse(apiKey: string, body: Record<string, unknown>) {
+  try {
+    return await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      signal: getOpenAiComicOutlineAbortSignal(),
+      body: JSON.stringify(body)
+    });
+  } catch (error) {
+    if (isOpenAiComicOutlineTimeoutError(error)) {
+      throw new Error(
+        `OpenAI outline request timed out after ${Math.round(
+          getOpenAiComicOutlineTimeoutMs() / 1000
+        )} seconds. The task can be retried automatically; if it keeps timing out, use a smaller revision scope or set OPENAI_COMIC_OUTLINE_MODEL to a faster model.`
+      );
+    }
+
+    throw error;
+  }
+}
+
 function formatOutlineChain(chain: ComicOutlineChainItem[] = []) {
   if (chain.length === 0) {
     return "No parent outline is available for this level.";
@@ -443,6 +484,39 @@ function getChineseOutlineSectionGuide(level: ComicOutlineLevel) {
   ].join("\n");
 }
 
+function getChineseOutlineLengthLimits(level: ComicOutlineLevel) {
+  if (level === "EPISODE") {
+    return {
+      summaryMaxLength: 360,
+      outlineMaxLength: 3200
+    };
+  }
+
+  if (level === "CHAPTER") {
+    return {
+      summaryMaxLength: 500,
+      outlineMaxLength: 6500
+    };
+  }
+
+  return {
+    summaryMaxLength: 500,
+    outlineMaxLength: 8000
+  };
+}
+
+function getChineseOutlineLengthGuide(level: ComicOutlineLevel) {
+  if (level === "EPISODE") {
+    return "- For EPISODE, keep the output compact: 4-6 short Markdown sections, concrete beats only, no full parent recap, and no exhaustive prose.";
+  }
+
+  if (level === "CHAPTER") {
+    return "- For CHAPTER, keep the outline scannable and focused on episode sequence, character movement, stakes, and continuity.";
+  }
+
+  return "- Keep the outline focused and scannable. Prefer concrete bullets over long paragraphs.";
+}
+
 function buildChineseOutlineSystemPrompt() {
   return [
     "You are Neatique's bilingual comic story architect.",
@@ -496,7 +570,7 @@ function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) 
     "- outline must be Markdown in Simplified Chinese.",
     "- outlineEn must be English Markdown with the same headings, beats, sequence, stakes, and continuity as outline.",
     "- Include concrete story beats, role movement, stakes, reveal timing, and continuity notes.",
-    "- Keep the outline focused and scannable. Prefer concrete bullets over long paragraphs.",
+    getChineseOutlineLengthGuide(input.level),
     "- Preserve English character names exactly.",
     "- Keep the Chinese and English versions synchronized. Do not add plot in one language that is missing from the other."
   ]
@@ -504,15 +578,17 @@ function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) 
     .join("\n");
 }
 
-function getSingleChineseOutlineSchema() {
+function getSingleChineseOutlineSchema(level: ComicOutlineLevel) {
+  const limits = getChineseOutlineLengthLimits(level);
+
   return {
     type: "object",
     additionalProperties: false,
     properties: {
-      summary: { type: "string", minLength: 20, maxLength: 500 },
-      summaryEn: { type: "string", minLength: 20, maxLength: 500 },
-      outline: { type: "string", minLength: 200, maxLength: 8000 },
-      outlineEn: { type: "string", minLength: 200, maxLength: 8000 }
+      summary: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
+      summaryEn: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
+      outline: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength },
+      outlineEn: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength }
     },
     required: ["summary", "summaryEn", "outline", "outlineEn"]
   };
@@ -563,52 +639,44 @@ async function requestChineseComicOutlineTranslation(
     throw new Error("No outline content is available to translate.");
   }
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    signal: getOpenAiComicOutlineAbortSignal(),
-    body: JSON.stringify({
-      model: DEFAULT_OPENAI_COMIC_MODEL,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: [
-                "You are Neatique's conservative comic outline translator.",
-                "Translate existing outlines into Simplified Chinese and return a faithful English companion without changing canon.",
-                "Keep character names in English exactly as provided.",
-                "Return only valid JSON matching the schema."
-              ].join(" ")
-            }
-          ]
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: buildChineseOutlineTranslationPrompt(input)
-            }
-          ]
-        }
-      ],
-      reasoning: {
-        effort: OPENAI_COMIC_OUTLINE_REASONING_EFFORT
+  const response = await fetchOpenAiComicOutlineResponse(apiKey, {
+    model: DEFAULT_OPENAI_COMIC_OUTLINE_MODEL,
+    input: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "input_text",
+            text: [
+              "You are Neatique's conservative comic outline translator.",
+              "Translate existing outlines into Simplified Chinese and return a faithful English companion without changing canon.",
+              "Keep character names in English exactly as provided.",
+              "Return only valid JSON matching the schema."
+            ].join(" ")
+          }
+        ]
       },
-      text: {
-        format: {
-          type: "json_schema",
-          name: "translated_chinese_comic_outline",
-          strict: true,
-          schema: getSingleChineseOutlineSchema()
-        }
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: buildChineseOutlineTranslationPrompt(input)
+          }
+        ]
       }
-    })
+    ],
+    reasoning: {
+      effort: OPENAI_COMIC_OUTLINE_REASONING_EFFORT
+    },
+    text: {
+      format: {
+        type: "json_schema",
+        name: "translated_chinese_comic_outline",
+        strict: true,
+        schema: getSingleChineseOutlineSchema(input.level)
+      }
+    }
   });
 
   const rawText = await response.text();
@@ -650,7 +718,9 @@ async function requestChineseComicOutlineTranslation(
   };
 }
 
-function getChildChineseOutlineSchema() {
+function getChildChineseOutlineSchema(childLevel: Exclude<ComicOutlineLevel, "PROJECT">) {
+  const limits = getChineseOutlineLengthLimits(childLevel);
+
   return {
     type: "object",
     additionalProperties: false,
@@ -664,10 +734,10 @@ function getChildChineseOutlineSchema() {
           additionalProperties: false,
           properties: {
             id: { type: "string", minLength: 1, maxLength: 160 },
-            summary: { type: "string", minLength: 20, maxLength: 500 },
-            summaryEn: { type: "string", minLength: 20, maxLength: 500 },
-            outline: { type: "string", minLength: 200, maxLength: 8000 },
-            outlineEn: { type: "string", minLength: 200, maxLength: 8000 }
+            summary: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
+            summaryEn: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
+            outline: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength },
+            outlineEn: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength }
           },
           required: ["id", "summary", "summaryEn", "outline", "outlineEn"]
         }
@@ -684,47 +754,39 @@ async function requestChineseComicOutline(input: GenerateChineseComicOutlineInpu
     throw new Error("OpenAI API key is not configured.");
   }
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    signal: getOpenAiComicOutlineAbortSignal(),
-    body: JSON.stringify({
-      model: DEFAULT_OPENAI_COMIC_MODEL,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: buildChineseOutlineSystemPrompt()
-            }
-          ]
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: buildChineseOutlineUserPrompt(input)
-            }
-          ]
-        }
-      ],
-      reasoning: {
-        effort: OPENAI_COMIC_OUTLINE_REASONING_EFFORT
+  const response = await fetchOpenAiComicOutlineResponse(apiKey, {
+    model: DEFAULT_OPENAI_COMIC_OUTLINE_MODEL,
+    input: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "input_text",
+            text: buildChineseOutlineSystemPrompt()
+          }
+        ]
       },
-      text: {
-        format: {
-          type: "json_schema",
-          name: "chinese_comic_outline",
-          strict: true,
-          schema: getSingleChineseOutlineSchema()
-        }
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: buildChineseOutlineUserPrompt(input)
+          }
+        ]
       }
-    })
+    ],
+    reasoning: {
+      effort: OPENAI_COMIC_OUTLINE_REASONING_EFFORT
+    },
+    text: {
+      format: {
+        type: "json_schema",
+        name: "chinese_comic_outline",
+        strict: true,
+        schema: getSingleChineseOutlineSchema(input.level)
+      }
+    }
   });
 
   const rawText = await response.text();
@@ -819,6 +881,7 @@ function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOut
     "- summaryEn and outlineEn must be faithful English companion versions of the same canon.",
     "- Keep English character names exactly.",
     "- Make siblings distinct, sequential, and compatible with the parent outline.",
+    getChineseOutlineLengthGuide(input.childLevel),
     "- Do not write final image prompts here; Episode prompts are generated later in English."
   ]
     .filter(Boolean)
@@ -836,47 +899,39 @@ async function requestChineseComicChildOutlines(input: GenerateChineseComicChild
     return [];
   }
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    signal: getOpenAiComicOutlineAbortSignal(),
-    body: JSON.stringify({
-      model: DEFAULT_OPENAI_COMIC_MODEL,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: buildChineseOutlineSystemPrompt()
-            }
-          ]
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: buildChineseChildOutlinesUserPrompt(input)
-            }
-          ]
-        }
-      ],
-      reasoning: {
-        effort: OPENAI_COMIC_OUTLINE_REASONING_EFFORT
+  const response = await fetchOpenAiComicOutlineResponse(apiKey, {
+    model: DEFAULT_OPENAI_COMIC_OUTLINE_MODEL,
+    input: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "input_text",
+            text: buildChineseOutlineSystemPrompt()
+          }
+        ]
       },
-      text: {
-        format: {
-          type: "json_schema",
-          name: "chinese_comic_child_outlines",
-          strict: true,
-          schema: getChildChineseOutlineSchema()
-        }
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: buildChineseChildOutlinesUserPrompt(input)
+          }
+        ]
       }
-    })
+    ],
+    reasoning: {
+      effort: OPENAI_COMIC_OUTLINE_REASONING_EFFORT
+    },
+    text: {
+      format: {
+        type: "json_schema",
+        name: "chinese_comic_child_outlines",
+        strict: true,
+        schema: getChildChineseOutlineSchema(input.childLevel)
+      }
+    }
   });
 
   const rawText = await response.text();
