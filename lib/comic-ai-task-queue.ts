@@ -85,7 +85,7 @@ type ComicAiTaskResult = {
 
 const ACTIVE_TASK_STATUSES: ComicAiTaskStatus[] = ["QUEUED", "RUNNING"];
 const RETRYABLE_TASK_STATUSES: ComicAiTaskStatus[] = ["FAILED", "CANCELLED"];
-const STALE_RUNNING_TASK_MS = 1000 * 60 * 20;
+const STALE_RUNNING_TASK_MS = 1000 * 60 * 2;
 
 function normalizePayloadValue(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -337,6 +337,8 @@ export function toClientComicAiTask(task: ComicAiTaskModelRecord): ComicAiTaskCl
 }
 
 export async function listComicAiTasks(limit = 40) {
+  await recoverStaleRunningTasks();
+
   const tasks = await prisma.comicAiTask.findMany({
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
     take: Math.min(Math.max(limit, 1), 100)
@@ -351,6 +353,8 @@ export async function enqueueComicAiTask(input: {
   payload: ComicAiTaskPayload;
   maxAttempts?: number;
 }) {
+  await recoverStaleRunningTasks();
+
   const payload = stringifyPayload(input.payload);
   const lookupFields = getTaskLookupFields(input.taskType, input.payload);
   const existingTask = await prisma.comicAiTask.findFirst({
@@ -385,10 +389,14 @@ export async function cancelComicAiTask(id: string) {
   await prisma.comicAiTask.updateMany({
     where: {
       id,
-      status: "QUEUED"
+      status: {
+        in: ["QUEUED", "RUNNING"]
+      }
     },
     data: {
       status: "CANCELLED",
+      lockedAt: null,
+      errorMessage: "Task cancelled by admin.",
       completedAt: new Date()
     }
   });
@@ -421,20 +429,43 @@ export async function retryComicAiTask(id: string) {
 
 async function recoverStaleRunningTasks() {
   const staleDate = new Date(Date.now() - STALE_RUNNING_TASK_MS);
-
-  await prisma.comicAiTask.updateMany({
+  const staleTasks = await prisma.comicAiTask.findMany({
     where: {
       status: "RUNNING",
       lockedAt: {
         lt: staleDate
       }
     },
-    data: {
-      status: "QUEUED",
-      lockedAt: null,
-      errorMessage: "The previous server worker timed out; the task was returned to the queue."
+    select: {
+      id: true,
+      attempts: true,
+      maxAttempts: true
     }
   });
+
+  await Promise.all(
+    staleTasks.map((task) =>
+      prisma.comicAiTask.updateMany({
+        where: {
+          id: task.id,
+          status: "RUNNING"
+        },
+        data:
+          task.attempts >= task.maxAttempts
+            ? {
+                status: "FAILED",
+                lockedAt: null,
+                completedAt: new Date(),
+                errorMessage: "The server worker timed out before completing this task."
+              }
+            : {
+                status: "QUEUED",
+                lockedAt: null,
+                errorMessage: "The previous server worker timed out; the task was returned to the queue."
+              }
+      })
+    )
+  );
 }
 
 async function claimComicAiTask(id: string) {
@@ -475,8 +506,8 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
             ? result.message
             : "Comic AI task failed.";
 
-      await prisma.comicAiTask.update({
-        where: { id: task.id },
+      const update = await prisma.comicAiTask.updateMany({
+        where: { id: task.id, status: "RUNNING" },
         data: {
           status: "FAILED",
           result: JSON.stringify(result),
@@ -489,12 +520,14 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
       return {
         id: task.id,
         ok: false,
-        errorMessage
+        skipped: update.count === 0,
+        errorMessage:
+          update.count > 0 ? errorMessage : "Task was no longer running when the worker finished."
       };
     }
 
-    await prisma.comicAiTask.update({
-      where: { id: task.id },
+    const update = await prisma.comicAiTask.updateMany({
+      where: { id: task.id, status: "RUNNING" },
       data: {
         status: "SUCCEEDED",
         result: JSON.stringify(result || { ok: true }),
@@ -506,14 +539,15 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
 
     return {
       id: task.id,
-      ok: true
+      ok: update.count > 0,
+      skipped: update.count === 0
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown comic AI task error.";
     const hasAttemptsLeft = task.attempts < task.maxAttempts;
 
-    await prisma.comicAiTask.update({
-      where: { id: task.id },
+    const update = await prisma.comicAiTask.updateMany({
+      where: { id: task.id, status: "RUNNING" },
       data: {
         status: hasAttemptsLeft ? "QUEUED" : "FAILED",
         result: null,
@@ -526,8 +560,10 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
     return {
       id: task.id,
       ok: false,
+      skipped: update.count === 0,
       retrying: hasAttemptsLeft,
-      errorMessage
+      errorMessage:
+        update.count > 0 ? errorMessage : "Task was no longer running when the worker failed."
     };
   }
 }

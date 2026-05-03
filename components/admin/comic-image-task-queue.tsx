@@ -1484,12 +1484,12 @@ function ComicImageTaskQueuePanel() {
             </div>
             <div className="admin-comic-task__actions">
               <span>{task.status}</span>
-              {task.status === "failed" ? (
+              {task.status === "failed" || task.status === "cancelled" ? (
                 <button type="button" onClick={() => retryTask(task.id)}>
                   Retry
                 </button>
               ) : null}
-              {task.status === "queued" ? (
+              {task.status === "queued" || task.status === "running" ? (
                 <button type="button" onClick={() => cancelTask(task.id)}>
                   Cancel
                 </button>
