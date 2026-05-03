@@ -1,9 +1,12 @@
 import Link from "next/link";
 import {
   ComicImageTaskQueueProvider,
-  ComicOutlineMultiActionForm,
-  ComicOutlineQueueForm
+  ComicOutlineMultiActionForm
 } from "@/components/admin/comic-image-task-queue";
+import {
+  hasComicChineseText,
+  parseComicBilingualText
+} from "@/lib/comic-bilingual-outline";
 import { getComicOutlineStudioPage } from "@/lib/comic-queries";
 import { getOpenAiComicSettings } from "@/lib/openai-comic";
 import type {
@@ -20,22 +23,22 @@ type AdminComicOutlineStudioPageProps = {
 type OutlineScope = "project" | "season" | "chapter" | "episode";
 
 const STATUS_MESSAGES: Record<string, string> = {
-  "project-outline-generated": "整部漫画中文大纲已更新。",
-  "season-outline-generated": "Season 中文大纲已更新。",
-  "chapter-outline-generated": "Chapter 中文大纲已更新。",
-  "episode-outline-generated": "Episode 中文大纲已更新。",
-  "project-outline-translated": "整部漫画大纲已保守翻译成中文。",
-  "season-outline-translated": "Season 大纲已保守翻译成中文。",
-  "chapter-outline-translated": "Chapter 大纲已保守翻译成中文。",
-  "episode-outline-translated": "Episode 大纲已保守翻译成中文。",
-  "season-outlines-generated": "已根据整部漫画大纲生成所有 Season 中文大纲。",
-  "chapter-outlines-generated": "已根据 Season 大纲生成所有 Chapter 中文大纲。",
-  "episode-outlines-generated": "已根据 Chapter 大纲生成所有 Episode 中文大纲。",
+  "project-outline-generated": "整部漫画双语大纲已更新。",
+  "season-outline-generated": "Season 双语大纲已更新。",
+  "chapter-outline-generated": "Chapter 双语大纲已更新。",
+  "episode-outline-generated": "Episode 双语大纲已更新。",
+  "project-outline-translated": "整部漫画中文版本已补齐。",
+  "season-outline-translated": "Season 中文版本已补齐。",
+  "chapter-outline-translated": "Chapter 中文版本已补齐。",
+  "episode-outline-translated": "Episode 中文版本已补齐。",
+  "season-outlines-generated": "已根据整部漫画大纲生成所有 Season 双语大纲。",
+  "chapter-outlines-generated": "已根据 Season 大纲生成所有 Chapter 双语大纲。",
+  "episode-outlines-generated": "已根据 Chapter 大纲生成所有 Episode 双语大纲。",
   "outline-failed": "大纲生成失败。请检查 OpenAI key、模型设置或稍后重试。",
-  "outline-translation-failed": "大纲翻译失败。请检查 OpenAI key、模型设置或稍后重试。",
+  "outline-translation-failed": "大纲中文版本补齐失败。请检查 OpenAI key、模型设置或稍后重试。",
   "missing-parent-outline": "请先生成并确认上一级大纲，再生成下一层级。",
-  "missing-outline": "当前项目还没有可翻译的大纲。",
-  "outline-already-chinese": "当前大纲已经是中文，不需要翻译。",
+  "missing-outline": "当前项目还没有可处理的大纲。",
+  "outline-already-chinese": "当前大纲已经有中文版本。",
   "missing-children": "当前层级下面还没有可生成的子项目。",
   "missing-record": "没有找到对应的漫画记录。"
 };
@@ -53,16 +56,26 @@ function hasUsableOutline(value?: string | null) {
   return Boolean(normalized && !PLACEHOLDER_OUTLINES.includes(normalized));
 }
 
-function hasChineseText(value?: string | null) {
-  return /[\u4e00-\u9fff]/.test(value || "");
-}
-
 function getOutlineStatusLabel(outline?: string | null) {
   if (!hasUsableOutline(outline)) {
     return "未生成";
   }
 
-  return hasChineseText(outline) ? "中文已就绪" : "需要中文化";
+  const parsed = parseComicBilingualText(outline);
+
+  if (parsed.zh && parsed.en) {
+    return "双语已就绪";
+  }
+
+  if (parsed.zh) {
+    return "缺英文";
+  }
+
+  if (parsed.en) {
+    return "缺中文";
+  }
+
+  return hasComicChineseText(outline) ? "缺英文" : "缺中文";
 }
 
 function getOutlineStatusClass(outline?: string | null) {
@@ -70,43 +83,15 @@ function getOutlineStatusClass(outline?: string | null) {
     return "admin-table__status-badge admin-table__status-badge--warning";
   }
 
-  return hasChineseText(outline)
+  const parsed = parseComicBilingualText(outline);
+
+  return parsed.zh && parsed.en
     ? "admin-table__status-badge admin-table__status-badge--success"
     : "admin-table__status-badge admin-table__status-badge--warning";
 }
 
 function getOutlineWordCount(outline?: string | null) {
   return (outline || "").trim().length;
-}
-
-function OutlineActionForm({
-  taskType,
-  targetId,
-  idleLabel,
-  taskLabel,
-  disabled,
-  disabledReason,
-  showRevisionNotes = true
-}: {
-  taskType: string;
-  targetId: string;
-  idleLabel: string;
-  taskLabel: string;
-  disabled?: boolean;
-  disabledReason?: string;
-  showRevisionNotes?: boolean;
-}) {
-  return (
-    <ComicOutlineQueueForm
-      taskType={taskType}
-      targetId={targetId}
-      taskLabel={taskLabel}
-      idleLabel={idleLabel}
-      disabled={disabled}
-      disabledReason={disabledReason}
-      showRevisionNotes={showRevisionNotes}
-    />
-  );
 }
 
 function OutlineTextBlock({
@@ -117,22 +102,53 @@ function OutlineTextBlock({
   outline?: string | null;
 }) {
   const hasOutline = hasUsableOutline(outline);
+  const summaryText = parseComicBilingualText(summary);
+  const outlineText = hasOutline ? parseComicBilingualText(outline) : { zh: "", en: "" };
 
   return (
     <div className="admin-comic-outline-text">
-      {summary ? (
-        <div className="admin-comic-outline-summary">
-          <strong>摘要</strong>
-          <p>{summary}</p>
-        </div>
-      ) : null}
-      {hasOutline ? (
-        <pre>{outline}</pre>
-      ) : (
-        <p className="form-note">
-          暂无可用大纲。先生成上一级大纲，再在这里生成当前层级的中文大纲。
-        </p>
-      )}
+      <div className="admin-comic-outline-bilingual">
+        <section className="admin-comic-outline-language-pane">
+          <div className="admin-comic-outline-language-pane__header">
+            <strong>中文</strong>
+          </div>
+          {summaryText.zh ? (
+            <div className="admin-comic-outline-summary">
+              <strong>摘要</strong>
+              <p>{summaryText.zh}</p>
+            </div>
+          ) : null}
+          {outlineText.zh ? (
+            <pre>{outlineText.zh}</pre>
+          ) : (
+            <p className="form-note">
+              {hasOutline
+                ? "还没有中文版本；重新生成大纲后会自动补齐。"
+                : "暂无可用中文大纲。先生成上一级大纲，再生成当前层级。"}
+            </p>
+          )}
+        </section>
+        <section className="admin-comic-outline-language-pane">
+          <div className="admin-comic-outline-language-pane__header">
+            <strong>English</strong>
+          </div>
+          {summaryText.en ? (
+            <div className="admin-comic-outline-summary">
+              <strong>Summary</strong>
+              <p>{summaryText.en}</p>
+            </div>
+          ) : null}
+          {outlineText.en ? (
+            <pre>{outlineText.en}</pre>
+          ) : (
+            <p className="form-note">
+              {hasOutline
+                ? "No English version is saved yet. Regenerate the outline to fill it in."
+                : "No English outline yet. Generate the parent outline first, then generate this level."}
+            </p>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
@@ -270,9 +286,9 @@ export default async function AdminComicOutlineStudioPage({
 
       <div className="admin-page__header">
         <p className="eyebrow">Comic / Outline Studio</p>
-        <h1>中文大纲工作台</h1>
+        <h1>双语大纲工作台</h1>
         <p>
-          按整部漫画、Season、Chapter、Episode 的顺序确认大纲；修改或翻译时填写需求，
+          每个大纲左侧显示中文、右侧显示英文；文本框只用于提交修改需求。
           Episode 大纲确认后直接生成 Episode Prompts，再进入 Publish Center 制作页面。
         </p>
       </div>
@@ -299,7 +315,7 @@ export default async function AdminComicOutlineStudioPage({
         <section className="admin-card">
           <p className="eyebrow">Next step</p>
           <h3>Prompts → Publish Center</h3>
-          <p>中文 Episode 大纲会作为上游 canon，生成英文 prompts 后直接进入制作和发布。</p>
+          <p>双语 Episode 大纲会作为上游 canon，生成英文 prompts 后直接进入制作和发布。</p>
         </section>
       </div>
 
@@ -377,7 +393,6 @@ export default async function AdminComicOutlineStudioPage({
             <section className="admin-comic-outline-group">
               <SeasonOutlineSection
                 season={activeSeason}
-                project={project}
                 disabledForAi={disabledForAi}
                 projectOutlineReady={projectOutlineReady}
               />
@@ -445,13 +460,20 @@ function ProjectOutlineSection({
   seasonCount: number;
   disabledForAi: boolean;
 }) {
-  const needsTranslation = hasUsableOutline(project?.storyOutline) && !hasChineseText(project?.storyOutline);
-  const primaryTaskType = needsTranslation ? "project-translate" : "project-generate";
-  const primaryIdleLabel = needsTranslation
-    ? "翻译成中文（不改剧情）"
-    : hasUsableOutline(project?.storyOutline)
-      ? "重新生成整部漫画大纲"
-      : "生成整部漫画大纲";
+  const projectId = project?.id || "";
+  const projectOutlineReady = hasUsableOutline(project?.storyOutline);
+  const generationDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !projectId
+      ? "还没有整部漫画记录。"
+      : undefined;
+  const seasonGenerationDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !projectOutlineReady
+      ? "请先确认整部漫画大纲。"
+      : seasonCount === 0
+        ? "还没有 Season。"
+        : undefined;
 
   return (
     <OutlinePanel
@@ -463,30 +485,30 @@ function ProjectOutlineSection({
       meta={<span className="pill">{seasonCount} seasons</span>}
     >
       <div className="admin-comic-outline-actions">
-        <OutlineActionForm
-          taskType={primaryTaskType}
-          targetId={project?.id || ""}
-          taskLabel={`${needsTranslation ? "Translate" : "Generate"} project outline`}
-          idleLabel={primaryIdleLabel}
-          disabled={disabledForAi}
-          disabledReason={disabledForAi ? "OPENAI_API_KEY 还没有配置。" : undefined}
-        />
-        <OutlineActionForm
-          taskType="seasons-generate"
-          targetId={project?.id || ""}
-          taskLabel="Generate all season outlines"
-          idleLabel="根据整部大纲生成所有 Season"
-          showRevisionNotes={false}
-          disabled={disabledForAi || !hasUsableOutline(project?.storyOutline) || seasonCount === 0}
-          disabledReason={
-            disabledForAi
-              ? "OPENAI_API_KEY 还没有配置。"
-              : !hasUsableOutline(project?.storyOutline)
-                ? "请先生成整部漫画大纲。"
-                : seasonCount === 0
-                  ? "还没有 Season。"
-                  : undefined
-          }
+        <ComicOutlineMultiActionForm
+          textareaId={`project-outline-actions-${projectId || "missing"}`}
+          actions={[
+            {
+              taskType: "project-generate",
+              targetId: projectId,
+              taskLabel: "Regenerate project outline",
+              idleLabel: projectOutlineReady
+                ? "根据修改需求重新生成整部漫画大纲"
+                : "生成整部漫画大纲",
+              includeRevisionNotes: true,
+              disabled: Boolean(generationDisabledReason),
+              disabledReason: generationDisabledReason
+            },
+            {
+              taskType: "seasons-generate",
+              targetId: projectId,
+              taskLabel: "Generate all season outlines",
+              idleLabel: "确定整部漫画大纲并生成对应Season大纲",
+              includeRevisionNotes: false,
+              disabled: Boolean(seasonGenerationDisabledReason),
+              disabledReason: seasonGenerationDisabledReason
+            }
+          ]}
         />
       </div>
     </OutlinePanel>
@@ -495,7 +517,6 @@ function ProjectOutlineSection({
 
 function SeasonOutlineSection({
   season,
-  project,
   disabledForAi,
   projectOutlineReady
 }: {
@@ -506,17 +527,22 @@ function SeasonOutlineSection({
       }
     >;
   };
-  project: ComicProjectRecord | null;
   disabledForAi: boolean;
   projectOutlineReady: boolean;
 }) {
-  const needsTranslation = hasUsableOutline(season.outline) && !hasChineseText(season.outline);
-  const primaryTaskType = needsTranslation ? "season-translate" : "season-generate";
-  const primaryIdleLabel = needsTranslation
-    ? "翻译成中文（不改剧情）"
-    : hasUsableOutline(season.outline)
-      ? "重新生成 Season 大纲"
-      : "生成 Season 大纲";
+  const seasonOutlineReady = hasUsableOutline(season.outline);
+  const generationDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !projectOutlineReady
+      ? "请先确认整部漫画大纲。"
+      : undefined;
+  const chapterGenerationDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !seasonOutlineReady
+      ? "请先确认 Season 大纲。"
+      : season.chapters.length === 0
+        ? "本季还没有 Chapter。"
+        : undefined;
 
   return (
     <OutlinePanel
@@ -528,36 +554,30 @@ function SeasonOutlineSection({
       meta={<span className="pill">{season.chapters.length} chapters</span>}
     >
       <div className="admin-comic-outline-actions">
-        <OutlineActionForm
-          taskType={primaryTaskType}
-          targetId={season.id}
-          taskLabel={`${needsTranslation ? "Translate" : "Generate"} ${seasonLabel(season)}`}
-          idleLabel={primaryIdleLabel}
-          disabled={disabledForAi || !projectOutlineReady}
-          disabledReason={
-            disabledForAi
-              ? "OPENAI_API_KEY 还没有配置。"
-              : !projectOutlineReady
-                ? "请先生成整部漫画大纲。"
-                : undefined
-          }
-        />
-        <OutlineActionForm
-          taskType="chapters-generate"
-          targetId={season.id}
-          taskLabel={`Generate chapters for ${seasonLabel(season)}`}
-          idleLabel="根据 Season 生成所有 Chapter"
-          showRevisionNotes={false}
-          disabled={disabledForAi || !hasUsableOutline(season.outline) || season.chapters.length === 0}
-          disabledReason={
-            disabledForAi
-              ? "OPENAI_API_KEY 还没有配置。"
-              : !hasUsableOutline(season.outline)
-                ? "请先确认 Season 大纲。"
-                : season.chapters.length === 0
-                  ? "本季还没有 Chapter。"
-                  : undefined
-          }
+        <ComicOutlineMultiActionForm
+          textareaId={`season-outline-actions-${season.id}`}
+          actions={[
+            {
+              taskType: "season-generate",
+              targetId: season.id,
+              taskLabel: `Regenerate ${seasonLabel(season)}`,
+              idleLabel: seasonOutlineReady
+                ? "根据修改需求重新生成Season大纲"
+                : "生成Season大纲",
+              includeRevisionNotes: true,
+              disabled: Boolean(generationDisabledReason),
+              disabledReason: generationDisabledReason
+            },
+            {
+              taskType: "chapters-generate",
+              targetId: season.id,
+              taskLabel: `Generate chapters for ${seasonLabel(season)}`,
+              idleLabel: "确定Season大纲并生成对应Chapter大纲",
+              includeRevisionNotes: false,
+              disabled: Boolean(chapterGenerationDisabledReason),
+              disabledReason: chapterGenerationDisabledReason
+            }
+          ]}
         />
       </div>
     </OutlinePanel>
@@ -577,7 +597,6 @@ function ChapterOutlineSection({
 }) {
   const seasonOutlineReady = hasUsableOutline(season.outline);
   const chapterOutlineReady = hasUsableOutline(chapter.outline);
-  const chapterAlreadyChinese = hasChineseText(chapter.outline);
   const generationDisabledReason = disabledForAi
     ? "OPENAI_API_KEY 还没有配置。"
     : !seasonOutlineReady
@@ -589,13 +608,6 @@ function ChapterOutlineSection({
       ? "请先确认 Chapter 大纲。"
       : chapter.episodes.length === 0
         ? "本章还没有 Episode。"
-        : undefined;
-  const translationDisabledReason = disabledForAi
-    ? "OPENAI_API_KEY 还没有配置。"
-    : !chapterOutlineReady
-      ? "请先确认 Chapter 大纲。"
-      : chapterAlreadyChinese
-        ? "当前 Chapter 大纲已经是中文。"
         : undefined;
 
   return (
@@ -628,15 +640,6 @@ function ChapterOutlineSection({
               includeRevisionNotes: false,
               disabled: Boolean(episodeGenerationDisabledReason),
               disabledReason: episodeGenerationDisabledReason
-            },
-            {
-              taskType: "chapter-translate",
-              targetId: chapter.id,
-              taskLabel: `Translate ${chapterLabel(chapter)}`,
-              idleLabel: "翻译成中文（不改剧情）",
-              includeRevisionNotes: true,
-              disabled: Boolean(translationDisabledReason),
-              disabledReason: translationDisabledReason
             }
           ]}
         />

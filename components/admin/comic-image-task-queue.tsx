@@ -1196,12 +1196,12 @@ export function ComicOutlineQueueForm({
     <form onSubmit={handleSubmit} className="admin-comic-outline-form">
       {showRevisionNotes ? (
         <div className="field">
-          <label htmlFor={`outline-task-${taskType}-${targetId}`}>修改 / 翻译需求</label>
+          <label htmlFor={`outline-task-${taskType}-${targetId}`}>修改需求</label>
           <textarea
             id={`outline-task-${taskType}-${targetId}`}
             name="revisionNotes"
             rows={3}
-            placeholder="可留空；也可以写：节奏更轻松、保留术语英文、加强 Nia 的动机..."
+            placeholder="可留空；也可以写：节奏更轻松、加强 Nia 的动机、补足第 3 集的反转..."
             value={revisionNotes}
             onChange={(event) => {
               setRevisionNotes(event.target.value);
@@ -1370,12 +1370,12 @@ export function ComicOutlineMultiActionForm({
   return (
     <form className="admin-comic-outline-form" onSubmit={(event) => event.preventDefault()}>
       <div className="field">
-        <label htmlFor={textareaId}>修改 / 翻译需求</label>
+        <label htmlFor={textareaId}>修改需求</label>
         <textarea
           id={textareaId}
           name="revisionNotes"
           rows={3}
-          placeholder="可留空；也可以写：节奏更轻松、保留术语英文、加强 Nia 的动机..."
+          placeholder="可留空；也可以写：节奏更轻松、加强 Nia 的动机、补足第 3 集的反转..."
           value={revisionNotes}
           onChange={(event) => {
             setRevisionNotes(event.target.value);

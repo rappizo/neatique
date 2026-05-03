@@ -288,7 +288,9 @@ type ComicOutlineChildContext = {
 
 export type GeneratedChineseComicOutline = {
   summary: string;
+  summaryEn: string;
   outline: string;
+  outlineEn: string;
 };
 
 export type GeneratedChineseComicChildOutline = GeneratedChineseComicOutline & {
@@ -427,7 +429,7 @@ function getChineseOutlineSectionGuide(level: ComicOutlineLevel) {
 function buildChineseOutlineSystemPrompt() {
   return [
     "You are Neatique's bilingual comic story architect.",
-    "Write all story outlines in Simplified Chinese.",
+    "Write synchronized story outlines in Simplified Chinese and English.",
     "Keep every character name in English exactly as provided. Do not translate character names.",
     "Use existing English season, chapter, and episode titles as stable labels unless the user explicitly asks to change them.",
     "Use the parent outline as binding canon. Child outlines must inherit and refine the parent, not contradict it.",
@@ -466,17 +468,19 @@ function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) 
     "",
     input.revisionNotes
       ? `User revision notes:\n${input.revisionNotes}`
-      : "User revision notes: Generate or polish the outline in Chinese.",
+      : "User revision notes: Generate or polish the bilingual outline.",
     "",
     "Required outline section shape:",
     getChineseOutlineSectionGuide(input.level),
     "",
     "Output requirements:",
     "- summary must be Simplified Chinese, concise, and suitable for a list view.",
+    "- summaryEn must be a concise English companion summary with the same canon.",
     "- outline must be Markdown in Simplified Chinese.",
+    "- outlineEn must be English Markdown with the same headings, beats, sequence, stakes, and continuity as outline.",
     "- Include concrete story beats, role movement, stakes, reveal timing, and continuity notes.",
     "- Preserve English character names exactly.",
-    "- Do not produce English prose except for names, titles, model/tool terms, or short labels like Prompt."
+    "- Keep the Chinese and English versions synchronized. Do not add plot in one language that is missing from the other."
   ]
     .filter(Boolean)
     .join("\n");
@@ -488,9 +492,11 @@ function getSingleChineseOutlineSchema() {
     additionalProperties: false,
     properties: {
       summary: { type: "string", minLength: 20, maxLength: 500 },
-      outline: { type: "string", minLength: 200, maxLength: 8000 }
+      summaryEn: { type: "string", minLength: 20, maxLength: 500 },
+      outline: { type: "string", minLength: 200, maxLength: 8000 },
+      outlineEn: { type: "string", minLength: 200, maxLength: 8000 }
     },
-    required: ["summary", "outline"]
+    required: ["summary", "summaryEn", "outline", "outlineEn"]
   };
 }
 
@@ -515,6 +521,8 @@ function buildChineseOutlineTranslationPrompt(input: TranslateChineseComicOutlin
     "",
     "Translation requirements:",
     "- Translate, do not regenerate.",
+    "- summary and outline must be Simplified Chinese.",
+    "- summaryEn and outlineEn must be faithful English companions for the same canon.",
     "- Preserve the same story facts, sequence, stakes, reveals, relationships, and episode/chapter/season structure.",
     "- Preserve Markdown headings, bullet structure, numbering, and emphasis where practical.",
     "- Keep English character names exactly as provided.",
@@ -553,7 +561,7 @@ async function requestChineseComicOutlineTranslation(
               type: "input_text",
               text: [
                 "You are Neatique's conservative comic outline translator.",
-                "Translate existing outlines into Simplified Chinese without changing canon.",
+                "Translate existing outlines into Simplified Chinese and return a faithful English companion without changing canon.",
                 "Keep character names in English exactly as provided.",
                 "Return only valid JSON matching the schema."
               ].join(" ")
@@ -604,16 +612,22 @@ async function requestChineseComicOutlineTranslation(
   if (
     !record ||
     typeof record.summary !== "string" ||
+    typeof record.summaryEn !== "string" ||
     typeof record.outline !== "string" ||
+    typeof record.outlineEn !== "string" ||
     !record.summary.trim() ||
-    !record.outline.trim()
+    !record.summaryEn.trim() ||
+    !record.outline.trim() ||
+    !record.outlineEn.trim()
   ) {
     throw new Error("OpenAI did not return a valid translated Chinese comic outline.");
   }
 
   return {
     summary: record.summary.trim(),
-    outline: record.outline.trim()
+    summaryEn: record.summaryEn.trim(),
+    outline: record.outline.trim(),
+    outlineEn: record.outlineEn.trim()
   };
 }
 
@@ -632,9 +646,11 @@ function getChildChineseOutlineSchema() {
           properties: {
             id: { type: "string", minLength: 1, maxLength: 160 },
             summary: { type: "string", minLength: 20, maxLength: 500 },
-            outline: { type: "string", minLength: 200, maxLength: 8000 }
+            summaryEn: { type: "string", minLength: 20, maxLength: 500 },
+            outline: { type: "string", minLength: 200, maxLength: 8000 },
+            outlineEn: { type: "string", minLength: 200, maxLength: 8000 }
           },
-          required: ["id", "summary", "outline"]
+          required: ["id", "summary", "summaryEn", "outline", "outlineEn"]
         }
       }
     },
@@ -711,16 +727,22 @@ async function requestChineseComicOutline(input: GenerateChineseComicOutlineInpu
   if (
     !record ||
     typeof record.summary !== "string" ||
+    typeof record.summaryEn !== "string" ||
     typeof record.outline !== "string" ||
+    typeof record.outlineEn !== "string" ||
     !record.summary.trim() ||
-    !record.outline.trim()
+    !record.summaryEn.trim() ||
+    !record.outline.trim() ||
+    !record.outlineEn.trim()
   ) {
     throw new Error("OpenAI did not return a valid Chinese comic outline.");
   }
 
   return {
     summary: record.summary.trim(),
-    outline: record.outline.trim()
+    summaryEn: record.summaryEn.trim(),
+    outline: record.outline.trim(),
+    outlineEn: record.outlineEn.trim()
   };
 }
 
@@ -744,7 +766,7 @@ function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOut
     .join("\n\n");
 
   return [
-    `Generate Chinese outlines for every ${input.childLevel} below the parent.`,
+    `Generate bilingual Chinese and English outlines for every ${input.childLevel} below the parent.`,
     "",
     "Parent canon chain:",
     formatOutlineChain(parentChain),
@@ -766,7 +788,7 @@ function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOut
     "",
     input.revisionNotes
       ? `User revision notes:\n${input.revisionNotes}`
-      : "User revision notes: Generate or polish the next-level outlines in Chinese.",
+      : "User revision notes: Generate or polish the next-level bilingual outlines.",
     "",
     "Required outline section shape for every child:",
     getChineseOutlineSectionGuide(input.childLevel),
@@ -774,6 +796,7 @@ function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOut
     "Output requirements:",
     "- Return exactly the ids given above, with no missing or invented ids.",
     "- summary and outline must be Simplified Chinese.",
+    "- summaryEn and outlineEn must be faithful English companion versions of the same canon.",
     "- Keep English character names exactly.",
     "- Make siblings distinct, sequential, and compatible with the parent outline.",
     "- Do not write final image prompts here; Episode prompts are generated later in English."
@@ -860,10 +883,19 @@ async function requestChineseComicChildOutlines(input: GenerateChineseComicChild
       return {
         id: typeof item?.id === "string" ? item.id.trim() : "",
         summary: typeof item?.summary === "string" ? item.summary.trim() : "",
-        outline: typeof item?.outline === "string" ? item.outline.trim() : ""
+        summaryEn: typeof item?.summaryEn === "string" ? item.summaryEn.trim() : "",
+        outline: typeof item?.outline === "string" ? item.outline.trim() : "",
+        outlineEn: typeof item?.outlineEn === "string" ? item.outlineEn.trim() : ""
       };
     })
-    .filter((outline) => expectedIds.has(outline.id) && outline.summary && outline.outline);
+    .filter(
+      (outline) =>
+        expectedIds.has(outline.id) &&
+        outline.summary &&
+        outline.summaryEn &&
+        outline.outline &&
+        outline.outlineEn
+    );
   const returnedIds = new Set(normalized.map((outline) => outline.id));
 
   if (input.children.some((child) => !returnedIds.has(child.id))) {

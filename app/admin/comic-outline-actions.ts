@@ -2,6 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-auth";
+import {
+  formatComicBilingualOutline,
+  formatComicBilingualSummary
+} from "@/lib/comic-bilingual-outline";
 import { prisma } from "@/lib/db";
 import { toPlainString } from "@/lib/utils";
 import {
@@ -34,6 +38,20 @@ function hasUsableOutline(value?: string | null) {
 
 function hasChineseText(value?: string | null) {
   return /[\u4e00-\u9fff]/.test(value || "");
+}
+
+function toStoredBilingualOutline(input: { outline: string; outlineEn?: string | null }) {
+  return formatComicBilingualOutline({
+    zh: input.outline,
+    en: input.outlineEn
+  });
+}
+
+function toStoredBilingualSummary(input: { summary: string; summaryEn?: string | null }) {
+  return formatComicBilingualSummary({
+    zh: input.summary,
+    en: input.summaryEn
+  });
 }
 
 function toNumberLabel(label: string, value: number) {
@@ -153,8 +171,8 @@ export async function translateComicProjectOutlineAction(formData: FormData) {
     await prisma.comicProject.update({
       where: { id: project.id },
       data: {
-        shortDescription: result.summary,
-        storyOutline: result.outline
+        shortDescription: toStoredBilingualSummary(result),
+        storyOutline: toStoredBilingualOutline(result)
       }
     });
   } catch {
@@ -208,8 +226,8 @@ export async function translateComicSeasonOutlineAction(formData: FormData) {
     await prisma.comicSeason.update({
       where: { id: season.id },
       data: {
-        summary: result.summary,
-        outline: result.outline
+        summary: toStoredBilingualSummary(result),
+        outline: toStoredBilingualOutline(result)
       }
     });
   } catch {
@@ -266,8 +284,8 @@ export async function translateComicChapterOutlineAction(formData: FormData) {
     await prisma.comicChapter.update({
       where: { id: chapter.id },
       data: {
-        summary: result.summary,
-        outline: result.outline
+        summary: toStoredBilingualSummary(result),
+        outline: toStoredBilingualOutline(result)
       }
     });
   } catch {
@@ -331,8 +349,8 @@ export async function translateComicEpisodeOutlineAction(formData: FormData) {
     await prisma.comicEpisode.update({
       where: { id: episode.id },
       data: {
-        summary: result.summary,
-        outline: result.outline
+        summary: toStoredBilingualSummary(result),
+        outline: toStoredBilingualOutline(result)
       }
     });
   } catch {
@@ -393,8 +411,8 @@ export async function generateComicProjectOutlineAction(formData: FormData) {
     await prisma.comicProject.update({
       where: { id: project.id },
       data: {
-        shortDescription: result.summary,
-        storyOutline: result.outline
+        shortDescription: toStoredBilingualSummary(result),
+        storyOutline: toStoredBilingualOutline(result)
       }
     });
   } catch {
@@ -477,8 +495,8 @@ export async function generateComicSeasonOutlineAction(formData: FormData) {
     await prisma.comicSeason.update({
       where: { id: season.id },
       data: {
-        summary: result.summary,
-        outline: result.outline
+        summary: toStoredBilingualSummary(result),
+        outline: toStoredBilingualOutline(result)
       }
     });
   } catch {
@@ -565,8 +583,8 @@ export async function generateComicChapterOutlineAction(formData: FormData) {
     await prisma.comicChapter.update({
       where: { id: chapter.id },
       data: {
-        summary: result.summary,
-        outline: result.outline
+        summary: toStoredBilingualSummary(result),
+        outline: toStoredBilingualOutline(result)
       }
     });
   } catch {
@@ -650,8 +668,8 @@ export async function generateComicEpisodeOutlineAction(formData: FormData) {
     await prisma.comicEpisode.update({
       where: { id: episode.id },
       data: {
-        summary: result.summary,
-        outline: result.outline
+        summary: toStoredBilingualSummary(result),
+        outline: toStoredBilingualOutline(result)
       }
     });
   } catch {
@@ -740,8 +758,8 @@ export async function generateComicSeasonOutlinesAction(formData: FormData) {
         prisma.comicSeason.update({
           where: { id: outline.id },
           data: {
-            summary: outline.summary,
-            outline: outline.outline
+            summary: toStoredBilingualSummary(outline),
+            outline: toStoredBilingualOutline(outline)
           }
         })
       )
@@ -835,8 +853,8 @@ export async function generateComicChapterOutlinesAction(formData: FormData) {
         prisma.comicChapter.update({
           where: { id: outline.id },
           data: {
-            summary: outline.summary,
-            outline: outline.outline
+            summary: toStoredBilingualSummary(outline),
+            outline: toStoredBilingualOutline(outline)
           }
         })
       )
@@ -924,8 +942,8 @@ export async function generateComicEpisodeOutlinesAction(formData: FormData) {
         prisma.comicEpisode.update({
           where: { id: outline.id },
           data: {
-            summary: outline.summary,
-            outline: outline.outline
+            summary: toStoredBilingualSummary(outline),
+            outline: toStoredBilingualOutline(outline)
           }
         })
       )

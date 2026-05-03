@@ -1,4 +1,8 @@
 import { ensureComicProjectId, revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
+import {
+  formatComicBilingualOutline,
+  formatComicBilingualSummary
+} from "@/lib/comic-bilingual-outline";
 import { prisma } from "@/lib/db";
 
 export type ComicOutlineTaskType =
@@ -68,6 +72,20 @@ function hasUsableOutline(value?: string | null) {
 
 function hasChineseText(value?: string | null) {
   return /[\u4e00-\u9fff]/.test(value || "");
+}
+
+function toStoredBilingualOutline(input: { outline: string; outlineEn?: string | null }) {
+  return formatComicBilingualOutline({
+    zh: input.outline,
+    en: input.outlineEn
+  });
+}
+
+function toStoredBilingualSummary(input: { summary: string; summaryEn?: string | null }) {
+  return formatComicBilingualSummary({
+    zh: input.summary,
+    en: input.summaryEn
+  });
 }
 
 function toNumberLabel(label: string, value: number) {
@@ -200,8 +218,8 @@ async function translateProjectOutline(taskType: ComicOutlineTaskType, targetId:
   await prisma.comicProject.update({
     where: { id: project.id },
     data: {
-      shortDescription: result.summary,
-      storyOutline: result.outline
+      shortDescription: toStoredBilingualSummary(result),
+      storyOutline: toStoredBilingualOutline(result)
     }
   });
 
@@ -249,8 +267,8 @@ async function generateProjectOutline(taskType: ComicOutlineTaskType, targetId: 
   await prisma.comicProject.update({
     where: { id: project.id },
     data: {
-      shortDescription: result.summary,
-      storyOutline: result.outline
+      shortDescription: toStoredBilingualSummary(result),
+      storyOutline: toStoredBilingualOutline(result)
     }
   });
 
@@ -326,8 +344,8 @@ async function generateSeasonOutlines(taskType: ComicOutlineTaskType, projectIdI
       prisma.comicSeason.update({
         where: { id: outline.id },
         data: {
-          summary: outline.summary,
-          outline: outline.outline
+          summary: toStoredBilingualSummary(outline),
+          outline: toStoredBilingualOutline(outline)
         }
       })
     )
@@ -391,8 +409,8 @@ async function translateSeasonOutline(taskType: ComicOutlineTaskType, seasonId: 
   await prisma.comicSeason.update({
     where: { id: season.id },
     data: {
-      summary: result.summary,
-      outline: result.outline
+      summary: toStoredBilingualSummary(result),
+      outline: toStoredBilingualOutline(result)
     }
   });
 
@@ -442,8 +460,8 @@ async function generateSeasonOutline(taskType: ComicOutlineTaskType, seasonId: s
   await prisma.comicSeason.update({
     where: { id: season.id },
     data: {
-      summary: result.summary,
-      outline: result.outline
+      summary: toStoredBilingualSummary(result),
+      outline: toStoredBilingualOutline(result)
     }
   });
 
@@ -503,8 +521,8 @@ async function generateChapterOutlines(taskType: ComicOutlineTaskType, seasonId:
       prisma.comicChapter.update({
         where: { id: outline.id },
         data: {
-          summary: outline.summary,
-          outline: outline.outline
+          summary: toStoredBilingualSummary(outline),
+          outline: toStoredBilingualOutline(outline)
         }
       })
     )
@@ -564,8 +582,8 @@ async function translateChapterOutline(taskType: ComicOutlineTaskType, chapterId
   await prisma.comicChapter.update({
     where: { id: chapter.id },
     data: {
-      summary: result.summary,
-      outline: result.outline
+      summary: toStoredBilingualSummary(result),
+      outline: toStoredBilingualOutline(result)
     }
   });
 
@@ -618,8 +636,8 @@ async function generateChapterOutline(taskType: ComicOutlineTaskType, chapterId:
   await prisma.comicChapter.update({
     where: { id: chapter.id },
     data: {
-      summary: result.summary,
-      outline: result.outline
+      summary: toStoredBilingualSummary(result),
+      outline: toStoredBilingualOutline(result)
     }
   });
 
@@ -674,8 +692,8 @@ async function generateEpisodeOutlines(taskType: ComicOutlineTaskType, chapterId
       prisma.comicEpisode.update({
         where: { id: outline.id },
         data: {
-          summary: outline.summary,
-          outline: outline.outline
+          summary: toStoredBilingualSummary(outline),
+          outline: toStoredBilingualOutline(outline)
         }
       })
     )
@@ -739,8 +757,8 @@ async function translateEpisodeOutline(taskType: ComicOutlineTaskType, episodeId
   await prisma.comicEpisode.update({
     where: { id: episode.id },
     data: {
-      summary: result.summary,
-      outline: result.outline
+      summary: toStoredBilingualSummary(result),
+      outline: toStoredBilingualOutline(result)
     }
   });
 
@@ -790,8 +808,8 @@ async function generateEpisodeOutline(taskType: ComicOutlineTaskType, episodeId:
   await prisma.comicEpisode.update({
     where: { id: episode.id },
     data: {
-      summary: result.summary,
-      outline: result.outline
+      summary: toStoredBilingualSummary(result),
+      outline: toStoredBilingualOutline(result)
     }
   });
 

@@ -4698,6 +4698,50 @@ main {
   line-height: 1.75;
 }
 
+.admin-comic-outline-bilingual {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.admin-comic-outline-language-pane {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.admin-comic-outline-language-pane__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0;
+  font-size: 0.76rem;
+}
+
+.admin-comic-outline-language-pane .admin-comic-outline-summary {
+  padding: 0 0 12px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(46, 40, 37, 0.08);
+  background: transparent;
+}
+
+.admin-comic-outline-language-pane pre {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .admin-comic-outline-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -5408,6 +5452,7 @@ main {
   .admin-comic-prompt-page-grid,
   .admin-comic-publish-page-grid,
   .admin-comic-outline-layout,
+  .admin-comic-outline-bilingual,
   .admin-comic-publish-asset {
     grid-template-columns: 1fr;
   }
