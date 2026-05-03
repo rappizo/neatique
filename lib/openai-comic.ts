@@ -19,9 +19,14 @@ const DEFAULT_OPENAI_COMIC_MODEL =
   "gpt-5.5";
 const DEFAULT_OPENAI_COMIC_OUTLINE_MODEL =
   process.env.OPENAI_COMIC_OUTLINE_MODEL || DEFAULT_OPENAI_COMIC_MODEL;
+const DEFAULT_OPENAI_COMIC_PROMPT_MODEL =
+  process.env.OPENAI_COMIC_PROMPT_MODEL || DEFAULT_OPENAI_COMIC_MODEL;
 const OPENAI_COMIC_OUTLINE_REASONING_EFFORT =
   process.env.OPENAI_COMIC_OUTLINE_REASONING_EFFORT || "low";
+const OPENAI_COMIC_PROMPT_REASONING_EFFORT =
+  process.env.OPENAI_COMIC_PROMPT_REASONING_EFFORT || "low";
 const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 55;
+const DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS = 1000 * 55;
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Non-negotiable visual production locks:",
@@ -162,6 +167,13 @@ export type GeneratedComicPromptPackage = {
   pagePlan: string;
   pages: GeneratedComicPagePrompt[];
   globalGptImage2Notes: string;
+};
+
+export type PendingComicPromptPackage = {
+  pending: true;
+  responseId: string;
+  status: string;
+  message: string;
 };
 
 export type ReviseComicPagePromptInput = {
@@ -361,11 +373,25 @@ function getOpenAiComicOutlineTimeoutMs() {
   return Math.min(Math.max(configuredSeconds, 15), 55) * 1000;
 }
 
+function getOpenAiComicPromptTimeoutMs() {
+  const configuredSeconds = Number.parseInt(process.env.OPENAI_COMIC_PROMPT_TIMEOUT_SECONDS || "", 10);
+
+  if (!Number.isFinite(configuredSeconds) || configuredSeconds <= 0) {
+    return DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS;
+  }
+
+  return Math.min(Math.max(configuredSeconds, 15), 55) * 1000;
+}
+
 function getOpenAiComicOutlineAbortSignal() {
   return AbortSignal.timeout(getOpenAiComicOutlineTimeoutMs());
 }
 
-function isOpenAiComicOutlineTimeoutError(error: unknown) {
+function getOpenAiComicPromptAbortSignal() {
+  return AbortSignal.timeout(getOpenAiComicPromptTimeoutMs());
+}
+
+function isOpenAiTimeoutError(error: unknown) {
   const name =
     error && typeof error === "object" && "name" in error
       ? String((error as { name?: unknown }).name || "")
@@ -380,6 +406,10 @@ function isOpenAiComicOutlineTimeoutError(error: unknown) {
   );
 }
 
+function shouldUseOpenAiComicPromptBackgroundMode() {
+  return (process.env.OPENAI_COMIC_PROMPT_BACKGROUND || "true").trim().toLowerCase() !== "false";
+}
+
 async function fetchOpenAiComicOutlineResponse(apiKey: string, body: Record<string, unknown>) {
   try {
     return await fetch(`${OPENAI_API_BASE_URL}/responses`, {
@@ -392,7 +422,7 @@ async function fetchOpenAiComicOutlineResponse(apiKey: string, body: Record<stri
       body: JSON.stringify(body)
     });
   } catch (error) {
-    if (isOpenAiComicOutlineTimeoutError(error)) {
+    if (isOpenAiTimeoutError(error)) {
       throw new Error(
         `OpenAI outline request timed out after ${Math.round(
           getOpenAiComicOutlineTimeoutMs() / 1000
@@ -1342,13 +1372,13 @@ function buildCharacterSummary(characters: ComicCharacterContext[]) {
         [
           `- ${character.name} (${character.role})`,
           `  Slug: ${character.slug}`,
-          `  Appearance: ${character.appearance}`,
-          `  Personality: ${character.personality}`,
-          `  Speech guide: ${character.speechGuide}`,
+          `  Appearance: ${trimPromptContext(character.appearance, 900)}`,
+          `  Personality: ${trimPromptContext(character.personality, 520)}`,
+          `  Speech guide: ${trimPromptContext(character.speechGuide, 520)}`,
           `  Reference folder: ${character.referenceFolder}`,
-          `  Reference notes: ${character.referenceNotes || "None"}`,
+          `  Reference notes: ${trimPromptContext(character.referenceNotes || "None", 420)}`,
           character.profileMarkdown
-            ? `  Canon profile MD:\n${character.profileMarkdown}`
+            ? `  Canon profile MD:\n${trimPromptContext(character.profileMarkdown, 1400)}`
             : "  Canon profile MD: Not available.",
           "  Available reference files:",
           buildReferenceFileSummary(character.referenceFiles)
@@ -1368,11 +1398,11 @@ function buildSceneSummary(scenes: ComicSceneContext[]) {
         [
           `- ${scene.name}`,
           `  Slug: ${scene.slug}`,
-          `  Summary: ${scene.summary}`,
-          `  Visual notes: ${scene.visualNotes}`,
-          `  Mood notes: ${scene.moodNotes}`,
+          `  Summary: ${trimPromptContext(scene.summary, 420)}`,
+          `  Visual notes: ${trimPromptContext(scene.visualNotes, 900)}`,
+          `  Mood notes: ${trimPromptContext(scene.moodNotes, 420)}`,
           `  Reference folder: ${scene.referenceFolder}`,
-          `  Reference notes: ${scene.referenceNotes || "None"}`,
+          `  Reference notes: ${trimPromptContext(scene.referenceNotes || "None", 420)}`,
           "  Available reference files:",
           buildReferenceFileSummary(scene.referenceFiles)
         ].join("\n")
@@ -1411,6 +1441,16 @@ function buildReferenceFileSummary(referenceFiles: ComicReferenceFileContext[]) 
       ].join("\n")
     )
     .join("\n");
+}
+
+function trimPromptContext(value: string | null | undefined, maxLength: number) {
+  const normalized = (value || "").trim();
+
+  if (!normalized || normalized.length <= maxLength) {
+    return normalized || "None";
+  }
+
+  return `${normalized.slice(0, maxLength).trimEnd()}\n[Context trimmed for prompt package speed.]`;
 }
 
 function buildComicPageUploadSummary(uploads: GeneratedComicPageUpload[]) {
@@ -1548,6 +1588,146 @@ function ensureReferenceNotesIncludeLettering(notes: string) {
   return /lettering|speech balloon|speech balloons|caption/i.test(notes)
     ? notes.trim()
     : `${notes.trim()}\n\n${COMIC_LETTERING_STYLE_LOCKS}`;
+}
+
+function getOpenAiResponseId(response: unknown) {
+  return response && typeof response === "object" && "id" in response
+    ? String((response as { id?: unknown }).id || "")
+    : "";
+}
+
+function getOpenAiResponseStatus(response: unknown) {
+  return response && typeof response === "object" && "status" in response
+    ? String((response as { status?: unknown }).status || "")
+    : "";
+}
+
+function getOpenAiResponseFailureMessage(response: unknown) {
+  const record = response && typeof response === "object" ? (response as Record<string, unknown>) : null;
+
+  if (!record) {
+    return "";
+  }
+
+  const errorMessage = "error" in record ? extractOpenAiErrorMessage(record.error) : null;
+
+  if (errorMessage) {
+    return errorMessage;
+  }
+
+  const incompleteDetails =
+    record.incomplete_details && typeof record.incomplete_details === "object"
+      ? (record.incomplete_details as Record<string, unknown>)
+      : null;
+  const reason =
+    typeof incompleteDetails?.reason === "string" ? incompleteDetails.reason : getOpenAiResponseStatus(record);
+
+  return reason ? `OpenAI response ended with status: ${reason}.` : "";
+}
+
+function getPendingComicPromptPackage(response: unknown): PendingComicPromptPackage | null {
+  const status = getOpenAiResponseStatus(response);
+
+  if (!["queued", "in_progress"].includes(status)) {
+    return null;
+  }
+
+  const responseId = getOpenAiResponseId(response);
+
+  if (!responseId) {
+    throw new Error("OpenAI prompt package response is pending but did not include a response id.");
+  }
+
+  return {
+    pending: true,
+    responseId,
+    status,
+    message:
+      status === "queued"
+        ? "OpenAI is preparing this 10-page prompt package."
+        : "OpenAI is still generating this 10-page prompt package."
+  };
+}
+
+function assertOpenAiPromptPackageIsComplete(response: unknown) {
+  const status = getOpenAiResponseStatus(response);
+
+  if (["failed", "cancelled", "incomplete", "expired"].includes(status)) {
+    throw new Error(getOpenAiResponseFailureMessage(response) || `OpenAI response ${status}.`);
+  }
+}
+
+async function readOpenAiJsonResponse(response: Response, fallbackMessage: string) {
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `${fallbackMessage} ${response.status}.`;
+    throw new Error(message);
+  }
+
+  return parsed;
+}
+
+async function createOpenAiComicPromptPackageResponse(
+  apiKey: string,
+  body: Record<string, unknown>
+) {
+  try {
+    const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      signal: getOpenAiComicPromptAbortSignal(),
+      body: JSON.stringify(body)
+    });
+
+    return readOpenAiJsonResponse(response, "OpenAI prompt package request failed with");
+  } catch (error) {
+    if (isOpenAiTimeoutError(error)) {
+      throw new Error(
+        `OpenAI prompt package request timed out after ${Math.round(
+          getOpenAiComicPromptTimeoutMs() / 1000
+        )} seconds. The task can be retried automatically.`
+      );
+    }
+
+    throw error;
+  }
+}
+
+async function retrieveOpenAiComicPromptPackageResponse(apiKey: string, responseId: string) {
+  try {
+    const response = await fetch(
+      `${OPENAI_API_BASE_URL}/responses/${encodeURIComponent(responseId)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`
+        },
+        signal: getOpenAiComicPromptAbortSignal()
+      }
+    );
+
+    return readOpenAiJsonResponse(response, "OpenAI prompt package retrieval failed with");
+  } catch (error) {
+    if (isOpenAiTimeoutError(error)) {
+      throw new Error(
+        `OpenAI prompt package status check timed out after ${Math.round(
+          getOpenAiComicPromptTimeoutMs() / 1000
+        )} seconds. The task can be retried automatically.`
+      );
+    }
+
+    throw error;
+  }
 }
 
 function buildComicPagePanelSummary(panels: GeneratedComicPanelPrompt[]) {
@@ -2122,9 +2302,24 @@ export async function reviseComicPagePromptWithAi(
   };
 }
 
+type ComicPromptPackageAiOptions = {
+  openAiResponseId?: string | null;
+  background?: boolean;
+};
+
 export async function generateComicPromptPackageWithAi(
   input: GenerateComicPromptPackageInput
-): Promise<GeneratedComicPromptPackage> {
+): Promise<GeneratedComicPromptPackage>;
+
+export async function generateComicPromptPackageWithAi(
+  input: GenerateComicPromptPackageInput,
+  options: ComicPromptPackageAiOptions & { background: true }
+): Promise<GeneratedComicPromptPackage | PendingComicPromptPackage>;
+
+export async function generateComicPromptPackageWithAi(
+  input: GenerateComicPromptPackageInput,
+  options: ComicPromptPackageAiOptions = {}
+): Promise<GeneratedComicPromptPackage | PendingComicPromptPackage> {
   const apiKey = getOpenAiApiKey();
 
   if (!apiKey) {
@@ -2136,9 +2331,9 @@ export async function generateComicPromptPackageWithAi(
     additionalProperties: false,
     properties: {
       episodeLogline: { type: "string", minLength: 30, maxLength: 320 },
-      episodeSynopsis: { type: "string", minLength: 120, maxLength: 1200 },
-      episodeScript: { type: "string", minLength: 500, maxLength: 10000 },
-      pagePlan: { type: "string", minLength: 240, maxLength: 8000 },
+      episodeSynopsis: { type: "string", minLength: 120, maxLength: 760 },
+      episodeScript: { type: "string", minLength: 420, maxLength: 5200 },
+      pagePlan: { type: "string", minLength: 240, maxLength: 3600 },
       pages: {
         type: "array",
         minItems: 10,
@@ -2149,9 +2344,9 @@ export async function generateComicPromptPackageWithAi(
           properties: {
             pageNumber: { type: "integer", minimum: 1, maximum: 10 },
             panelCount: { type: "integer", enum: [2, 3] },
-            pagePurpose: { type: "string", minLength: 12, maxLength: 520 },
-            promptPackCopyText: { type: "string", minLength: 160, maxLength: 6000 },
-            referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 5000 },
+            pagePurpose: { type: "string", minLength: 12, maxLength: 320 },
+            promptPackCopyText: { type: "string", minLength: 160, maxLength: 3400 },
+            referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 2400 },
             panels: {
               type: "array",
               minItems: 2,
@@ -2163,8 +2358,8 @@ export async function generateComicPromptPackageWithAi(
                   pageNumber: { type: "integer", minimum: 1, maximum: 10 },
                   panelNumber: { type: "integer", minimum: 1, maximum: 3 },
                   panelTitle: { type: "string", minLength: 4, maxLength: 140 },
-                  storyBeat: { type: "string", minLength: 12, maxLength: 600 },
-                  promptText: { type: "string", minLength: 60, maxLength: 1400 },
+                  storyBeat: { type: "string", minLength: 12, maxLength: 360 },
+                  promptText: { type: "string", minLength: 60, maxLength: 920 },
                   dialogueLines: {
                     type: "array",
                     minItems: 1,
@@ -2193,7 +2388,7 @@ export async function generateComicPromptPackageWithAi(
             requiredUploads: {
               type: "array",
               minItems: 1,
-              maxItems: 12,
+              maxItems: 8,
               items: {
                 type: "object",
                 additionalProperties: false,
@@ -2201,8 +2396,8 @@ export async function generateComicPromptPackageWithAi(
                   bucket: { type: "string", enum: ["CHARACTER", "SCENE", "CHAPTER_SCENE"] },
                   label: { type: "string", minLength: 2, maxLength: 120 },
                   slug: { type: "string", minLength: 1, maxLength: 120 },
-                  whyThisMatters: { type: "string", minLength: 12, maxLength: 420 },
-                  contentSummary: { type: "string", minLength: 12, maxLength: 600 },
+                  whyThisMatters: { type: "string", minLength: 12, maxLength: 260 },
+                  contentSummary: { type: "string", minLength: 12, maxLength: 360 },
                   uploadImageNames: {
                     type: "array",
                     minItems: 1,
@@ -2239,7 +2434,7 @@ export async function generateComicPromptPackageWithAi(
           ]
         }
       },
-      globalGptImage2Notes: { type: "string", minLength: 120, maxLength: 5000 }
+      globalGptImage2Notes: { type: "string", minLength: 120, maxLength: 2600 }
     },
     required: [
       "episodeLogline",
@@ -2251,15 +2446,13 @@ export async function generateComicPromptPackageWithAi(
     ]
   };
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: DEFAULT_OPENAI_COMIC_MODEL,
-      input: [
+  const openAiResponseId = options.openAiResponseId?.trim() || "";
+  const useBackgroundMode =
+    options.background === true && shouldUseOpenAiComicPromptBackgroundMode() && !openAiResponseId;
+  const requestBody: Record<string, unknown> = {
+    model: DEFAULT_OPENAI_COMIC_PROMPT_MODEL,
+    ...(useBackgroundMode ? { background: true, store: true } : {}),
+    input: [
         {
           role: "system",
           content: [
@@ -2307,26 +2500,26 @@ export async function generateComicPromptPackageWithAi(
               text: [
                 "Comic project:",
                 `Title: ${input.project.title}`,
-                `Short description: ${input.project.shortDescription}`,
-                `Story outline: ${input.project.storyOutline}`,
-                `World rules: ${input.project.worldRules}`,
-                `Visual style guide: ${input.project.visualStyleGuide}`,
-                `Workflow notes: ${input.project.workflowNotes || "None"}`,
+                `Short description: ${trimPromptContext(input.project.shortDescription, 420)}`,
+                `Story outline: ${trimPromptContext(input.project.storyOutline, 1600)}`,
+                `World rules: ${trimPromptContext(input.project.worldRules, 1400)}`,
+                `Visual style guide: ${trimPromptContext(input.project.visualStyleGuide, 1800)}`,
+                `Workflow notes: ${trimPromptContext(input.project.workflowNotes || "None", 700)}`,
                 "",
                 "Season context:",
                 `Title: ${input.season.title}`,
-                `Summary: ${input.season.summary}`,
-                `Outline: ${input.season.outline}`,
+                `Summary: ${trimPromptContext(input.season.summary, 420)}`,
+                `Outline: ${trimPromptContext(input.season.outline, 1000)}`,
                 "",
                 "Chapter context:",
                 `Title: ${input.chapter.title}`,
-                `Summary: ${input.chapter.summary}`,
-                `Outline: ${input.chapter.outline}`,
+                `Summary: ${trimPromptContext(input.chapter.summary, 520)}`,
+                `Outline: ${trimPromptContext(input.chapter.outline, 2600)}`,
                 "",
                 "Episode context:",
                 `Title: ${input.episode.title}`,
-                `Summary: ${input.episode.summary}`,
-                `Outline: ${input.episode.outline}`,
+                `Summary: ${trimPromptContext(input.episode.summary, 620)}`,
+                `Outline: ${trimPromptContext(input.episode.outline, 5200)}`,
                 "",
                 "Global visual production locks that must appear in the page prompts and notes:",
                 COMIC_VISUAL_PRODUCTION_LOCKS,
@@ -2349,6 +2542,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Expand the episode into a readable production script.",
                 "- The episodeScript must include dialogue, not only prose narration.",
                 "- Create a 10-page plan.",
+                "- Keep every returned field compact enough for a production dashboard; avoid repeating the same global locks verbatim inside every field.",
                 "- Every page should normally contain 3 panels.",
                 "- A page may contain 2 panels only when the beat is visually important enough to justify extra space.",
                 `- Assume the image generation step will use ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
@@ -2381,32 +2575,29 @@ export async function generateComicPromptPackageWithAi(
           ]
         }
       ],
-      reasoning: {
-        effort: "medium"
-      },
-      text: {
-        format: {
-          type: "json_schema",
-          name: "comic_prompt_package",
-          strict: true,
-          schema
-        }
+    reasoning: {
+      effort: OPENAI_COMIC_PROMPT_REASONING_EFFORT
+    },
+    text: {
+      format: {
+        type: "json_schema",
+        name: "comic_prompt_package",
+        strict: true,
+        schema
       }
-    })
-  });
+    }
+  };
 
-  const rawText = await response.text();
-  const parsed = rawText ? safeJsonParse(rawText) : null;
+  const parsed = openAiResponseId
+    ? await retrieveOpenAiComicPromptPackageResponse(apiKey, openAiResponseId)
+    : await createOpenAiComicPromptPackageResponse(apiKey, requestBody);
+  const pending = getPendingComicPromptPackage(parsed);
 
-  if (!response.ok) {
-    const parsedRecord =
-      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-    const message =
-      (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI request failed with ${response.status}.`;
-    throw new Error(message);
+  if (pending) {
+    return pending;
   }
+
+  assertOpenAiPromptPackageIsComplete(parsed);
 
   const outputText = getResponseOutputText(parsed);
 

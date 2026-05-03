@@ -42,10 +42,13 @@ export type ComicPromptTaskResult = {
   pageNumber?: number;
   message: string;
   errorMessage?: string;
+  defer?: boolean;
+  payloadPatch?: Record<string, unknown>;
 };
 
 function getComicModel() {
   return (
+    process.env.OPENAI_COMIC_PROMPT_MODEL ||
     process.env.OPENAI_COMIC_MODEL ||
     process.env.OPENAI_POST_MODEL ||
     process.env.OPENAI_EMAIL_MODEL ||
@@ -57,8 +60,21 @@ function getComicImageModel() {
   return process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 }
 
+function normalizeRelevanceText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, " ");
+}
+
+function isReferencedInText(searchText: string, name: string, slug: string) {
+  const candidates = [name, slug]
+    .map((value) => normalizeRelevanceText(value).trim())
+    .filter(Boolean);
+
+  return candidates.some((candidate) => searchText.includes(candidate));
+}
+
 export async function generateComicPromptPackageForEpisode(input: {
   episodeId: string;
+  openAiResponseId?: string | null;
 }): Promise<ComicPromptTaskResult> {
   const episodeId = input.episodeId.trim();
 
@@ -112,6 +128,27 @@ export async function generateComicPromptPackageForEpisode(input: {
   const characterIdentityLockBySlug = new Map(
     characterIdentityLocks.map((character) => [character.slug, character])
   );
+  const relevanceText = normalizeRelevanceText(
+    [
+      episode.chapter.season.project.title,
+      episode.chapter.season.title,
+      episode.chapter.title,
+      episode.chapter.summary,
+      episode.title,
+      episode.summary,
+      episode.outline
+    ].join("\n")
+  );
+  const relevantCharacters = characters.filter(
+    (character) =>
+      character.name.toLowerCase() === "muci" ||
+      isReferencedInText(relevanceText, character.name, character.slug)
+  );
+  const relevantScenes = scenes.filter((scene) =>
+    isReferencedInText(relevanceText, scene.name, scene.slug)
+  );
+  const promptCharacters = (relevantCharacters.length > 0 ? relevantCharacters : characters).slice(0, 8);
+  const promptScenes = (relevantScenes.length > 0 ? relevantScenes : scenes).slice(0, 6);
 
   const inputContext = JSON.stringify(
     {
@@ -133,6 +170,8 @@ export async function generateComicPromptPackageForEpisode(input: {
       },
       characterCount: characters.length,
       sceneCount: scenes.length,
+      promptCharacterCount: promptCharacters.length,
+      promptSceneCount: promptScenes.length,
       chapterSceneReferenceFolder: chapterSceneReferenceState.chapterSceneReferenceFolder,
       chapterSceneReferenceCount: chapterSceneReferenceState.chapterSceneReferences.length,
       chapterSceneReferenceFiles: chapterSceneReferenceState.chapterSceneReferences.map(
@@ -154,54 +193,73 @@ export async function generateComicPromptPackageForEpisode(input: {
 
   try {
     const { generateComicPromptPackageWithAi } = await import("@/lib/openai-comic");
-    const result = await generateComicPromptPackageWithAi({
-      project: {
-        title: episode.chapter.season.project.title,
-        shortDescription: episode.chapter.season.project.shortDescription,
-        storyOutline: episode.chapter.season.project.storyOutline,
-        worldRules: episode.chapter.season.project.worldRules,
-        visualStyleGuide: episode.chapter.season.project.visualStyleGuide,
-        workflowNotes: episode.chapter.season.project.workflowNotes
+    const result = await generateComicPromptPackageWithAi(
+      {
+        project: {
+          title: episode.chapter.season.project.title,
+          shortDescription: episode.chapter.season.project.shortDescription,
+          storyOutline: episode.chapter.season.project.storyOutline,
+          worldRules: episode.chapter.season.project.worldRules,
+          visualStyleGuide: episode.chapter.season.project.visualStyleGuide,
+          workflowNotes: episode.chapter.season.project.workflowNotes
+        },
+        season: {
+          title: episode.chapter.season.title,
+          summary: episode.chapter.season.summary,
+          outline: episode.chapter.season.outline
+        },
+        chapter: {
+          title: episode.chapter.title,
+          summary: episode.chapter.summary,
+          outline: episode.chapter.outline
+        },
+        episode: {
+          title: episode.title,
+          summary: episode.summary,
+          outline: episode.outline
+        },
+        characters: promptCharacters.map((character) => ({
+          name: character.name,
+          slug: character.slug,
+          role: character.role,
+          appearance: character.appearance,
+          personality: character.personality,
+          speechGuide: character.speechGuide,
+          referenceFolder: character.referenceFolder,
+          referenceNotes: character.referenceNotes,
+          referenceFiles: getComicCharacterReferenceFiles(character.slug),
+          profileMarkdown: characterIdentityLockBySlug.get(character.slug)?.profileMarkdown || null
+        })),
+        scenes: promptScenes.map((scene) => ({
+          name: scene.name,
+          slug: scene.slug,
+          summary: scene.summary,
+          visualNotes: scene.visualNotes,
+          moodNotes: scene.moodNotes,
+          referenceFolder: scene.referenceFolder,
+          referenceNotes: scene.referenceNotes,
+          referenceFiles: getComicSceneReferenceFiles(scene.slug)
+        })),
+        chapterSceneReferences: chapterSceneReferenceState.chapterSceneReferences
       },
-      season: {
-        title: episode.chapter.season.title,
-        summary: episode.chapter.season.summary,
-        outline: episode.chapter.season.outline
-      },
-      chapter: {
-        title: episode.chapter.title,
-        summary: episode.chapter.summary,
-        outline: episode.chapter.outline
-      },
-      episode: {
-        title: episode.title,
-        summary: episode.summary,
-        outline: episode.outline
-      },
-      characters: characters.map((character) => ({
-        name: character.name,
-        slug: character.slug,
-        role: character.role,
-        appearance: character.appearance,
-        personality: character.personality,
-        speechGuide: character.speechGuide,
-        referenceFolder: character.referenceFolder,
-        referenceNotes: character.referenceNotes,
-        referenceFiles: getComicCharacterReferenceFiles(character.slug),
-        profileMarkdown: characterIdentityLockBySlug.get(character.slug)?.profileMarkdown || null
-      })),
-      scenes: scenes.map((scene) => ({
-        name: scene.name,
-        slug: scene.slug,
-        summary: scene.summary,
-        visualNotes: scene.visualNotes,
-        moodNotes: scene.moodNotes,
-        referenceFolder: scene.referenceFolder,
-        referenceNotes: scene.referenceNotes,
-        referenceFiles: getComicSceneReferenceFiles(scene.slug)
-      })),
-      chapterSceneReferences: chapterSceneReferenceState.chapterSceneReferences
-    });
+      {
+        openAiResponseId: input.openAiResponseId,
+        background: true
+      }
+    );
+
+    if ("pending" in result) {
+      return {
+        ok: true,
+        defer: true,
+        status: "prompt-generated",
+        episodeId,
+        message: result.message,
+        payloadPatch: {
+          openAiResponseId: result.responseId
+        }
+      };
+    }
 
     await prisma.$transaction([
       prisma.comicEpisode.update({

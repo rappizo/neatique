@@ -76,10 +76,12 @@ type ComicAiTaskModelRecord = {
 
 type ComicAiTaskResult = {
   ok?: boolean;
+  defer?: boolean;
   message?: string;
   errorMessage?: string;
   assetId?: string;
   imageUrl?: string;
+  payloadPatch?: ComicAiTaskPayload;
   [key: string]: unknown;
 };
 
@@ -202,7 +204,7 @@ function getTaskMessage(task: ComicAiTaskModelRecord, result: ComicAiTaskResult 
 }
 
 function getDefaultMaxAttempts(taskType: ComicAiTaskType) {
-  return taskType === "outline" ? 3 : 2;
+  return taskType === "outline" || taskType === "prompt-package" ? 3 : 2;
 }
 
 function isRetryableComicAiTaskError(errorMessage: string) {
@@ -235,6 +237,14 @@ function isRetryableComicAiTaskError(errorMessage: string) {
 
 function getRetryingErrorMessage(errorMessage: string) {
   return `Previous attempt failed: ${errorMessage} Retrying automatically.`;
+}
+
+function getPayloadPatch(result: ComicAiTaskResult | null) {
+  return result?.payloadPatch &&
+    typeof result.payloadPatch === "object" &&
+    !Array.isArray(result.payloadPatch)
+    ? result.payloadPatch
+    : {};
 }
 
 function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayload) {
@@ -312,7 +322,8 @@ async function executeComicAiTask(taskType: ComicAiTaskType, payload: ComicAiTas
       });
     case "prompt-package":
       return generateComicPromptPackageForEpisode({
-        episodeId: toStringValue(payload.episodeId)
+        episodeId: toStringValue(payload.episodeId),
+        openAiResponseId: toStringValue(payload.openAiResponseId)
       });
     case "prompt-revision":
       return reviseComicPagePromptForEpisode({
@@ -403,14 +414,24 @@ export async function enqueueComicAiTask(input: {
 
   const payload = stringifyPayload(input.payload);
   const lookupFields = getTaskLookupFields(input.taskType, input.payload);
+  const activeTaskWhere =
+    input.taskType === "prompt-package" && lookupFields.episodeId
+      ? {
+          taskType: input.taskType,
+          episodeId: lookupFields.episodeId,
+          status: {
+            in: ACTIVE_TASK_STATUSES
+          }
+        }
+      : {
+          taskType: input.taskType,
+          payload,
+          status: {
+            in: ACTIVE_TASK_STATUSES
+          }
+        };
   const existingTask = await prisma.comicAiTask.findFirst({
-    where: {
-      taskType: input.taskType,
-      payload,
-      status: {
-        in: ACTIVE_TASK_STATUSES
-      }
-    },
+    where: activeTaskWhere,
     orderBy: [{ createdAt: "desc" }]
   });
 
@@ -452,6 +473,11 @@ export async function cancelComicAiTask(id: string) {
 }
 
 export async function retryComicAiTask(id: string) {
+  const existingTask = await prisma.comicAiTask.findUnique({
+    where: { id },
+    select: { taskType: true }
+  });
+
   await prisma.comicAiTask.updateMany({
     where: {
       id,
@@ -462,6 +488,9 @@ export async function retryComicAiTask(id: string) {
     data: {
       status: "QUEUED",
       attempts: 0,
+      maxAttempts: existingTask
+        ? getDefaultMaxAttempts(existingTask.taskType as ComicAiTaskType)
+        : undefined,
       lockedAt: null,
       completedAt: null,
       result: null,
@@ -543,6 +572,42 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
 
   try {
     const result = (await executeComicAiTask(taskType, payload)) as ComicAiTaskResult;
+
+    if (result?.defer === true) {
+      const payloadPatch = getPayloadPatch(result);
+      const nextPayload =
+        Object.keys(payloadPatch).length > 0
+          ? stringifyPayload({
+              ...payload,
+              ...payloadPatch
+            })
+          : task.payload;
+      const deferMessage =
+        typeof result.message === "string" ? result.message : "Task is still running remotely.";
+      const update = await prisma.comicAiTask.updateMany({
+        where: { id: task.id, status: "RUNNING" },
+        data: {
+          status: "QUEUED",
+          payload: nextPayload,
+          result: JSON.stringify(result),
+          errorMessage: deferMessage,
+          completedAt: null,
+          lockedAt: null,
+          attempts: {
+            decrement: 1
+          }
+        }
+      });
+
+      return {
+        id: task.id,
+        ok: false,
+        deferred: update.count > 0,
+        skipped: update.count === 0,
+        errorMessage:
+          update.count > 0 ? deferMessage : "Task was no longer running when the worker deferred."
+      };
+    }
 
     if (result?.ok === false) {
       const errorMessage =
