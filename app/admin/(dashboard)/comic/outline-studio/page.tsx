@@ -633,8 +633,8 @@ function ChapterOutlineSection({
             ...chapter.episodes.map((episode) => ({
               taskType: "episode-generate",
               targetId: episode.id,
-              taskLabel: `Generate ${episodeLabel(episode)}`,
-              idleLabel: `生成Episode ${episode.episodeNumber}大纲`,
+              taskLabel: `Generate episode ${episode.episodeNumber}: ${episode.title}`,
+              idleLabel: `生成第${episode.episodeNumber}话大纲`,
               includeRevisionNotes: false,
               disabled: Boolean(episodeGenerationDisabledReason),
               disabledReason: episodeGenerationDisabledReason
