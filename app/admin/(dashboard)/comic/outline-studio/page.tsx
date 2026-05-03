@@ -1,9 +1,10 @@
 import Link from "next/link";
 import {
+  ComicGeneratePromptPackageQueueButton,
   ComicImageTaskQueueProvider,
   ComicOutlineQueueForm
 } from "@/components/admin/comic-image-task-queue";
-import { getComicPromptStudioPage } from "@/lib/comic-queries";
+import { getComicOutlineStudioPage } from "@/lib/comic-queries";
 import { getOpenAiComicSettings } from "@/lib/openai-comic";
 import type {
   ComicChapterRecord,
@@ -13,8 +14,10 @@ import type {
 } from "@/lib/types";
 
 type AdminComicOutlineStudioPageProps = {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; scope?: string; id?: string }>;
 };
+
+type OutlineScope = "project" | "season" | "chapter" | "episode";
 
 const STATUS_MESSAGES: Record<string, string> = {
   "project-outline-generated": "整部漫画中文大纲已更新。",
@@ -82,7 +85,8 @@ function OutlineActionForm({
   idleLabel,
   taskLabel,
   disabled,
-  disabledReason
+  disabledReason,
+  showRevisionNotes = true
 }: {
   taskType: string;
   targetId: string;
@@ -90,6 +94,7 @@ function OutlineActionForm({
   taskLabel: string;
   disabled?: boolean;
   disabledReason?: string;
+  showRevisionNotes?: boolean;
 }) {
   return (
     <ComicOutlineQueueForm
@@ -99,6 +104,7 @@ function OutlineActionForm({
       idleLabel={idleLabel}
       disabled={disabled}
       disabledReason={disabledReason}
+      showRevisionNotes={showRevisionNotes}
     />
   );
 }
@@ -179,12 +185,26 @@ function episodeLabel(episode: ComicEpisodeRecord) {
   return `Episode ${episode.episodeNumber}: ${episode.title}`;
 }
 
+function outlineStudioHref(scope: OutlineScope, id?: string) {
+  const params = new URLSearchParams({ scope });
+
+  if (id) {
+    params.set("id", id);
+  }
+
+  return `/admin/comic/outline-studio?${params.toString()}`;
+}
+
+function publishCenterEpisodeHref(chapterId: string, episodeId: string) {
+  return `/admin/comic/publish-center/chapters/${chapterId}#episode-${episodeId}`;
+}
+
 export default async function AdminComicOutlineStudioPage({
   searchParams
 }: AdminComicOutlineStudioPageProps) {
   const [params, pageData, openAiSettings] = await Promise.all([
     searchParams,
-    getComicPromptStudioPage(null),
+    getComicOutlineStudioPage(null),
     Promise.resolve(getOpenAiComicSettings())
   ]);
   const project = pageData.project;
@@ -200,6 +220,41 @@ export default async function AdminComicOutlineStudioPage({
       sum + season.chapters.reduce((chapterSum, chapter) => chapterSum + chapter.episodes.length, 0),
     0
   );
+  const requestedScope =
+    params.scope === "season" || params.scope === "chapter" || params.scope === "episode"
+      ? params.scope
+      : "project";
+  const requestedId = params.id || "";
+  let activeScope: OutlineScope = "project";
+  let activeSeason: (typeof pageData.seasons)[number] | null = null;
+  let activeChapter: (typeof pageData.seasons)[number]["chapters"][number] | null = null;
+  let activeEpisode:
+    | (typeof pageData.seasons)[number]["chapters"][number]["episodes"][number]
+    | null = null;
+
+  for (const season of pageData.seasons) {
+    if (requestedScope === "season" && season.id === requestedId) {
+      activeScope = "season";
+      activeSeason = season;
+    }
+
+    for (const chapter of season.chapters) {
+      if (requestedScope === "chapter" && chapter.id === requestedId) {
+        activeScope = "chapter";
+        activeSeason = season;
+        activeChapter = chapter;
+      }
+
+      for (const episode of chapter.episodes) {
+        if (requestedScope === "episode" && episode.id === requestedId) {
+          activeScope = "episode";
+          activeSeason = season;
+          activeChapter = chapter;
+          activeEpisode = episode;
+        }
+      }
+    }
+  }
 
   return (
     <ComicImageTaskQueueProvider maxConcurrent={3}>
@@ -208,8 +263,8 @@ export default async function AdminComicOutlineStudioPage({
         <Link href="/admin/comic" className="button button--secondary">
           Back to comic
         </Link>
-        <Link href="/admin/comic/prompt-studio" className="button button--ghost">
-          Prompt Studio
+        <Link href="/admin/comic/publish-center" className="button button--ghost">
+          Publish Center
         </Link>
       </div>
 
@@ -217,8 +272,8 @@ export default async function AdminComicOutlineStudioPage({
         <p className="eyebrow">Comic / Outline Studio</p>
         <h1>中文大纲工作台</h1>
         <p>
-          按整部漫画、Season、Chapter、Episode 的顺序确认大纲；人物名称保持英文，Episode
-          大纲确认后再进入英文 page prompts。
+          按整部漫画、Season、Chapter、Episode 的顺序确认大纲；修改或翻译时填写需求，
+          Episode 大纲确认后直接生成 Episode Prompts，再进入 Publish Center 制作页面。
         </p>
       </div>
 
@@ -243,8 +298,8 @@ export default async function AdminComicOutlineStudioPage({
         </section>
         <section className="admin-card">
           <p className="eyebrow">Next step</p>
-          <h3>Episode prompts stay English</h3>
-          <p>中文 Episode 大纲会作为上游 canon，Prompt Studio 会生成英文分镜 prompts。</p>
+          <h3>Prompts → Publish Center</h3>
+          <p>中文 Episode 大纲会作为上游 canon，生成英文 prompts 后直接进入制作和发布。</p>
         </section>
       </div>
 
@@ -252,21 +307,53 @@ export default async function AdminComicOutlineStudioPage({
         <aside className="admin-form admin-comic-outline-nav">
           <h2>大纲目录</h2>
           <nav aria-label="Comic outline sections">
-            <a href="#project-outline">整部漫画</a>
+            <Link
+              href={outlineStudioHref("project")}
+              className={activeScope === "project" ? "is-active" : undefined}
+            >
+              整部漫画
+            </Link>
             {pageData.seasons.map((season) => (
-              <details key={season.id} open>
+              <details key={season.id} open={activeScope === "project" || activeSeason?.id === season.id}>
                 <summary>{seasonLabel(season)}</summary>
                 <div>
-                  <a href={`#season-${season.id}`}>Season 大纲</a>
+                  <Link
+                    href={outlineStudioHref("season", season.id)}
+                    className={
+                      activeScope === "season" && activeSeason?.id === season.id ? "is-active" : undefined
+                    }
+                  >
+                    Season 大纲
+                  </Link>
                   {season.chapters.map((chapter) => (
-                    <details key={chapter.id}>
+                    <details
+                      key={chapter.id}
+                      open={activeScope === "project" || activeChapter?.id === chapter.id}
+                    >
                       <summary>{chapterLabel(chapter)}</summary>
                       <div>
-                        <a href={`#chapter-${chapter.id}`}>Chapter 大纲</a>
+                        <Link
+                          href={outlineStudioHref("chapter", chapter.id)}
+                          className={
+                            activeScope === "chapter" && activeChapter?.id === chapter.id
+                              ? "is-active"
+                              : undefined
+                          }
+                        >
+                          Chapter 大纲
+                        </Link>
                         {chapter.episodes.map((episode) => (
-                          <a key={episode.id} href={`#episode-${episode.id}`}>
+                          <Link
+                            key={episode.id}
+                            href={outlineStudioHref("episode", episode.id)}
+                            className={
+                              activeScope === "episode" && activeEpisode?.id === episode.id
+                                ? "is-active"
+                                : undefined
+                            }
+                          >
                             {episodeLabel(episode)}
-                          </a>
+                          </Link>
                         ))}
                       </div>
                     </details>
@@ -278,25 +365,27 @@ export default async function AdminComicOutlineStudioPage({
         </aside>
 
         <div className="admin-comic-outline-stack">
-          <ProjectOutlineSection
-            project={project}
-            seasonCount={seasonCount}
-            disabledForAi={disabledForAi}
-          />
+          {activeScope === "project" ? (
+            <ProjectOutlineSection
+              project={project}
+              seasonCount={seasonCount}
+              disabledForAi={disabledForAi}
+            />
+          ) : null}
 
-          {pageData.seasons.map((season) => (
-            <section key={season.id} className="admin-comic-outline-group">
+          {activeScope === "season" && activeSeason ? (
+            <section className="admin-comic-outline-group">
               <SeasonOutlineSection
-                season={season}
+                season={activeSeason}
                 project={project}
                 disabledForAi={disabledForAi}
                 projectOutlineReady={projectOutlineReady}
               />
 
-              {season.chapters.map((chapter) => (
+              {activeSeason.chapters.map((chapter) => (
                 <section key={chapter.id} className="admin-comic-outline-subgroup">
                   <ChapterOutlineSection
-                    season={season}
+                    season={activeSeason}
                     chapter={chapter}
                     disabledForAi={disabledForAi}
                   />
@@ -312,7 +401,34 @@ export default async function AdminComicOutlineStudioPage({
                 </section>
               ))}
             </section>
-          ))}
+          ) : null}
+
+          {activeScope === "chapter" && activeSeason && activeChapter ? (
+            <section className="admin-comic-outline-subgroup">
+              <ChapterOutlineSection
+                season={activeSeason}
+                chapter={activeChapter}
+                disabledForAi={disabledForAi}
+              />
+
+              {activeChapter.episodes.map((episode) => (
+                <EpisodeOutlineSection
+                  key={episode.id}
+                  episode={episode}
+                  chapter={activeChapter}
+                  disabledForAi={disabledForAi}
+                />
+              ))}
+            </section>
+          ) : null}
+
+          {activeScope === "episode" && activeChapter && activeEpisode ? (
+            <EpisodeOutlineSection
+              episode={activeEpisode}
+              chapter={activeChapter}
+              disabledForAi={disabledForAi}
+            />
+          ) : null}
         </div>
       </div>
       </div>
@@ -360,6 +476,7 @@ function ProjectOutlineSection({
           targetId={project?.id || ""}
           taskLabel="Generate all season outlines"
           idleLabel="根据整部大纲生成所有 Season"
+          showRevisionNotes={false}
           disabled={disabledForAi || !hasUsableOutline(project?.storyOutline) || seasonCount === 0}
           disabledReason={
             disabledForAi
@@ -430,6 +547,7 @@ function SeasonOutlineSection({
           targetId={season.id}
           taskLabel={`Generate chapters for ${seasonLabel(season)}`}
           idleLabel="根据 Season 生成所有 Chapter"
+          showRevisionNotes={false}
           disabled={disabledForAi || !hasUsableOutline(season.outline) || season.chapters.length === 0}
           disabledReason={
             disabledForAi
@@ -495,6 +613,7 @@ function ChapterOutlineSection({
           targetId={chapter.id}
           taskLabel={`Generate episodes for ${chapterLabel(chapter)}`}
           idleLabel="确认并生成所有 Episode 大纲"
+          showRevisionNotes={false}
           disabled={disabledForAi || !hasUsableOutline(chapter.outline) || chapter.episodes.length === 0}
           disabledReason={
             disabledForAi
@@ -528,6 +647,7 @@ function EpisodeOutlineSection({
     : hasUsableOutline(episode.outline)
       ? "重新生成 Episode 大纲"
       : "生成 Episode 大纲";
+  const promptDisabled = disabledForAi || !hasUsableOutline(episode.outline);
 
   return (
     <OutlinePanel
@@ -559,12 +679,21 @@ function EpisodeOutlineSection({
           }
         />
         <div className="admin-comic-outline-next-step">
-          <Link
-            href={`/admin/comic/prompt-studio?episodeId=${episode.id}`}
-            className="button button--secondary"
-          >
-            进入英文 Prompts
+          <ComicGeneratePromptPackageQueueButton
+            episodeId={episode.id}
+            idleLabel={episode.promptPack ? "重新生成 Episode Prompts" : "根据当前大纲生成 Episode Prompts"}
+            taskLabel={`Prompts: ${episode.title}`}
+            className="button button--primary"
+            disabled={promptDisabled}
+          />
+          <Link href={publishCenterEpisodeHref(chapter.id, episode.id)} className="button button--secondary">
+            进入 Publish Center 制作
           </Link>
+          {promptDisabled ? (
+            <span className="form-note">
+              {disabledForAi ? "OPENAI_API_KEY 还没有配置。" : "请先确认 Episode 大纲。"}
+            </span>
+          ) : null}
         </div>
       </div>
     </OutlinePanel>

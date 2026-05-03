@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/ai-posts",
       "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/comic-tasks",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

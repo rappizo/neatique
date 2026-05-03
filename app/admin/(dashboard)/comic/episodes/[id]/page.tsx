@@ -73,10 +73,10 @@ export default async function AdminComicEpisodeDetailPage({
           Back to chapter
         </Link>
         <Link
-          href={`/admin/comic/prompt-studio?episodeId=${episode.id}`}
+          href={`/admin/comic/publish-center/chapters/${chapter.id}#episode-${episode.id}`}
           className="button button--ghost"
         >
-          Open prompt studio
+          Open publish center
         </Link>
       </div>
 

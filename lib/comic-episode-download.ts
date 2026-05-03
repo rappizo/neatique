@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import { prisma } from "@/lib/db";
+import { getComicImageExtension, getComicImageSource } from "@/lib/comic-image-storage";
 
 export type ComicDownloadLanguage = "en" | "zh";
 
@@ -11,6 +12,7 @@ type ComicDownloadAsset = {
   id: string;
   assetType: string;
   title: string;
+  imageUrl: string;
   imageData: string | null;
   imageMimeType: string | null;
   sortOrder: number;
@@ -132,22 +134,6 @@ function isLanguageAsset(asset: ComicDownloadAsset, language: ComicDownloadLangu
     : COMIC_PAGE_ASSET_TYPES.includes(asset.assetType);
 }
 
-function getImageExtension(mimeType: string | null) {
-  if (mimeType?.includes("jpeg") || mimeType?.includes("jpg")) {
-    return "jpg";
-  }
-
-  if (mimeType?.includes("webp")) {
-    return "webp";
-  }
-
-  if (mimeType?.includes("avif")) {
-    return "avif";
-  }
-
-  return "png";
-}
-
 function sanitizeFileName(value: string) {
   return value
     .trim()
@@ -212,6 +198,7 @@ export async function createComicEpisodeDownloadZip({
           id: true,
           assetType: true,
           title: true,
+          imageUrl: true,
           imageData: true,
           imageMimeType: true,
           sortOrder: true,
@@ -251,7 +238,19 @@ export async function createComicEpisodeDownloadZip({
   }
 
   const assets = getCompletedLanguageAssets(episode.assets, language);
-  const hasAllPages = assets.every((asset) => asset?.imageData);
+  const imageSources = await Promise.all(
+    assets.map((asset) =>
+      asset
+        ? getComicImageSource({
+            id: asset.id,
+            imageData: asset.imageData,
+            imageUrl: asset.imageUrl,
+            imageMimeType: asset.imageMimeType
+          })
+        : Promise.resolve(null)
+    )
+  );
+  const hasAllPages = imageSources.every(Boolean);
 
   if (!hasAllPages) {
     return {
@@ -264,13 +263,13 @@ export async function createComicEpisodeDownloadZip({
   const languageLabel = language === "zh" ? "chinese" : "english";
   const episodeNumber = String(episode.episodeNumber).padStart(3, "0");
   const zipBaseName = sanitizeFileName(`${episodeNumber}-${episode.title}-${languageLabel}`);
-  const files = assets.map((asset, index) => {
+  const files = imageSources.map((source, index) => {
     const pageNumber = String(index + 1).padStart(2, "0");
 
     return {
-      name: `${zipBaseName}/page-${pageNumber}.${getImageExtension(asset?.imageMimeType || null)}`,
-      data: Buffer.from(asset?.imageData || "", "base64"),
-      date: asset?.createdAt || new Date()
+      name: `${zipBaseName}/page-${pageNumber}.${getComicImageExtension(source?.mimeType || null)}`,
+      data: Buffer.from(source?.base64Data || "", "base64"),
+      date: assets[index]?.createdAt || new Date()
     };
   });
 

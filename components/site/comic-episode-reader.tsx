@@ -1,9 +1,16 @@
 "use client";
 
-import Image from "next/image";
+import NextImage from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type TouchEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type TouchEvent
+} from "react";
 import type { ComicLanguage } from "@/lib/comic-language";
 
 type ComicReaderPage = {
@@ -13,7 +20,10 @@ type ComicReaderPage = {
   title: string;
 };
 
+type ComicReaderFitMode = "page" | "width";
+
 type ComicEpisodeReaderProps = {
+  episodeId: string;
   pages: ComicReaderPage[];
   language: ComicLanguage;
   previousEpisodeHref?: string;
@@ -22,7 +32,16 @@ type ComicEpisodeReaderProps = {
   nextEpisodeLabel?: string;
 };
 
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable;
+}
+
 export function ComicEpisodeReader({
+  episodeId,
   pages,
   language,
   previousEpisodeHref,
@@ -31,14 +50,21 @@ export function ComicEpisodeReader({
   nextEpisodeLabel
 }: ComicEpisodeReaderProps) {
   const router = useRouter();
+  const stageRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [fitMode, setFitMode] = useState<ComicReaderFitMode>("page");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const currentPage = pages[currentIndex];
   const isChinese = language === "zh";
+  const progressKey = useMemo(
+    () => `neatique:comic-reader:${episodeId}:${language}:page`,
+    [episodeId, language]
+  );
   const canGoPrevious = currentIndex > 0 || Boolean(previousEpisodeHref);
   const canGoNext = currentIndex < pages.length - 1 || Boolean(nextEpisodeHref);
 
-  function keepScrollAfterUpdate(update: () => void) {
+  const keepScrollAfterUpdate = useCallback((update: () => void) => {
     const scrollX = window.scrollX;
     const scrollY = window.scrollY;
 
@@ -47,17 +73,20 @@ export function ComicEpisodeReader({
       window.scrollTo(scrollX, scrollY);
       requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
     });
-  }
+  }, []);
 
-  function goToPage(index: number) {
-    if (index === currentIndex || index < 0 || index >= pages.length) {
-      return;
-    }
+  const goToPage = useCallback(
+    (index: number) => {
+      if (index === currentIndex || index < 0 || index >= pages.length) {
+        return;
+      }
 
-    keepScrollAfterUpdate(() => setCurrentIndex(index));
-  }
+      keepScrollAfterUpdate(() => setCurrentIndex(index));
+    },
+    [currentIndex, keepScrollAfterUpdate, pages.length]
+  );
 
-  function goToPreviousPage() {
+  const goToPreviousPage = useCallback(() => {
     if (currentIndex > 0) {
       goToPage(currentIndex - 1);
       return;
@@ -66,9 +95,9 @@ export function ComicEpisodeReader({
     if (previousEpisodeHref) {
       router.push(previousEpisodeHref, { scroll: false });
     }
-  }
+  }, [currentIndex, goToPage, previousEpisodeHref, router]);
 
-  function goToNextPage() {
+  const goToNextPage = useCallback(() => {
     if (currentIndex < pages.length - 1) {
       goToPage(currentIndex + 1);
       return;
@@ -77,7 +106,70 @@ export function ComicEpisodeReader({
     if (nextEpisodeHref) {
       router.push(nextEpisodeHref, { scroll: false });
     }
-  }
+  }, [currentIndex, goToPage, nextEpisodeHref, pages.length, router]);
+
+  useEffect(() => {
+    const savedIndex = Number.parseInt(window.localStorage.getItem(progressKey) || "", 10);
+
+    if (Number.isFinite(savedIndex) && savedIndex >= 0 && savedIndex < pages.length) {
+      setCurrentIndex(savedIndex);
+    }
+  }, [pages.length, progressKey]);
+
+  useEffect(() => {
+    window.localStorage.setItem(progressKey, String(currentIndex));
+  }, [currentIndex, progressKey]);
+
+  useEffect(() => {
+    const adjacentPages = [pages[currentIndex - 1], pages[currentIndex + 1]].filter(
+      (page): page is ComicReaderPage => Boolean(page)
+    );
+
+    for (const page of adjacentPages) {
+      const image = new window.Image();
+      image.src = page.imageUrl;
+    }
+  }, [currentIndex, pages]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goToPreviousPage();
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goToNextPage();
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault();
+        goToPage(0);
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+        goToPage(pages.length - 1);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [goToNextPage, goToPage, goToPreviousPage, pages.length]);
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
   function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
     setTouchStartX(event.touches[0]?.clientX ?? null);
@@ -103,18 +195,62 @@ export function ComicEpisodeReader({
     }
   }
 
+  async function toggleFullscreen() {
+    if (!stageRef.current) {
+      return;
+    }
+
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await stageRef.current.requestFullscreen();
+  }
+
   if (!currentPage) {
     return null;
   }
 
   return (
     <div className="comic-reader-shell">
+      <div className="comic-reader-controls" aria-label={isChinese ? "阅读设置" : "Reader settings"}>
+        <div className="comic-reader-progress">
+          <span>
+            {isChinese ? "第" : "Page"} {currentIndex + 1} / {pages.length}
+          </span>
+          <progress value={currentIndex + 1} max={pages.length} />
+        </div>
+        <div className="comic-reader-control-group">
+          <button
+            type="button"
+            className={fitMode === "page" ? "is-active" : undefined}
+            onClick={() => setFitMode("page")}
+            aria-pressed={fitMode === "page"}
+          >
+            {isChinese ? "整页" : "Page"}
+          </button>
+          <button
+            type="button"
+            className={fitMode === "width" ? "is-active" : undefined}
+            onClick={() => setFitMode("width")}
+            aria-pressed={fitMode === "width"}
+          >
+            {isChinese ? "宽度" : "Width"}
+          </button>
+          <button type="button" onClick={toggleFullscreen} aria-pressed={isFullscreen}>
+            {isFullscreen ? (isChinese ? "退出" : "Exit") : isChinese ? "全屏" : "Full"}
+          </button>
+        </div>
+      </div>
+
       <div
-        className="comic-reader-stage"
+        ref={stageRef}
+        className={`comic-reader-stage comic-reader-stage--fit-${fitMode}`}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <Image
+        <NextImage
           src={currentPage.imageUrl}
           alt={currentPage.altText || currentPage.title}
           width={1200}
@@ -167,7 +303,7 @@ export function ComicEpisodeReader({
               className={index === currentIndex ? "is-active" : undefined}
               onClick={() => goToPage(index)}
               aria-current={index === currentIndex ? "page" : undefined}
-              aria-label={`${isChinese ? "第" : "Page "} ${index + 1}`}
+              aria-label={`${isChinese ? "第" : "Page"} ${index + 1}`}
             >
               {index + 1}
             </button>

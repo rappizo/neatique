@@ -17,16 +17,18 @@ const getComicImageAsset = unstable_cache(
     const asset = await prisma.comicEpisodeAsset.findUnique({
       where: { id },
       select: {
+        imageUrl: true,
         imageData: true,
         imageMimeType: true
       }
     });
 
-    if (!asset?.imageData) {
+    if (!asset?.imageData && !asset?.imageUrl) {
       return null;
     }
 
     return {
+      imageUrl: asset.imageUrl,
       imageData: asset.imageData,
       imageMimeType: asset.imageMimeType || "image/png"
     };
@@ -52,6 +54,10 @@ export async function GET(_request: Request, { params }: ComicMediaRouteProps) {
     const image = await getComicImageAsset(id);
 
     if (!image?.imageData) {
+      if (image?.imageUrl && /^https?:\/\//i.test(image.imageUrl)) {
+        return NextResponse.redirect(image.imageUrl, 307);
+      }
+
       return new NextResponse("Comic image not found.", { status: 404 });
     }
 

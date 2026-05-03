@@ -1,5 +1,10 @@
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 import { isNextRedirectError } from "@/lib/comic-action-errors";
+import {
+  buildComicMediaFallbackUrl,
+  getComicImageSource,
+  storeComicImage
+} from "@/lib/comic-image-storage";
 import { prisma } from "@/lib/db";
 
 const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
@@ -79,10 +84,12 @@ export async function editComicPageImageForAsset(input: {
     throw new ComicPageImageEditInputError("missing-asset", "That comic page asset could not be found.");
   }
 
-  if (!asset.imageData) {
+  const sourceImage = await getComicImageSource(asset);
+
+  if (!sourceImage) {
     throw new ComicPageImageEditInputError(
       "missing-source-image",
-      "This page image does not have stored image data for AI editing."
+      "This page image does not have readable source image data for AI editing."
     );
   }
 
@@ -102,14 +109,17 @@ export async function editComicPageImageForAsset(input: {
   try {
     const { editComicPageImageWithAi } = await import("@/lib/openai-comic");
     const editedImage = await editComicPageImageWithAi({
-      sourceImage: {
-        mimeType: asset.imageMimeType || "image/png",
-        base64Data: asset.imageData,
-        fileName: `${asset.id}.png`
-      },
+      sourceImage,
       episodeTitle: asset.episode.title,
       pageNumber: asset.sortOrder,
       editInstruction
+    });
+    const storedImage = await storeComicImage({
+      base64Data: editedImage.base64Data,
+      mimeType: editedImage.mimeType,
+      category: "edited-pages",
+      targetId: asset.episodeId,
+      fileName: `page-${String(asset.sortOrder).padStart(2, "0")}-edit-${Date.now()}`
     });
 
     const createdAsset = await prisma.comicEpisodeAsset.create({
@@ -117,9 +127,12 @@ export async function editComicPageImageForAsset(input: {
         episodeId: asset.episodeId,
         assetType: "GENERATED_PAGE",
         title: `${asset.episode.title} - Page ${String(asset.sortOrder).padStart(2, "0")} Edit`,
-        imageUrl: "/media/comic/pending",
-        imageData: editedImage.base64Data,
-        imageMimeType: editedImage.mimeType,
+        imageUrl: storedImage.imageUrl,
+        imageData: storedImage.imageData,
+        imageMimeType: storedImage.imageMimeType,
+        imageStorageKey: storedImage.imageStorageKey,
+        imageByteSize: storedImage.imageByteSize,
+        imageSha256: storedImage.imageSha256,
         altText: `${asset.episode.title} comic page ${asset.sortOrder} edited candidate`,
         caption: editInstruction,
         sortOrder: asset.sortOrder,
@@ -129,7 +142,9 @@ export async function editComicPageImageForAsset(input: {
         id: true
       }
     });
-    const imageUrl = `/media/comic/${createdAsset.id}?v=${Date.now()}`;
+    const imageUrl = storedImage.imageData
+      ? buildComicMediaFallbackUrl(createdAsset.id)
+      : storedImage.imageUrl;
 
     await prisma.$transaction([
       prisma.comicEpisodeAsset.update({

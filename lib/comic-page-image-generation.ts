@@ -6,6 +6,7 @@ import {
 } from "@/lib/comic-reference-images";
 import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
 import { isNextRedirectError } from "@/lib/comic-action-errors";
+import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 
 export type ComicPageImageGenerationStatus =
@@ -154,14 +155,24 @@ export async function generateComicPageImageForEpisode(input: {
 
   try {
     const imageAsset = await generateComicPageImageWithAi(imageInput);
+    const storedImage = await storeComicImage({
+      base64Data: imageAsset.base64Data,
+      mimeType: imageAsset.mimeType,
+      category: "generated-pages",
+      targetId: episodeId,
+      fileName: `page-${String(page.pageNumber).padStart(2, "0")}-${Date.now()}`
+    });
     const createdAsset = await prisma.comicEpisodeAsset.create({
       data: {
         episodeId,
         assetType: "GENERATED_PAGE",
         title: `${episode.title} - Page ${String(page.pageNumber).padStart(2, "0")}`,
-        imageUrl: "/media/comic/pending",
-        imageData: imageAsset.base64Data,
-        imageMimeType: imageAsset.mimeType,
+        imageUrl: storedImage.imageUrl,
+        imageData: storedImage.imageData,
+        imageMimeType: storedImage.imageMimeType,
+        imageStorageKey: storedImage.imageStorageKey,
+        imageByteSize: storedImage.imageByteSize,
+        imageSha256: storedImage.imageSha256,
         altText: `${episode.title} comic page ${page.pageNumber}`,
         caption: page.pagePurpose,
         sortOrder: page.pageNumber,
@@ -172,7 +183,9 @@ export async function generateComicPageImageForEpisode(input: {
       }
     });
 
-    const imageUrl = `/media/comic/${createdAsset.id}?v=${Date.now()}`;
+    const imageUrl = storedImage.imageData
+      ? buildComicMediaFallbackUrl(createdAsset.id)
+      : storedImage.imageUrl;
 
     await prisma.$transaction([
       prisma.comicEpisodeAsset.update({

@@ -831,7 +831,7 @@ export type ComicEpisodeDetailRecord = {
   chapterSceneReferences: ComicChapterSceneReferenceRecord[];
 };
 
-export type ComicPromptStudioPageRecord = {
+export type ComicOutlineStudioPageRecord = {
   project: ComicProjectRecord | null;
   characters: ComicCharacterRecord[];
   scenes: ComicSceneRecord[];

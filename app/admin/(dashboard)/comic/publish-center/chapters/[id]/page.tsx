@@ -413,12 +413,6 @@ export default async function AdminComicPublishChapterPage({
                     <Link href={`/admin/comic/episodes/${episode.id}`} className="button button--secondary">
                       Episode editor
                     </Link>
-                    <Link
-                      href={`/admin/comic/prompt-studio?episodeId=${episode.id}`}
-                      className="button button--ghost"
-                    >
-                      Prompt studio
-                    </Link>
                     <ComicGeneratePromptPackageQueueButton
                       episodeId={episode.id}
                       idleLabel={promptState.parsedPromptOutput ? "Regenerate prompts" : "Generate prompts"}

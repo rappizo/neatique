@@ -18,11 +18,13 @@
     "db:studio": "prisma studio",
     "comic:sync": "tsx scripts/sync-comic-workspace.ts",
     "comic:references": "tsx scripts/sync-comic-reference-assets.ts",
+    "comic:migrate-images": "tsx scripts/migrate-comic-images-to-blob.ts",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
+    "@vercel/blob": "^2.3.3",
     "imapflow": "^1.2.18",
     "mailparser": "^3.9.6",
     "next": "^15.0.0",

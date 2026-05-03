@@ -316,7 +316,7 @@ function chunkLegacyPanels(panels: LegacyPanelPrompt[]) {
 function buildLegacyPromptText(pageNumber: number, panels: LegacyPanelPrompt[]) {
   return [
     `Page ${String(pageNumber).padStart(2, "0")} converted from legacy panel prompts.`,
-    "Use these panel prompts as the page-level direction. Regenerate this episode from Prompt Studio when you want the newer 10-page workflow.",
+    "Use these panel prompts as the page-level direction. Regenerate this episode from Outline Studio or Publish Center when you want the newer 10-page workflow.",
     ...panels.map((panel) =>
       [`Panel ${panel.panelNumber}: ${panel.panelTitle}`, panel.promptText].join("\n")
     )

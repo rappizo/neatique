@@ -97,9 +97,6 @@ export default async function AdminComicPublishCenterPage({
         <Link href="/admin/comic" className="button button--secondary">
           Back to comic
         </Link>
-        <Link href="/admin/comic/prompt-studio" className="button button--ghost">
-          Prompt studio
-        </Link>
       </div>
 
       <div className="admin-page__header">

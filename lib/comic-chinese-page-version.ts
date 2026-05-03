@@ -1,5 +1,10 @@
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 import { prisma } from "@/lib/db";
+import {
+  buildComicMediaFallbackUrl,
+  getComicImageSource,
+  storeComicImage
+} from "@/lib/comic-image-storage";
 
 const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
 const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
@@ -93,10 +98,12 @@ export async function createChineseComicPageVersion(input: {
     );
   }
 
-  if (!asset.imageData) {
+  const sourceImage = await getComicImageSource(asset);
+
+  if (!sourceImage) {
     throw new ComicChinesePageVersionInputError(
       "missing-source-image",
-      "This page image does not have stored image data for AI editing."
+      "This page image does not have readable source image data for AI editing."
     );
   }
 
@@ -114,13 +121,16 @@ export async function createChineseComicPageVersion(input: {
   try {
     const { generateChineseComicPageVersionWithAi } = await import("@/lib/openai-comic");
     const translatedImage = await generateChineseComicPageVersionWithAi({
-      sourceImage: {
-        mimeType: asset.imageMimeType || "image/png",
-        base64Data: asset.imageData,
-        fileName: `${asset.id}.png`
-      },
+      sourceImage,
       episodeTitle: asset.episode.title,
       pageNumber: asset.sortOrder
+    });
+    const storedImage = await storeComicImage({
+      base64Data: translatedImage.base64Data,
+      mimeType: translatedImage.mimeType,
+      category: "chinese-pages",
+      targetId: asset.episodeId,
+      fileName: `page-${String(asset.sortOrder).padStart(2, "0")}-zh-${Date.now()}`
     });
 
     const createdAsset = await prisma.comicEpisodeAsset.create({
@@ -128,9 +138,12 @@ export async function createChineseComicPageVersion(input: {
         episodeId: asset.episodeId,
         assetType: COMIC_CHINESE_PAGE_ASSET_TYPE,
         title: `${asset.title} - Chinese Version`,
-        imageUrl: "/media/comic/pending",
-        imageData: translatedImage.base64Data,
-        imageMimeType: translatedImage.mimeType,
+        imageUrl: storedImage.imageUrl,
+        imageData: storedImage.imageData,
+        imageMimeType: storedImage.imageMimeType,
+        imageStorageKey: storedImage.imageStorageKey,
+        imageByteSize: storedImage.imageByteSize,
+        imageSha256: storedImage.imageSha256,
         altText: `${asset.altText || asset.title} Chinese version`,
         caption: asset.caption,
         sortOrder: asset.sortOrder,
@@ -140,7 +153,9 @@ export async function createChineseComicPageVersion(input: {
         id: true
       }
     });
-    const imageUrl = `/media/comic/${createdAsset.id}?v=${Date.now()}`;
+    const imageUrl = storedImage.imageData
+      ? buildComicMediaFallbackUrl(createdAsset.id)
+      : storedImage.imageUrl;
 
     await prisma.$transaction([
       prisma.comicEpisodeAsset.update({

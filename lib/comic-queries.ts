@@ -8,11 +8,11 @@ import type {
   ComicEpisodeAssetRecord,
   ComicEpisodeDetailRecord,
   ComicEpisodeRecord,
+  ComicOutlineStudioPageRecord,
   ComicPagePromptRevisionRecord,
   ComicPublishCenterRecord,
   ComicProjectRecord,
   ComicPromptRunRecord,
-  ComicPromptStudioPageRecord,
   ComicPublicChapterRecord,
   ComicPublicEpisodeRecord,
   ComicPublicSeasonRecord,
@@ -554,8 +554,8 @@ export async function getComicEpisodeById(id: string) {
   );
 }
 
-export async function getComicPromptStudioPage(selectedEpisodeId?: string | null) {
-  return withComicFallback<ComicPromptStudioPageRecord>(
+export async function getComicOutlineStudioPage(selectedEpisodeId?: string | null) {
+  return withComicFallback<ComicOutlineStudioPageRecord>(
     async () => {
       const [project, characters, scenes, seasons, selectedEpisode] = await Promise.all([
         getComicProjectInternal(),

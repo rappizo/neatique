@@ -21,10 +21,10 @@ export async function generateComicPromptPackageAction(formData: FormData) {
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const redirectTo =
-    toPlainString(formData.get("redirectTo")) || `/admin/comic/prompt-studio?episodeId=${episodeId}`;
+    toPlainString(formData.get("redirectTo")) || "/admin/comic/publish-center";
 
   if (!episodeId) {
-    redirect(buildComicRedirect("/admin/comic/prompt-studio", "missing-episode"));
+    redirect(buildComicRedirect("/admin/comic/publish-center", "missing-episode"));
   }
 
   const episode = await prisma.comicEpisode.findUnique({
@@ -256,10 +256,10 @@ export async function generateComicPageImageAction(formData: FormData) {
   const episodeId = toPlainString(formData.get("episodeId"));
   const pageNumber = toInt(formData.get("pageNumber"), 0);
   const redirectTo =
-    toPlainString(formData.get("redirectTo")) || `/admin/comic/prompt-studio?episodeId=${episodeId}`;
+    toPlainString(formData.get("redirectTo")) || "/admin/comic/publish-center";
 
   if (!episodeId) {
-    redirect(buildComicRedirect("/admin/comic/prompt-studio", "missing-episode"));
+    redirect(buildComicRedirect("/admin/comic/publish-center", "missing-episode"));
   }
 
   if (!pageNumber) {
@@ -339,10 +339,10 @@ export async function restoreComicPagePromptRevisionAction(formData: FormData) {
   const pageNumber = toInt(formData.get("pageNumber"), 0);
   const restoreVersion = normalizePromptRestoreVersion(toPlainString(formData.get("restoreVersion")));
   const redirectTo =
-    toPlainString(formData.get("redirectTo")) || `/admin/comic/prompt-studio?episodeId=${episodeId}`;
+    toPlainString(formData.get("redirectTo")) || "/admin/comic/publish-center";
 
   if (!episodeId) {
-    redirect(buildComicRedirect("/admin/comic/prompt-studio", "missing-episode"));
+    redirect(buildComicRedirect("/admin/comic/publish-center", "missing-episode"));
   }
 
   if (!pageNumber) {
@@ -529,10 +529,10 @@ export async function reviseComicPagePromptAction(formData: FormData) {
   const pageNumber = toInt(formData.get("pageNumber"), 0);
   const promptSuggestion = toPlainString(formData.get("promptSuggestion"));
   const redirectTo =
-    toPlainString(formData.get("redirectTo")) || `/admin/comic/prompt-studio?episodeId=${episodeId}`;
+    toPlainString(formData.get("redirectTo")) || "/admin/comic/publish-center";
 
   if (!episodeId) {
-    redirect(buildComicRedirect("/admin/comic/prompt-studio", "missing-episode"));
+    redirect(buildComicRedirect("/admin/comic/publish-center", "missing-episode"));
   }
 
   if (!pageNumber) {

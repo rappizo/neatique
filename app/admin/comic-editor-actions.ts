@@ -15,6 +15,7 @@ import {
   pushComicCharacterLockSnapshot,
   pushComicSceneLockSnapshot
 } from "@/lib/comic-lock-history";
+import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
 import { toBool, toInt, toPlainString } from "@/lib/utils";
 import {
   buildComicRedirect,
@@ -1407,15 +1408,25 @@ export async function uploadComicPageAssetAction(formData: FormData) {
   }
 
   const imageBuffer = Buffer.from(await file.arrayBuffer());
+  const storedImage = await storeComicImage({
+    base64Data: imageBuffer.toString("base64"),
+    mimeType: file.type || "image/png",
+    category: "uploaded-pages",
+    targetId: episodeId,
+    fileName: `page-${String(pageNumber).padStart(2, "0")}-${Date.now()}`
+  });
 
   const createdAsset = await prisma.comicEpisodeAsset.create({
     data: {
       episodeId,
       assetType: "UPLOADED_PAGE",
       title,
-      imageUrl: "/media/comic/pending",
-      imageData: imageBuffer.toString("base64"),
-      imageMimeType: file.type || "image/png",
+      imageUrl: storedImage.imageUrl,
+      imageData: storedImage.imageData,
+      imageMimeType: storedImage.imageMimeType,
+      imageStorageKey: storedImage.imageStorageKey,
+      imageByteSize: storedImage.imageByteSize,
+      imageSha256: storedImage.imageSha256,
       altText:
         toPlainString(formData.get("altText")) ||
         `${episode.title} uploaded comic page ${pageNumber}`,
@@ -1428,7 +1439,9 @@ export async function uploadComicPageAssetAction(formData: FormData) {
     }
   });
 
-  const imageUrl = `/media/comic/${createdAsset.id}?v=${Date.now()}`;
+  const imageUrl = storedImage.imageData
+    ? buildComicMediaFallbackUrl(createdAsset.id)
+    : storedImage.imageUrl;
 
   if (shouldApprove) {
     await prisma.$transaction([

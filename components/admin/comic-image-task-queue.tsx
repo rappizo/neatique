@@ -13,7 +13,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-type ComicImageTaskStatus = "queued" | "running" | "success" | "failed";
+type ComicImageTaskStatus = "queued" | "running" | "success" | "failed" | "cancelled";
 type ComicImageTaskKind =
   | "generate"
   | "edit"
@@ -95,7 +95,8 @@ type ComicImageTaskQueueContextValue = {
 };
 
 const ComicImageTaskQueueContext = createContext<ComicImageTaskQueueContextValue | null>(null);
-const COMIC_TASK_STORAGE_KEY = "neatique:comic-ai-task-queue:v1";
+const COMIC_TASK_HISTORY_LIMIT = 40;
+const COMIC_TASK_POLL_INTERVAL_MS = 3000;
 
 function formatPageLabel(pageNumber: number) {
   return `Page ${String(pageNumber).padStart(2, "0")}`;
@@ -109,7 +110,11 @@ function getTaskSortTime(task: ComicImageTask) {
   return task.completedAt || task.createdAt;
 }
 
-function isStoredComicTask(value: unknown): value is ComicImageTask {
+function isActiveTask(task: ComicImageTask) {
+  return task.status === "queued" || task.status === "running";
+}
+
+function isComicImageTask(value: unknown): value is ComicImageTask {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -124,101 +129,6 @@ function isStoredComicTask(value: unknown): value is ComicImageTask {
   );
 }
 
-function normalizeStoredComicTasks(value: string | null) {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    const tasks = Array.isArray(parsed) ? parsed.filter(isStoredComicTask) : [];
-
-    return tasks
-      .map((task) =>
-        task.status === "running"
-          ? {
-              ...task,
-              status: "failed" as const,
-              completedAt: Date.now(),
-              message: `${task.label} may still have finished on the server.`,
-              errorMessage: "This browser task was interrupted. Refresh the page and retry only if needed."
-            }
-          : task
-      )
-      .slice(-30);
-  } catch {
-    return [];
-  }
-}
-
-function getComicTaskEndpoint(task: ComicImageTask) {
-  switch (task.kind) {
-    case "edit":
-      return "/api/admin/comic/page-image-edit";
-    case "prompt-package":
-      return "/api/admin/comic/prompt-package-generation";
-    case "prompt-revision":
-      return "/api/admin/comic/page-prompt-revision";
-    case "outline":
-      return "/api/admin/comic/outline-generation";
-    case "character-lock-revision":
-      return "/api/admin/comic/character-lock-revision";
-    case "scene-lock-revision":
-      return "/api/admin/comic/scene-lock-revision";
-    case "chinese-page-version":
-      return "/api/admin/comic/chinese-page-version";
-    case "generate":
-    default:
-      return "/api/admin/comic/page-image-generation";
-  }
-}
-
-function getComicTaskRequestBody(task: ComicImageTask) {
-  switch (task.kind) {
-    case "edit":
-      return {
-        assetId: task.sourceAssetId,
-        editInstruction: task.editInstruction
-      };
-    case "prompt-package":
-      return {
-        episodeId: task.episodeId
-      };
-    case "prompt-revision":
-      return {
-        episodeId: task.episodeId,
-        pageNumber: task.pageNumber,
-        promptSuggestion: task.promptSuggestion
-      };
-    case "outline":
-      return {
-        taskType: task.outlineTaskType,
-        targetId: task.targetId,
-        revisionNotes: task.revisionNotes
-      };
-    case "character-lock-revision":
-      return {
-        id: task.characterId,
-        revisionInstruction: task.revisionInstruction
-      };
-    case "scene-lock-revision":
-      return {
-        id: task.sceneId,
-        revisionInstruction: task.revisionInstruction
-      };
-    case "chinese-page-version":
-      return {
-        assetId: task.sourceAssetId
-      };
-    case "generate":
-    default:
-      return {
-        episodeId: task.episodeId,
-        pageNumber: task.pageNumber
-      };
-  }
-}
-
 export function ComicImageTaskQueueProvider({
   children,
   maxConcurrent = 5
@@ -229,157 +139,192 @@ export function ComicImageTaskQueueProvider({
   const router = useRouter();
   const [tasks, setTasks] = useState<ComicImageTask[]>([]);
   const tasksRef = useRef<ComicImageTask[]>([]);
-  const startedTaskIds = useRef(new Set<string>());
-  const hasLoadedStoredTasks = useRef(false);
+  const dismissedTaskIds = useRef(new Set<string>());
+  const refreshInFlight = useRef(false);
+  const runnerInFlight = useRef(false);
 
   useEffect(() => {
-    if (!hasLoadedStoredTasks.current) {
-      hasLoadedStoredTasks.current = true;
-      setTasks(normalizeStoredComicTasks(window.localStorage.getItem(COMIC_TASK_STORAGE_KEY)));
+    tasksRef.current = tasks;
+  }, [tasks]);
+
+  const mergeTask = useCallback((incomingTask: ComicImageTask, optimisticId?: string) => {
+    setTasks((currentTasks) => {
+      const dismissed = dismissedTaskIds.current;
+      const nextTasks = currentTasks
+        .filter((task) => task.id !== optimisticId && task.id !== incomingTask.id)
+        .concat(incomingTask)
+        .filter((task) => !dismissed.has(task.id))
+        .sort((left, right) => getTaskSortTime(left) - getTaskSortTime(right))
+        .slice(-COMIC_TASK_HISTORY_LIMIT);
+
+      tasksRef.current = nextTasks;
+      return nextTasks;
+    });
+  }, []);
+
+  const refreshTasks = useCallback(async () => {
+    if (refreshInFlight.current) {
       return;
     }
 
-    tasksRef.current = tasks;
-    window.localStorage.setItem(
-      COMIC_TASK_STORAGE_KEY,
-      JSON.stringify(
-        [...tasks]
-          .sort((left, right) => getTaskSortTime(left) - getTaskSortTime(right))
-          .slice(-30)
-      )
-    );
-  }, [tasks]);
+    refreshInFlight.current = true;
 
-  useEffect(() => {
-    setTasks((currentTasks) => {
-      const runningCount = currentTasks.filter((task) => task.status === "running").length;
-      let availableSlots = Math.max(0, maxConcurrent - runningCount);
-
-      if (availableSlots === 0) {
-        return currentTasks;
-      }
-
-      let changed = false;
-      const nextTasks = currentTasks.map((task) => {
-        if (task.status !== "queued" || availableSlots === 0) {
-          return task;
-        }
-
-        availableSlots -= 1;
-        changed = true;
-        return {
-          ...task,
-          status: "running" as const
-        };
+    try {
+      const response = await fetch(`/api/admin/comic/tasks?limit=${COMIC_TASK_HISTORY_LIMIT}`, {
+        cache: "no-store"
       });
 
-      return changed ? nextTasks : currentTasks;
-    });
-  }, [tasks, maxConcurrent]);
+      if (!response.ok) {
+        return;
+      }
 
-  useEffect(() => {
-    const runnableTasks = tasks.filter(
-      (task) => task.status === "running" && !startedTaskIds.current.has(task.id)
-    );
+      const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+      const nextTasks = Array.isArray(payload?.tasks)
+        ? payload.tasks.filter(isComicImageTask)
+        : [];
+      const dismissed = dismissedTaskIds.current;
 
-    for (const task of runnableTasks) {
-      startedTaskIds.current.add(task.id);
-      const endpoint = getComicTaskEndpoint(task);
-      const requestBody = getComicTaskRequestBody(task);
+      const visibleTasks = nextTasks
+        .filter((task) => !dismissed.has(task.id))
+        .sort((left, right) => getTaskSortTime(left) - getTaskSortTime(right));
 
-      void fetch(endpoint, {
+      tasksRef.current = visibleTasks;
+      setTasks(visibleTasks);
+    } finally {
+      refreshInFlight.current = false;
+    }
+  }, []);
+
+  const kickRunner = useCallback(async () => {
+    if (runnerInFlight.current || !tasksRef.current.some((task) => task.status === "queued")) {
+      return;
+    }
+
+    runnerInFlight.current = true;
+
+    try {
+      await fetch("/api/admin/comic/tasks/run", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(requestBody)
-      })
-        .then(async (response) => {
-          const payload = await response.json().catch(() => null);
-          const record = payload && typeof payload === "object" ? (payload as Record<string, any>) : {};
-          const ok = Boolean(record.ok) && response.ok;
-
-          setTasks((currentTasks) =>
-            currentTasks.map((currentTask) =>
-              currentTask.id === task.id
-                ? {
-                    ...currentTask,
-                    status: ok ? "success" : "failed",
-                    completedAt: Date.now(),
-                    message:
-                      typeof record.message === "string"
-                        ? record.message
-                        : ok
-                          ? `${task.label} created.`
-                          : `${task.label} failed.`,
-                    errorMessage:
-                      typeof record.errorMessage === "string"
-                        ? record.errorMessage
-                        : !ok && typeof record.message === "string"
-                          ? record.message
-                          : undefined,
-                    assetId: typeof record.assetId === "string" ? record.assetId : undefined,
-                    imageUrl: typeof record.imageUrl === "string" ? record.imageUrl : undefined
-                  }
-                : currentTask
-            )
-          );
-          router.refresh();
+        body: JSON.stringify({
+          limit: Math.max(1, Math.min(maxConcurrent, 3))
         })
-        .catch((error) => {
-          setTasks((currentTasks) =>
-            currentTasks.map((currentTask) =>
-              currentTask.id === task.id
-                ? {
-                    ...currentTask,
-                    status: "failed",
-                    completedAt: Date.now(),
-                    message: `${task.label} failed.`,
-                    errorMessage:
-                      error instanceof Error
-                        ? error.message
-                        : "The image request could not be completed."
-                  }
-                : currentTask
-            )
-          );
-        });
+      });
+      await refreshTasks();
+      router.refresh();
+    } finally {
+      runnerInFlight.current = false;
     }
-  }, [tasks, router]);
+  }, [maxConcurrent, refreshTasks, router]);
 
-  const enqueue = useCallback(
-    (input: { episodeId: string; pageNumber: number; label?: string }) => {
+  useEffect(() => {
+    void refreshTasks();
+
+    const intervalId = window.setInterval(() => {
+      void refreshTasks();
+      void kickRunner();
+    }, COMIC_TASK_POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [refreshTasks, kickRunner]);
+
+  const enqueueServerTask = useCallback(
+    (input: {
+      kind: ComicImageTaskKind;
+      episodeId?: string;
+      pageNumber?: number;
+      label: string;
+      payload: Record<string, unknown>;
+      duplicateMatch: (task: ComicImageTask) => boolean;
+      optimisticFields?: Partial<ComicImageTask>;
+    }) => {
       const activeTask = tasksRef.current.find(
-        (task) =>
-          task.kind === "generate" &&
-          task.episodeId === input.episodeId &&
-          task.pageNumber === input.pageNumber &&
-          (task.status === "queued" || task.status === "running")
+        (task) => input.duplicateMatch(task) && isActiveTask(task)
       );
 
       if (activeTask) {
         return activeTask.id;
       }
 
-      const id = createTaskId("generate", input.episodeId, input.pageNumber);
-      const label = input.label || formatPageLabel(input.pageNumber);
+      const episodeId = input.episodeId || "";
+      const pageNumber = input.pageNumber || 0;
+      const optimisticId = createTaskId(input.kind, episodeId || input.label, pageNumber);
+      const optimisticTask: ComicImageTask = {
+        id: optimisticId,
+        kind: input.kind,
+        episodeId,
+        pageNumber,
+        label: input.label,
+        status: "queued",
+        createdAt: Date.now(),
+        ...input.optimisticFields
+      };
 
-      setTasks((currentTasks) => [
-        ...currentTasks,
-        {
-          id,
-          kind: "generate",
-          episodeId: input.episodeId,
-          pageNumber: input.pageNumber,
-          label,
-          status: "queued",
-          createdAt: Date.now()
-        }
-      ]);
+      mergeTask(optimisticTask);
 
-      return id;
+      void fetch("/api/admin/comic/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          taskType: input.kind,
+          label: input.label,
+          payload: input.payload
+        })
+      })
+        .then(async (response) => {
+          const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+
+          if (!response.ok || !isComicImageTask(payload?.task)) {
+            throw new Error(
+              typeof payload?.message === "string" ? payload.message : "Task could not be queued."
+            );
+          }
+
+          mergeTask(payload.task, optimisticId);
+          await refreshTasks();
+          void kickRunner();
+        })
+        .catch((error) => {
+          mergeTask(
+            {
+              ...optimisticTask,
+              status: "failed",
+              completedAt: Date.now(),
+              message: `${input.label} failed to queue.`,
+              errorMessage: error instanceof Error ? error.message : "Task could not be queued."
+            },
+            optimisticId
+          );
+        });
+
+      return optimisticId;
     },
-    []
+    [kickRunner, mergeTask, refreshTasks]
+  );
+
+  const enqueue = useCallback(
+    (input: { episodeId: string; pageNumber: number; label?: string }) => {
+      const label = input.label || formatPageLabel(input.pageNumber);
+      return enqueueServerTask({
+        kind: "generate",
+        episodeId: input.episodeId,
+        pageNumber: input.pageNumber,
+        label,
+        payload: {
+          episodeId: input.episodeId,
+          pageNumber: input.pageNumber
+        },
+        duplicateMatch: (task) =>
+          task.kind === "generate" &&
+          task.episodeId === input.episodeId &&
+          task.pageNumber === input.pageNumber
+      });
+    },
+    [enqueueServerTask]
   );
 
   const enqueueEdit = useCallback(
@@ -391,71 +336,46 @@ export function ComicImageTaskQueueProvider({
       label?: string;
     }) => {
       const editInstruction = input.editInstruction.trim();
-      const activeTask = tasksRef.current.find(
-        (task) =>
-          task.kind === "edit" &&
-          task.sourceAssetId === input.sourceAssetId &&
-          task.editInstruction === editInstruction &&
-          (task.status === "queued" || task.status === "running")
-      );
-
-      if (activeTask) {
-        return activeTask.id;
-      }
-
-      const id = createTaskId("edit", input.episodeId, input.pageNumber);
       const label = input.label || formatPageLabel(input.pageNumber);
-
-      setTasks((currentTasks) => [
-        ...currentTasks,
-        {
-          id,
-          kind: "edit",
+      return enqueueServerTask({
+        kind: "edit",
+        episodeId: input.episodeId,
+        pageNumber: input.pageNumber,
+        label,
+        payload: {
+          assetId: input.sourceAssetId,
+          sourceAssetId: input.sourceAssetId,
           episodeId: input.episodeId,
           pageNumber: input.pageNumber,
-          label,
-          status: "queued",
-          createdAt: Date.now(),
+          editInstruction
+        },
+        optimisticFields: {
           sourceAssetId: input.sourceAssetId,
           editInstruction
-        }
-      ]);
-
-      return id;
+        },
+        duplicateMatch: (task) =>
+          task.kind === "edit" &&
+          task.sourceAssetId === input.sourceAssetId &&
+          task.editInstruction === editInstruction
+      });
     },
-    []
+    [enqueueServerTask]
   );
 
   const enqueuePromptPackage = useCallback((input: { episodeId: string; label?: string }) => {
-    const activeTask = tasksRef.current.find(
-      (task) =>
-        task.kind === "prompt-package" &&
-        task.episodeId === input.episodeId &&
-        (task.status === "queued" || task.status === "running")
-    );
-
-    if (activeTask) {
-      return activeTask.id;
-    }
-
-    const id = createTaskId("prompt-package", input.episodeId, 0);
     const label = input.label || "Prompt package";
-
-    setTasks((currentTasks) => [
-      ...currentTasks,
-      {
-        id,
-        kind: "prompt-package",
-        episodeId: input.episodeId,
-        pageNumber: 0,
-        label,
-        status: "queued",
-        createdAt: Date.now()
-      }
-    ]);
-
-    return id;
-  }, []);
+    return enqueueServerTask({
+      kind: "prompt-package",
+      episodeId: input.episodeId,
+      pageNumber: 0,
+      label,
+      payload: {
+        episodeId: input.episodeId
+      },
+      duplicateMatch: (task) =>
+        task.kind === "prompt-package" && task.episodeId === input.episodeId
+    });
+  }, [enqueueServerTask]);
 
   const enqueuePromptRevision = useCallback(
     (input: {
@@ -465,39 +385,28 @@ export function ComicImageTaskQueueProvider({
       label?: string;
     }) => {
       const promptSuggestion = input.promptSuggestion.trim();
-      const activeTask = tasksRef.current.find(
-        (task) =>
+      const label = input.label || `Revise ${formatPageLabel(input.pageNumber)} prompt`;
+      return enqueueServerTask({
+        kind: "prompt-revision",
+        episodeId: input.episodeId,
+        pageNumber: input.pageNumber,
+        label,
+        payload: {
+          episodeId: input.episodeId,
+          pageNumber: input.pageNumber,
+          promptSuggestion
+        },
+        optimisticFields: {
+          promptSuggestion
+        },
+        duplicateMatch: (task) =>
           task.kind === "prompt-revision" &&
           task.episodeId === input.episodeId &&
           task.pageNumber === input.pageNumber &&
-          task.promptSuggestion === promptSuggestion &&
-          (task.status === "queued" || task.status === "running")
-      );
-
-      if (activeTask) {
-        return activeTask.id;
-      }
-
-      const id = createTaskId("prompt-revision", input.episodeId, input.pageNumber);
-      const label = input.label || `Revise ${formatPageLabel(input.pageNumber)} prompt`;
-
-      setTasks((currentTasks) => [
-        ...currentTasks,
-        {
-          id,
-          kind: "prompt-revision",
-          episodeId: input.episodeId,
-          pageNumber: input.pageNumber,
-          label,
-          status: "queued",
-          createdAt: Date.now(),
-          promptSuggestion
-        }
-      ]);
-
-      return id;
+          task.promptSuggestion === promptSuggestion
+      });
     },
-    []
+    [enqueueServerTask]
   );
 
   const enqueueOutlineTask = useCallback(
@@ -508,41 +417,28 @@ export function ComicImageTaskQueueProvider({
       label?: string;
     }) => {
       const revisionNotes = input.revisionNotes?.trim() || "";
-      const activeTask = tasksRef.current.find(
-        (task) =>
-          task.kind === "outline" &&
-          task.outlineTaskType === input.taskType &&
-          task.targetId === input.targetId &&
-          task.revisionNotes === revisionNotes &&
-          (task.status === "queued" || task.status === "running")
-      );
-
-      if (activeTask) {
-        return activeTask.id;
-      }
-
-      const id = createTaskId("outline", input.targetId || "outline", 0);
       const label = input.label || "Outline task";
-
-      setTasks((currentTasks) => [
-        ...currentTasks,
-        {
-          id,
-          kind: "outline",
-          episodeId: "",
-          pageNumber: 0,
-          label,
-          status: "queued",
-          createdAt: Date.now(),
+      return enqueueServerTask({
+        kind: "outline",
+        label,
+        payload: {
+          taskType: input.taskType,
+          targetId: input.targetId,
+          revisionNotes
+        },
+        optimisticFields: {
           outlineTaskType: input.taskType,
           targetId: input.targetId,
           revisionNotes
-        }
-      ]);
-
-      return id;
+        },
+        duplicateMatch: (task) =>
+          task.kind === "outline" &&
+          task.outlineTaskType === input.taskType &&
+          task.targetId === input.targetId &&
+          task.revisionNotes === revisionNotes
+      });
     },
-    []
+    [enqueueServerTask]
   );
 
   const enqueueCharacterLockRevision = useCallback(
@@ -552,39 +448,27 @@ export function ComicImageTaskQueueProvider({
       label?: string;
     }) => {
       const revisionInstruction = input.revisionInstruction.trim();
-      const activeTask = tasksRef.current.find(
-        (task) =>
-          task.kind === "character-lock-revision" &&
-          task.characterId === input.characterId &&
-          task.revisionInstruction === revisionInstruction &&
-          (task.status === "queued" || task.status === "running")
-      );
-
-      if (activeTask) {
-        return activeTask.id;
-      }
-
-      const id = createTaskId("character-lock-revision", input.characterId, 0);
       const label = input.label || "Character lock revision";
-
-      setTasks((currentTasks) => [
-        ...currentTasks,
-        {
-          id,
-          kind: "character-lock-revision",
-          episodeId: "",
-          pageNumber: 0,
-          label,
-          status: "queued",
-          createdAt: Date.now(),
+      return enqueueServerTask({
+        kind: "character-lock-revision",
+        label,
+        payload: {
+          id: input.characterId,
           characterId: input.characterId,
           revisionInstruction
-        }
-      ]);
-
-      return id;
+        },
+        optimisticFields: {
+          characterId: input.characterId,
+          targetId: input.characterId,
+          revisionInstruction
+        },
+        duplicateMatch: (task) =>
+          task.kind === "character-lock-revision" &&
+          task.characterId === input.characterId &&
+          task.revisionInstruction === revisionInstruction
+      });
     },
-    []
+    [enqueueServerTask]
   );
 
   const enqueueSceneLockRevision = useCallback(
@@ -594,39 +478,27 @@ export function ComicImageTaskQueueProvider({
       label?: string;
     }) => {
       const revisionInstruction = input.revisionInstruction.trim();
-      const activeTask = tasksRef.current.find(
-        (task) =>
-          task.kind === "scene-lock-revision" &&
-          task.sceneId === input.sceneId &&
-          task.revisionInstruction === revisionInstruction &&
-          (task.status === "queued" || task.status === "running")
-      );
-
-      if (activeTask) {
-        return activeTask.id;
-      }
-
-      const id = createTaskId("scene-lock-revision", input.sceneId, 0);
       const label = input.label || "Scene lock revision";
-
-      setTasks((currentTasks) => [
-        ...currentTasks,
-        {
-          id,
-          kind: "scene-lock-revision",
-          episodeId: "",
-          pageNumber: 0,
-          label,
-          status: "queued",
-          createdAt: Date.now(),
+      return enqueueServerTask({
+        kind: "scene-lock-revision",
+        label,
+        payload: {
+          id: input.sceneId,
           sceneId: input.sceneId,
           revisionInstruction
-        }
-      ]);
-
-      return id;
+        },
+        optimisticFields: {
+          sceneId: input.sceneId,
+          targetId: input.sceneId,
+          revisionInstruction
+        },
+        duplicateMatch: (task) =>
+          task.kind === "scene-lock-revision" &&
+          task.sceneId === input.sceneId &&
+          task.revisionInstruction === revisionInstruction
+      });
     },
-    []
+    [enqueueServerTask]
   );
 
   const enqueueChinesePageVersion = useCallback(
@@ -636,37 +508,26 @@ export function ComicImageTaskQueueProvider({
       pageNumber: number;
       label?: string;
     }) => {
-      const activeTask = tasksRef.current.find(
-        (task) =>
-          task.kind === "chinese-page-version" &&
-          task.sourceAssetId === input.assetId &&
-          (task.status === "queued" || task.status === "running")
-      );
-
-      if (activeTask) {
-        return activeTask.id;
-      }
-
-      const id = createTaskId("chinese-page-version", input.episodeId, input.pageNumber);
       const label = input.label || `Chinese ${formatPageLabel(input.pageNumber)}`;
-
-      setTasks((currentTasks) => [
-        ...currentTasks,
-        {
-          id,
-          kind: "chinese-page-version",
+      return enqueueServerTask({
+        kind: "chinese-page-version",
+        episodeId: input.episodeId,
+        pageNumber: input.pageNumber,
+        label,
+        payload: {
+          assetId: input.assetId,
+          sourceAssetId: input.assetId,
           episodeId: input.episodeId,
-          pageNumber: input.pageNumber,
-          label,
-          status: "queued",
-          createdAt: Date.now(),
+          pageNumber: input.pageNumber
+        },
+        optimisticFields: {
           sourceAssetId: input.assetId
-        }
-      ]);
-
-      return id;
+        },
+        duplicateMatch: (task) =>
+          task.kind === "chinese-page-version" && task.sourceAssetId === input.assetId
+      });
     },
-    []
+    [enqueueServerTask]
   );
 
   const getLatestPageTask = useCallback((episodeId: string, pageNumber: number) => {
@@ -677,39 +538,68 @@ export function ComicImageTaskQueueProvider({
     return pageTasks[0] || null;
   }, []);
 
-  const retryTask = useCallback((taskId: string) => {
-    setTasks((currentTasks) => {
-      const task = currentTasks.find((candidate) => candidate.id === taskId);
+  const retryTask = useCallback(
+    (taskId: string) => {
+      void fetch(`/api/admin/comic/tasks/${encodeURIComponent(taskId)}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "retry"
+        })
+      })
+        .then(async (response) => {
+          const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
 
-      if (!task || task.status !== "failed") {
-        return currentTasks;
-      }
+          if (response.ok && isComicImageTask(payload?.task)) {
+            mergeTask(payload.task);
+          }
 
-      return [
-        ...currentTasks,
-        {
-          ...task,
-          id: createTaskId(task.kind, task.episodeId || task.targetId || task.sourceAssetId || "task", task.pageNumber),
-          status: "queued",
-          createdAt: Date.now(),
-          completedAt: undefined,
-          message: undefined,
-          errorMessage: undefined
-        }
-      ];
-    });
-  }, []);
+          await refreshTasks();
+          void kickRunner();
+        })
+        .catch(() => undefined);
+    },
+    [kickRunner, mergeTask, refreshTasks]
+  );
 
-  const cancelTask = useCallback((taskId: string) => {
-    setTasks((currentTasks) =>
-      currentTasks.filter((task) => task.id !== taskId || task.status !== "queued")
-    );
-  }, []);
+  const cancelTask = useCallback(
+    (taskId: string) => {
+      void fetch(`/api/admin/comic/tasks/${encodeURIComponent(taskId)}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "cancel"
+        })
+      })
+        .then(async (response) => {
+          const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+
+          if (response.ok && isComicImageTask(payload?.task)) {
+            mergeTask(payload.task);
+          }
+
+          await refreshTasks();
+        })
+        .catch(() => undefined);
+    },
+    [mergeTask, refreshTasks]
+  );
 
   const clearCompleted = useCallback(() => {
-    setTasks((currentTasks) =>
-      currentTasks.filter((task) => task.status === "queued" || task.status === "running")
-    );
+    const completedIds = tasksRef.current
+      .filter((task) => task.status === "success" || task.status === "failed" || task.status === "cancelled")
+      .map((task) => task.id);
+
+    completedIds.forEach((taskId) => dismissedTaskIds.current.add(taskId));
+    setTasks((currentTasks) => {
+      const activeTasks = currentTasks.filter(isActiveTask);
+      tasksRef.current = activeTasks;
+      return activeTasks;
+    });
   }, []);
 
   const value = useMemo(
@@ -1253,7 +1143,8 @@ export function ComicOutlineQueueForm({
   taskLabel,
   idleLabel,
   disabled = false,
-  disabledReason
+  disabledReason,
+  showRevisionNotes = true
 }: {
   taskType: string;
   targetId: string;
@@ -1261,6 +1152,7 @@ export function ComicOutlineQueueForm({
   idleLabel: string;
   disabled?: boolean;
   disabledReason?: string;
+  showRevisionNotes?: boolean;
 }) {
   const { enqueueOutlineTask, tasks } = useComicImageTaskQueue();
   const [revisionNotes, setRevisionNotes] = useState("");
@@ -1302,22 +1194,24 @@ export function ComicOutlineQueueForm({
 
   return (
     <form onSubmit={handleSubmit} className="admin-comic-outline-form">
-      <div className="field">
-        <label htmlFor={`outline-task-${taskType}-${targetId}`}>修改 / 翻译要求</label>
-        <textarea
-          id={`outline-task-${taskType}-${targetId}`}
-          name="revisionNotes"
-          rows={3}
-          placeholder="可留空；也可以写：节奏更轻松、保留术语英文、加强 Nia 的动机..."
-          value={revisionNotes}
-          onChange={(event) => {
-            setRevisionNotes(event.target.value);
-            if (notice) {
-              setNotice("");
-            }
-          }}
-        />
-      </div>
+      {showRevisionNotes ? (
+        <div className="field">
+          <label htmlFor={`outline-task-${taskType}-${targetId}`}>修改 / 翻译需求</label>
+          <textarea
+            id={`outline-task-${taskType}-${targetId}`}
+            name="revisionNotes"
+            rows={3}
+            placeholder="可留空；也可以写：节奏更轻松、保留术语英文、加强 Nia 的动机..."
+            value={revisionNotes}
+            onChange={(event) => {
+              setRevisionNotes(event.target.value);
+              if (notice) {
+                setNotice("");
+              }
+            }}
+          />
+        </div>
+      ) : null}
       <div className="stack-row">
         <button
           type="submit"
@@ -1346,7 +1240,9 @@ function ComicImageTaskQueuePanel() {
   const visibleTasks = [...tasks]
     .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))
     .slice(0, 8);
-  const hasCompleted = tasks.some((task) => task.status === "success" || task.status === "failed");
+  const hasCompleted = tasks.some(
+    (task) => task.status === "success" || task.status === "failed" || task.status === "cancelled"
+  );
 
   return (
     <aside className="admin-comic-task-panel" aria-live="polite">

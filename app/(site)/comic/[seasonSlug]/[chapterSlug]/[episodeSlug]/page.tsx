@@ -105,6 +105,7 @@ export default async function ComicEpisodePage({ params, searchParams }: ComicEp
         </header>
 
         <ComicEpisodeReader
+          episodeId={episode.id}
           pages={episode.assets.map((asset) => ({
             id: asset.id,
             imageUrl: asset.imageUrl,

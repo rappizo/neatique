@@ -156,18 +156,6 @@ export default async function AdminComicOverviewPage({
           </div>
         </section>
 
-        <section className="admin-form">
-          <h2>Prompt studio</h2>
-          <p className="form-note">
-            Generate episode-level script expansions, panel prompts, and a required upload checklist
-            for <code>gpt-image-2</code>.
-          </p>
-          <div className="stack-row">
-            <Link href="/admin/comic/prompt-studio" className="button button--primary">
-              Open prompt studio
-            </Link>
-          </div>
-        </section>
       </div>
 
       <section className="admin-form admin-table">
@@ -242,10 +230,10 @@ export default async function AdminComicOverviewPage({
                           Edit
                         </Link>
                         <Link
-                          href={`/admin/comic/prompt-studio?episodeId=${episode.id}`}
+                          href={`/admin/comic/publish-center/chapters/${episode.chapterId}#episode-${episode.id}`}
                           className="button button--secondary"
                         >
-                          Prompt
+                          Produce
                         </Link>
                       </div>
                     </td>
