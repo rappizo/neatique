@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  ComicGeneratePromptPackageQueueButton,
   ComicImageTaskQueueProvider,
   ComicOutlineMultiActionForm,
   ComicOutlineQueueForm
@@ -656,14 +655,17 @@ function EpisodeOutlineSection({
   disabledForAi: boolean;
 }) {
   const chapterOutlineReady = hasUsableOutline(chapter.outline);
-  const needsTranslation = hasUsableOutline(episode.outline) && !hasChineseText(episode.outline);
-  const primaryTaskType = needsTranslation ? "episode-translate" : "episode-generate";
-  const primaryIdleLabel = needsTranslation
-    ? "翻译成中文（不改剧情）"
-    : hasUsableOutline(episode.outline)
-      ? "重新生成 Episode 大纲"
-      : "生成 Episode 大纲";
-  const promptDisabled = disabledForAi || !hasUsableOutline(episode.outline);
+  const episodeOutlineReady = hasUsableOutline(episode.outline);
+  const generationDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !chapterOutlineReady
+      ? "请先确认 Chapter 大纲。"
+      : undefined;
+  const promptDisabledReason = disabledForAi
+    ? "OPENAI_API_KEY 还没有配置。"
+    : !episodeOutlineReady
+      ? "请先确认 Episode 大纲。"
+      : undefined;
 
   return (
     <OutlinePanel
@@ -680,37 +682,33 @@ function EpisodeOutlineSection({
       }
     >
       <div className="admin-comic-outline-actions">
-        <OutlineActionForm
-          taskType={primaryTaskType}
-          targetId={episode.id}
-          taskLabel={`${needsTranslation ? "Translate" : "Generate"} ${episodeLabel(episode)}`}
-          idleLabel={primaryIdleLabel}
-          disabled={disabledForAi || !chapterOutlineReady}
-          disabledReason={
-            disabledForAi
-              ? "OPENAI_API_KEY 还没有配置。"
-              : !chapterOutlineReady
-                ? "请先确认 Chapter 大纲。"
-                : undefined
-          }
+        <ComicOutlineMultiActionForm
+          textareaId={`episode-outline-actions-${episode.id}`}
+          actions={[
+            {
+              taskType: "episode-generate",
+              targetId: episode.id,
+              taskLabel: `Regenerate ${episodeLabel(episode)}`,
+              idleLabel: "重新生成Episode大纲",
+              includeRevisionNotes: true,
+              disabled: Boolean(generationDisabledReason),
+              disabledReason: generationDisabledReason
+            },
+            {
+              actionType: "prompt-package",
+              episodeId: episode.id,
+              taskLabel: `Prompts: ${episode.title}`,
+              idleLabel: "应用大纲并生成Page Prompts",
+              disabled: Boolean(promptDisabledReason),
+              disabledReason: promptDisabledReason
+            },
+            {
+              actionType: "link",
+              href: publishCenterEpisodeHref(chapter.id, episode.id),
+              idleLabel: "进入Publish Center"
+            }
+          ]}
         />
-        <div className="admin-comic-outline-next-step">
-          <ComicGeneratePromptPackageQueueButton
-            episodeId={episode.id}
-            idleLabel={episode.promptPack ? "重新生成 Episode Prompts" : "根据当前大纲生成 Episode Prompts"}
-            taskLabel={`Prompts: ${episode.title}`}
-            className="button button--primary"
-            disabled={promptDisabled}
-          />
-          <Link href={publishCenterEpisodeHref(chapter.id, episode.id)} className="button button--secondary">
-            进入 Publish Center 制作
-          </Link>
-          {promptDisabled ? (
-            <span className="form-note">
-              {disabledForAi ? "OPENAI_API_KEY 还没有配置。" : "请先确认 Episode 大纲。"}
-            </span>
-          ) : null}
-        </div>
       </div>
     </OutlinePanel>
   );

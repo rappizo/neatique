@@ -1228,7 +1228,8 @@ export function ComicOutlineQueueForm({
   );
 }
 
-type ComicOutlineMultiAction = {
+type ComicOutlineTaskMultiAction = {
+  actionType?: "outline";
   taskType: string;
   targetId: string;
   taskLabel: string;
@@ -1238,6 +1239,43 @@ type ComicOutlineMultiAction = {
   disabledReason?: string;
 };
 
+type ComicPromptTaskMultiAction = {
+  actionType: "prompt-package";
+  episodeId: string;
+  taskLabel: string;
+  idleLabel: string;
+  disabled?: boolean;
+  disabledReason?: string;
+};
+
+type ComicLinkMultiAction = {
+  actionType: "link";
+  href: string;
+  idleLabel: string;
+  className?: string;
+};
+
+type ComicOutlineMultiAction =
+  | ComicOutlineTaskMultiAction
+  | ComicPromptTaskMultiAction
+  | ComicLinkMultiAction;
+
+function isComicLinkMultiAction(action: ComicOutlineMultiAction): action is ComicLinkMultiAction {
+  return action.actionType === "link";
+}
+
+function isComicPromptTaskMultiAction(
+  action: ComicOutlineMultiAction
+): action is ComicPromptTaskMultiAction {
+  return action.actionType === "prompt-package";
+}
+
+function isComicQueueMultiAction(
+  action: ComicOutlineMultiAction
+): action is ComicOutlineTaskMultiAction | ComicPromptTaskMultiAction {
+  return !isComicLinkMultiAction(action);
+}
+
 export function ComicOutlineMultiActionForm({
   textareaId,
   actions
@@ -1245,12 +1283,33 @@ export function ComicOutlineMultiActionForm({
   textareaId: string;
   actions: ComicOutlineMultiAction[];
 }) {
-  const { enqueueOutlineTask, tasks } = useComicImageTaskQueue();
+  const { enqueueOutlineTask, enqueuePromptPackage, tasks } = useComicImageTaskQueue();
   const [revisionNotes, setRevisionNotes] = useState("");
   const [notice, setNotice] = useState("");
   const trimmedNotes = revisionNotes.trim();
+  const disabledActions = actions.filter(
+    (
+      action
+    ): action is ComicOutlineTaskMultiAction | ComicPromptTaskMultiAction =>
+      isComicQueueMultiAction(action) && Boolean(action.disabled && action.disabledReason)
+  );
 
   function getActionTask(action: ComicOutlineMultiAction) {
+    if (isComicLinkMultiAction(action)) {
+      return null;
+    }
+
+    if (isComicPromptTaskMultiAction(action)) {
+      return (
+        [...tasks]
+          .filter(
+            (candidate) =>
+              candidate.kind === "prompt-package" && candidate.episodeId === action.episodeId
+          )
+          .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null
+      );
+    }
+
     return (
       [...tasks]
         .filter(
@@ -1265,6 +1324,10 @@ export function ComicOutlineMultiActionForm({
 
   function getActionLabel(action: ComicOutlineMultiAction) {
     const task = getActionTask(action);
+
+    if (isComicLinkMultiAction(action)) {
+      return action.idleLabel;
+    }
 
     if (task?.status === "queued") {
       return "Queued...";
@@ -1282,6 +1345,19 @@ export function ComicOutlineMultiActionForm({
   }
 
   function handleAction(action: ComicOutlineMultiAction) {
+    if (isComicLinkMultiAction(action)) {
+      return;
+    }
+
+    if (isComicPromptTaskMultiAction(action)) {
+      enqueuePromptPackage({
+        episodeId: action.episodeId,
+        label: action.taskLabel
+      });
+      setNotice("Added to Comic tasks.");
+      return;
+    }
+
     enqueueOutlineTask({
       taskType: action.taskType,
       targetId: action.targetId,
@@ -1311,13 +1387,28 @@ export function ComicOutlineMultiActionForm({
       </div>
       <div className="admin-comic-outline-button-row">
         {actions.map((action) => {
+          if (isComicLinkMultiAction(action)) {
+            return (
+              <a
+                key={`link-${action.href}`}
+                href={action.href}
+                className={action.className || "button button--secondary"}
+              >
+                {getActionLabel(action)}
+              </a>
+            );
+          }
+
           const task = getActionTask(action);
           const isActive = task?.status === "queued" || task?.status === "running";
           const disabled = Boolean(action.disabled || isActive);
+          const actionKey = isComicPromptTaskMultiAction(action)
+            ? `prompt-${action.episodeId}`
+            : `${action.taskType}-${action.targetId}`;
 
           return (
             <button
-              key={`${action.taskType}-${action.targetId}`}
+              key={actionKey}
               type="button"
               className="button button--primary"
               disabled={disabled}
@@ -1330,15 +1421,20 @@ export function ComicOutlineMultiActionForm({
           );
         })}
       </div>
-      {actions.some((action) => action.disabled && action.disabledReason) ? (
+      {disabledActions.length > 0 ? (
         <div className="admin-comic-outline-disabled-notes">
-          {actions
-            .filter((action) => action.disabled && action.disabledReason)
-            .map((action) => (
-              <span key={`${action.taskType}-${action.targetId}-reason`} className="form-note">
-                {action.idleLabel}: {action.disabledReason}
-              </span>
-            ))}
+          {disabledActions.map((action) => (
+            <span
+              key={
+                isComicPromptTaskMultiAction(action)
+                  ? `prompt-${action.episodeId}-reason`
+                  : `${action.taskType}-${action.targetId}-reason`
+              }
+              className="form-note"
+            >
+              {action.idleLabel}: {action.disabledReason}
+            </span>
+          ))}
         </div>
       ) : null}
       {notice ? <span className="form-note">{notice}</span> : null}
