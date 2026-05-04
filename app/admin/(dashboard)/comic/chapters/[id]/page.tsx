@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createComicEpisodeAction, updateComicChapterAction } from "@/app/admin/comic-editor-actions";
+import { getNextComicEpisodeNumber } from "@/lib/comic-episode-numbering";
 import { getComicChapterById } from "@/lib/comic-queries";
 
 type AdminComicChapterDetailPageProps = {
@@ -12,7 +13,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   created: "Chapter created.",
   saved: "Chapter updated.",
   "missing-fields": "Fill in the required chapter fields before saving.",
-  "missing-chapter": "That chapter could not be found."
+  "missing-chapter": "That chapter could not be found.",
+  "duplicate-episode-number": "That episode number is already used by another episode."
 };
 
 export default async function AdminComicChapterDetailPage({
@@ -20,15 +22,16 @@ export default async function AdminComicChapterDetailPage({
   searchParams
 }: AdminComicChapterDetailPageProps) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const chapterPage = await getComicChapterById(id);
+  const [chapterPage, suggestedEpisodeNumber] = await Promise.all([
+    getComicChapterById(id),
+    getNextComicEpisodeNumber()
+  ]);
 
   if (!chapterPage) {
     notFound();
   }
 
   const { season, chapter, episodes } = chapterPage;
-  const suggestedEpisodeNumber =
-    episodes.length > 0 ? Math.max(...episodes.map((episode) => episode.episodeNumber)) + 1 : 1;
 
   return (
     <div className="admin-page">

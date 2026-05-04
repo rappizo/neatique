@@ -3,7 +3,11 @@ import {
   ComicGenerateImageQueueButton
 } from "@/components/admin/comic-image-task-queue";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
-import { getComicPromptHealthSummary } from "@/lib/comic-prompt-health";
+import {
+  getComicPromptHealthSummary,
+  type ComicPromptHealthFinding,
+  type ComicPromptPageHealth
+} from "@/lib/comic-prompt-health";
 
 type PromptPanelView = {
   panelNumber: number;
@@ -124,6 +128,49 @@ function getPreviewUrl(relativePath: string) {
   return null;
 }
 
+function getPromptHealthFindings(pages: ComicPromptPageHealth[]) {
+  return pages.flatMap((pageHealth) =>
+    pageHealth.findings.map((finding) => ({
+      pageNumber: pageHealth.pageNumber,
+      finding
+    }))
+  );
+}
+
+function formatHealthFindingPrefix(pageNumber: number) {
+  return pageNumber > 0 ? formatPageLabel(pageNumber) : "Prompt package";
+}
+
+function PromptHealthFindingList({
+  findings
+}: {
+  findings: Array<{
+    pageNumber: number;
+    finding: ComicPromptHealthFinding;
+  }>;
+}) {
+  if (findings.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="admin-comic-health-list">
+      {findings.map(({ pageNumber, finding }, findingIndex) => (
+        <span
+          key={`${pageNumber}-${finding.severity}-${findingIndex}`}
+          className={
+            finding.severity === "issue"
+              ? "admin-comic-health-item admin-comic-health-item--issue"
+              : "admin-comic-health-item admin-comic-health-item--warning"
+          }
+        >
+          <strong>{formatHealthFindingPrefix(pageNumber)}:</strong> {finding.message}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function ComicPromptPageLists({
   episodeLogline,
   episodeSynopsis,
@@ -145,6 +192,7 @@ export function ComicPromptPageLists({
       .filter((pageHealth) => pageHealth.pageNumber > 0)
       .map((pageHealth) => [pageHealth.pageNumber, pageHealth])
   );
+  const promptHealthFindings = getPromptHealthFindings(promptHealth.pages);
 
   return (
     <div className="admin-comic-prompt-lists">
@@ -207,6 +255,16 @@ export function ComicPromptPageLists({
             />
           ) : null}
         </div>
+
+        {promptHealthFindings.length > 0 ? (
+          <div className="admin-comic-health-summary">
+            <div>
+              <h3>Prompt QA details</h3>
+              <p className="form-note">Warnings and issues are listed here before page generation.</p>
+            </div>
+            <PromptHealthFindingList findings={promptHealthFindings} />
+          </div>
+        ) : null}
 
         {globalGptImage2Notes ? (
           <div className="field">

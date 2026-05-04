@@ -17,6 +17,10 @@ import {
 } from "@/lib/comic-lock-history";
 import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
 import {
+  getNextComicEpisodeNumber,
+  isComicEpisodeNumberTaken
+} from "@/lib/comic-episode-numbering";
+import {
   normalizeComicCharacterChineseName,
   resolveComicCharacterChineseName
 } from "@/lib/comic-character-chinese-names";
@@ -744,10 +748,16 @@ export async function createComicEpisodeAction(formData: FormData) {
 
   const title = toPlainString(formData.get("title"));
   const slug = buildComicSlug(formData.get("slug"), title);
-  const episodeNumber = Math.max(1, toInt(formData.get("episodeNumber"), 1));
+  const requestedEpisodeNumber = toInt(formData.get("episodeNumber"), 0);
+  const episodeNumber =
+    requestedEpisodeNumber > 0 ? requestedEpisodeNumber : await getNextComicEpisodeNumber();
 
   if (!title || !slug) {
     redirect(buildComicRedirect(`/admin/comic/chapters/${chapterId}`, "missing-fields"));
+  }
+
+  if (await isComicEpisodeNumberTaken(episodeNumber)) {
+    redirect(buildComicRedirect(`/admin/comic/chapters/${chapterId}`, "duplicate-episode-number"));
   }
 
   const published = toBool(formData.get("published"));
@@ -818,6 +828,10 @@ export async function updateComicEpisodeAction(formData: FormData) {
 
   if (!title || !slug) {
     redirect(buildComicRedirect(`/admin/comic/episodes/${id}`, "missing-fields"));
+  }
+
+  if (await isComicEpisodeNumberTaken(episodeNumber, id)) {
+    redirect(buildComicRedirect(`/admin/comic/episodes/${id}`, "duplicate-episode-number"));
   }
 
   const publishedAtInput = toPlainString(formData.get("publishedAt"));

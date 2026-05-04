@@ -33,7 +33,9 @@ const OPENAI_COMIC_PROMPT_REASONING_EFFORT =
   process.env.OPENAI_COMIC_PROMPT_REASONING_EFFORT || "low";
 const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 55;
 const DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS = 1000 * 55;
-const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 105;
+const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 120;
+const DEFAULT_OPENAI_COMIC_IMAGE_HIGH_TIMEOUT_MS = 1000 * 240;
+const DEFAULT_OPENAI_COMIC_IMAGE_LOW_TIMEOUT_MS = 1000 * 75;
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 const OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH = 30000;
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
@@ -411,14 +413,26 @@ function getOpenAiComicPromptTimeoutMs() {
   return Math.min(Math.max(configuredSeconds, 15), 55) * 1000;
 }
 
-function getOpenAiComicImageTimeoutMs() {
+function getDefaultOpenAiComicImageTimeoutMs(quality?: string | null) {
+  switch (normalizeStandaloneComicImageQuality(quality)) {
+    case "high":
+      return DEFAULT_OPENAI_COMIC_IMAGE_HIGH_TIMEOUT_MS;
+    case "low":
+      return DEFAULT_OPENAI_COMIC_IMAGE_LOW_TIMEOUT_MS;
+    case "medium":
+    default:
+      return DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS;
+  }
+}
+
+function getOpenAiComicImageTimeoutMs(quality?: string | null) {
   const configuredSeconds = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_TIMEOUT_SECONDS || "", 10);
 
   if (!Number.isFinite(configuredSeconds) || configuredSeconds <= 0) {
-    return DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS;
+    return getDefaultOpenAiComicImageTimeoutMs(quality);
   }
 
-  return Math.min(Math.max(configuredSeconds, 20), 110) * 1000;
+  return Math.min(Math.max(configuredSeconds, 20), 260) * 1000;
 }
 
 function getOpenAiComicOutlineAbortSignal() {
@@ -429,8 +443,8 @@ function getOpenAiComicPromptAbortSignal() {
   return AbortSignal.timeout(getOpenAiComicPromptTimeoutMs());
 }
 
-function getOpenAiComicImageAbortSignal() {
-  return AbortSignal.timeout(getOpenAiComicImageTimeoutMs());
+function getOpenAiComicImageAbortSignal(quality?: string | null) {
+  return AbortSignal.timeout(getOpenAiComicImageTimeoutMs(quality));
 }
 
 function getOpenAiComicImageQuality(attempt = 1) {
@@ -565,25 +579,29 @@ function shouldUseOpenAiComicPromptBackgroundMode() {
   return (process.env.OPENAI_COMIC_PROMPT_BACKGROUND || "true").trim().toLowerCase() !== "false";
 }
 
-function getOpenAiComicImageTimeoutMessage(label: string) {
+function getOpenAiComicImageTimeoutMessage(label: string, quality?: string | null) {
+  const normalizedQuality = normalizeStandaloneComicImageQuality(quality);
+  const qualityLabel = normalizedQuality ? ` in ${normalizedQuality} quality mode` : "";
+
   return `${label} timed out after ${Math.round(
-    getOpenAiComicImageTimeoutMs() / 1000
-  )} seconds. The image task can be retried automatically; if this keeps happening, lower OPENAI_COMIC_MAX_REFERENCE_IMAGES or OPENAI_COMIC_IMAGE_QUALITY.`;
+    getOpenAiComicImageTimeoutMs(quality) / 1000
+  )} seconds${qualityLabel}. The image task can be retried automatically; if this keeps happening, use a simpler reference/prompt setup or retry in Medium quality.`;
 }
 
 async function fetchOpenAiComicImageResponse(
   url: string,
   init: RequestInit,
-  label: string
+  label: string,
+  quality?: string | null
 ) {
   try {
     return await fetch(url, {
       ...init,
-      signal: getOpenAiComicImageAbortSignal()
+      signal: getOpenAiComicImageAbortSignal(quality)
     });
   } catch (error) {
     if (isOpenAiTimeoutError(error)) {
-      throw new Error(getOpenAiComicImageTimeoutMessage(label));
+      throw new Error(getOpenAiComicImageTimeoutMessage(label, quality));
     }
 
     throw error;
@@ -2376,7 +2394,8 @@ export async function generateComicPageImageWithAi(
       },
       body: formData
     },
-    "OpenAI comic page image reference edit"
+    "OpenAI comic page image reference edit",
+    imageQuality
   );
 
   const rawText = await response.text();
@@ -2468,7 +2487,8 @@ export async function generateStandaloneComicImageWithAi(
         },
         body: formData
       },
-      "OpenAI comic image reference creation"
+      "OpenAI comic image reference creation",
+      imageQuality
     );
 
     const rawText = await response.text();
@@ -2529,7 +2549,8 @@ export async function generateStandaloneComicImageWithAi(
       },
       body: JSON.stringify(body)
     },
-    "OpenAI comic image creation"
+    "OpenAI comic image creation",
+    imageQuality
   );
 
   const rawText = await response.text();

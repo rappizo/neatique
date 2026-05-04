@@ -26,7 +26,11 @@ import { CopyTextButton } from "@/components/admin/copy-text-button";
 import { deleteComicEpisodeAssetAction } from "@/app/admin/comic-editor-actions";
 import { restoreComicPagePromptRevisionAction } from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
-import { getComicPromptHealthSummary } from "@/lib/comic-prompt-health";
+import {
+  getComicPromptHealthSummary,
+  type ComicPromptHealthFinding,
+  type ComicPromptPageHealth
+} from "@/lib/comic-prompt-health";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { resolveComicPageReferenceImages } from "@/lib/comic-reference-images";
 import { formatDate } from "@/lib/format";
@@ -131,6 +135,49 @@ function isComicPageAsset(asset: ComicEpisodeAssetRecord) {
 
 function formatPageLabel(pageNumber: number) {
   return `Page ${String(pageNumber).padStart(2, "0")}`;
+}
+
+function getPromptHealthFindings(pages: ComicPromptPageHealth[]) {
+  return pages.flatMap((pageHealth) =>
+    pageHealth.findings.map((finding) => ({
+      pageNumber: pageHealth.pageNumber,
+      finding
+    }))
+  );
+}
+
+function formatHealthFindingPrefix(pageNumber: number) {
+  return pageNumber > 0 ? formatPageLabel(pageNumber) : "Prompt package";
+}
+
+function PromptHealthFindingList({
+  findings
+}: {
+  findings: Array<{
+    pageNumber: number;
+    finding: ComicPromptHealthFinding;
+  }>;
+}) {
+  if (findings.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="admin-comic-health-list">
+      {findings.map(({ pageNumber, finding }, findingIndex) => (
+        <span
+          key={`${pageNumber}-${finding.severity}-${findingIndex}`}
+          className={
+            finding.severity === "issue"
+              ? "admin-comic-health-item admin-comic-health-item--issue"
+              : "admin-comic-health-item admin-comic-health-item--warning"
+          }
+        >
+          <strong>{formatHealthFindingPrefix(pageNumber)}:</strong> {finding.message}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function getChapterMatch(
@@ -374,6 +421,7 @@ export default async function AdminComicPublishChapterPage({
                 .filter((pageHealth) => pageHealth.pageNumber > 0)
                 .map((pageHealth) => [pageHealth.pageNumber, pageHealth])
             );
+            const promptHealthFindings = getPromptHealthFindings(promptHealth.pages);
             const missingChinesePages = promptState.pages
               .filter((page) => page.approvedAsset && !page.approvedChineseAsset)
               .map((page) => ({
@@ -431,6 +479,18 @@ export default async function AdminComicPublishChapterPage({
                     />
                   </div>
                 </div>
+
+                {promptHealthFindings.length > 0 ? (
+                  <div className="admin-comic-health-summary">
+                    <div>
+                      <h3>Prompt QA details</h3>
+                      <p className="form-note">
+                        Fix issues before generation; warnings mark continuity risks to review.
+                      </p>
+                    </div>
+                    <PromptHealthFindingList findings={promptHealthFindings} />
+                  </div>
+                ) : null}
 
                 <div className="admin-comic-publish-page-grid">
                   {promptState.pages.map(({
@@ -494,6 +554,15 @@ export default async function AdminComicPublishChapterPage({
                             hasChineseAssets={chineseAssets.length > 0}
                           />
                         </div>
+
+                        {pageHealth?.findings.length ? (
+                          <PromptHealthFindingList
+                            findings={pageHealth.findings.map((finding) => ({
+                              pageNumber,
+                              finding
+                            }))}
+                          />
+                        ) : null}
 
                         {promptPage ? (
                           <div className="admin-comic-reference-preview">

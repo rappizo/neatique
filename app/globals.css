@@ -4583,6 +4583,20 @@ main {
   gap: 8px;
 }
 
+.admin-comic-health-summary {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(214, 151, 55, 0.22);
+  background: rgba(255, 251, 238, 0.72);
+}
+
+.admin-comic-health-summary h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
 .admin-comic-health-item {
   display: block;
   padding: 9px 12px;

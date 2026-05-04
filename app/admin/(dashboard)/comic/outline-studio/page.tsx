@@ -201,6 +201,20 @@ function episodeLabel(episode: ComicEpisodeRecord) {
   return `Episode ${episode.episodeNumber}: ${episode.title}`;
 }
 
+function episodeRangeLabel(episodes: ComicEpisodeRecord[], fallbackLabel = "episodes") {
+  if (episodes.length === 0) {
+    return fallbackLabel;
+  }
+
+  const episodeNumbers = episodes.map((episode) => episode.episodeNumber);
+  const firstEpisodeNumber = Math.min(...episodeNumbers);
+  const lastEpisodeNumber = Math.max(...episodeNumbers);
+
+  return firstEpisodeNumber === lastEpisodeNumber
+    ? `第${firstEpisodeNumber}话`
+    : `第${firstEpisodeNumber}-${lastEpisodeNumber}话`;
+}
+
 function outlineStudioHref(scope: OutlineScope, id?: string) {
   const params = new URLSearchParams({ scope });
 
@@ -597,12 +611,8 @@ function ChapterOutlineSection({
 }) {
   const seasonOutlineReady = hasUsableOutline(season.outline);
   const chapterOutlineReady = hasUsableOutline(chapter.outline);
-  const firstHalfEpisodes = chapter.episodes.filter(
-    (episode) => episode.episodeNumber >= 1 && episode.episodeNumber <= 5
-  );
-  const secondHalfEpisodes = chapter.episodes.filter(
-    (episode) => episode.episodeNumber >= 6 && episode.episodeNumber <= 10
-  );
+  const firstHalfEpisodes = chapter.episodes.slice(0, 5);
+  const secondHalfEpisodes = chapter.episodes.slice(5, 10);
   const generationDisabledReason = disabledForAi
     ? "OPENAI_API_KEY 还没有配置。"
     : !seasonOutlineReady
@@ -632,11 +642,11 @@ function ChapterOutlineSection({
     }));
   const firstHalfDisabledReason = getEpisodeBatchDisabledReason(
     firstHalfEpisodes,
-    "第1-5话"
+    episodeRangeLabel(firstHalfEpisodes, "前5话")
   );
   const secondHalfDisabledReason = getEpisodeBatchDisabledReason(
     secondHalfEpisodes,
-    "第6-10话"
+    episodeRangeLabel(secondHalfEpisodes, "第6-10话")
   );
 
   return (
@@ -664,7 +674,7 @@ function ChapterOutlineSection({
             {
               actionType: "outline-batch",
               tasks: getEpisodeBatchTasks(firstHalfEpisodes),
-              idleLabel: "生成第1-5话大纲",
+              idleLabel: `生成${episodeRangeLabel(firstHalfEpisodes, "前5话")}大纲`,
               includeRevisionNotes: false,
               disabled: Boolean(firstHalfDisabledReason),
               disabledReason: firstHalfDisabledReason
@@ -672,7 +682,7 @@ function ChapterOutlineSection({
             {
               actionType: "outline-batch",
               tasks: getEpisodeBatchTasks(secondHalfEpisodes),
-              idleLabel: "生成第6-10话大纲",
+              idleLabel: `生成${episodeRangeLabel(secondHalfEpisodes, "第6-10话")}大纲`,
               includeRevisionNotes: false,
               disabled: Boolean(secondHalfDisabledReason),
               disabledReason: secondHalfDisabledReason

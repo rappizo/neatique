@@ -31,6 +31,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   "page-image-generated": "Comic page image generated and saved as a draft asset.",
   "page-image-failed": "Comic page image generation failed. Check the latest prompt run entry below.",
   "missing-fields": "Fill in the required episode fields before saving.",
+  "duplicate-episode-number": "That episode number is already used by another episode.",
   "missing-asset-fields": "Add an asset title and image URL before saving.",
   "missing-page-prompt": "Generate a page-by-page prompt package before creating page images."
 };

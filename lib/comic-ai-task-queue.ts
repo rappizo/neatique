@@ -100,7 +100,7 @@ type ComicAiTaskResult = {
 
 const ACTIVE_TASK_STATUSES: ComicAiTaskStatus[] = ["QUEUED", "RUNNING"];
 const RETRYABLE_TASK_STATUSES: ComicAiTaskStatus[] = ["FAILED", "CANCELLED"];
-const DEFAULT_STALE_RUNNING_TASK_MS = 1000 * 60 * 3;
+const DEFAULT_STALE_RUNNING_TASK_MS = 1000 * 60 * 8;
 const IMAGE_HEAVY_TASK_TYPES = new Set<ComicAiTaskType>([
   "generate",
   "edit",
@@ -301,6 +301,30 @@ function buildRetryAttemptResult(
     ok: false,
     retrying: true,
     message: getRetryingErrorMessage(errorMessage),
+    errorMessage,
+    attemptFailures: [
+      ...getAttemptFailures(previousResult),
+      {
+        attempt: task.attempts,
+        errorMessage,
+        createdAt: new Date().toISOString()
+      }
+    ]
+  };
+}
+
+function buildFailedAttemptResult(
+  task: ComicAiTaskModelRecord,
+  previousResult: ComicAiTaskResult | null,
+  result: ComicAiTaskResult | null,
+  errorMessage: string
+): ComicAiTaskResult {
+  return {
+    ...(result || {
+      ok: false,
+      message: "Comic AI task failed."
+    }),
+    ok: false,
     errorMessage,
     attemptFailures: [
       ...getAttemptFailures(previousResult),
@@ -779,7 +803,9 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
             }
           : {
               status: "FAILED",
-              result: JSON.stringify(result),
+              result: JSON.stringify(
+                buildFailedAttemptResult(task, previousResult, result, errorMessage)
+              ),
               errorMessage,
               completedAt: new Date(),
               lockedAt: null
@@ -823,7 +849,7 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
         status: shouldRetry ? "QUEUED" : "FAILED",
         result: shouldRetry
           ? JSON.stringify(buildRetryAttemptResult(task, previousResult, errorMessage))
-          : null,
+          : JSON.stringify(buildFailedAttemptResult(task, previousResult, null, errorMessage)),
         errorMessage: shouldRetry ? getRetryingErrorMessage(errorMessage) : errorMessage,
         completedAt: shouldRetry ? null : new Date(),
         lockedAt: null

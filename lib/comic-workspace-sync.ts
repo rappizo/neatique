@@ -409,6 +409,7 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
   let seasonCount = 0;
   let chapterCount = 0;
   let episodeCount = 0;
+  let globalEpisodeNumber = 0;
   const importedSceneSlugs = new Set<string>();
   const importedSceneReferenceRecords = new Map<string, ComicChapterSceneReferenceRecord[]>();
   const manifest: ComicReferenceManifest = {
@@ -606,9 +607,14 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
         const episodeSlug = episodeEntry.name;
         const episodeRoot = path.join(chapterRoot, episodeSlug);
         const episodeOutline = await readTextIfExists(path.join(episodeRoot, "episode-outline.md"));
-        const episodeNumber = parseEpisodeNumberFromSlug(episodeSlug);
-        const episodeHeading = extractHeading(episodeOutline) || `Episode ${episodeNumber}`;
-        const episodeTitle = normalizeEpisodeTitle(episodeHeading, episodeNumber);
+        const localEpisodeNumber = parseEpisodeNumberFromSlug(episodeSlug);
+        globalEpisodeNumber += 1;
+        const episodeNumber = globalEpisodeNumber;
+        const episodeHeading = extractHeading(episodeOutline) || `Episode ${localEpisodeNumber}`;
+        const episodeTitle = normalizeEpisodeTitle(
+          normalizeEpisodeTitle(episodeHeading, localEpisodeNumber),
+          episodeNumber
+        );
         const episodeSummary = extractSummaryFromBilingualOutline(episodeOutline, {
           zhHeadings: ["Episode 承诺", "本话承诺", "核心剧情"],
           enHeadings: ["Episode Promise", "Episode promise", "Core Plot", "Core plot"],
