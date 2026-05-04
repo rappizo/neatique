@@ -29,7 +29,7 @@ Padaruna should sound fast, enthusiastic, and emotionally immediate. Her lines s
 - Still lively by the end, but no longer blindly impressed by hype
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the core shape lock
+- Use `refs/model-sheet.jpg` as the core shape lock
 - Keep her open and energetic face language
 - Avoid flattening her into a neutral background droplet in group scenes
 

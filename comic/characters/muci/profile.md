@@ -8,7 +8,7 @@ Audience surrogate, emotional entry point, and freshman heart of the series.
 
 ## Appearance lock
 - Clean cute compact teardrop silhouette with a centered point, broad rounded base, and short rounded body
-- Two small rounded feet at the bottom, exactly like `refs/model-sheet.png`
+- Two small rounded feet at the bottom, exactly like `refs/model-sheet.jpg`
 - Large dot eyes, open friendly smile, glossy highlight marks near the upper-left side
 - Pure white body interior with clean black outline, matching the concept/model sheet
 - Soft, approachable proportions that should read as beginner-friendly and easy to root for
@@ -33,8 +33,8 @@ Muci should sound natural, plainspoken, and human. He is not the jargon-heavy ch
 - Grows into the value-driven lead who can say why institutional certainty is not the same as truth
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the primary shape lock
-- Match `refs/model-sheet.png` exactly for silhouette, face placement, dot-eye spacing, smile shape, upper-left glossy highlights, centered point, broad rounded base, compact body proportions, pure white body fill, and the two small rounded feet
+- Use `refs/model-sheet.jpg` as the primary shape lock
+- Match `refs/model-sheet.jpg` exactly for silhouette, face placement, dot-eye spacing, smile shape, upper-left glossy highlights, centered point, broad rounded base, compact body proportions, pure white body fill, and the two small rounded feet
 - Keep the highlight marks and simple smile consistent
 - Preserve the beginner-friendly softness even in tense scenes
 - Never add hands, arms, fingers, gloves, paws, sleeves, wrists, elbows, shoes, or a humanoid body

@@ -29,7 +29,7 @@ Artrans speaks in deadpan precision. He should be concise, slightly sarcastic, a
 - Moves from evasive protector to someone willing to share the truth
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the primary silhouette lock
+- Use `refs/model-sheet.jpg` as the primary silhouette lock
 - Preserve the layered cream shape and half-lidded eyes
 - Avoid converting him into a generic drop-shaped mascot
 

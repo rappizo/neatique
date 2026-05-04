@@ -29,7 +29,7 @@ Padarana speaks lightly, but her lines should land with emotional precision. She
 - Becomes one of the clearest voices for humane care
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the main lock
+- Use `refs/model-sheet.jpg` as the main lock
 - Preserve the closed-eye smile and soothing silhouette
 - Keep her readable as warmth, not passivity
 

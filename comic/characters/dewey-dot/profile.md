@@ -29,7 +29,7 @@ Dewey Dot speaks in a nervous, nerdy, information-heavy way. He starts slightly 
 - Should feel gentle, not smug
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the primary shape lock
+- Use `refs/model-sheet.jpg` as the primary shape lock
 - Keep the circular silhouette stable and clean
 - Preserve the slightly careful, tucked-in body language
 - Do not sharpen him into a confident authority figure by default

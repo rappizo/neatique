@@ -27,8 +27,9 @@ const OPENAI_COMIC_PROMPT_REASONING_EFFORT =
   process.env.OPENAI_COMIC_PROMPT_REASONING_EFFORT || "low";
 const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 55;
 const DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS = 1000 * 55;
-const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 52;
+const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 55;
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
+const OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH = 30000;
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Non-negotiable visual production locks:",
   "- Output must be clean black-and-white Japanese manga only: crisp black ink linework on pure white paper, clear white space, sparse screentone only where needed, and high-contrast readable panels. No color, no colored accents, no gray wash, no muddy charcoal shading, no painterly full-color lighting.",
@@ -1555,6 +1556,18 @@ function trimPromptContext(value: string | null | undefined, maxLength: number) 
   return `${normalized.slice(0, maxLength).trimEnd()}\n[Context trimmed for prompt package speed.]`;
 }
 
+function normalizeComicReferenceFileMentions(value: string | null | undefined) {
+  return (value || "")
+    .replace(/refs\/model-sheet\.png/g, "refs/model-sheet.jpg")
+    .replace(/model-sheet\.png/g, "model-sheet.jpg")
+    .replace(/comic\/characters\/([^/\s]+)\/refs\/model-sheet\.png/g, "comic/characters/$1/refs/model-sheet.jpg")
+    .replace(/comic\/seasons\/([^\n,]+?)\.png/g, "comic/seasons/$1.jpg");
+}
+
+function trimImagePromptContext(value: string | null | undefined, maxLength: number) {
+  return trimPromptContext(normalizeComicReferenceFileMentions(value), maxLength);
+}
+
 function buildComicPageUploadSummary(uploads: GeneratedComicPageUpload[]) {
   if (uploads.length === 0) {
     return "No required reference uploads were listed for this page.";
@@ -1564,10 +1577,9 @@ function buildComicPageUploadSummary(uploads: GeneratedComicPageUpload[]) {
     .map((upload) =>
       [
         `- ${upload.label} (${upload.bucket})`,
-        `  Why it matters: ${trimPromptContext(upload.whyThisMatters, 220)}`,
-        `  Visual lock: ${trimPromptContext(upload.contentSummary, 260)}`,
-        `  Upload image names: ${upload.uploadImageNames.join(", ") || "None listed"}`,
-        `  Workspace paths: ${upload.relativePaths.join(", ") || "None listed"}`
+        `  Why it matters: ${trimImagePromptContext(upload.whyThisMatters, 160)}`,
+        `  Visual lock: ${trimImagePromptContext(upload.contentSummary, 190)}`,
+        "  Actual attached reference images below are authoritative if this checklist contains legacy file names."
       ].join("\n")
     )
     .join("\n\n");
@@ -1585,8 +1597,8 @@ function buildComicPageReferenceImageSummary(referenceImages: ComicReferenceImag
         `   File: ${reference.fileName}`,
         `   Path: ${reference.relativePath}`,
         `   Type: ${reference.bucket}`,
-        `   Why it matters: ${trimPromptContext(reference.whyThisMatters, 220)}`,
-        `   Visual lock: ${trimPromptContext(reference.contentSummary, 260)}`
+        `   Why it matters: ${trimImagePromptContext(reference.whyThisMatters, 160)}`,
+        `   Visual lock: ${trimImagePromptContext(reference.contentSummary, 190)}`
       ].join("\n")
     )
     .join("\n\n");
@@ -1603,14 +1615,13 @@ function buildComicPageCharacterIdentityLockSummary(
     .map((character) =>
       [
         `${character.name} (${character.slug})`,
-        `Role: ${character.role}`,
-        `Appearance lock from database: ${trimPromptContext(character.appearance, 1000)}`,
-        `Personality lock: ${trimPromptContext(character.personality, 520)}`,
+        `Role: ${trimImagePromptContext(character.role, 180)}`,
+        `Profile MD appearance lock: ${trimImagePromptContext(character.appearance, 620)}`,
         character.referenceNotes
-          ? `Reference notes: ${trimPromptContext(character.referenceNotes, 520)}`
+          ? `Profile MD reference lock: ${trimImagePromptContext(character.referenceNotes, 620)}`
           : null,
         character.profileMarkdown
-          ? `Profile MD source of truth:\n${trimPromptContext(character.profileMarkdown, 1800)}`
+          ? `Profile MD source of truth loaded from database, distilled for image prompt length:\n${trimImagePromptContext(character.profileMarkdown, 900)}`
           : "Profile MD source of truth: not available.",
         `Reference image files: ${
           character.referenceFiles.map((file) => file.fileName).join(", ") || "None"
@@ -1620,6 +1631,21 @@ function buildComicPageCharacterIdentityLockSummary(
         .join("\n")
     )
     .join("\n\n---\n\n");
+}
+
+function enforceComicImagePromptLength(prompt: string) {
+  if (prompt.length <= OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH) {
+    return prompt;
+  }
+
+  const suffix = [
+    "",
+    "[Image prompt trimmed to stay under the OpenAI image prompt length limit.]",
+    "The attached model-sheet images and the Profile MD identity locks already listed above remain binding."
+  ].join("\n");
+  const nextLength = OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH - suffix.length;
+
+  return `${prompt.slice(0, Math.max(0, nextLength)).trimEnd()}${suffix}`;
 }
 
 function normalizeComicDialogueLines(value: unknown): GeneratedComicDialogueLine[] {
@@ -1904,16 +1930,16 @@ function buildComicPagePanelSummary(panels: GeneratedComicPanelPrompt[]) {
     .map((panel) =>
       [
         `Panel ${panel.panelNumber}: ${panel.panelTitle}`,
-        `Story beat: ${panel.storyBeat}`,
+        `Story beat: ${trimImagePromptContext(panel.storyBeat, 520)}`,
         `Dialogue lines:\n${formatComicDialogueLines(panel.dialogueLines || [])}`,
-        `Panel image direction: ${panel.promptText || "Use the page prompt and story beat."}`
+        `Panel image direction: ${trimImagePromptContext(panel.promptText || "Use the page prompt and story beat.", 620)}`
       ].join("\n")
     )
     .join("\n\n");
 }
 
 export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
-  return [
+  const prompt = [
     "Create one finished vertical comic page for Neatique's original comic series.",
     COMIC_VISUAL_PRODUCTION_LOCKS,
     "",
@@ -1942,8 +1968,8 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     `Season: ${input.seasonTitle}`,
     `Chapter: ${input.chapterTitle}`,
     `Episode: ${input.episodeTitle}`,
-    `Episode summary: ${input.episodeSummary || "No episode summary stored."}`,
-    `Page ${input.pageNumber} purpose: ${input.pagePurpose}`,
+    `Episode summary: ${trimImagePromptContext(input.episodeSummary, 900)}`,
+    `Page ${input.pageNumber} purpose: ${trimImagePromptContext(input.pagePurpose, 700)}`,
     "",
     "Required references for visual continuity:",
     buildComicPageUploadSummary(input.requiredUploads),
@@ -1958,18 +1984,20 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     buildComicPagePanelSummary(input.panels),
     "",
     "Production prompt already prepared for this page:",
-    input.promptPackCopyText,
+    trimImagePromptContext(input.promptPackCopyText, 4200),
     "",
     input.globalGptImage2Notes
-      ? `Global gpt-image-2 continuity notes:\n${input.globalGptImage2Notes}`
+      ? `Global gpt-image-2 continuity notes:\n${trimImagePromptContext(input.globalGptImage2Notes, 1400)}`
       : "Global gpt-image-2 continuity notes: none stored.",
     "",
     input.referenceNotesCopyText
-      ? `Page-specific reference notes:\n${input.referenceNotesCopyText}`
+      ? `Page-specific reference notes:\n${trimImagePromptContext(input.referenceNotesCopyText, 1400)}`
       : "Page-specific reference notes: none stored.",
     "",
     "Final output: one complete 2:3 comic page image, not separate files."
   ].join("\n");
+
+  return enforceComicImagePromptLength(prompt);
 }
 
 export async function generateComicPageImageWithAi(

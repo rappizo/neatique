@@ -30,7 +30,7 @@ Sunny Spritz speaks in a hyper-enthusiastic, fast, cheerful orientation-leader v
 - Should sound like a student host, a pep leader, and an emergency coordinator all at once
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the primary shape lock
+- Use `refs/model-sheet.jpg` as the primary shape lock
 - Keep the soft star silhouette readable in all panel sizes
 - Preserve the two small rounded feet directly under the star body in full-body views
 - Leave clear lower-frame space so the small feet are not cropped away

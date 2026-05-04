@@ -29,7 +29,7 @@ Mira Mistwell speaks softly, politely, and calmly, but with quiet authority. She
 - Should never rant or explode
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the primary shape lock
+- Use `refs/model-sheet.jpg` as the primary shape lock
 - Keep the rounded-square silhouette stable and composed
 - Preserve the gentle smile without losing the sense of authority
 - Do not exaggerate her into a chaotic or sloppy pose language

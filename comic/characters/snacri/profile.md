@@ -29,7 +29,7 @@ Snacri should be concise and precise. Her dialogue works best when she says less
 - Must learn to speak sooner before quieter harm becomes normal
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the main silhouette lock
+- Use `refs/model-sheet.jpg` as the main silhouette lock
 - Keep her simple and understated
 - Do not over-cute or over-dramatize her default expression
 

@@ -29,7 +29,7 @@ Vela Sheen speaks in a polished, elegant, persuasive voice. She sounds calm, war
 - Her calm should feel intentional, not passive
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the primary shape lock
+- Use `refs/model-sheet.jpg` as the primary shape lock
 - Keep the diamond silhouette elegant and steady
 - Preserve the polished, balanced pose language
 - Do not let her visual read become clumsy or overtly villainous too early

@@ -29,7 +29,7 @@ Professor Cera Lin speaks in a calm, precise, academically controlled voice. Her
 - Should feel dry and sharp, never messy or melodramatic
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the primary shape lock
+- Use `refs/model-sheet.jpg` as the primary shape lock
 - Keep the pointed pentagonal silhouette intact
 - Preserve the controlled, precise visual read
 - Do not turn her into a warm chaos character or a caricature tyrant

@@ -316,7 +316,7 @@ function getPrimaryReferenceRecordForUpload(
   }
 
   return upload.bucket === "CHARACTER"
-    ? toPrimaryReferenceRecord(fallbackFolder, "model-sheet.png", upload.label)
+    ? toPrimaryReferenceRecord(fallbackFolder, "model-sheet.jpg", upload.label)
     : null;
 }
 
@@ -456,7 +456,7 @@ function addDetectedCharacterReferences(
     const primaryRecord =
       records.find((record) => /model|sheet|front|master/i.test(record.fileName)) ||
       records[0] ||
-      toPrimaryReferenceRecord(getComicCharacterReferenceFolder(slug), "model-sheet.png", `${displayName} reference`);
+      toPrimaryReferenceRecord(getComicCharacterReferenceFolder(slug), "model-sheet.jpg", `${displayName} reference`);
 
     if (!primaryRecord) {
       continue;

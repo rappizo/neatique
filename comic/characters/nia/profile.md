@@ -29,7 +29,7 @@ Nia should sound precise, clear, and slightly high-pressure. She rarely wastes w
 - Must redefine rigor, not abandon it
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the core reference
+- Use `refs/model-sheet.jpg` as the core reference
 - Keep the sharper point and brow attitude
 - Do not soften her into an emotionally generic mascot in neutral scenes
 

@@ -5,6 +5,9 @@ import {
   generateComicPageImageForEpisode
 } from "@/lib/comic-page-image-generation";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const authenticated = await isAdminAuthenticated();
 
