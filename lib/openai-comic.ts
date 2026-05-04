@@ -44,6 +44,9 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Do not redesign Muci. Muci must stay a compact cute friendly teardrop mascot with a centered point, broad rounded base, large dot eyes, an open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, and soft approachable protagonist energy.",
   "- Muci's proportions must stay squat and rounded like the model sheet, not tall or stretched: the full front-view body should feel broad and compact, with body height only about 1.2 to 1.35 times the body width. Avoid long narrow droplet proportions.",
   "- For any full-body Muci view, show the two small rounded feet exactly like the model sheet. Do not crop them away, hide them, replace them with a flat base, or remove them.",
+  "- Do not redesign Coach Ray. Coach Ray must stay a broad squat shield-shaped protective mascot, with a centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted stance, pure white body fill, and small connected feet exactly like his model sheet.",
+  "- Coach Ray is not Muci and is not a teardrop/drop character. Never average Coach Ray's shield silhouette with Muci's centered teardrop silhouette, even when both model sheets are attached.",
+  "- Do not use generic polygon wording for Coach Ray. The intended lock is shield-shaped protective mascot.",
   "- All characters in this world have no hands and no arms. Never draw arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs on any character.",
   "- Preserve every character's small feet, lower body nubs, base shape, or tiny legs exactly as shown in each character's model sheet.",
   "- Mouth state lock: characters who are not actively speaking must have closed mouths, tiny neutral mouths, or quiet expression marks only. Open mouths are allowed only for the character currently speaking, shouting, gasping, singing, or making an explicit vocal sound in that panel.",
@@ -1564,8 +1567,30 @@ function normalizeComicReferenceFileMentions(value: string | null | undefined) {
     .replace(/comic\/seasons\/([^\n,]+?)\.png/g, "comic/seasons/$1.jpg");
 }
 
+function normalizeLegacyCoachRayShapeMentions(value: string | null | undefined) {
+  return (value || "")
+    .replace(
+      /Exact Coach Ray pentagonal shape and feet/gi,
+      "Exact Coach Ray shield-shaped body, shield crest, vertical sides, grounded base, and feet"
+    )
+    .replace(/Coach Ray must stay broad pentagonal/gi, "Coach Ray must stay broad shield-shaped")
+    .replace(/Coach Ray must remain broad pentagonal/gi, "Coach Ray must remain broad shield-shaped")
+    .replace(/Coach Ray remains broad pentagonal/gi, "Coach Ray remains broad shield-shaped")
+    .replace(/Coach Ray's pentagonal authority/gi, "Coach Ray's shield-shaped authority")
+    .replace(/Coach Ray pentagonal authority/gi, "Coach Ray shield-shaped authority")
+    .replace(/Coach Ray as pentagonal/gi, "Coach Ray with shield-shaped protective wording")
+    .replace(/Coach Ray pentagonal shape/gi, "Coach Ray shield-shaped body")
+    .replace(/Coach Ray pentagonal/gi, "Coach Ray shield-shaped")
+    .replace(/broad pentagonal and planted/gi, "broad shield-shaped and planted")
+    .replace(/broad pentagonal, planted/gi, "broad shield-shaped, planted")
+    .replace(/broad pentagonal/gi, "broad shield-shaped");
+}
+
 function trimImagePromptContext(value: string | null | undefined, maxLength: number) {
-  return trimPromptContext(normalizeComicReferenceFileMentions(value), maxLength);
+  return trimPromptContext(
+    normalizeLegacyCoachRayShapeMentions(normalizeComicReferenceFileMentions(value)),
+    maxLength
+  );
 }
 
 function buildComicPageUploadSummary(uploads: GeneratedComicPageUpload[]) {
@@ -1631,6 +1656,35 @@ function buildComicPageCharacterIdentityLockSummary(
         .join("\n")
     )
     .join("\n\n---\n\n");
+}
+
+function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdentityLock[] = []) {
+  const slugs = new Set(characters.map((character) => character.slug));
+  const locks: string[] = [];
+
+  if (slugs.has("coach-ray")) {
+    locks.push(
+      [
+        "Coach Ray anti-drift lock:",
+        "- Draw Coach Ray from the Coach Ray model-sheet only: broad squat shield-shaped protective mascot, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted stance, pure white body fill, and small connected feet.",
+        "- Coach Ray is not Muci, not a teardrop/drop, not a pear, not a rounded blob, and not a generic polygon mascot. Do not borrow Muci's long curved droplet outline or soft protagonist expression.",
+        "- If the page prompt still contains legacy polygon wording for Coach Ray, ignore that wording and follow the shield-shaped Coach Ray lock instead."
+      ].join("\n")
+    );
+  }
+
+  if (slugs.has("coach-ray") && slugs.has("muci")) {
+    locks.push(
+      [
+        "Muci vs Coach Ray separation:",
+        "- Muci keeps the compact broad centered-teardrop model-sheet silhouette with a soft open protagonist expression.",
+        "- Coach Ray keeps the broad squat shield-shaped model-sheet silhouette with planted drill-instructor authority.",
+        "- Do not average, merge, swap, or cross-contaminate their outlines, face placement, highlight marks, feet, or expressions."
+      ].join("\n")
+    );
+  }
+
+  return locks.length > 0 ? locks.join("\n\n") : "No extra character separation locks needed.";
 }
 
 function enforceComicImagePromptLength(prompt: string) {
@@ -1979,6 +2033,9 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "",
     "Character Profile MD identity locks loaded for this page:",
     buildComicPageCharacterIdentityLockSummary(input.characterLocks),
+    "",
+    "Character separation and anti-blend locks:",
+    buildComicPageCharacterSeparationLocks(input.characterLocks),
     "",
     "Panel-by-panel content to illustrate:",
     buildComicPagePanelSummary(input.panels),
@@ -2668,6 +2725,9 @@ export async function generateComicPromptPackageWithAi(
                 "Muci must always match the Muci model sheet and written appearance lock exactly: compact cute friendly teardrop mascot, centered point, broad rounded base, short rounded body proportions, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, soft approachable protagonist energy.",
                 "Muci must never become tall, thin, stretched, elongated, pear-like, or a long raindrop. Keep him broad, squat, soft, and close to the model-sheet width-to-height proportion.",
                 "For full-body Muci views, never omit the two small rounded feet or flatten the base; keep the same feet shown in the model sheet.",
+                "Coach Ray must always match the Coach Ray model sheet and written appearance lock exactly: broad squat shield-shaped protective mascot, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted drill-instructor posture, pure white body fill, and small connected feet.",
+                "Coach Ray must never become Muci, a teardrop/drop character, a pear shape, a rounded blob, or a generic polygon mascot. Use shield-shaped protective mascot wording for Coach Ray.",
+                "When Muci and Coach Ray appear together, explicitly state their silhouette separation: Muci is the compact centered teardrop; Coach Ray is the broad shield-shaped instructor. Do not average or blend them.",
                 "Never invent arms, hands, fingers, gloves, sleeves, humanoid bodies, animal paws, or redesigned mascot silhouettes.",
                 "You must think like a comic production assistant, not like a novelist only.",
                 "Return only valid JSON matching the schema.",
@@ -2750,6 +2810,8 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Every Muci prompt must explicitly preserve his model-sheet identity, compact broad centered-teardrop design, pure white body fill, and two small rounded feet.",
+                "- Every Coach Ray prompt must explicitly preserve his model-sheet identity, broad squat shield-shaped protective design, centered shallow crest, firm shoulders, near-vertical sides, pure white body fill, and planted small feet.",
+                "- Every page where Muci and Coach Ray appear together must include a Muci-vs-Coach-Ray separation note so their silhouettes are not averaged.",
                 "- Every referenceNotesCopyText block must remind production that character model sheets are exact identity locks, not loose inspiration.",
                 "- Every referenceNotesCopyText block must also remind production to read the character Profile MD lock together with the uploaded model sheet before drawing that character.",
                 "- For every page, return a promptPackCopyText block that can be pasted directly into the image-generation tool.",

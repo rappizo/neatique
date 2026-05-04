@@ -85,3 +85,133 @@ test("comic page image prompt stays under OpenAI length limit while preserving r
   assert.match(prompt, /Profile MD source of truth loaded from database/);
   assert.match(prompt, /Reference image files: model-sheet\.jpg/);
 });
+
+test("comic page image prompt separates Coach Ray from Muci and normalizes legacy pentagonal wording", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "Sunscreen Drill",
+    episodeSummary: "Coach Ray drills Muci on sunscreen planning.",
+    pageNumber: 5,
+    panelCount: 3,
+    pagePurpose: "Coach Ray and Muci compare panic with planning.",
+    promptPackCopyText:
+      "Use exact uploaded model sheets. Coach Ray must stay broad pentagonal and planted. Muci stays compact broad centered teardrop.",
+    referenceNotesCopyText:
+      "Upload Muci and Coach Ray. Keep Coach Ray's pentagonal authority and Muci's compact teardrop.",
+    globalGptImage2Notes:
+      "Coach Ray remains broad pentagonal, planted, and authoritative. Muci remains compact.",
+    panels: [
+      {
+        pageNumber: 5,
+        panelNumber: 1,
+        panelTitle: "Planning",
+        storyBeat: "Coach Ray gives the lesson while Muci listens.",
+        promptText: "Coach Ray must stay broad pentagonal and Muci stays teardrop.",
+        dialogueLines: [
+          { speaker: "Coach Ray", text: "Planning beats drama!" },
+          { speaker: "Muci", text: "That actually helps." }
+        ]
+      }
+    ],
+    requiredUploads: [
+      {
+        label: "Coach Ray Model Sheet",
+        slug: "coach-ray",
+        bucket: "CHARACTER",
+        uploadImageNames: ["model-sheet.jpg"],
+        relativePaths: ["comic/characters/coach-ray/refs/model-sheet.jpg"],
+        whyThisMatters: "Coach Ray teaches the reapplication lesson.",
+        contentSummary: "Exact Coach Ray pentagonal shape and feet."
+      },
+      {
+        label: "Muci Model Sheet",
+        slug: "muci",
+        bucket: "CHARACTER",
+        uploadImageNames: ["model-sheet.jpg"],
+        relativePaths: ["comic/characters/muci/refs/model-sheet.jpg"],
+        whyThisMatters: "Muci asks the reader question.",
+        contentSummary: "Exact Muci teardrop shape and feet."
+      }
+    ],
+    referenceImages: [
+      {
+        label: "Coach Ray Model Sheet",
+        fileName: "model-sheet.jpg",
+        relativePath: "comic/characters/coach-ray/refs/model-sheet.jpg",
+        bucket: "CHARACTER",
+        slug: "coach-ray",
+        source: "prompt-required-upload",
+        mimeType: "image/jpeg",
+        imageUrl: "/comic/characters/coach-ray/refs/model-sheet.jpg",
+        sizeBytes: 4,
+        whyThisMatters: "Coach Ray identity lock.",
+        contentSummary: "Exact Coach Ray pentagonal shape and feet.",
+        data: Buffer.from("fake")
+      },
+      {
+        label: "Muci Model Sheet",
+        fileName: "model-sheet.jpg",
+        relativePath: "comic/characters/muci/refs/model-sheet.jpg",
+        bucket: "CHARACTER",
+        slug: "muci",
+        source: "prompt-required-upload",
+        mimeType: "image/jpeg",
+        imageUrl: "/comic/characters/muci/refs/model-sheet.jpg",
+        sizeBytes: 4,
+        whyThisMatters: "Muci identity lock.",
+        contentSummary: "Exact Muci teardrop shape and feet.",
+        data: Buffer.from("fake")
+      }
+    ],
+    characterLocks: [
+      {
+        slug: "coach-ray",
+        name: "Coach Ray",
+        role: "Sunscreen instructor.",
+        appearance: "Broad shield-shaped mascot silhouette, not Muci.",
+        personality: "Commanding.",
+        speechGuide: "Short commands.",
+        referenceNotes:
+          "Use refs/model-sheet.jpg. Never borrow Muci's teardrop outline. Never describe Coach Ray as pentagonal.",
+        profileMarkdown:
+          "# Coach Ray\n\n## Appearance lock\nBroad squat shield-shaped protective mascot, centered shallow top crest, near-vertical sides, broad rounded lower body.",
+        referenceFiles: [
+          {
+            label: "Model Sheet",
+            fileName: "model-sheet.jpg",
+            relativePath: "comic/characters/coach-ray/refs/model-sheet.jpg",
+            extension: "jpg"
+          }
+        ]
+      },
+      {
+        slug: "muci",
+        name: "Muci",
+        role: "Audience surrogate.",
+        appearance: "Compact broad centered teardrop.",
+        personality: "Curious.",
+        speechGuide: "Plainspoken.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Muci\n\n## Appearance lock\nCompact broad centered teardrop.",
+        referenceFiles: [
+          {
+            label: "Model Sheet",
+            fileName: "model-sheet.jpg",
+            relativePath: "comic/characters/muci/refs/model-sheet.jpg",
+            extension: "jpg"
+          }
+        ]
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.doesNotMatch(prompt, /Coach Ray[^.\n]*pentagonal/i);
+  assert.doesNotMatch(prompt, /broad pentagonal/i);
+  assert.doesNotMatch(prompt, /pentagonal authority/i);
+  assert.match(prompt, /Coach Ray anti-drift lock/);
+  assert.match(prompt, /Muci vs Coach Ray separation/);
+  assert.match(prompt, /Coach Ray keeps the broad squat shield-shaped/);
+});

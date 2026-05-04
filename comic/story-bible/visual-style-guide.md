@@ -33,7 +33,7 @@
 - **Padaruna**: bright rounded teardrop, energetic openness, highly expressive face
 - **Snacri**: simple stable droplet, quieter asymmetry, minimalist read
 - **Sunny Spritz**: soft five-point star silhouette, two small rounded feet directly under the lower star points, bright open smile, orientation-host energy
-- **Coach Ray**: broad shield-shaped mascot silhouette matching the uploaded model-sheet reference, planted authority, drill-instructor read
+- **Coach Ray**: broad squat shield-shaped mascot silhouette matching the uploaded model-sheet reference, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, planted authority, drill-instructor read; never draw him as Muci, a teardrop, or a generic polygon mascot
 - **Mira Mistwell**: rounded-square silhouette, neat balance, quiet administrative authority
 - **Professor Cera Lin**: pointed pentagonal silhouette, controlled posture, academic precision
 - **Dewey Dot**: clean circular silhouette, bookish gentleness, archive-first energy
@@ -63,6 +63,8 @@
 - For Sunny Spritz, explicitly preserve two small rounded feet directly under her soft five-point star body whenever she appears full-body.
 - Translate holding, pointing, grabbing, opening, carrying, writing, pushing, or handing something over into telekinetic object movement with floating objects, motion lines, or subtle manga emphasis marks.
 - For Muci, explicitly repeat the compact broad centered teardrop shape, short rounded body, rounded base, two small rounded feet, pure white body fill, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
+- For Coach Ray, explicitly repeat the broad squat shield-shaped body, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, pure white body fill, small connected feet, controlled smile, and planted drill-instructor posture whenever he appears.
+- When Muci and Coach Ray appear together, state that their silhouettes must not be averaged: Muci stays a compact centered teardrop, while Coach Ray stays a broad protective shield.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.
 - If a panel depends on a specific reaction, include the exact expression target in the prompt and mention which reference sheet to upload.
 
@@ -70,6 +72,7 @@
 - Color pages or colored accents
 - Gray wash, muddy gray pages, gray-filled character bodies, over-toned characters, or smoky charcoal rendering
 - Turning every character into the same generic teardrop
+- Turning Coach Ray into Muci, a water-drop character, a generic polygon mascot, or a soft rounded blob
 - Stretching Muci into a tall narrow droplet
 - Over-rendering that loses mascot simplicity
 - Random costume or accessory drift

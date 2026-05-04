@@ -1,10 +1,12 @@
 {
-  "silhouette": "Broad shield-shaped mascot silhouette, like a sturdy protective shield, with a grounded base and firm upper shape. Match the uploaded model-sheet reference image.",
+  "silhouette": "Broad squat shield-shaped mascot silhouette, like a sturdy protective shield, with a centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, and grounded base. Match the uploaded model-sheet reference image.",
   "face": "Large dot eyes, compact smile, glossy highlight marks near the upper left side.",
   "body_language": "Planted, commanding, and ready to bark field instructions.",
   "do_not_change": [
     "Keep the broad shield shape from the uploaded reference image.",
-    "Do not turn him into a generic pentagon, teardrop, circle, or rounded blob.",
+    "Do not turn him into a generic five-sided polygon, teardrop, circle, pear, or rounded blob.",
+    "Never borrow Muci's centered teardrop silhouette, long droplet curve, beginner-friendly softness, or protagonist expression.",
+    "Never describe or draw Coach Ray with generic polygon language; use broad shield-shaped protective mascot instead.",
     "Keep the pose grounded and authoritative.",
     "Do not turn him into a floppy or timid silhouette."
   ]
