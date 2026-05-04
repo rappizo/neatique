@@ -5,13 +5,12 @@ export type ComicReferenceCompressionBucket = "character" | "scene" | "chapter-s
 
 export type CompressedComicReferenceImage = {
   buffer: Buffer;
-  extension: ".png" | ".jpg";
-  mimeType: "image/png" | "image/jpeg";
+  extension: ".jpg";
+  mimeType: "image/jpeg";
 };
 
 const DEFAULT_CHARACTER_REFERENCE_MAX_DIMENSION = 1600;
 const DEFAULT_SCENE_REFERENCE_MAX_DIMENSION = 1400;
-const DEFAULT_REFERENCE_PNG_QUALITY = 78;
 const DEFAULT_REFERENCE_JPEG_QUALITY = 68;
 
 function getIntegerEnv(name: string, fallback: number, min: number, max: number) {
@@ -42,27 +41,8 @@ function getReferenceMaxDimension(bucket: ComicReferenceCompressionBucket) {
   );
 }
 
-function getReferencePngQuality() {
-  return getIntegerEnv("COMIC_REFERENCE_PNG_QUALITY", DEFAULT_REFERENCE_PNG_QUALITY, 40, 100);
-}
-
 function getReferenceJpegQuality() {
   return getIntegerEnv("COMIC_REFERENCE_JPEG_QUALITY", DEFAULT_REFERENCE_JPEG_QUALITY, 40, 90);
-}
-
-function getOutputExtension(input: { fileName?: string | null; mimeType?: string | null }) {
-  const normalizedMimeType = (input.mimeType || "").toLowerCase();
-  const normalizedFileName = (input.fileName || "").toLowerCase();
-
-  if (normalizedMimeType.includes("jpeg") || normalizedMimeType.includes("jpg")) {
-    return ".jpg" as const;
-  }
-
-  if (normalizedFileName.endsWith(".jpg") || normalizedFileName.endsWith(".jpeg")) {
-    return ".jpg" as const;
-  }
-
-  return ".png" as const;
 }
 
 function toBuffer(data: Buffer | Uint8Array | ArrayBuffer) {
@@ -77,13 +57,13 @@ function toBuffer(data: Buffer | Uint8Array | ArrayBuffer) {
   return Buffer.from(data);
 }
 
-export function getCompressedComicReferenceMimeType(extension: ".png" | ".jpg") {
-  return extension === ".jpg" ? "image/jpeg" : "image/png";
+export function getCompressedComicReferenceMimeType(): "image/jpeg" {
+  return "image/jpeg";
 }
 
 export function getCompressedComicReferenceFileName(
   fileName: string,
-  extension: ".png" | ".jpg"
+  extension: ".jpg"
 ) {
   return fileName.replace(/\.[a-z0-9]+$/i, "") + extension;
 }
@@ -96,7 +76,6 @@ export async function compressComicReferenceImage(input: {
 }): Promise<CompressedComicReferenceImage> {
   const sourceBuffer = toBuffer(input.data);
   const bucket = input.bucket || "unknown";
-  const extension = getOutputExtension(input);
   const maxDimension = getReferenceMaxDimension(bucket);
   const pipeline = sharp(sourceBuffer, { failOn: "none" })
     .rotate()
@@ -106,27 +85,17 @@ export async function compressComicReferenceImage(input: {
       fit: "inside",
       withoutEnlargement: true
     });
-
-  const buffer =
-    extension === ".jpg"
-      ? await pipeline
-          .flatten({ background: "#ffffff" })
-          .jpeg({
-            quality: getReferenceJpegQuality(),
-            mozjpeg: true
-          })
-          .toBuffer()
-      : await pipeline
-          .png({
-            compressionLevel: 9,
-            palette: true,
-            quality: getReferencePngQuality()
-          })
-          .toBuffer();
+  const buffer = await pipeline
+    .flatten({ background: "#ffffff" })
+    .jpeg({
+      quality: getReferenceJpegQuality(),
+      mozjpeg: true
+    })
+    .toBuffer();
 
   return {
     buffer,
-    extension,
-    mimeType: getCompressedComicReferenceMimeType(extension)
+    extension: ".jpg",
+    mimeType: getCompressedComicReferenceMimeType()
   };
 }

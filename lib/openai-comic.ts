@@ -418,16 +418,20 @@ function getOpenAiComicImageQuality(attempt = 1) {
 }
 
 function getOpenAiComicImageOutputFormat() {
-  const configured = (process.env.OPENAI_COMIC_IMAGE_OUTPUT_FORMAT || "webp").trim().toLowerCase();
+  const configured = (process.env.OPENAI_COMIC_IMAGE_OUTPUT_FORMAT || "jpeg").trim().toLowerCase();
 
-  return ["png", "jpeg", "webp"].includes(configured) ? configured : "webp";
+  if (configured === "jpg") {
+    return "jpeg";
+  }
+
+  return ["png", "jpeg"].includes(configured) ? configured : "jpeg";
 }
 
 function getOpenAiComicImageOutputCompression() {
   const configured = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_OUTPUT_COMPRESSION || "", 10);
 
   if (!Number.isFinite(configured) || configured <= 0) {
-    return 85;
+    return 70;
   }
 
   return Math.min(Math.max(configured, 50), 100);
@@ -436,10 +440,6 @@ function getOpenAiComicImageOutputCompression() {
 function getOpenAiComicImageMimeType(outputFormat: string) {
   if (outputFormat === "jpeg") {
     return "image/jpeg";
-  }
-
-  if (outputFormat === "webp") {
-    return "image/webp";
   }
 
   return "image/png";

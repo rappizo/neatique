@@ -71,7 +71,7 @@ async function listImageFiles(root: string): Promise<string[]> {
   return files.flat().sort((left, right) => left.localeCompare(right));
 }
 
-function getCompressedTargetPath(sourcePath: string, extension: ".png" | ".jpg") {
+function getCompressedTargetPath(sourcePath: string, extension: ".jpg") {
   return path.join(
     path.dirname(sourcePath),
     getCompressedComicReferenceFileName(path.basename(sourcePath), extension)

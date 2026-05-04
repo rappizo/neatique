@@ -86,7 +86,7 @@ function getReferenceBucketFromRelativePath(relativePath: string): ComicReferenc
   return "unknown";
 }
 
-function toCompressedReferenceRelativePath(sourceRelativePath: string, extension: ".png" | ".jpg") {
+function toCompressedReferenceRelativePath(sourceRelativePath: string, extension: ".jpg") {
   const directory = path.dirname(sourceRelativePath);
   const fileName = getCompressedComicReferenceFileName(path.basename(sourceRelativePath), extension);
 

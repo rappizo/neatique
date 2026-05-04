@@ -238,7 +238,7 @@ async function upsertManifestRecord(
 async function createUploadFileName(
   folderPath: string,
   file: File,
-  extension: ".png" | ".jpg",
+  extension: ".jpg",
   requestedFileName?: string | null
 ) {
   const sourceName = getFileNameFromInput(requestedFileName || file.name || "reference");
