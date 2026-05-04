@@ -1,10 +1,11 @@
 {
-  "silhouette": "Bright rounded teardrop silhouette with lively symmetry.",
+  "silhouette": "Bright sharp-pointed teardrop silhouette with a noticeably fuller, rounder body than Padarana.",
   "face": "Open eyes, eager smile, highly expressive default read.",
   "body_language": "Social, animated, first to jump into action or trends.",
   "do_not_change": [
-    "Keep her visually energetic.",
+    "Keep her visually energetic, fuller-bodied, and lively.",
     "Do not flatten her expression into generic neutrality.",
-    "Use her face to carry momentum and hype."
+    "Use her face to carry momentum and hype.",
+    "Do not slim her into Padarana, sharpen her into Nia, quiet her into Snacri, or soften her into Muci."
   ]
 }

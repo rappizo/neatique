@@ -1,10 +1,11 @@
 {
-  "silhouette": "Simple quiet droplet silhouette with understated asymmetry.",
+  "silhouette": "Simple quiet droplet silhouette with a fatter body and the top leaning left, preserving understated asymmetry.",
   "face": "Minimal features, restrained smile, low-drama expression.",
   "body_language": "Stable, quiet, observant, never rushed.",
   "do_not_change": [
-    "Keep the minimalist readability.",
+    "Keep the minimalist readability and left-leaning top.",
     "Do not over-cute or over-emote by default.",
-    "Preserve the slightly quieter silhouette than the other droplets."
+    "Preserve the fatter, quieter silhouette than the other droplets.",
+    "Do not straighten her into Muci, sharpen her into Nia, energize her into Padaruna, or soften her into Padarana."
   ]
 }

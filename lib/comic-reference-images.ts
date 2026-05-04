@@ -12,6 +12,11 @@ import {
   getComicCharacterReferenceFolder,
   getComicSceneReferenceFolder
 } from "@/lib/comic-paths";
+import {
+  SIMILAR_TEARDROP_COMPARISON_REFERENCE,
+  getSimilarTeardropCharacterSlugs,
+  shouldUseSimilarTeardropComparison
+} from "@/lib/comic-similar-character-locks";
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 
 const COMIC_REFERENCE_ROOT = "comic";
@@ -50,7 +55,11 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 export type ComicResolvedReferenceImage = {
-  bucket: StoredPromptUpload["bucket"] | "DETECTED_CHARACTER" | "DETECTED_CHAPTER_SCENE";
+  bucket:
+    | StoredPromptUpload["bucket"]
+    | "DETECTED_CHARACTER"
+    | "DETECTED_CHAPTER_SCENE"
+    | "CAST_COMPARISON";
   label: string;
   slug: string;
   fileName: string;
@@ -508,13 +517,45 @@ function addDetectedChapterSceneReferences(
   }
 }
 
+function addSimilarTeardropComparisonReference(byPath: Map<string, ComicResolvedReferenceImage>) {
+  const characterSlugs = Array.from(
+    new Set(
+      Array.from(byPath.values())
+        .filter(isCharacterReference)
+        .map((reference) => reference.slug)
+    )
+  );
+  const similarSlugs = getSimilarTeardropCharacterSlugs(characterSlugs);
+
+  if (!shouldUseSimilarTeardropComparison(similarSlugs)) {
+    return;
+  }
+
+  addReferenceImage(
+    "CAST_COMPARISON",
+    "similar-teardrop-character-comparison",
+    "auto-detected",
+    SIMILAR_TEARDROP_COMPARISON_REFERENCE,
+    {
+      label: SIMILAR_TEARDROP_COMPARISON_REFERENCE.label,
+      whyThisMatters: `${similarSlugs
+        .map((slug) => slug.replace(/-/g, " "))
+        .join(", ")} appear together; this comparison sheet prevents similar black-and-white droplet characters from blending.`,
+      contentSummary:
+        "Side-by-side identity comparison for Muci, Nia, Snacri, Padaruna, and Padarana: silhouette, body width, head direction, eyes/brow, and default expression."
+    },
+    byPath
+  );
+}
+
 function sortResolvedReferences(references: ComicResolvedReferenceImage[]) {
   const bucketOrder: Record<string, number> = {
     CHARACTER: 0,
     DETECTED_CHARACTER: 1,
-    CHAPTER_SCENE: 2,
-    DETECTED_CHAPTER_SCENE: 3,
-    SCENE: 4
+    CAST_COMPARISON: 2,
+    CHAPTER_SCENE: 3,
+    DETECTED_CHAPTER_SCENE: 4,
+    SCENE: 5
   };
 
   return [...references].sort((left, right) => {
@@ -538,6 +579,10 @@ function isCharacterReference(reference: ComicResolvedReferenceImage) {
 
 function isChapterSceneReference(reference: ComicResolvedReferenceImage) {
   return reference.bucket === "CHAPTER_SCENE" || reference.bucket === "DETECTED_CHAPTER_SCENE";
+}
+
+function isCastComparisonReference(reference: ComicResolvedReferenceImage) {
+  return reference.bucket === "CAST_COMPARISON";
 }
 
 function selectResolvedReferences(references: ComicResolvedReferenceImage[]) {
@@ -567,6 +612,7 @@ function selectResolvedReferences(references: ComicResolvedReferenceImage[]) {
   }
 
   addWhere(isCharacterReference, maxCharacterReferences);
+  addWhere(isCastComparisonReference, Math.max(0, Math.min(1, maxReferences - selected.size)));
   addWhere(isChapterSceneReference, Math.max(1, Math.min(2, maxReferences - selected.size)));
   addWhere((reference) => reference.bucket === "SCENE", Math.max(0, maxReferences - selected.size));
   addWhere(() => true, maxReferences - selected.size);
@@ -582,6 +628,7 @@ export async function resolveComicPageReferenceImages(
   addRequiredUploadReferences(input, byPath);
   addDetectedCharacterReferences(input, byPath);
   addDetectedChapterSceneReferences(input, byPath);
+  addSimilarTeardropComparisonReference(byPath);
 
   return selectResolvedReferences(Array.from(byPath.values()));
 }

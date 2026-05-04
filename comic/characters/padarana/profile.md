@@ -7,10 +7,11 @@ Gentle emotional anchor, quiet observer, and warm moral center of the group.
 "She notices the emotional weather before anyone else notices the storm."
 
 ## Appearance lock
-- Soft teardrop silhouette with a calm rounded base
+- Soft pointed teardrop silhouette with a slimmer, gentler body than Padaruna and a calm rounded base
 - Closed smiling eyes in the reference sheet
 - Relaxed, reassuring expression that reads immediately as safe and kind
 - Line language should feel soft and welcoming
+- Similar-character lock: Padarana is the slim gentle closed-eye droplet. Do not make her Padaruna's fuller energetic body, Nia's angled brow, Snacri's left lean, or Muci's open-eyed protagonist face.
 
 ## Personality lock
 - Gentle
@@ -30,8 +31,9 @@ Padarana speaks lightly, but her lines should land with emotional precision. She
 
 ## Non-negotiable visual references
 - Use `refs/model-sheet.jpg` as the main lock
-- Preserve the closed-eye smile and soothing silhouette
+- Preserve the closed-eye smile, slimmer body, soft pointed head, and soothing silhouette
 - Keep her readable as warmth, not passivity
+- In group scenes with Padaruna, Padarana must read as the slimmer, calmer, closed-eye character; Padaruna must stay fuller and more lively.
 
 ## Reusable prompt notes
-When prompting Padarana, emphasize "soft teardrop mascot, closed smiling eyes, gentle observer, emotionally warm, calming presence, quiet but strong."
+When prompting Padarana, emphasize "slimmer soft pointed teardrop mascot, closed smiling eyes, gentle observer, emotionally warm, calming presence, quiet but strong, not Padaruna, not Muci, not Nia, not Snacri."

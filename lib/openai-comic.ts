@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import type { ComicReferenceImageFile } from "@/lib/comic-reference-images";
 import type { ComicCharacterIdentityLock } from "@/lib/comic-character-identity";
+import { buildSimilarTeardropSeparationLock } from "@/lib/comic-similar-character-locks";
 
 function normalizeApiBaseUrl(value: string) {
   return (value.trim() || "https://api.openai.com/v1").replace(/\/+$/, "");
@@ -44,6 +45,7 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Do not redesign Muci. Muci must stay a compact cute friendly teardrop mascot with a centered point, broad rounded base, large dot eyes, an open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, and soft approachable protagonist energy.",
   "- Muci's proportions must stay squat and rounded like the model sheet, not tall or stretched: the full front-view body should feel broad and compact, with body height only about 1.2 to 1.35 times the body width. Avoid long narrow droplet proportions.",
   "- For any full-body Muci view, show the two small rounded feet exactly like the model sheet. Do not crop them away, hide them, replace them with a flat base, or remove them.",
+  "- When Muci, Nia, Snacri, Padaruna, or Padarana appear together, use the similar-character comparison reference and keep their black-and-white identities separate: Muci compact centered teardrop, Nia sharper tall point with one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point with fuller lively body, Padarana sharp point with slimmer gentle body and closed smiling eyes.",
   "- Do not redesign Coach Ray. Coach Ray must stay a broad squat shield-shaped protective mascot, with a centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted stance, pure white body fill, and small connected feet exactly like his model sheet.",
   "- Coach Ray is not Muci and is not a teardrop/drop character. Never average Coach Ray's shield silhouette with Muci's centered teardrop silhouette, even when both model sheets are attached.",
   "- Do not use generic polygon wording for Coach Ray. The intended lock is shield-shaped protective mascot.",
@@ -1661,6 +1663,11 @@ function buildComicPageCharacterIdentityLockSummary(
 function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdentityLock[] = []) {
   const slugs = new Set(characters.map((character) => character.slug));
   const locks: string[] = [];
+  const similarTeardropLock = buildSimilarTeardropSeparationLock(Array.from(slugs));
+
+  if (similarTeardropLock) {
+    locks.push(similarTeardropLock);
+  }
 
   if (slugs.has("coach-ray")) {
     locks.push(
@@ -2725,6 +2732,11 @@ export async function generateComicPromptPackageWithAi(
                 "Muci must always match the Muci model sheet and written appearance lock exactly: compact cute friendly teardrop mascot, centered point, broad rounded base, short rounded body proportions, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, soft approachable protagonist energy.",
                 "Muci must never become tall, thin, stretched, elongated, pear-like, or a long raindrop. Keep him broad, squat, soft, and close to the model-sheet width-to-height proportion.",
                 "For full-body Muci views, never omit the two small rounded feet or flatten the base; keep the same feet shown in the model sheet.",
+                "Nia must keep her sharper taller pointed teardrop silhouette and one angled brow above the left eye; do not soften her into Muci, Padaruna, Padarana, or Snacri.",
+                "Snacri must keep her fatter quiet droplet silhouette with the top leaning left and restrained minimal expression; do not straighten her into a generic teardrop.",
+                "Padaruna must keep a sharp pointed head with a noticeably fuller rounder body, open lively dot eyes, eager smile, and energetic social expression.",
+                "Padarana must keep a sharp pointed head with a slimmer softer body than Padaruna, closed smiling eyes, calm reassuring mouth, and gentle emotional-anchor expression.",
+                "When two or more of Muci, Nia, Snacri, Padaruna, and Padarana appear together, include a similar-teardrop separation note in promptPackCopyText and referenceNotesCopyText. The image generation step will attach the comparison reference automatically.",
                 "Coach Ray must always match the Coach Ray model sheet and written appearance lock exactly: broad squat shield-shaped protective mascot, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted drill-instructor posture, pure white body fill, and small connected feet.",
                 "Coach Ray must never become Muci, a teardrop/drop character, a pear shape, a rounded blob, or a generic polygon mascot. Use shield-shaped protective mascot wording for Coach Ray.",
                 "When Muci and Coach Ray appear together, explicitly state their silhouette separation: Muci is the compact centered teardrop; Coach Ray is the broad shield-shaped instructor. Do not average or blend them.",
@@ -2810,6 +2822,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Every Muci prompt must explicitly preserve his model-sheet identity, compact broad centered-teardrop design, pure white body fill, and two small rounded feet.",
+                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci compact centered teardrop, Nia sharp tall point plus one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point plus fuller lively body, and Padarana sharp point plus slimmer gentle closed-eye body.",
                 "- Every Coach Ray prompt must explicitly preserve his model-sheet identity, broad squat shield-shaped protective design, centered shallow crest, firm shoulders, near-vertical sides, pure white body fill, and planted small feet.",
                 "- Every page where Muci and Coach Ray appear together must include a Muci-vs-Coach-Ray separation note so their silhouettes are not averaged.",
                 "- Every referenceNotesCopyText block must remind production that character model sheets are exact identity locks, not loose inspiration.",

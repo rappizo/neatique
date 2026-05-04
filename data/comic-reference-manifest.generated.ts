@@ -179,6 +179,14 @@ const comicReferenceManifest = {
         "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Sunscreen Field.jpg",
         "extension": "jpg"
       }
+    ],
+    "similar-character-comparison": [
+      {
+        "label": "Similar Character Comparison",
+        "fileName": "similar-character-comparison.jpg",
+        "relativePath": "comic/scenes/similar-character-comparison/refs/similar-character-comparison.jpg",
+        "extension": "jpg"
+      }
     ]
   },
   "chapters": {

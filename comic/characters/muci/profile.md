@@ -16,6 +16,7 @@ Audience surrogate, emotional entry point, and freshman heart of the series.
 - No sharp brow shapes or cynical expressions by default
 - In black-and-white manga pages, preserve Muci's identity through exact silhouette, face placement, highlight marks, and gentle line weight instead of color
 - Proportion lock: Muci is broad and squat, not tall. In a front full-body view, body height should feel only about 1.2 to 1.35 times the body width, with a round lower half and a gentle centered point.
+- Similar-character lock: Muci is the soft baseline protagonist shape, but he must not borrow Nia's angled brow, Snacri's left-leaning top, Padaruna's fuller high-energy body, or Padarana's closed smiling eyes.
 
 ## Personality lock
 - Curious
@@ -41,6 +42,7 @@ Muci should sound natural, plainspoken, and human. He is not the jargon-heavy ch
 - Never remove, flatten, crop away, or redesign Muci's two small rounded feet in full-body views
 - Never stretch Muci into a tall long raindrop, narrow pear shape, or elongated body.
 - Never fill Muci's body with gray, gradient shading, screentone, charcoal texture, or smoky shadows.
+- In group scenes with Nia, Snacri, Padaruna, or Padarana, compare against the similar-character lineup and keep Muci's centered point, open smile, and compact rounded base clearly readable.
 - If Muci interacts with a handbook, bottle, paper, door, pen, or any prop, show the object floating or moving near him through gentle telekinesis
 
 ## Reusable prompt notes

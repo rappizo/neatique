@@ -215,3 +215,88 @@ test("comic page image prompt separates Coach Ray from Muci and normalizes legac
   assert.match(prompt, /Muci vs Coach Ray separation/);
   assert.match(prompt, /Coach Ray keeps the broad squat shield-shaped/);
 });
+
+test("comic page image prompt includes similar teardrop separation locks", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "Group Panel",
+    episodeSummary: "Several similar teardrop characters compare notes.",
+    pageNumber: 1,
+    panelCount: 1,
+    pagePurpose: "Keep similar black-and-white characters distinct.",
+    promptPackCopyText: "Muci, Nia, and Snacri stand together.",
+    referenceNotesCopyText: "Use model sheets.",
+    globalGptImage2Notes: "Keep silhouettes distinct.",
+    panels: [
+      {
+        pageNumber: 1,
+        panelNumber: 1,
+        panelTitle: "Lineup",
+        storyBeat: "Muci, Nia, and Snacri share a panel.",
+        promptText: "Muci is compact, Nia has one angled brow, Snacri leans left.",
+        dialogueLines: [{ speaker: "Muci", text: "We look different, right?" }]
+      }
+    ],
+    requiredUploads: [],
+    referenceImages: [
+      {
+        label: "Similar Teardrop Character Comparison",
+        fileName: "similar-character-comparison.jpg",
+        relativePath: "comic/scenes/similar-character-comparison/refs/similar-character-comparison.jpg",
+        bucket: "CAST_COMPARISON",
+        slug: "similar-teardrop-character-comparison",
+        source: "auto-detected",
+        mimeType: "image/jpeg",
+        imageUrl: "/comic/scenes/similar-character-comparison/refs/similar-character-comparison.jpg",
+        sizeBytes: 4,
+        whyThisMatters: "Similar teardrop characters appear together.",
+        contentSummary: "Difference map for similar droplet characters.",
+        data: Buffer.from("fake")
+      }
+    ],
+    characterLocks: [
+      {
+        slug: "muci",
+        name: "Muci",
+        role: "Audience surrogate.",
+        appearance: "Compact broad centered teardrop.",
+        personality: "Curious.",
+        speechGuide: "Plainspoken.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Muci",
+        referenceFiles: []
+      },
+      {
+        slug: "nia",
+        name: "Nia",
+        role: "Top student.",
+        appearance: "Tall sharp pointed teardrop with one angled left brow.",
+        personality: "Precise.",
+        speechGuide: "Concise.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Nia",
+        referenceFiles: []
+      },
+      {
+        slug: "snacri",
+        name: "Snacri",
+        role: "Quiet observer.",
+        appearance: "Fatter left-leaning droplet.",
+        personality: "Minimal.",
+        speechGuide: "Sparse.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Snacri",
+        referenceFiles: []
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /Similar teardrop cast separation lock/);
+  assert.match(prompt, /Muci: compact broad centered teardrop/);
+  assert.match(prompt, /Nia: taller and sharper pointed teardrop/);
+  assert.match(prompt, /Snacri: fatter quiet droplet/);
+  assert.match(prompt, /Similar Teardrop Character Comparison/);
+});

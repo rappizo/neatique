@@ -28,10 +28,10 @@
 ## Fixed shape language
 - **Artrans**: cream-swirl silhouette, layered spiral volume, half-lidded eyes, sly sleepy face
 - **Muci**: compact broad centered teardrop, rounded base, short rounded body, two small rounded feet at the bottom, beginner-friendly open smile, large dot eyes, glossy highlight marks near the upper-left side, pure white body fill, cute approachable protagonist energy
-- **Nia**: taller teardrop, sharper point, one angled brow, composed confidence
-- **Padarana**: soft teardrop, closed smiling eyes, emotional warmth
-- **Padaruna**: bright rounded teardrop, energetic openness, highly expressive face
-- **Snacri**: simple stable droplet, quieter asymmetry, minimalist read
+- **Nia**: taller teardrop with the sharpest vertical point, one angled left brow, controlled confident smile, composed analytical confidence
+- **Padarana**: slimmer soft pointed teardrop, closed smiling eyes, calm reassuring mouth, emotional warmth
+- **Padaruna**: sharp pointed head with a noticeably fuller rounder body than Padarana, energetic openness, highly expressive open eyes and eager smile
+- **Snacri**: fatter quiet droplet with the top leaning left, understated asymmetry, minimalist restrained read
 - **Sunny Spritz**: soft five-point star silhouette, two small rounded feet directly under the lower star points, bright open smile, orientation-host energy
 - **Coach Ray**: broad squat shield-shaped mascot silhouette matching the uploaded model-sheet reference, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, planted authority, drill-instructor read; never draw him as Muci, a teardrop, or a generic polygon mascot
 - **Mira Mistwell**: rounded-square silhouette, neat balance, quiet administrative authority
@@ -63,6 +63,11 @@
 - For Sunny Spritz, explicitly preserve two small rounded feet directly under her soft five-point star body whenever she appears full-body.
 - Translate holding, pointing, grabbing, opening, carrying, writing, pushing, or handing something over into telekinetic object movement with floating objects, motion lines, or subtle manga emphasis marks.
 - For Muci, explicitly repeat the compact broad centered teardrop shape, short rounded body, rounded base, two small rounded feet, pure white body fill, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
+- For Nia, explicitly preserve the taller sharper vertical point and one angled left brow whenever she appears.
+- For Snacri, explicitly preserve the fatter left-leaning quiet droplet silhouette and restrained minimal expression whenever she appears.
+- For Padaruna, explicitly preserve the sharp pointed head, fuller rounder lively body, open eyes, and eager smile whenever she appears.
+- For Padarana, explicitly preserve the slimmer soft pointed body, closed smiling eyes, calm reassuring mouth, and gentle presence whenever she appears.
+- When two or more of Muci, Nia, Snacri, Padaruna, and Padarana appear together, use the similar-character comparison reference and state their silhouette differences before describing acting.
 - For Coach Ray, explicitly repeat the broad squat shield-shaped body, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, pure white body fill, small connected feet, controlled smile, and planted drill-instructor posture whenever he appears.
 - When Muci and Coach Ray appear together, state that their silhouettes must not be averaged: Muci stays a compact centered teardrop, while Coach Ray stays a broad protective shield.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.
