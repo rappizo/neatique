@@ -1,9 +1,10 @@
 {
-  "silhouette": "Broad pentagonal droplet silhouette with a grounded base and firm upper shape.",
+  "silhouette": "Broad shield-shaped mascot silhouette, like a sturdy protective shield, with a grounded base and firm upper shape. Match the uploaded model-sheet reference image.",
   "face": "Large dot eyes, compact smile, glossy highlight marks near the upper left side.",
   "body_language": "Planted, commanding, and ready to bark field instructions.",
   "do_not_change": [
-    "Keep the broad pentagonal shape.",
+    "Keep the broad shield shape from the uploaded reference image.",
+    "Do not turn him into a generic pentagon, teardrop, circle, or rounded blob.",
     "Keep the pose grounded and authoritative.",
     "Do not turn him into a floppy or timid silhouette."
   ]

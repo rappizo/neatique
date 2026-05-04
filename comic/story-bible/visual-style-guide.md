@@ -33,7 +33,7 @@
 - **Padaruna**: bright rounded teardrop, energetic openness, highly expressive face
 - **Snacri**: simple stable droplet, quieter asymmetry, minimalist read
 - **Sunny Spritz**: soft five-point star silhouette, two small rounded feet directly under the lower star points, bright open smile, orientation-host energy
-- **Coach Ray**: broad pentagonal silhouette, planted authority, drill-instructor read
+- **Coach Ray**: broad shield-shaped mascot silhouette matching the uploaded model-sheet reference, planted authority, drill-instructor read
 - **Mira Mistwell**: rounded-square silhouette, neat balance, quiet administrative authority
 - **Professor Cera Lin**: pointed pentagonal silhouette, controlled posture, academic precision
 - **Dewey Dot**: clean circular silhouette, bookish gentleness, archive-first energy

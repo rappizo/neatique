@@ -7,7 +7,8 @@ Lead instructor of Sunscreen Field and the embodiment of over-serious protective
 "He teaches sunscreen the way other schools teach combat readiness."
 
 ## Appearance lock
-- Broad pentagonal droplet silhouette with a sturdier upper structure and grounded base
+- Broad shield-shaped mascot silhouette, like a sturdy protective shield, with a firm upper structure and grounded base
+- The shield shape is a non-negotiable identity lock and must follow the uploaded `refs/model-sheet.jpg` reference image
 - Large dot eyes, small controlled smile, glossy highlight marks near the upper left side
 - Should feel physically planted, authoritative, and hard to ignore even in simple mascot form
 - Visual read should suggest strength, command presence, and training-field seriousness
@@ -29,10 +30,11 @@ Coach Ray speaks in a loud, short, commanding drill-instructor style. His lines 
 - Comedy comes from how seriously he takes practical protection
 
 ## Non-negotiable visual references
-- Use `refs/model-sheet.png` as the primary shape lock
-- Keep the broad pentagonal silhouette stable
+- Use `refs/model-sheet.jpg` as the primary shape lock
+- Keep the broad shield-shaped silhouette stable; do not turn him into a generic pentagon, teardrop, circle, or rounded blob
+- Preserve the uploaded reference image's shield-like outline, firm shoulders/top edge, grounded base, face placement, glossy highlight marks, and small feet/lower-body nubs
 - Preserve the authoritative planted body language
 - Do not soften him into a shy or timid read
 
 ## Reusable prompt notes
-When prompting Coach Ray, emphasize "broad pentagonal mascot, strict training-coach presence, planted stance, no-nonsense expression, sunscreen drill instructor energy, practical protection treated like a mission."
+When prompting Coach Ray, emphasize "broad shield-shaped mascot, like a sturdy protective shield, matching the uploaded model-sheet reference, strict training-coach presence, planted stance, no-nonsense expression, sunscreen drill instructor energy, practical protection treated like a mission."
