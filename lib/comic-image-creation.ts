@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
+import {
+  buildComicMediaFallbackUrl,
+  getComicImageSource,
+  storeComicImage,
+  type ComicImageSource
+} from "@/lib/comic-image-storage";
 import {
   generateStandaloneComicImageWithAi,
   getOpenAiComicSettings
@@ -29,6 +34,13 @@ export type ComicImageCreationTaskResult = {
 };
 
 const COMIC_IMAGE_CREATION_PROMPT_MAX_LENGTH = 8000;
+const COMIC_IMAGE_CREATION_REFERENCE_MAX_BYTES = 8 * 1024 * 1024;
+
+type ComicImageCreationReferenceImageInput = {
+  base64Data?: string | null;
+  mimeType?: string | null;
+  fileName?: string | null;
+};
 
 export function normalizeComicImageCreationAspectRatio(
   value?: string | null
@@ -54,6 +66,42 @@ function normalizePrompt(value?: string | null) {
   return (value || "").trim().slice(0, COMIC_IMAGE_CREATION_PROMPT_MAX_LENGTH);
 }
 
+function normalizeReferenceImage(
+  value?: ComicImageCreationReferenceImageInput | null
+): ComicImageSource | null {
+  const base64Data = (value?.base64Data || "").trim();
+  const mimeType = (value?.mimeType || "").trim() || "image/jpeg";
+  const fileName = (value?.fileName || "reference.jpg").trim().slice(0, 160) || "reference.jpg";
+
+  if (!base64Data) {
+    return null;
+  }
+
+  if (!mimeType.toLowerCase().startsWith("image/")) {
+    throw new Error("Reference upload must be an image file.");
+  }
+
+  const byteLength = Buffer.byteLength(base64Data, "base64");
+  if (byteLength > COMIC_IMAGE_CREATION_REFERENCE_MAX_BYTES) {
+    throw new Error("Reference image is too large. Upload an image under 8 MB after compression.");
+  }
+
+  return {
+    mimeType,
+    base64Data,
+    fileName
+  };
+}
+
+function buildComicImageCreationFallbackUrl(creationId: string, kind?: "reference") {
+  const url = buildComicMediaFallbackUrl(creationId).replace(
+    "/media/comic/",
+    "/media/comic-creation/"
+  );
+
+  return kind === "reference" ? `${url}&kind=reference` : url;
+}
+
 export async function listComicImageCreations(limit = 24) {
   return prisma.comicImageCreation.findMany({
     orderBy: [{ createdAt: "desc" }],
@@ -64,10 +112,13 @@ export async function listComicImageCreations(limit = 24) {
 export async function generateComicImageCreation(input: {
   prompt: string;
   aspectRatio: string;
+  referenceCreationId?: string;
+  referenceImage?: ComicImageCreationReferenceImageInput | null;
   attempt?: number;
 }): Promise<ComicImageCreationTaskResult> {
   const prompt = normalizePrompt(input.prompt);
   const aspectRatio = normalizeComicImageCreationAspectRatio(input.aspectRatio);
+  const referenceCreationId = (input.referenceCreationId || "").trim();
 
   if (!prompt) {
     return {
@@ -79,11 +130,81 @@ export async function generateComicImageCreation(input: {
 
   try {
     const creationId = randomUUID();
+    const uploadedReferenceImage = normalizeReferenceImage(input.referenceImage);
+    let referenceImage: ComicImageSource | null = uploadedReferenceImage;
+    let sourceType = uploadedReferenceImage ? "UPLOAD" : "TEXT";
+    let referenceImageUrl: string | null = null;
+    let referenceImageData: string | null = null;
+    let referenceImageMimeType: string | null = uploadedReferenceImage?.mimeType || null;
+    let referenceImageStorageKey: string | null = null;
+    let referenceImageByteSize: number | null = null;
+    let referenceImageSha256: string | null = null;
+    let referenceImageName: string | null = uploadedReferenceImage?.fileName || null;
+
+    if (!referenceImage && referenceCreationId) {
+      const referenceCreation = await prisma.comicImageCreation.findUnique({
+        where: { id: referenceCreationId },
+        select: {
+          id: true,
+          prompt: true,
+          imageUrl: true,
+          imageData: true,
+          imageMimeType: true
+        }
+      });
+
+      if (!referenceCreation) {
+        return {
+          ok: false,
+          message: "Image creation failed.",
+          errorMessage: "Selected reference image no longer exists."
+        };
+      }
+
+      referenceImage = await getComicImageSource(referenceCreation);
+
+      if (!referenceImage) {
+        return {
+          ok: false,
+          message: "Image creation failed.",
+          errorMessage: "Selected reference image could not be loaded."
+        };
+      }
+
+      sourceType = "CREATION";
+      referenceImageUrl = referenceCreation.imageUrl;
+      referenceImageMimeType = referenceCreation.imageMimeType || referenceImage.mimeType;
+      referenceImageName = referenceCreation.prompt.slice(0, 140);
+    }
+
     const image = await generateStandaloneComicImageWithAi({
       prompt,
       aspectRatio,
+      referenceImage,
       generationAttempt: input.attempt
     });
+
+    if (uploadedReferenceImage) {
+      const storedReference = await storeComicImage({
+        base64Data: uploadedReferenceImage.base64Data,
+        mimeType: uploadedReferenceImage.mimeType,
+        category: "image-creation-references",
+        targetId: creationId,
+        fileName: `reference-${Date.now()}`
+      });
+      const hasPublicStoredReferenceUrl =
+        Boolean(storedReference.imageStorageKey) || /^https?:\/\//i.test(storedReference.imageUrl);
+
+      referenceImageUrl = hasPublicStoredReferenceUrl
+        ? storedReference.imageUrl
+        : buildComicImageCreationFallbackUrl(creationId, "reference");
+      referenceImageData = storedReference.imageData;
+      referenceImageMimeType = storedReference.imageMimeType;
+      referenceImageStorageKey = storedReference.imageStorageKey;
+      referenceImageByteSize = storedReference.imageByteSize;
+      referenceImageSha256 = storedReference.imageSha256;
+    }
+
     const storedImage = await storeComicImage({
       base64Data: image.base64Data,
       mimeType: image.mimeType,
@@ -95,7 +216,7 @@ export async function generateComicImageCreation(input: {
       Boolean(storedImage.imageStorageKey) || /^https?:\/\//i.test(storedImage.imageUrl);
     const imageUrl = hasPublicStoredUrl
       ? storedImage.imageUrl
-      : buildComicMediaFallbackUrl(creationId).replace("/media/comic/", "/media/comic-creation/");
+      : buildComicImageCreationFallbackUrl(creationId);
 
     await prisma.comicImageCreation.create({
       data: {
@@ -103,6 +224,15 @@ export async function generateComicImageCreation(input: {
         prompt,
         aspectRatio,
         model: getOpenAiComicSettings().imageModel,
+        sourceType,
+        referenceCreationId: sourceType === "CREATION" ? referenceCreationId : null,
+        referenceImageUrl,
+        referenceImageData,
+        referenceImageMimeType,
+        referenceImageStorageKey,
+        referenceImageByteSize,
+        referenceImageSha256,
+        referenceImageName,
         imageUrl,
         imageData: storedImage.imageData,
         imageMimeType: storedImage.imageMimeType,
@@ -116,7 +246,7 @@ export async function generateComicImageCreation(input: {
 
     return {
       ok: true,
-      message: "Image created.",
+      message: referenceImage ? "Image created from reference." : "Image created.",
       creationId,
       imageUrl
     };
@@ -127,4 +257,19 @@ export async function generateComicImageCreation(input: {
       errorMessage: error instanceof Error ? error.message : "Unknown image creation error."
     };
   }
+}
+
+export async function deleteComicImageCreation(id: string) {
+  const normalizedId = id.trim();
+
+  if (!normalizedId) {
+    return false;
+  }
+
+  await prisma.comicImageCreation.deleteMany({
+    where: { id: normalizedId }
+  });
+  revalidatePath("/admin/comic/image-creation");
+
+  return true;
 }

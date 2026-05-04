@@ -19,18 +19,24 @@ const getComicImageCreation = unstable_cache(
       select: {
         imageUrl: true,
         imageData: true,
-        imageMimeType: true
+        imageMimeType: true,
+        referenceImageUrl: true,
+        referenceImageData: true,
+        referenceImageMimeType: true
       }
     });
 
-    if (!image?.imageData && !image?.imageUrl) {
+    if (!image?.imageData && !image?.imageUrl && !image?.referenceImageData && !image?.referenceImageUrl) {
       return null;
     }
 
     return {
       imageUrl: image.imageUrl,
       imageData: image.imageData,
-      imageMimeType: image.imageMimeType || "image/png"
+      imageMimeType: image.imageMimeType || "image/png",
+      referenceImageUrl: image.referenceImageUrl,
+      referenceImageData: image.referenceImageData,
+      referenceImageMimeType: image.referenceImageMimeType || "image/jpeg"
     };
   },
   ["comic-image-creation"],
@@ -47,23 +53,30 @@ function isTransientComicImageCreationError(error: unknown) {
   );
 }
 
-export async function GET(_request: Request, { params }: ComicImageCreationMediaRouteProps) {
+export async function GET(request: Request, { params }: ComicImageCreationMediaRouteProps) {
   const { id } = await params;
+  const url = new URL(request.url);
+  const useReferenceImage = url.searchParams.get("kind") === "reference";
 
   try {
     const image = await getComicImageCreation(id);
+    const imageData = useReferenceImage ? image?.referenceImageData : image?.imageData;
+    const imageUrl = useReferenceImage ? image?.referenceImageUrl : image?.imageUrl;
+    const imageMimeType = useReferenceImage
+      ? image?.referenceImageMimeType || "image/jpeg"
+      : image?.imageMimeType || "image/png";
 
-    if (!image?.imageData) {
-      if (image?.imageUrl && /^https?:\/\//i.test(image.imageUrl)) {
-        return NextResponse.redirect(image.imageUrl, 307);
+    if (!imageData) {
+      if (imageUrl && /^https?:\/\//i.test(imageUrl)) {
+        return NextResponse.redirect(imageUrl, 307);
       }
 
       return new NextResponse("Comic image creation not found.", { status: 404 });
     }
 
-    return new NextResponse(Buffer.from(image.imageData, "base64"), {
+    return new NextResponse(Buffer.from(imageData, "base64"), {
       headers: {
-        "Content-Type": image.imageMimeType,
+        "Content-Type": imageMimeType,
         "Cache-Control": "public, max-age=31536000, immutable"
       }
     });

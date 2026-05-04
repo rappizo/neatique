@@ -56,6 +56,8 @@ export type ComicAiTaskClientRecord = {
   revisionInstruction?: string;
   imagePrompt?: string;
   aspectRatio?: string;
+  referenceCreationId?: string;
+  referenceImageName?: string;
   imageCreationId?: string;
 };
 
@@ -391,6 +393,15 @@ async function executeComicAiTask(
       return generateComicImageCreation({
         prompt: toStringValue(payload.prompt || payload.imagePrompt),
         aspectRatio: toStringValue(payload.aspectRatio),
+        referenceCreationId: toStringValue(payload.referenceCreationId),
+        referenceImage:
+          payload.referenceImage && typeof payload.referenceImage === "object"
+            ? (payload.referenceImage as {
+                base64Data?: string | null;
+                mimeType?: string | null;
+                fileName?: string | null;
+              })
+            : null,
         attempt: context.attempt
       });
   }
@@ -434,6 +445,11 @@ export function toClientComicAiTask(task: ComicAiTaskModelRecord): ComicAiTaskCl
     revisionInstruction: toOptionalStringValue(payload.revisionInstruction),
     imagePrompt: toOptionalStringValue(payload.prompt || payload.imagePrompt),
     aspectRatio: toOptionalStringValue(payload.aspectRatio),
+    referenceCreationId: toOptionalStringValue(payload.referenceCreationId),
+    referenceImageName:
+      payload.referenceImage && typeof payload.referenceImage === "object"
+        ? toOptionalStringValue((payload.referenceImage as Record<string, unknown>).fileName)
+        : undefined,
     imageCreationId: toOptionalStringValue(result?.creationId)
   };
 }

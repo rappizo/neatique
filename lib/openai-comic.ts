@@ -278,6 +278,7 @@ export type GeneratedComicPageImageAsset = {
 export type GenerateStandaloneComicImageInput = {
   prompt: string;
   aspectRatio: string;
+  referenceImage?: ComicPageImageReferenceAsset | null;
   generationAttempt?: number;
 };
 
@@ -1603,6 +1604,33 @@ async function cropStandaloneComicImageToAspectRatio(
   };
 }
 
+async function normalizeStandaloneReferenceImageForAi(
+  image: ComicPageImageReferenceAsset
+): Promise<ComicPageImageReferenceAsset> {
+  try {
+    const inputBuffer = Buffer.from(image.base64Data, "base64");
+    const outputBuffer = await sharp(inputBuffer)
+      .rotate()
+      .resize({
+        width: 1536,
+        height: 1536,
+        fit: "inside",
+        withoutEnlargement: true
+      })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toBuffer();
+
+    return {
+      mimeType: "image/jpeg",
+      base64Data: outputBuffer.toString("base64"),
+      fileName: image.fileName.replace(/\.[a-z0-9]+$/i, "") + ".jpg"
+    };
+  } catch {
+    return image;
+  }
+}
+
 async function fetchImageUrlAsBase64(url: string): Promise<GeneratedComicPageImageAsset> {
   const response = await fetchOpenAiComicImageResponse(
     url,
@@ -2373,14 +2401,85 @@ export async function generateStandaloneComicImageWithAi(
   const attempt = Math.max(input.generationAttempt || 1, 1);
   const outputFormat = getOpenAiComicImageOutputFormat();
   const outputMimeType = getOpenAiComicImageMimeType(outputFormat);
+  const standalonePrompt = [
+    prompt,
+    "",
+    input.referenceImage
+      ? "Use the supplied reference image as the visual starting point and style/content reference. Follow the user's prompt for what to preserve, change, add, or remove."
+      : null,
+    `Canvas aspect ratio: ${parseStandaloneAspectRatio(input.aspectRatio).label}.`,
+    "Follow the user's prompt closely. Do not add watermarks, signatures, UI chrome, or unrelated text."
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  if (input.referenceImage) {
+    const referenceImage = await normalizeStandaloneReferenceImageForAi(input.referenceImage);
+    const referenceBuffer = Buffer.from(referenceImage.base64Data, "base64");
+    const formData = new FormData();
+    formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
+    formData.append("prompt", standalonePrompt);
+    formData.append("size", getStandaloneComicImageApiSize(input.aspectRatio));
+    formData.append("quality", getOpenAiComicImageQuality(attempt));
+    if (outputFormat) {
+      formData.append("output_format", outputFormat);
+    }
+    if (outputFormat !== "png") {
+      formData.append("output_compression", String(getOpenAiComicImageOutputCompression()));
+    }
+    formData.append(
+      "image",
+      new Blob([new Uint8Array(referenceBuffer)], { type: referenceImage.mimeType }),
+      referenceImage.fileName
+    );
+
+    const response = await fetchOpenAiComicImageResponse(
+      `${imageApiSettings.baseUrl}/images/edits`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${imageApiSettings.apiKey}`
+        },
+        body: formData
+      },
+      "OpenAI comic image reference creation"
+    );
+
+    const rawText = await response.text();
+    const parsed = rawText ? safeJsonParse(rawText) : null;
+
+    if (!response.ok) {
+      const parsedRecord =
+        parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+      const message =
+        (parsedRecord && "error" in parsedRecord
+          ? extractOpenAiErrorMessage(parsedRecord.error)
+          : null) || `OpenAI comic image reference creation failed with ${response.status}.`;
+      throw new Error(message);
+    }
+
+    const data =
+      parsed && typeof parsed === "object" && Array.isArray((parsed as any).data)
+        ? (parsed as any).data
+        : [];
+    const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
+    const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
+    const generatedImage = base64Data
+      ? parseImageBase64Response(base64Data, outputMimeType)
+      : imageUrl
+        ? await fetchImageUrlAsBase64(imageUrl)
+        : null;
+
+    if (!generatedImage) {
+      throw new Error("Comic image API did not return a reference-guided image.");
+    }
+
+    return cropStandaloneComicImageToAspectRatio(generatedImage, input.aspectRatio);
+  }
+
   const body: Record<string, unknown> = {
     model: DEFAULT_OPENAI_COMIC_IMAGE_MODEL,
-    prompt: [
-      prompt,
-      "",
-      `Canvas aspect ratio: ${parseStandaloneAspectRatio(input.aspectRatio).label}.`,
-      "Follow the user's prompt closely. Do not add watermarks, signatures, UI chrome, or unrelated text."
-    ].join("\n"),
+    prompt: standalonePrompt,
     size: getStandaloneComicImageApiSize(input.aspectRatio),
     quality: getOpenAiComicImageQuality(attempt),
     n: 1

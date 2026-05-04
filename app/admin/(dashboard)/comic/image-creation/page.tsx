@@ -1,8 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
+import { deleteComicImageCreationAction } from "@/app/admin/comic-image-creation-actions";
 import {
   ComicImageCreationQueueForm,
-  ComicImageTaskQueueProvider
+  ComicImageCreationUseReferenceButton,
+  ComicImageTaskQueueProvider,
+  type ComicImageCreationReferenceOption
 } from "@/components/admin/comic-image-task-queue";
 import {
   COMIC_IMAGE_CREATION_ASPECT_RATIOS,
@@ -17,6 +20,14 @@ export default async function AdminComicImageCreationPage() {
     listComicImageCreations(36),
     Promise.resolve(getOpenAiComicSettings())
   ]);
+  const referenceImages: ComicImageCreationReferenceOption[] = images.map((image) => ({
+    id: image.id,
+    imageUrl: image.imageUrl,
+    prompt: image.prompt,
+    aspectRatio: image.aspectRatio,
+    model: image.model,
+    createdAt: image.createdAt.toISOString()
+  }));
 
   return (
     <ComicImageTaskQueueProvider maxConcurrent={5}>
@@ -56,7 +67,10 @@ export default async function AdminComicImageCreationPage() {
 
         <section className="admin-form">
           <h2>Create image</h2>
-          <ComicImageCreationQueueForm aspectRatios={COMIC_IMAGE_CREATION_ASPECT_RATIOS} />
+          <ComicImageCreationQueueForm
+            aspectRatios={COMIC_IMAGE_CREATION_ASPECT_RATIOS}
+            referenceImages={referenceImages}
+          />
         </section>
 
         <section className="admin-form">
@@ -90,9 +104,38 @@ export default async function AdminComicImageCreationPage() {
                     <div className="stack-row">
                       <span className="pill">{image.aspectRatio}</span>
                       <span className="pill">{image.model}</span>
+                      {image.sourceType === "TEXT" ? null : <span className="pill">Image to image</span>}
                     </div>
                     <p>{image.prompt}</p>
+                    {image.referenceImageUrl ? (
+                      <a
+                        href={image.referenceImageUrl}
+                        className="form-note"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Reference: {image.referenceImageName || "image"}
+                      </a>
+                    ) : null}
                     <span className="form-note">{formatDate(image.createdAt)}</span>
+                    <div className="stack-row">
+                      <ComicImageCreationUseReferenceButton
+                        image={{
+                          id: image.id,
+                          imageUrl: image.imageUrl,
+                          prompt: image.prompt,
+                          aspectRatio: image.aspectRatio,
+                          model: image.model,
+                          createdAt: image.createdAt.toISOString()
+                        }}
+                      />
+                      <form action={deleteComicImageCreationAction}>
+                        <input type="hidden" name="id" value={image.id} />
+                        <button type="submit" className="button button--ghost">
+                          Delete
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </article>
               ))}
