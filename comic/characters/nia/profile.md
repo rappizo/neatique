@@ -1,5 +1,8 @@
 # Nia
 
+## Chinese name
+尼亚
+
 ## Role
 Top student, rational rival-ally, and the cast member most tempted by systems and measurable certainty.
 

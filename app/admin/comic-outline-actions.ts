@@ -7,6 +7,7 @@ import {
   formatComicBilingualSummary
 } from "@/lib/comic-bilingual-outline";
 import { prisma } from "@/lib/db";
+import { toComicCharacterChineseNameLocks } from "@/lib/comic-character-chinese-names";
 import { toPlainString } from "@/lib/utils";
 import {
   buildComicRedirect,
@@ -118,7 +119,7 @@ async function getComicOutlineSupport(projectId: string) {
     prisma.comicCharacter.findMany({
       where: { projectId, active: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      select: { name: true }
+      select: { name: true, slug: true, chineseName: true }
     }),
     prisma.comicScene.findMany({
       where: { projectId, active: true },
@@ -129,6 +130,7 @@ async function getComicOutlineSupport(projectId: string) {
 
   return {
     characterNames: characters.map((character) => character.name),
+    characterNameLocks: toComicCharacterChineseNameLocks(characters),
     sceneNames: scenes.map((scene) => scene.name)
   };
 }
@@ -165,7 +167,8 @@ export async function translateComicProjectOutlineAction(formData: FormData) {
       summary: project.shortDescription,
       outline: project.storyOutline,
       translationNotes: getRevisionNotes(formData),
-      characterNames: support.characterNames
+      characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks
     });
 
     await prisma.comicProject.update({
@@ -220,7 +223,8 @@ export async function translateComicSeasonOutlineAction(formData: FormData) {
       summary: season.summary,
       outline: season.outline,
       translationNotes: getRevisionNotes(formData),
-      characterNames: support.characterNames
+      characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks
     });
 
     await prisma.comicSeason.update({
@@ -278,7 +282,8 @@ export async function translateComicChapterOutlineAction(formData: FormData) {
       summary: chapter.summary,
       outline: chapter.outline,
       translationNotes: getRevisionNotes(formData),
-      characterNames: support.characterNames
+      characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks
     });
 
     await prisma.comicChapter.update({
@@ -298,7 +303,6 @@ export async function translateComicChapterOutlineAction(formData: FormData) {
   });
   redirect(buildComicRedirect(redirectTo, status));
 }
-
 export async function translateComicEpisodeOutlineAction(formData: FormData) {
   await requireAdminSession();
 
@@ -343,7 +347,8 @@ export async function translateComicEpisodeOutlineAction(formData: FormData) {
       summary: episode.summary,
       outline: episode.outline,
       translationNotes: getRevisionNotes(formData),
-      characterNames: support.characterNames
+      characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks
     });
 
     await prisma.comicEpisode.update({
@@ -403,6 +408,7 @@ export async function generateComicProjectOutlineAction(formData: FormData) {
         })
       ),
       characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks,
       sceneNames: support.sceneNames,
       worldRules: project.worldRules,
       visualStyleGuide: project.visualStyleGuide
@@ -487,6 +493,7 @@ export async function generateComicSeasonOutlineAction(formData: FormData) {
         })
       ),
       characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks,
       sceneNames: support.sceneNames,
       worldRules: season.project.worldRules,
       visualStyleGuide: season.project.visualStyleGuide
@@ -575,6 +582,7 @@ export async function generateComicChapterOutlineAction(formData: FormData) {
         })
       ),
       characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks,
       sceneNames: support.sceneNames,
       worldRules: chapter.season.project.worldRules,
       visualStyleGuide: chapter.season.project.visualStyleGuide
@@ -660,6 +668,7 @@ export async function generateComicEpisodeOutlineAction(formData: FormData) {
         })
       ),
       characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks,
       sceneNames: support.sceneNames,
       worldRules: episode.chapter.season.project.worldRules,
       visualStyleGuide: episode.chapter.season.project.visualStyleGuide
@@ -748,6 +757,7 @@ export async function generateComicSeasonOutlinesAction(formData: FormData) {
         })
       ),
       characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks,
       sceneNames: support.sceneNames,
       worldRules: project.worldRules,
       visualStyleGuide: project.visualStyleGuide
@@ -843,6 +853,7 @@ export async function generateComicChapterOutlinesAction(formData: FormData) {
         })
       ),
       characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks,
       sceneNames: support.sceneNames,
       worldRules: season.project.worldRules,
       visualStyleGuide: season.project.visualStyleGuide
@@ -932,6 +943,7 @@ export async function generateComicEpisodeOutlinesAction(formData: FormData) {
         })
       ),
       characterNames: support.characterNames,
+      characterNameLocks: support.characterNameLocks,
       sceneNames: support.sceneNames,
       worldRules: chapter.season.project.worldRules,
       visualStyleGuide: chapter.season.project.visualStyleGuide

@@ -25,6 +25,7 @@ import { prisma } from "@/lib/db";
 import { getDisplayableComicErrorMessage } from "@/lib/comic-action-errors";
 import { getComicChapterSceneReferenceState } from "@/lib/comic-reference-manifest";
 import type { ComicLanguage } from "@/lib/comic-language";
+import { resolveComicCharacterChineseName } from "@/lib/comic-character-chinese-names";
 
 function isMissingComicTableError(error: unknown) {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2021") {
@@ -75,6 +76,7 @@ function mapComicCharacter(character: any): ComicCharacterRecord {
   return {
     id: character.id,
     name: character.name,
+    chineseName: resolveComicCharacterChineseName(character),
     slug: character.slug,
     role: character.role,
     appearance: character.appearance,

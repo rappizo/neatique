@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { getComicCharacterReferenceFiles } from "@/lib/comic-reference-manifest";
+import { resolveComicCharacterChineseName } from "@/lib/comic-character-chinese-names";
 
 export type ComicCharacterIdentityLock = {
   slug: string;
   name: string;
+  chineseName?: string | null;
   role: string;
   appearance: string;
   personality: string;
@@ -30,6 +32,7 @@ function normalizeSlugs(slugs: string[]) {
 
 function buildCharacterProfileMarkdown(character: {
   name: string;
+  chineseName?: string | null;
   role: string;
   appearance: string;
   personality: string;
@@ -38,6 +41,9 @@ function buildCharacterProfileMarkdown(character: {
 }) {
   return [
     `# ${character.name}`,
+    "",
+    "## Chinese name",
+    resolveComicCharacterChineseName(character) || "",
     "",
     "## Role",
     character.role,
@@ -83,6 +89,7 @@ export async function loadComicCharacterIdentityLocks(slugs: string[]) {
       return {
         slug: character.slug,
         name: character.name,
+        chineseName: resolveComicCharacterChineseName(character),
         role: character.role,
         appearance: character.appearance,
         personality: character.personality,

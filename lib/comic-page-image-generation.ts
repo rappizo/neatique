@@ -160,6 +160,7 @@ export async function generateComicPageImageForEpisode(input: {
       characterLocks: imageInput.characterLocks.map((character) => ({
         slug: character.slug,
         name: character.name,
+        chineseName: character.chineseName,
         referenceFiles: character.referenceFiles.map((file) => file.fileName),
         hasProfileMarkdown: Boolean(character.profileMarkdown)
       })),

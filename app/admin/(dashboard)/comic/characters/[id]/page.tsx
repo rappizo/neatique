@@ -272,6 +272,14 @@ export default async function AdminComicCharacterDetailPage({
               <input id="comic-character-slug" name="slug" defaultValue={character.slug} required />
             </div>
             <div className="field">
+              <label htmlFor="comic-character-chinese-name">中文名</label>
+              <input
+                id="comic-character-chinese-name"
+                name="chineseName"
+                defaultValue={character.chineseName || ""}
+              />
+            </div>
+            <div className="field">
               <label htmlFor="comic-character-role">定位</label>
               <input id="comic-character-role" name="role" defaultValue={character.role} />
             </div>

@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
         pathname: "/media/post/**"
       },
       {
+        pathname: "/media/comic-creation/**"
+      },
+      {
         pathname: "/products/**"
       },
       {

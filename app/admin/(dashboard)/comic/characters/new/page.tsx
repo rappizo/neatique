@@ -37,6 +37,10 @@ export default async function AdminNewComicCharacterPage() {
               <input id="comic-character-slug" name="slug" />
             </div>
             <div className="field">
+              <label htmlFor="comic-character-chinese-name">Chinese name</label>
+              <input id="comic-character-chinese-name" name="chineseName" />
+            </div>
+            <div className="field">
               <label htmlFor="comic-character-role">Role</label>
               <input id="comic-character-role" name="role" defaultValue="Main cast" />
             </div>

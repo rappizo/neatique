@@ -3,6 +3,7 @@ import {
   formatComicBilingualOutline,
   formatComicBilingualSummary
 } from "@/lib/comic-bilingual-outline";
+import { toComicCharacterChineseNameLocks } from "@/lib/comic-character-chinese-names";
 import { prisma } from "@/lib/db";
 
 export type ComicOutlineTaskType =
@@ -56,7 +57,6 @@ export class ComicOutlineTaskInputError extends Error {
     this.status = status;
   }
 }
-
 const PLACEHOLDER_OUTLINES = [
   "Add the full multi-season story outline here.",
   "Add the season outline here.",
@@ -152,7 +152,7 @@ async function getComicOutlineSupport(projectId: string) {
     prisma.comicCharacter.findMany({
       where: { projectId, active: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      select: { name: true }
+      select: { name: true, slug: true, chineseName: true }
     }),
     prisma.comicScene.findMany({
       where: { projectId, active: true },
@@ -163,6 +163,7 @@ async function getComicOutlineSupport(projectId: string) {
 
   return {
     characterNames: characters.map((character) => character.name),
+    characterNameLocks: toComicCharacterChineseNameLocks(characters),
     sceneNames: scenes.map((scene) => scene.name)
   };
 }
@@ -212,7 +213,8 @@ async function translateProjectOutline(taskType: ComicOutlineTaskType, targetId:
     summary: project.shortDescription,
     outline: project.storyOutline,
     translationNotes: revisionNotes,
-    characterNames: support.characterNames
+    characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks
   });
 
   await prisma.comicProject.update({
@@ -259,6 +261,7 @@ async function generateProjectOutline(taskType: ComicOutlineTaskType, targetId: 
       })
     ),
     characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks,
     sceneNames: support.sceneNames,
     worldRules: project.worldRules,
     visualStyleGuide: project.visualStyleGuide
@@ -334,6 +337,7 @@ async function generateSeasonOutlines(taskType: ComicOutlineTaskType, projectIdI
       })
     ),
     characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks,
     sceneNames: support.sceneNames,
     worldRules: project.worldRules,
     visualStyleGuide: project.visualStyleGuide
@@ -403,7 +407,8 @@ async function translateSeasonOutline(taskType: ComicOutlineTaskType, seasonId: 
     summary: season.summary,
     outline: season.outline,
     translationNotes: revisionNotes,
-    characterNames: support.characterNames
+    characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks
   });
 
   await prisma.comicSeason.update({
@@ -452,6 +457,7 @@ async function generateSeasonOutline(taskType: ComicOutlineTaskType, seasonId: s
       })
     ),
     characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks,
     sceneNames: support.sceneNames,
     worldRules: season.project.worldRules,
     visualStyleGuide: season.project.visualStyleGuide
@@ -511,6 +517,7 @@ async function generateChapterOutlines(taskType: ComicOutlineTaskType, seasonId:
       })
     ),
     characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks,
     sceneNames: support.sceneNames,
     worldRules: season.project.worldRules,
     visualStyleGuide: season.project.visualStyleGuide
@@ -576,7 +583,8 @@ async function translateChapterOutline(taskType: ComicOutlineTaskType, chapterId
     summary: chapter.summary,
     outline: chapter.outline,
     translationNotes: revisionNotes,
-    characterNames: support.characterNames
+    characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks
   });
 
   await prisma.comicChapter.update({
@@ -628,6 +636,7 @@ async function generateChapterOutline(taskType: ComicOutlineTaskType, chapterId:
       })
     ),
     characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks,
     sceneNames: support.sceneNames,
     worldRules: chapter.season.project.worldRules,
     visualStyleGuide: chapter.season.project.visualStyleGuide
@@ -682,6 +691,7 @@ async function generateEpisodeOutlines(taskType: ComicOutlineTaskType, chapterId
       })
     ),
     characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks,
     sceneNames: support.sceneNames,
     worldRules: chapter.season.project.worldRules,
     visualStyleGuide: chapter.season.project.visualStyleGuide
@@ -751,7 +761,8 @@ async function translateEpisodeOutline(taskType: ComicOutlineTaskType, episodeId
     summary: episode.summary,
     outline: episode.outline,
     translationNotes: revisionNotes,
-    characterNames: support.characterNames
+    characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks
   });
 
   await prisma.comicEpisode.update({
@@ -800,6 +811,7 @@ async function generateEpisodeOutline(taskType: ComicOutlineTaskType, episodeId:
       })
     ),
     characterNames: support.characterNames,
+    characterNameLocks: support.characterNameLocks,
     sceneNames: support.sceneNames,
     worldRules: episode.chapter.season.project.worldRules,
     visualStyleGuide: episode.chapter.season.project.visualStyleGuide

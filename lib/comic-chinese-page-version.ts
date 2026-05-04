@@ -5,6 +5,7 @@ import {
   getComicImageSource,
   storeComicImage
 } from "@/lib/comic-image-storage";
+import { toComicCharacterChineseNameLocks } from "@/lib/comic-character-chinese-names";
 
 const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
 const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
@@ -120,10 +121,25 @@ export async function createChineseComicPageVersion(input: {
 
   try {
     const { generateChineseComicPageVersionWithAi } = await import("@/lib/openai-comic");
+    const characterNameLocks = toComicCharacterChineseNameLocks(
+      await prisma.comicCharacter.findMany({
+        where: {
+          projectId: asset.episode.chapter.season.projectId,
+          active: true
+        },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        select: {
+          name: true,
+          slug: true,
+          chineseName: true
+        }
+      })
+    );
     const translatedImage = await generateChineseComicPageVersionWithAi({
       sourceImage,
       episodeTitle: asset.episode.title,
-      pageNumber: asset.sortOrder
+      pageNumber: asset.sortOrder,
+      characterNameLocks
     });
     const storedImage = await storeComicImage({
       base64Data: translatedImage.base64Data,

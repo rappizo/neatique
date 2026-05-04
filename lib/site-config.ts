@@ -67,6 +67,7 @@ export const siteConfig = {
         { href: "/admin/comic", label: "Comic Overview" },
         { href: "/admin/comic/outline-studio", label: "Outline Studio" },
         { href: "/admin/comic/publish-center", label: "Publish Center" },
+        { href: "/admin/comic/image-creation", label: "Image Creation" },
         { href: "/admin/comic/characters", label: "Characters" },
         { href: "/admin/comic/scenes", label: "Scenes" },
         { href: "/admin/comic/project", label: "Project Bible" }

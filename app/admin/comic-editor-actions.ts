@@ -16,6 +16,10 @@ import {
   pushComicSceneLockSnapshot
 } from "@/lib/comic-lock-history";
 import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
+import {
+  normalizeComicCharacterChineseName,
+  resolveComicCharacterChineseName
+} from "@/lib/comic-character-chinese-names";
 import { toBool, toInt, toPlainString } from "@/lib/utils";
 import {
   buildComicRedirect,
@@ -160,10 +164,14 @@ export async function createComicCharacterAction(formData: FormData) {
   }
 
   const projectId = await ensureComicProjectId(toPlainString(formData.get("projectId")));
+  const chineseName =
+    normalizeComicCharacterChineseName(formData.get("chineseName")?.toString()) ||
+    resolveComicCharacterChineseName({ name, slug });
   const character = await prisma.comicCharacter.create({
     data: {
       projectId,
       name,
+      chineseName,
       slug,
       role: toPlainString(formData.get("role")) || "Main cast",
       appearance:
@@ -181,7 +189,7 @@ export async function createComicCharacterAction(formData: FormData) {
     }
   });
 
-  await ensureComicCharacterWorkspace(character.slug, character.name);
+  await ensureComicCharacterWorkspace(character.slug, character.name, character.chineseName);
   revalidateComicRoutes();
   redirect(buildComicRedirect(`/admin/comic/characters/${character.id}`, "created"));
 }
@@ -210,6 +218,10 @@ export async function updateComicCharacterAction(formData: FormData) {
     redirect(buildComicRedirect(`/admin/comic/characters/${id}`, "missing-fields"));
   }
 
+  const chineseName =
+    normalizeComicCharacterChineseName(formData.get("chineseName")?.toString()) ||
+    resolveComicCharacterChineseName({ name, slug });
+
   const nextLock = {
     role: toPlainString(formData.get("role")) || existing.role,
     appearance: normalizeLongText(formData.get("appearance")) || existing.appearance,
@@ -226,6 +238,7 @@ export async function updateComicCharacterAction(formData: FormData) {
     where: { id },
     data: {
       name,
+      chineseName,
       slug,
       role: nextLock.role,
       appearance: nextLock.appearance,
@@ -238,7 +251,7 @@ export async function updateComicCharacterAction(formData: FormData) {
     }
   });
 
-  await ensureComicCharacterWorkspace(updated.slug, updated.name);
+  await ensureComicCharacterWorkspace(updated.slug, updated.name, updated.chineseName);
   revalidateComicRoutes();
   redirect(buildComicRedirect(`/admin/comic/characters/${id}`, "saved"));
 }
@@ -263,7 +276,7 @@ export async function uploadComicCharacterReferenceAction(formData: FormData) {
   const file = formData.get("referenceImage");
 
   try {
-    await ensureComicCharacterWorkspace(character.slug, character.name);
+    await ensureComicCharacterWorkspace(character.slug, character.name, character.chineseName);
     await saveComicReferenceUpload({
       bucket: "character",
       slug: character.slug,

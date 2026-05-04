@@ -1,6 +1,10 @@
 import { Buffer } from "node:buffer";
 import type { ComicReferenceImageFile } from "@/lib/comic-reference-images";
 import type { ComicCharacterIdentityLock } from "@/lib/comic-character-identity";
+import {
+  formatComicCharacterChineseNameLocks,
+  type ComicCharacterChineseNameLock
+} from "@/lib/comic-character-chinese-names";
 import { buildSimilarTeardropSeparationLock } from "@/lib/comic-similar-character-locks";
 import sharp from "sharp";
 
@@ -65,16 +69,6 @@ const COMIC_LETTERING_STYLE_LOCKS = [
   "- Captions and SFX must use the same clean manga lettering family, with SFX hand-drawn but still readable and consistent.",
   "- Do not invent extra visible text. Render only the exact dialogue, captions, SFX, signs, or labels named in the page prompt."
 ].join("\n");
-const COMIC_CHINESE_NAME_LOCKS = [
-  "Character Chinese name locks:",
-  "- Muci = \u6155\u897f",
-  "- Artrans = \u5b89\u5ddd\u897f",
-  "- Nia = \u5c3c\u4e9a",
-  "- Padaruna = \u556a\u55d2\u745e\u5a1c",
-  "- Padarana = \u556a\u55d2\u5b89\u5a1c",
-  "- Snacri = \u65af\u5948\u594e"
-].join("\n");
-
 type ComicProjectContext = {
   title: string;
   shortDescription: string;
@@ -86,6 +80,7 @@ type ComicProjectContext = {
 
 type ComicCharacterContext = {
   name: string;
+  chineseName?: string | null;
   slug: string;
   role: string;
   appearance: string;
@@ -280,6 +275,12 @@ export type GeneratedComicPageImageAsset = {
   base64Data: string;
 };
 
+export type GenerateStandaloneComicImageInput = {
+  prompt: string;
+  aspectRatio: string;
+  generationAttempt?: number;
+};
+
 export type ComicPageImageReferenceAsset = {
   mimeType: string;
   base64Data: string;
@@ -343,6 +344,7 @@ type TranslateChineseComicOutlineInput = {
   outline: string;
   translationNotes?: string | null;
   characterNames?: string[];
+  characterNameLocks?: ComicCharacterChineseNameLock[];
 };
 
 type GenerateChineseComicOutlineInput = {
@@ -356,6 +358,7 @@ type GenerateChineseComicOutlineInput = {
   siblingOutlines?: ComicOutlineChildContext[];
   childTargets?: ComicOutlineChildContext[];
   characterNames?: string[];
+  characterNameLocks?: ComicCharacterChineseNameLock[];
   sceneNames?: string[];
   worldRules?: string | null;
   visualStyleGuide?: string | null;
@@ -376,6 +379,7 @@ type GenerateChineseComicChildOutlinesInput = {
   revisionNotes?: string | null;
   siblingContext?: ComicOutlineChildContext[];
   characterNames?: string[];
+  characterNameLocks?: ComicCharacterChineseNameLock[];
   sceneNames?: string[];
   worldRules?: string | null;
   visualStyleGuide?: string | null;
@@ -702,7 +706,7 @@ function buildChineseOutlineSystemPrompt() {
   return [
     "You are Neatique's bilingual comic story architect.",
     "Write synchronized story outlines in Simplified Chinese and English.",
-    "Keep every character name in English exactly as provided. Do not translate character names.",
+    "Use locked Simplified Chinese character names in Chinese fields when provided, and keep English character names in English companion fields.",
     "Use existing English season, chapter, and episode titles as stable labels unless the user explicitly asks to change them.",
     "Use the parent outline as binding canon. Child outlines must inherit and refine the parent, not contradict it.",
     "Keep the output production-ready, concrete, and useful for later English image-prompt generation.",
@@ -730,6 +734,7 @@ function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) 
     formatOutlineChildren(input.childTargets),
     "",
     formatOutlineNames("Locked character names", input.characterNames),
+    formatComicCharacterChineseNameLocks(input.characterNameLocks),
     formatOutlineNames("Reusable scene names", input.sceneNames),
     "",
     input.worldRules ? `World rules:\n${input.worldRules}` : "World rules: None entered.",
@@ -752,7 +757,8 @@ function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) 
     "- outlineEn must be English Markdown with the same headings, beats, sequence, stakes, and continuity as outline.",
     "- Include concrete story beats, role movement, stakes, reveal timing, and continuity notes.",
     getChineseOutlineLengthGuide(input.level),
-    "- Preserve English character names exactly.",
+    "- In Chinese summary and outline, use locked Chinese character names when provided; otherwise keep the English character name.",
+    "- In summaryEn and outlineEn, keep English character names exactly.",
     "- Keep the Chinese and English versions synchronized. Do not add plot in one language that is missing from the other."
   ]
     .filter(Boolean)
@@ -788,7 +794,8 @@ function buildChineseOutlineTranslationPrompt(input: TranslateChineseComicOutlin
     "Existing outline:",
     input.outline,
     "",
-    formatOutlineNames("Character names that must stay English", input.characterNames),
+    formatOutlineNames("English character names", input.characterNames),
+    formatComicCharacterChineseNameLocks(input.characterNameLocks),
     "",
     input.translationNotes
       ? `User translation notes:\n${input.translationNotes}`
@@ -800,7 +807,8 @@ function buildChineseOutlineTranslationPrompt(input: TranslateChineseComicOutlin
     "- summaryEn and outlineEn must be faithful English companions for the same canon.",
     "- Preserve the same story facts, sequence, stakes, reveals, relationships, and episode/chapter/season structure.",
     "- Preserve Markdown headings, bullet structure, numbering, and emphasis where practical.",
-    "- Keep English character names exactly as provided.",
+    "- In Chinese summary and outline, use locked Chinese character names when provided; otherwise keep the English character name.",
+    "- In summaryEn and outlineEn, keep English character names exactly.",
     "- Keep model/tool terms such as Prompt, gpt-image-2, Season, Chapter, and Episode readable when they function as workflow labels.",
     "- Do not add new plot beats, remove existing beats, rename characters, or smooth over contradictions by inventing new canon.",
     "- The summary should be a faithful Chinese version of the existing summary, not a new pitch."
@@ -831,7 +839,7 @@ async function requestChineseComicOutlineTranslation(
             text: [
               "You are Neatique's conservative comic outline translator.",
               "Translate existing outlines into Simplified Chinese and return a faithful English companion without changing canon.",
-              "Keep character names in English exactly as provided.",
+              "Use locked Chinese character names in Chinese fields when provided, and keep English names in English companion fields.",
               "Return only valid JSON matching the schema."
             ].join(" ")
           }
@@ -1041,6 +1049,7 @@ function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOut
     formatOutlineChildren(input.siblingContext),
     "",
     formatOutlineNames("Locked character names", input.characterNames),
+    formatComicCharacterChineseNameLocks(input.characterNameLocks),
     formatOutlineNames("Reusable scene names", input.sceneNames),
     "",
     input.worldRules ? `World rules:\n${input.worldRules}` : "World rules: None entered.",
@@ -1060,7 +1069,8 @@ function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOut
     "- Return exactly the ids given above, with no missing or invented ids.",
     "- summary and outline must be Simplified Chinese.",
     "- summaryEn and outlineEn must be faithful English companion versions of the same canon.",
-    "- Keep English character names exactly.",
+    "- In Chinese summary and outline, use locked Chinese character names when provided; otherwise keep the English character name.",
+    "- In summaryEn and outlineEn, keep English character names exactly.",
     "- Make siblings distinct, sequential, and compatible with the parent outline.",
     getChineseOutlineLengthGuide(input.childLevel),
     "- Do not write final image prompts here; Episode prompts are generated later in English."
@@ -1499,6 +1509,100 @@ function parseImageBase64Response(
   };
 }
 
+function parseStandaloneAspectRatio(value: string) {
+  const match = value.trim().match(/^(\d+):(\d+)$/);
+
+  if (!match) {
+    return {
+      label: "1:1",
+      width: 1,
+      height: 1
+    };
+  }
+
+  const width = Number.parseInt(match[1], 10);
+  const height = Number.parseInt(match[2], 10);
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return {
+      label: "1:1",
+      width: 1,
+      height: 1
+    };
+  }
+
+  return {
+    label: `${width}:${height}`,
+    width,
+    height
+  };
+}
+
+function getStandaloneComicImageApiSize(aspectRatio: string) {
+  const parsed = parseStandaloneAspectRatio(aspectRatio);
+  const ratio = parsed.width / parsed.height;
+
+  if (Math.abs(ratio - 1) < 0.01) {
+    return "1024x1024";
+  }
+
+  return ratio > 1 ? "1536x1024" : "1024x1536";
+}
+
+async function cropStandaloneComicImageToAspectRatio(
+  image: GeneratedComicPageImageAsset,
+  aspectRatio: string
+): Promise<GeneratedComicPageImageAsset> {
+  const parsed = parseStandaloneAspectRatio(aspectRatio);
+  const targetRatio = parsed.width / parsed.height;
+  const sourceBuffer = Buffer.from(image.base64Data, "base64");
+  const normalizedBuffer = await sharp(sourceBuffer).rotate().toBuffer();
+  const metadata = await sharp(normalizedBuffer).metadata();
+  const width = metadata.width || 0;
+  const height = metadata.height || 0;
+
+  if (!width || !height) {
+    return image;
+  }
+
+  const sourceRatio = width / height;
+  let extractWidth = width;
+  let extractHeight = height;
+  let left = 0;
+  let top = 0;
+
+  if (sourceRatio > targetRatio) {
+    extractWidth = Math.max(1, Math.round(height * targetRatio));
+    left = Math.max(0, Math.floor((width - extractWidth) / 2));
+  } else if (sourceRatio < targetRatio) {
+    extractHeight = Math.max(1, Math.round(width / targetRatio));
+    top = Math.max(0, Math.floor((height - extractHeight) / 2));
+  }
+
+  let pipeline = sharp(normalizedBuffer).extract({
+    left,
+    top,
+    width: extractWidth,
+    height: extractHeight
+  });
+  const outputFormat = getOpenAiComicImageOutputFormat();
+  let outputBuffer: Buffer;
+
+  if (outputFormat === "png") {
+    outputBuffer = await pipeline.png().toBuffer();
+  } else {
+    outputBuffer = await pipeline
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: getOpenAiComicImageOutputCompression(), mozjpeg: true })
+      .toBuffer();
+  }
+
+  return {
+    mimeType: getOpenAiComicImageMimeType(outputFormat),
+    base64Data: outputBuffer.toString("base64")
+  };
+}
+
 async function fetchImageUrlAsBase64(url: string): Promise<GeneratedComicPageImageAsset> {
   const response = await fetchOpenAiComicImageResponse(
     url,
@@ -1529,6 +1633,7 @@ function buildCharacterSummary(characters: ComicCharacterContext[]) {
       (character) =>
         [
           `- ${character.name} (${character.role})`,
+          `  Chinese name: ${character.chineseName || "None"}`,
           `  Slug: ${character.slug}`,
           `  Appearance: ${trimPromptContext(character.appearance, 900)}`,
           `  Personality: ${trimPromptContext(character.personality, 520)}`,
@@ -1692,6 +1797,7 @@ function buildComicPageCharacterIdentityLockSummary(
     .map((character) =>
       [
         `${character.name} (${character.slug})`,
+        `Chinese name: ${character.chineseName || "None"}`,
         `Role: ${trimImagePromptContext(character.role, 180)}`,
         `Profile MD appearance lock: ${trimImagePromptContext(character.appearance, 620)}`,
         character.referenceNotes
@@ -2249,10 +2355,92 @@ export async function generateComicPageImageWithAi(
   return parseImageBase64Response(base64Data, outputMimeType);
 }
 
+export async function generateStandaloneComicImageWithAi(
+  input: GenerateStandaloneComicImageInput
+): Promise<GeneratedComicPageImageAsset> {
+  const imageApiSettings = getComicImageApiSettings();
+
+  if (!imageApiSettings.apiKey) {
+    throw new Error("Comic image API key is not configured.");
+  }
+
+  const prompt = input.prompt.trim();
+
+  if (!prompt) {
+    throw new Error("Image prompt is required.");
+  }
+
+  const attempt = Math.max(input.generationAttempt || 1, 1);
+  const outputFormat = getOpenAiComicImageOutputFormat();
+  const outputMimeType = getOpenAiComicImageMimeType(outputFormat);
+  const body: Record<string, unknown> = {
+    model: DEFAULT_OPENAI_COMIC_IMAGE_MODEL,
+    prompt: [
+      prompt,
+      "",
+      `Canvas aspect ratio: ${parseStandaloneAspectRatio(input.aspectRatio).label}.`,
+      "Follow the user's prompt closely. Do not add watermarks, signatures, UI chrome, or unrelated text."
+    ].join("\n"),
+    size: getStandaloneComicImageApiSize(input.aspectRatio),
+    quality: getOpenAiComicImageQuality(attempt),
+    n: 1
+  };
+
+  if (outputFormat) {
+    body.output_format = outputFormat;
+  }
+
+  if (outputFormat !== "png") {
+    body.output_compression = getOpenAiComicImageOutputCompression();
+  }
+
+  const response = await fetchOpenAiComicImageResponse(
+    `${imageApiSettings.baseUrl}/images/generations`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${imageApiSettings.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    },
+    "OpenAI comic image creation"
+  );
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeJsonParse(rawText) : null;
+
+  if (!response.ok) {
+    const parsedRecord =
+      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    const message =
+      (parsedRecord && "error" in parsedRecord
+        ? extractOpenAiErrorMessage(parsedRecord.error)
+        : null) || `OpenAI comic image creation failed with ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
+  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
+  const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
+  const generatedImage = base64Data
+    ? parseImageBase64Response(base64Data, outputMimeType)
+    : imageUrl
+      ? await fetchImageUrlAsBase64(imageUrl)
+      : null;
+
+  if (!generatedImage) {
+    throw new Error("Comic image API did not return an image.");
+  }
+
+  return cropStandaloneComicImageToAspectRatio(generatedImage, input.aspectRatio);
+}
+
 export async function generateChineseComicPageVersionWithAi(input: {
   sourceImage: ComicPageImageReferenceAsset;
   pageNumber: number;
   episodeTitle: string;
+  characterNameLocks?: ComicCharacterChineseNameLock[];
 }): Promise<GeneratedComicPageImageAsset> {
   const imageApiSettings = getComicImageApiSettings();
 
@@ -2272,7 +2460,8 @@ export async function generateChineseComicPageVersionWithAi(input: {
       "Do not redraw or redesign any character. Preserve the clean black-and-white manga style, pure white mascot body fills, and crisp black ink linework.",
       "Keep text short enough to fit the original balloon or sign areas. Use clean readable Chinese lettering.",
       "Use these required character names exactly when names appear:",
-      COMIC_CHINESE_NAME_LOCKS,
+      formatComicCharacterChineseNameLocks(input.characterNameLocks),
+      "If an English character name appears in the original page and a Chinese name is listed above, replace it with that exact Chinese name.",
       "Do not add new English text, watermarks, logos, signatures, extra panels, or extra characters.",
       `Episode: ${input.episodeTitle}`,
       `Page: ${input.pageNumber}`

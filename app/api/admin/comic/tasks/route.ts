@@ -14,7 +14,8 @@ const COMIC_AI_TASK_TYPES = new Set<ComicAiTaskType>([
   "outline",
   "character-lock-revision",
   "scene-lock-revision",
-  "chinese-page-version"
+  "chinese-page-version",
+  "image-creation"
 ]);
 
 function isComicAiTaskType(value: string): value is ComicAiTaskType {

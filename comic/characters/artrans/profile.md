@@ -1,5 +1,8 @@
 # Artrans
 
+## Chinese name
+安川西
+
 ## Role
 Mystery mentor, damaged witness, and former insider who knows how bad the system can get.
 

@@ -141,6 +141,19 @@ export default async function AdminComicOverviewPage({
         </section>
 
         <section className="admin-form">
+          <h2>Image creation</h2>
+          <p className="form-note">
+            Generate standalone text-to-image drafts with selectable ratios, saved separately from
+            episode page production.
+          </p>
+          <div className="stack-row">
+            <Link href="/admin/comic/image-creation" className="button button--primary">
+              Open image creation
+            </Link>
+          </div>
+        </section>
+
+        <section className="admin-form">
           <h2>Reference library</h2>
           <p className="form-note">
             Add characters and scenes, then keep your stable visual references under the new

@@ -1,5 +1,8 @@
 # Padaruna
 
+## Chinese name
+啪嗒瑞娜
+
 ## Role
 Chaos engine, trend magnet, and lovable instigator who carries the social-pressure side of the skincare world.
 

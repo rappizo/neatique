@@ -651,6 +651,7 @@ export type ComicProjectRecord = {
 export type ComicCharacterRecord = {
   id: string;
   name: string;
+  chineseName: string | null;
   slug: string;
   role: string;
   appearance: string;

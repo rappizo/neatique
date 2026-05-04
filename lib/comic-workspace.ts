@@ -269,13 +269,20 @@ export async function ensureComicWorkspaceScaffold() {
   );
 }
 
-export async function ensureComicCharacterWorkspace(slug: string, name: string) {
+export async function ensureComicCharacterWorkspace(
+  slug: string,
+  name: string,
+  chineseName?: string | null
+) {
   const characterPath = path.join(COMIC_ROOT, "characters", slug);
   await ensureComicWorkspaceScaffold();
   await writeIfMissing(
     path.join(characterPath, "profile.md"),
     [
       `# ${name}`,
+      "",
+      "## Chinese name",
+      chineseName || "",
       "",
       "## Role",
       "",

@@ -1,5 +1,8 @@
 # Dewey Dot
 
+## Chinese name
+迪威多特
+
 ## Role
 Ingredient Library student archivist, trivia-powered record keeper, and nervous bridge to old institutional knowledge.
 

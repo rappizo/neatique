@@ -178,6 +178,7 @@ model ComicProject {
 model ComicCharacter {
   id              String       @id @default(cuid())
   name            String
+  chineseName     String?
   slug            String       @unique
   role            String
   appearance      String
@@ -349,6 +350,23 @@ model ComicAiTask {
   @@index([episodeId, pageNumber, createdAt])
   @@index([taskType, targetId, status, createdAt])
   @@index([sourceAssetId, status, createdAt])
+}
+
+model ComicImageCreation {
+  id              String   @id @default(cuid())
+  prompt          String
+  aspectRatio     String
+  model           String
+  imageUrl        String
+  imageData       String?
+  imageMimeType   String?
+  imageStorageKey String?
+  imageByteSize   Int?
+  imageSha256     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model Customer {

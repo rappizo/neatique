@@ -1,5 +1,8 @@
 # Vela Sheen
 
+## Chinese name
+席恩维拉
+
 ## Role
 High-performing upperclass student, polished mentor figure, and the elegant social face of controlled ideology.
 

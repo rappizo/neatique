@@ -134,6 +134,7 @@ export async function generateComicPromptPackageAction(formData: FormData) {
       },
       characters: characters.map((character) => ({
         name: character.name,
+        chineseName: character.chineseName,
         slug: character.slug,
         role: character.role,
         appearance: character.appearance,

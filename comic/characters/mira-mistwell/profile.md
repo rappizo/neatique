@@ -1,5 +1,8 @@
 # Mira Mistwell
 
+## Chinese name
+米拉
+
 ## Role
 Residence hall RA, soft-spoken rule enforcer, and the quiet face of shared-space order.
 

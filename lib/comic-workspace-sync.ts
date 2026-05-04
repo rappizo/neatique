@@ -13,6 +13,10 @@ import {
   getComicSceneReferenceFolder
 } from "@/lib/comic-paths";
 import {
+  normalizeComicCharacterChineseName,
+  resolveComicCharacterChineseName
+} from "@/lib/comic-character-chinese-names";
+import {
   formatComicBilingualSummary,
   parseComicBilingualText
 } from "@/lib/comic-bilingual-outline";
@@ -350,6 +354,10 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
     const characterRoot = path.join(charactersRoot, slug);
     const profile = await readTextIfExists(path.join(characterRoot, "profile.md"));
     const name = extractHeading(profile) || slug.replace(/-/g, " ");
+    const chineseName =
+      normalizeComicCharacterChineseName(
+        extractFirstParagraph(extractSection(profile, "Chinese name"))
+      ) || resolveComicCharacterChineseName({ name, slug });
     const role = extractFirstParagraph(extractSection(profile, "Role")) || "Main cast";
     const appearance =
       extractSection(profile, "Appearance lock") || "Add the fixed visual appearance here.";
@@ -365,6 +373,7 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
       create: {
         projectId: project.id,
         name,
+        chineseName,
         slug,
         role,
         appearance,
@@ -378,6 +387,7 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
       update: {
         projectId: project.id,
         name,
+        chineseName,
         role,
         appearance,
         personality,

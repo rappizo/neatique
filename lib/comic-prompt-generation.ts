@@ -220,6 +220,7 @@ export async function generateComicPromptPackageForEpisode(input: {
         },
         characters: promptCharacters.map((character) => ({
           name: character.name,
+          chineseName: character.chineseName,
           slug: character.slug,
           role: character.role,
           appearance: character.appearance,

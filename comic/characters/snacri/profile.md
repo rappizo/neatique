@@ -1,5 +1,8 @@
 # Snacri
 
+## Chinese name
+斯奈奎
+
 ## Role
 Minimalist thinker, quiet truth-reader, and stability philosopher of the team.
 

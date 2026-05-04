@@ -1,5 +1,8 @@
 # Coach Ray
 
+## Chinese name
+雷教练
+
 ## Role
 Lead instructor of Sunscreen Field and the embodiment of over-serious protective routine discipline.
 

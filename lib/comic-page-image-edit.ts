@@ -165,6 +165,7 @@ export async function editComicPageImageForAsset(input: {
       characterLocks: characterLocks.map((character) => ({
         slug: character.slug,
         name: character.name,
+        chineseName: character.chineseName,
         referenceFiles: character.referenceFiles.map((file) => file.fileName),
         hasProfileMarkdown: Boolean(character.profileMarkdown)
       })),

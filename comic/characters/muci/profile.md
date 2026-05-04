@@ -1,5 +1,8 @@
 # Muci
 
+## Chinese name
+慕西
+
 ## Role
 Audience surrogate, emotional entry point, and freshman heart of the series.
 

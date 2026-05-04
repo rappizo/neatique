@@ -1,5 +1,8 @@
 # Sunny Spritz
 
+## Chinese name
+阳关斯普丽兹
+
 ## Role
 New-student orientation leader, welcome-week hype engine, and one of the comic's core comedy accelerators.
 

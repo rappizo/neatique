@@ -1,5 +1,8 @@
 # Padarana
 
+## Chinese name
+啪嗒安娜
+
 ## Role
 Gentle emotional anchor, quiet observer, and warm moral center of the group.
 

@@ -1,0 +1,77 @@
+import { Buffer } from "node:buffer";
+import { unstable_cache } from "next/cache";
+import { NextResponse } from "next/server";
+import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
+import { prisma } from "@/lib/db";
+
+type ComicImageCreationMediaRouteProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+const COMIC_IMAGE_CREATION_REVALIDATE_SECONDS = 60 * 60 * 24 * 30;
+
+const getComicImageCreation = unstable_cache(
+  async (id: string) => {
+    const image = await prisma.comicImageCreation.findUnique({
+      where: { id },
+      select: {
+        imageUrl: true,
+        imageData: true,
+        imageMimeType: true
+      }
+    });
+
+    if (!image?.imageData && !image?.imageUrl) {
+      return null;
+    }
+
+    return {
+      imageUrl: image.imageUrl,
+      imageData: image.imageData,
+      imageMimeType: image.imageMimeType || "image/png"
+    };
+  },
+  ["comic-image-creation"],
+  { revalidate: COMIC_IMAGE_CREATION_REVALIDATE_SECONDS }
+);
+
+function isTransientComicImageCreationError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    message.includes("Timed out fetching a new connection from the connection pool") ||
+    message.includes("Can't reach database server") ||
+    message.includes("PrismaClientInitializationError")
+  );
+}
+
+export async function GET(_request: Request, { params }: ComicImageCreationMediaRouteProps) {
+  const { id } = await params;
+
+  try {
+    const image = await getComicImageCreation(id);
+
+    if (!image?.imageData) {
+      if (image?.imageUrl && /^https?:\/\//i.test(image.imageUrl)) {
+        return NextResponse.redirect(image.imageUrl, 307);
+      }
+
+      return new NextResponse("Comic image creation not found.", { status: 404 });
+    }
+
+    return new NextResponse(Buffer.from(image.imageData, "base64"), {
+      headers: {
+        "Content-Type": image.imageMimeType,
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    });
+  } catch (error) {
+    if (isTransientComicImageCreationError(error)) {
+      return NextResponse.redirect(toAbsoluteUrl(defaultOgImage.url), 307);
+    }
+
+    throw error;
+  }
+}

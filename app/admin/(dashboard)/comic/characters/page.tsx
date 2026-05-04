@@ -68,6 +68,7 @@ export default async function AdminComicCharactersPage({
                   <span>{character.slug}</span>
                 </div>
                 <h3>{character.name}</h3>
+                {character.chineseName ? <p className="form-note">中文名：{character.chineseName}</p> : null}
                 <p>{character.personality}</p>
                 {references.length > 0 ? (
                   <div className="admin-comic-reference-strip" aria-label={`${character.name} 参考图`}>

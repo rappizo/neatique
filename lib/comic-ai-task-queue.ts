@@ -3,6 +3,7 @@ import { createChineseComicPageVersion } from "@/lib/comic-chinese-page-version"
 import { reviseComicCharacterLock, reviseComicSceneLock } from "@/lib/comic-lock-revision";
 import { runComicOutlineTask, type ComicOutlineTaskType } from "@/lib/comic-outline-generation";
 import { editComicPageImageForAsset } from "@/lib/comic-page-image-edit";
+import { generateComicImageCreation } from "@/lib/comic-image-creation";
 import { generateComicPageImageForEpisode } from "@/lib/comic-page-image-generation";
 import {
   generateComicPromptPackageForEpisode,
@@ -17,7 +18,8 @@ export type ComicAiTaskType =
   | "outline"
   | "character-lock-revision"
   | "scene-lock-revision"
-  | "chinese-page-version";
+  | "chinese-page-version"
+  | "image-creation";
 
 export type ComicAiTaskStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
 
@@ -52,6 +54,9 @@ export type ComicAiTaskClientRecord = {
   characterId?: string;
   sceneId?: string;
   revisionInstruction?: string;
+  imagePrompt?: string;
+  aspectRatio?: string;
+  imageCreationId?: string;
 };
 
 type ComicAiTaskModelRecord = {
@@ -91,7 +96,8 @@ const DEFAULT_STALE_RUNNING_TASK_MS = 1000 * 60 * 3;
 const IMAGE_HEAVY_TASK_TYPES = new Set<ComicAiTaskType>([
   "generate",
   "edit",
-  "chinese-page-version"
+  "chinese-page-version",
+  "image-creation"
 ]);
 
 function getStaleRunningTaskMs() {
@@ -322,6 +328,13 @@ function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayl
         targetId: null,
         sourceAssetId: toStringValue(payload.assetId || payload.sourceAssetId) || null
       };
+    case "image-creation":
+      return {
+        episodeId: null,
+        pageNumber: null,
+        targetId: null,
+        sourceAssetId: null
+      };
   }
 }
 
@@ -374,6 +387,12 @@ async function executeComicAiTask(
       return createChineseComicPageVersion({
         assetId: toStringValue(payload.assetId || payload.sourceAssetId)
       });
+    case "image-creation":
+      return generateComicImageCreation({
+        prompt: toStringValue(payload.prompt || payload.imagePrompt),
+        aspectRatio: toStringValue(payload.aspectRatio),
+        attempt: context.attempt
+      });
   }
 }
 
@@ -412,7 +431,10 @@ export function toClientComicAiTask(task: ComicAiTaskModelRecord): ComicAiTaskCl
       task.taskType === "scene-lock-revision"
         ? task.targetId || toOptionalStringValue(payload.id || payload.sceneId)
         : undefined,
-    revisionInstruction: toOptionalStringValue(payload.revisionInstruction)
+    revisionInstruction: toOptionalStringValue(payload.revisionInstruction),
+    imagePrompt: toOptionalStringValue(payload.prompt || payload.imagePrompt),
+    aspectRatio: toOptionalStringValue(payload.aspectRatio),
+    imageCreationId: toOptionalStringValue(result?.creationId)
   };
 }
 

@@ -11,6 +11,7 @@ import {
   useRef,
   useState
 } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 type ComicImageTaskStatus = "queued" | "running" | "success" | "failed" | "cancelled";
@@ -22,7 +23,8 @@ type ComicImageTaskKind =
   | "outline"
   | "character-lock-revision"
   | "scene-lock-revision"
-  | "chinese-page-version";
+  | "chinese-page-version"
+  | "image-creation";
 
 type ComicImageTask = {
   id: string;
@@ -46,6 +48,9 @@ type ComicImageTask = {
   characterId?: string;
   sceneId?: string;
   revisionInstruction?: string;
+  imagePrompt?: string;
+  aspectRatio?: string;
+  imageCreationId?: string;
 };
 
 type ComicImageTaskQueueContextValue = {
@@ -86,6 +91,11 @@ type ComicImageTaskQueueContextValue = {
     assetId: string;
     episodeId: string;
     pageNumber: number;
+    label?: string;
+  }) => string;
+  enqueueImageCreation: (input: {
+    prompt: string;
+    aspectRatio: string;
     label?: string;
   }) => string;
   getLatestPageTask: (episodeId: string, pageNumber: number) => ComicImageTask | null;
@@ -530,6 +540,33 @@ export function ComicImageTaskQueueProvider({
     [enqueueServerTask]
   );
 
+  const enqueueImageCreation = useCallback(
+    (input: { prompt: string; aspectRatio: string; label?: string }) => {
+      const prompt = input.prompt.trim();
+      const aspectRatio = input.aspectRatio.trim() || "1:1";
+      const label = input.label || `Create image ${aspectRatio}`;
+
+      return enqueueServerTask({
+        kind: "image-creation",
+        label,
+        payload: {
+          prompt,
+          imagePrompt: prompt,
+          aspectRatio
+        },
+        optimisticFields: {
+          imagePrompt: prompt,
+          aspectRatio
+        },
+        duplicateMatch: (task) =>
+          task.kind === "image-creation" &&
+          task.imagePrompt === prompt &&
+          task.aspectRatio === aspectRatio
+      });
+    },
+    [enqueueServerTask]
+  );
+
   const getLatestPageTask = useCallback((episodeId: string, pageNumber: number) => {
     const pageTasks = tasksRef.current
       .filter((task) => task.episodeId === episodeId && task.pageNumber === pageNumber)
@@ -614,6 +651,7 @@ export function ComicImageTaskQueueProvider({
       enqueueCharacterLockRevision,
       enqueueSceneLockRevision,
       enqueueChinesePageVersion,
+      enqueueImageCreation,
       getLatestPageTask,
       retryTask,
       cancelTask,
@@ -630,6 +668,7 @@ export function ComicImageTaskQueueProvider({
       enqueueCharacterLockRevision,
       enqueueSceneLockRevision,
       enqueueChinesePageVersion,
+      enqueueImageCreation,
       getLatestPageTask,
       retryTask,
       cancelTask,
@@ -1515,6 +1554,121 @@ export function ComicOutlineMultiActionForm({
   );
 }
 
+export function ComicImageCreationQueueForm({
+  aspectRatios
+}: {
+  aspectRatios: readonly string[];
+}) {
+  const { enqueueImageCreation, tasks } = useComicImageTaskQueue();
+  const [prompt, setPrompt] = useState("");
+  const [aspectRatio, setAspectRatio] = useState(aspectRatios[0] || "1:1");
+  const [notice, setNotice] = useState("");
+  const trimmedPrompt = prompt.trim();
+  const latestTask =
+    [...tasks]
+      .filter((task) => task.kind === "image-creation")
+      .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
+  const isCreating = latestTask?.status === "queued" || latestTask?.status === "running";
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!trimmedPrompt) {
+      setNotice("Enter an image prompt first.");
+      return;
+    }
+
+    enqueueImageCreation({
+      prompt: trimmedPrompt,
+      aspectRatio,
+      label: `Image ${aspectRatio}`
+    });
+    setNotice("Added to Comic tasks.");
+  }
+
+  return (
+    <form className="admin-comic-image-creation-form" onSubmit={handleSubmit}>
+      <div className="field">
+        <label htmlFor="comic-image-creation-prompt">Prompt</label>
+        <textarea
+          id="comic-image-creation-prompt"
+          rows={8}
+          value={prompt}
+          placeholder="Describe the image to create..."
+          onChange={(event) => {
+            setPrompt(event.target.value);
+            if (notice) {
+              setNotice("");
+            }
+          }}
+          required
+        />
+      </div>
+
+      <div className="field">
+        <label>Aspect ratio</label>
+        <div className="admin-comic-ratio-grid">
+          {aspectRatios.map((ratio) => (
+            <label
+              key={ratio}
+              className={
+                ratio === aspectRatio
+                  ? "admin-comic-ratio-option is-selected"
+                  : "admin-comic-ratio-option"
+              }
+            >
+              <input
+                type="radio"
+                name="aspectRatio"
+                value={ratio}
+                checked={ratio === aspectRatio}
+                onChange={() => setAspectRatio(ratio)}
+              />
+              <span>{ratio}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="stack-row">
+        <button
+          type="submit"
+          className="button button--primary"
+          disabled={!trimmedPrompt || isCreating}
+          aria-busy={latestTask?.status === "running"}
+        >
+          {latestTask?.status === "queued"
+            ? "Queued..."
+            : latestTask?.status === "running"
+              ? "Creating..."
+              : "Generate image"}
+        </button>
+        {notice ? <span className="form-note">{notice}</span> : null}
+      </div>
+
+      {latestTask?.status === "success" && latestTask.imageUrl ? (
+        <div className="admin-comic-image-creation-latest">
+          <Image
+            src={latestTask.imageUrl}
+            alt="Latest generated comic image"
+            width={640}
+            height={640}
+            unoptimized
+          />
+          <a
+            href={latestTask.imageUrl}
+            className="button button--secondary"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open image
+          </a>
+        </div>
+      ) : null}
+    </form>
+  );
+}
+
 function ComicImageTaskQueuePanel() {
   const { tasks, maxConcurrent, retryTask, cancelTask, clearCompleted } = useComicImageTaskQueue();
 
@@ -1557,6 +1711,11 @@ function ComicImageTaskQueuePanel() {
             </div>
             <div className="admin-comic-task__actions">
               <span>{task.status}</span>
+              {task.status === "success" && task.imageUrl ? (
+                <a href={task.imageUrl} target="_blank" rel="noreferrer">
+                  Open
+                </a>
+              ) : null}
               {task.status === "failed" || task.status === "cancelled" ? (
                 <button type="button" onClick={() => retryTask(task.id)}>
                   Retry

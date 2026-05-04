@@ -1,5 +1,8 @@
 # Professor Cera Lin
 
+## Chinese name
+林塞拉教授
+
 ## Role
 Barrier Sciences Hall professor and the academic voice of precision, restraint, and foundational understanding.
 
