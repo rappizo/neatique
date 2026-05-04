@@ -12,6 +12,11 @@ import {
   getComicChapterSceneReferenceFolder,
   getComicSceneReferenceFolder
 } from "@/lib/comic-paths";
+import {
+  formatComicBilingualSummary,
+  parseComicBilingualText
+} from "@/lib/comic-bilingual-outline";
+import { selectComicWorkspaceTextForSync } from "@/lib/comic-workspace-sync-preserve";
 import { slugify } from "@/lib/utils";
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 
@@ -107,6 +112,45 @@ function extractFirstParagraph(section: string) {
     .filter(Boolean);
 
   return paragraphs[0] || "";
+}
+
+function extractFirstParagraphFromSections(markdown: string, headings: string[]) {
+  for (const heading of headings) {
+    const paragraph = extractFirstParagraph(extractSection(markdown, heading));
+
+    if (paragraph) {
+      return paragraph;
+    }
+  }
+
+  return "";
+}
+
+function extractSummaryFromBilingualOutline(
+  markdown: string,
+  input: {
+    zhHeadings: string[];
+    enHeadings: string[];
+    legacyHeadings: string[];
+    fallback: string;
+  }
+) {
+  const parsed = parseComicBilingualText(markdown);
+
+  if (parsed.zh || parsed.en) {
+    const zh =
+      extractFirstParagraphFromSections(parsed.zh, input.zhHeadings) ||
+      extractFirstParagraph(parsed.zh);
+    const en =
+      extractFirstParagraphFromSections(parsed.en, input.enHeadings) ||
+      extractFirstParagraph(parsed.en);
+
+    if (zh || en) {
+      return formatComicBilingualSummary({ zh, en });
+    }
+  }
+
+  return extractFirstParagraphFromSections(markdown, input.legacyHeadings) || input.fallback;
 }
 
 function extractBulletList(section: string) {
@@ -255,6 +299,13 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
   const shortDescription =
     extractFirstParagraph(extractSection(seriesOverview, "Core premise")) ||
     "A multi-season comic project built around stable characters, scene packs, and prompt-ready story production.";
+  const existingProject = await prisma.comicProject.findUnique({
+    where: { slug: "main" },
+    select: {
+      shortDescription: true,
+      storyOutline: true
+    }
+  });
 
   const project = await prisma.comicProject.upsert({
     where: { slug: "main" },
@@ -270,8 +321,17 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
     },
     update: {
       title: projectTitle,
-      shortDescription,
-      storyOutline: seriesOverview || "Add the full multi-season story outline here.",
+      shortDescription: selectComicWorkspaceTextForSync({
+        existingText: existingProject?.shortDescription,
+        workspaceText: shortDescription,
+        fallbackText:
+          "A multi-season comic project built around stable characters, scene packs, and prompt-ready story production."
+      }),
+      storyOutline: selectComicWorkspaceTextForSync({
+        existingText: existingProject?.storyOutline,
+        workspaceText: seriesOverview,
+        fallbackText: "Add the full multi-season story outline here."
+      }),
       worldRules: worldRules || "Add the rules, logic, and canon constraints for the comic world here.",
       visualStyleGuide:
         visualStyleGuide || "Define the line quality, panel rhythm, and continuity rules here.",
@@ -354,9 +414,24 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
     const seasonOutline = await readTextIfExists(path.join(seasonRoot, "season-outline.md"));
     const seasonNumber = parseSeasonNumberFromSlug(seasonSlug);
     const seasonTitle = extractHeading(seasonOutline) || `Season ${seasonNumber}`;
-    const seasonSummary =
-      extractFirstParagraph(extractSection(seasonOutline, "Season objective")) ||
-      "Add the season summary here.";
+    const seasonSummary = extractSummaryFromBilingualOutline(seasonOutline, {
+      zhHeadings: ["Season 目标", "季目标", "本季目标"],
+      enHeadings: ["Season Objective", "Season objective"],
+      legacyHeadings: ["Season objective"],
+      fallback: "Add the season summary here."
+    });
+    const existingSeason = await prisma.comicSeason.findUnique({
+      where: {
+        projectId_slug: {
+          projectId: project.id,
+          slug: seasonSlug
+        }
+      },
+      select: {
+        summary: true,
+        outline: true
+      }
+    });
 
     const season = await prisma.comicSeason.upsert({
       where: {
@@ -378,8 +453,16 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
       update: {
         seasonNumber,
         title: seasonTitle,
-        summary: seasonSummary,
-        outline: seasonOutline || "Add the season outline here.",
+        summary: selectComicWorkspaceTextForSync({
+          existingText: existingSeason?.summary,
+          workspaceText: seasonSummary,
+          fallbackText: "Add the season summary here."
+        }),
+        outline: selectComicWorkspaceTextForSync({
+          existingText: existingSeason?.outline,
+          workspaceText: seasonOutline,
+          fallbackText: "Add the season outline here."
+        }),
         sortOrder: seasonNumber
       }
     });
@@ -395,9 +478,24 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
       const chapterOutline = await readTextIfExists(path.join(chapterRoot, "chapter-outline.md"));
       const chapterNumber = parseChapterNumberFromSlug(chapterSlug);
       const chapterTitle = extractHeading(chapterOutline) || `Chapter ${chapterNumber}`;
-      const chapterSummary =
-        extractFirstParagraph(extractSection(chapterOutline, "Chapter objective")) ||
-        "Add the chapter summary here.";
+      const chapterSummary = extractSummaryFromBilingualOutline(chapterOutline, {
+        zhHeadings: ["Chapter 目标", "章节目标", "本章目标"],
+        enHeadings: ["Chapter Objective", "Chapter objective"],
+        legacyHeadings: ["Chapter objective"],
+        fallback: "Add the chapter summary here."
+      });
+      const existingChapter = await prisma.comicChapter.findUnique({
+        where: {
+          seasonId_slug: {
+            seasonId: season.id,
+            slug: chapterSlug
+          }
+        },
+        select: {
+          summary: true,
+          outline: true
+        }
+      });
 
       const chapter = await prisma.comicChapter.upsert({
         where: {
@@ -419,8 +517,16 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
         update: {
           chapterNumber,
           title: chapterTitle,
-          summary: chapterSummary,
-          outline: chapterOutline || "Add the chapter outline here.",
+          summary: selectComicWorkspaceTextForSync({
+            existingText: existingChapter?.summary,
+            workspaceText: chapterSummary,
+            fallbackText: "Add the chapter summary here."
+          }),
+          outline: selectComicWorkspaceTextForSync({
+            existingText: existingChapter?.outline,
+            workspaceText: chapterOutline,
+            fallbackText: "Add the chapter outline here."
+          }),
           sortOrder: chapterNumber
         }
       });
@@ -493,10 +599,24 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
         const episodeNumber = parseEpisodeNumberFromSlug(episodeSlug);
         const episodeHeading = extractHeading(episodeOutline) || `Episode ${episodeNumber}`;
         const episodeTitle = normalizeEpisodeTitle(episodeHeading, episodeNumber);
-        const episodeSummary =
-          extractFirstParagraph(extractSection(episodeOutline, "Episode promise")) ||
-          extractFirstParagraph(extractSection(episodeOutline, "Core plot")) ||
-          "Add the episode promise here.";
+        const episodeSummary = extractSummaryFromBilingualOutline(episodeOutline, {
+          zhHeadings: ["Episode 承诺", "本话承诺", "核心剧情"],
+          enHeadings: ["Episode Promise", "Episode promise", "Core Plot", "Core plot"],
+          legacyHeadings: ["Episode promise", "Core plot"],
+          fallback: "Add the episode promise here."
+        });
+        const existingEpisode = await prisma.comicEpisode.findUnique({
+          where: {
+            chapterId_slug: {
+              chapterId: chapter.id,
+              slug: episodeSlug
+            }
+          },
+          select: {
+            summary: true,
+            outline: true
+          }
+        });
 
         await prisma.comicEpisode.upsert({
           where: {
@@ -522,8 +642,16 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
           update: {
             episodeNumber,
             title: episodeTitle,
-            summary: episodeSummary,
-            outline: episodeOutline || "Add the episode outline here.",
+            summary: selectComicWorkspaceTextForSync({
+              existingText: existingEpisode?.summary,
+              workspaceText: episodeSummary,
+              fallbackText: "Add the episode promise here."
+            }),
+            outline: selectComicWorkspaceTextForSync({
+              existingText: existingEpisode?.outline,
+              workspaceText: episodeOutline,
+              fallbackText: "Add the episode outline here."
+            }),
             sortOrder: episodeNumber
           }
         });
