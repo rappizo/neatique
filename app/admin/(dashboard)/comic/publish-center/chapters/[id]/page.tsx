@@ -12,18 +12,18 @@ import {
   ComicImageTaskQueueProvider,
   ComicRevisePromptQueueForm
 } from "@/components/admin/comic-image-task-queue";
+import {
+  ComicAssetApprovalControls,
+  ComicChineseApprovalHeadingPill,
+  ComicChinesePageStatusPill,
+  ComicEpisodeDownloadMenu,
+  ComicEpisodePublishControls,
+  ComicPublishPageArticle,
+  ComicPublishPageHeaderStatus
+} from "@/components/admin/comic-publish-approval-controls";
 import { ComicPublishEpisodeDetails } from "@/components/admin/comic-publish-episode-details";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
-import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
-import {
-  approveChineseComicPageAssetAction,
-  approveComicEpisodeAssetAction,
-  deleteComicEpisodeAssetAction,
-  publishComicEpisodeFromCenterAction,
-  unapproveChineseComicPageAssetAction,
-  unapproveComicEpisodeAssetAction,
-  unpublishComicEpisodeFromCenterAction
-} from "@/app/admin/comic-editor-actions";
+import { deleteComicEpisodeAssetAction } from "@/app/admin/comic-editor-actions";
 import { restoreComicPagePromptRevisionAction } from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
 import { getComicPromptHealthSummary } from "@/lib/comic-prompt-health";
@@ -240,12 +240,6 @@ function getRevisionStatusLabel(revision: ComicPagePromptRevisionRecord) {
   return revision.status === "READY" ? "Updated" : revision.status;
 }
 
-function getAssetStatusClass(asset: ComicEpisodeAssetRecord) {
-  return asset.published
-    ? "admin-table__status-badge admin-table__status-badge--success"
-    : "admin-table__status-badge admin-table__status-badge--warning";
-}
-
 function buildRedirectTo(chapterId: string, episodeId: string) {
   return `/admin/comic/publish-center/chapters/${chapterId}#episode-${episodeId}`;
 }
@@ -374,8 +368,6 @@ export default async function AdminComicPublishChapterPage({
                 pages: []
               };
             const redirectTo = buildRedirectTo(chapter.id, episode.id);
-            const englishDownloadReady = episode.canPublish;
-            const chineseDownloadReady = episode.canPublishChinese;
             const promptHealth = getComicPromptHealthSummary(promptState.parsedPromptOutput);
             const promptHealthByPage = new Map(
               promptHealth.pages
@@ -431,49 +423,11 @@ export default async function AdminComicPublishChapterPage({
                     {missingChinesePages.length > 0 ? (
                       <ComicGenerateAllChinesePagesQueueButton pages={missingChinesePages} />
                     ) : null}
-                    <form action={publishComicEpisodeFromCenterAction}>
-                      <input type="hidden" name="episodeId" value={episode.id} />
-                      <input type="hidden" name="redirectTo" value={redirectTo} />
-                      <PendingSubmitButton
-                        idleLabel={episode.published ? "Refresh public episode" : "Publish episode"}
-                        pendingLabel="Publishing..."
-                        disabled={!episode.canPublish}
-                        modalTitle="Publishing comic episode"
-                        modalDescription="The episode, chapter, and season will be made public with the approved page images."
-                      />
-                    </form>
-                    {episode.published ? (
-                      <form action={unpublishComicEpisodeFromCenterAction}>
-                        <input type="hidden" name="episodeId" value={episode.id} />
-                        <input type="hidden" name="redirectTo" value={redirectTo} />
-                        <button type="submit" className="button button--ghost">
-                          Unpublish episode
-                        </button>
-                      </form>
-                    ) : null}
-                    <details className="admin-comic-download-menu">
-                      <summary className="button button--ghost">Download</summary>
-                      <div className="admin-comic-download-menu__panel">
-                        {englishDownloadReady ? (
-                          <a href={buildEpisodeDownloadHref(episode.id, "en")}>
-                            English ZIP
-                          </a>
-                        ) : (
-                          <span className="is-disabled">
-                            English ZIP ({episode.approvedPageCount}/{episode.requiredPageCount})
-                          </span>
-                        )}
-                        {chineseDownloadReady ? (
-                          <a href={buildEpisodeDownloadHref(episode.id, "zh")}>
-                            Chinese ZIP
-                          </a>
-                        ) : (
-                          <span className="is-disabled">
-                            Chinese ZIP ({episode.approvedChinesePageCount}/{episode.requiredPageCount})
-                          </span>
-                        )}
-                      </div>
-                    </details>
+                    <ComicEpisodePublishControls episodeId={episode.id} />
+                    <ComicEpisodeDownloadMenu
+                      englishHref={buildEpisodeDownloadHref(episode.id, "en")}
+                      chineseHref={buildEpisodeDownloadHref(episode.id, "zh")}
+                    />
                   </div>
                 </div>
 
@@ -489,36 +443,26 @@ export default async function AdminComicPublishChapterPage({
                     approvedChineseAsset
                   }) => {
                     const uploadNames = getUploadNames(promptPage);
-                    const pageStatus = approvedAsset
-                      ? "Approved"
-                      : assets.length > 0
-                        ? "Needs approval"
-                        : "Needs image";
                     const pageHealth = promptHealthByPage.get(pageNumber);
 
                     return (
-                      <article
+                      <ComicPublishPageArticle
                         key={`${episode.id}-${pageNumber}`}
-                        className={
-                          approvedAsset
-                            ? "admin-comic-publish-page is-approved"
-                            : "admin-comic-publish-page"
-                        }
+                        episodeId={episode.id}
+                        pageNumber={pageNumber}
+                        initiallyApproved={Boolean(approvedAsset)}
                       >
                         <div className="admin-comic-publish-page__header">
                           <div>
                             <p className="eyebrow">{formatPageLabel(pageNumber)}</p>
                             <h3>{promptPage?.pagePurpose || "No page prompt generated yet"}</h3>
                           </div>
-                          <span
-                            className={
-                              approvedAsset
-                                ? "admin-table__status-badge admin-table__status-badge--success"
-                                : "admin-table__status-badge admin-table__status-badge--warning"
-                            }
-                          >
-                            {pageStatus}
-                          </span>
+                          <ComicPublishPageHeaderStatus
+                            episodeId={episode.id}
+                            pageNumber={pageNumber}
+                            initiallyApproved={Boolean(approvedAsset)}
+                            hasDraftAssets={assets.length > 0}
+                          />
                         </div>
 
                         <div className="stack-row">
@@ -530,10 +474,12 @@ export default async function AdminComicPublishChapterPage({
                               {pageHealth.ready ? "Prompt QA ready" : `${pageHealth.issueCount} prompt issues`}
                             </span>
                           ) : null}
-                          {approvedChineseAsset ? <span className="pill">Chinese approved</span> : null}
-                          {!approvedChineseAsset && chineseAssets.length > 0 ? (
-                            <span className="pill">Chinese draft ready</span>
-                          ) : null}
+                          <ComicChinesePageStatusPill
+                            episodeId={episode.id}
+                            pageNumber={pageNumber}
+                            initiallyChineseApproved={Boolean(approvedChineseAsset)}
+                            hasChineseAssets={chineseAssets.length > 0}
+                          />
                         </div>
 
                         {promptPage ? (
@@ -724,48 +670,35 @@ export default async function AdminComicPublishChapterPage({
                                       {asset.assetType} / {formatDate(asset.createdAt)}
                                     </span>
                                   </div>
-                                  <span className={getAssetStatusClass(asset)}>
-                                    {asset.published ? "Approved" : "Draft"}
-                                  </span>
-                                  <form
-                                    action={
-                                      asset.published
-                                        ? unapproveComicEpisodeAssetAction
-                                        : approveComicEpisodeAssetAction
-                                    }
-                                  >
-                                    <input type="hidden" name="id" value={asset.id} />
-                                    <input type="hidden" name="redirectTo" value={redirectTo} />
-                                    <button
-                                      type="submit"
-                                      className={asset.published ? "button button--ghost" : "button button--primary"}
-                                    >
-                                      {asset.published ? "Remove approval" : "Approve this page"}
-                                    </button>
-                                  </form>
-                                  <ComicEditImageQueueForm
-                                    sourceAssetId={asset.id}
+                                  <ComicAssetApprovalControls
+                                    assetId={asset.id}
                                     episodeId={episode.id}
                                     pageNumber={pageNumber}
-                                  />
-                                  {asset.published ? (
+                                    language="en"
+                                    initiallyApproved={asset.published}
+                                  >
                                     <ComicChinesePageVersionQueueButton
                                       sourceAssetId={asset.id}
                                       episodeId={episode.id}
                                       pageNumber={pageNumber}
                                       hasApprovedChineseAsset={Boolean(approvedChineseAsset)}
                                     />
-                                  ) : null}
-                                  {asset.published && approvedChineseAsset ? (
-                                    <a
-                                      href={approvedChineseAsset.imageUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="button button--ghost"
-                                    >
-                                      View Approved Chinese
-                                    </a>
-                                  ) : null}
+                                    {approvedChineseAsset ? (
+                                      <a
+                                        href={approvedChineseAsset.imageUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="button button--ghost"
+                                      >
+                                        View Approved Chinese
+                                      </a>
+                                    ) : null}
+                                  </ComicAssetApprovalControls>
+                                  <ComicEditImageQueueForm
+                                    sourceAssetId={asset.id}
+                                    episodeId={episode.id}
+                                    pageNumber={pageNumber}
+                                  />
                                   <form action={deleteComicEpisodeAssetAction}>
                                     <input type="hidden" name="id" value={asset.id} />
                                     <input type="hidden" name="redirectTo" value={redirectTo} />
@@ -787,9 +720,12 @@ export default async function AdminComicPublishChapterPage({
                           <div className="admin-comic-page-section">
                             <div className="admin-comic-section-heading">
                               <h4>Chinese versions</h4>
-                              <span className="pill">
-                                {approvedChineseAsset ? "1 approved" : "Approval needed"}
-                              </span>
+                              <ComicChineseApprovalHeadingPill
+                                episodeId={episode.id}
+                                pageNumber={pageNumber}
+                                initiallyChineseApproved={Boolean(approvedChineseAsset)}
+                                hasChineseAssets={chineseAssets.length > 0}
+                              />
                             </div>
                             <div className="admin-comic-publish-assets">
                               {chineseAssets.map((asset) => (
@@ -815,27 +751,13 @@ export default async function AdminComicPublishChapterPage({
                                         Chinese version / {formatDate(asset.createdAt)}
                                       </span>
                                     </div>
-                                    <span className={getAssetStatusClass(asset)}>
-                                      {asset.published ? "Chinese Approved" : "Chinese Draft"}
-                                    </span>
-                                    <form
-                                      action={
-                                        asset.published
-                                          ? unapproveChineseComicPageAssetAction
-                                          : approveChineseComicPageAssetAction
-                                      }
-                                    >
-                                      <input type="hidden" name="id" value={asset.id} />
-                                      <input type="hidden" name="redirectTo" value={redirectTo} />
-                                      <button
-                                        type="submit"
-                                        className={
-                                          asset.published ? "button button--ghost" : "button button--primary"
-                                        }
-                                      >
-                                        {asset.published ? "Remove Chinese approval" : "Approve Chinese version"}
-                                      </button>
-                                    </form>
+                                    <ComicAssetApprovalControls
+                                      assetId={asset.id}
+                                      episodeId={episode.id}
+                                      pageNumber={pageNumber}
+                                      language="zh"
+                                      initiallyApproved={asset.published}
+                                    />
                                     <a
                                       href={asset.imageUrl}
                                       target="_blank"
@@ -874,7 +796,7 @@ export default async function AdminComicPublishChapterPage({
                             />
                           ) : null}
                         </div>
-                      </article>
+                      </ComicPublishPageArticle>
                     );
                   })}
                 </div>
