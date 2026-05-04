@@ -66,3 +66,40 @@ test("comic prompt health catches missing dialogue in image prompts", () => {
   assert.equal(summary.issueCount > 0, true);
   assert.match(summary.pages[0].findings.map((finding) => finding.message).join("\n"), /dialogue/);
 });
+
+test("comic prompt health warns when recurring props lack a continuity reference", () => {
+  const promptOutput = buildPromptOutput();
+  promptOutput.pages[0].promptPackCopyText += "\nA handbook floats beside Ava.";
+  promptOutput.pages[1].promptPackCopyText += "\nThe handbook returns in close-up.";
+
+  const summary = getComicPromptHealthSummary(promptOutput);
+
+  assert.equal(summary.issueCount, 0);
+  assert.equal(summary.warningCount > 0, true);
+  assert.match(
+    summary.pages[0].findings.map((finding) => finding.message).join("\n"),
+    /Recurring prop "handbook"/
+  );
+});
+
+test("comic prompt health accepts recurring props with a continuity reference", () => {
+  const promptOutput = buildPromptOutput();
+  const handbookReference = {
+    bucket: "CHAPTER_SCENE" as const,
+    label: "Sunscreen Field Handbook",
+    slug: "sunscreen-field-handbook",
+    whyThisMatters: "Locks the recurring handbook prop.",
+    contentSummary: "Exact handbook prop reference.",
+    uploadImageNames: ["Sunscreen Field Handbook.jpg"],
+    relativePaths: ["comic/seasons/season-01/chapter-01/scene-refs/Sunscreen Field Handbook.jpg"]
+  };
+  promptOutput.pages[0].promptPackCopyText += "\nA handbook floats beside Ava.";
+  promptOutput.pages[1].promptPackCopyText += "\nThe handbook returns in close-up.";
+  promptOutput.pages[0].requiredUploads = [handbookReference];
+  promptOutput.pages[1].requiredUploads = [handbookReference];
+
+  const summary = getComicPromptHealthSummary(promptOutput);
+
+  assert.equal(summary.issueCount, 0);
+  assert.equal(summary.warningCount, 0);
+});

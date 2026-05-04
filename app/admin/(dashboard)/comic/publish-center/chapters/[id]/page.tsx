@@ -399,6 +399,7 @@ export default async function AdminComicPublishChapterPage({
                 hasPromptPackage={Boolean(promptState.parsedPromptOutput)}
                 promptReadyCount={promptHealth.readyPages}
                 promptIssueCount={promptHealth.issueCount}
+                promptWarningCount={promptHealth.warningCount}
               >
                 <div className="admin-comic-publish-episode__controls">
                   <div className="admin-comic-publish-episode__actions">
@@ -470,8 +471,20 @@ export default async function AdminComicPublishChapterPage({
                           <span className="pill">{assets.length} image candidates</span>
                           <span className="pill">{referenceImages.length} direct refs</span>
                           {pageHealth ? (
-                            <span className={pageHealth.ready ? "pill pill--success" : "pill pill--danger"}>
-                              {pageHealth.ready ? "Prompt QA ready" : `${pageHealth.issueCount} prompt issues`}
+                            <span
+                              className={
+                                pageHealth.issueCount
+                                  ? "pill pill--danger"
+                                  : pageHealth.warningCount
+                                    ? "pill pill--warning"
+                                    : "pill pill--success"
+                              }
+                            >
+                              {pageHealth.issueCount
+                                ? `${pageHealth.issueCount} prompt issue${pageHealth.issueCount === 1 ? "" : "s"}`
+                                : pageHealth.warningCount
+                                  ? `${pageHealth.warningCount} QA warning${pageHealth.warningCount === 1 ? "" : "s"}`
+                                  : "Prompt QA ready"}
                             </span>
                           ) : null}
                           <ComicChinesePageStatusPill

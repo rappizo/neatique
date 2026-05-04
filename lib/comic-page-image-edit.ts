@@ -5,6 +5,12 @@ import {
   getComicImageSource,
   storeComicImage
 } from "@/lib/comic-image-storage";
+import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
+import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
+import {
+  loadComicReferenceImageFiles,
+  resolveComicPageReferenceImages
+} from "@/lib/comic-reference-images";
 import { prisma } from "@/lib/db";
 
 const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
@@ -50,9 +56,11 @@ function isComicPublishPageNumber(pageNumber: number) {
 export async function editComicPageImageForAsset(input: {
   assetId: string;
   editInstruction: string;
+  attempt?: number;
 }): Promise<ComicPageImageEditResult> {
   const assetId = input.assetId.trim();
   const editInstruction = input.editInstruction.trim();
+  const attempt = Math.max(input.attempt || 1, 1);
 
   if (!assetId) {
     throw new ComicPageImageEditInputError("missing-asset", "Comic page asset is required.");
@@ -72,7 +80,11 @@ export async function editComicPageImageForAsset(input: {
         include: {
           chapter: {
             include: {
-              season: true
+              season: {
+                include: {
+                  project: true
+                }
+              }
             }
           }
         }
@@ -93,6 +105,47 @@ export async function editComicPageImageForAsset(input: {
     );
   }
 
+  const parsedPromptOutput = parseComicPromptOutput(
+    asset.episode.promptPack,
+    asset.episode.requiredReferences
+  );
+  const page = parsedPromptOutput?.pages.find(
+    (candidate) => candidate.pageNumber === asset.sortOrder
+  );
+  const referenceDetectionText = page
+    ? [
+        page.pagePurpose,
+        page.panels
+          .map((panel) =>
+            [
+              panel.panelTitle,
+              panel.storyBeat,
+              panel.promptText || "",
+              panel.dialogueLines?.map((line) => `${line.speaker}: ${line.text}`).join("\n")
+            ]
+              .filter(Boolean)
+              .join("\n")
+          )
+          .join("\n\n"),
+        page.requiredUploads
+          .map((upload) => [upload.label, upload.slug, upload.contentSummary].join(" "))
+          .join("\n")
+      ].join("\n\n")
+    : "";
+  const resolvedReferenceImages = page
+    ? await resolveComicPageReferenceImages({
+        requiredUploads: page.requiredUploads,
+        seasonSlug: asset.episode.chapter.season.slug,
+        chapterSlug: asset.episode.chapter.slug,
+        promptText: referenceDetectionText
+      })
+    : [];
+  const referenceImages = await loadComicReferenceImageFiles(resolvedReferenceImages);
+  const characterLocks = await loadComicCharacterIdentityLocks(
+    resolvedReferenceImages
+      .filter((reference) => ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket))
+      .map((reference) => reference.slug)
+  );
   const inputContext = JSON.stringify(
     {
       episode: asset.episode.title,
@@ -100,7 +153,30 @@ export async function editComicPageImageForAsset(input: {
       sourceAssetId: asset.id,
       sourceAssetType: asset.assetType,
       sourceAssetTitle: asset.title,
-      editInstruction
+      editInstruction,
+      attempt,
+      referenceImages: referenceImages.map((reference) => ({
+        label: reference.label,
+        fileName: reference.fileName,
+        relativePath: reference.relativePath,
+        source: reference.source,
+        bucket: reference.bucket
+      })),
+      characterLocks: characterLocks.map((character) => ({
+        slug: character.slug,
+        name: character.name,
+        referenceFiles: character.referenceFiles.map((file) => file.fileName),
+        hasProfileMarkdown: Boolean(character.profileMarkdown)
+      })),
+      currentPage: page
+        ? {
+            pagePurpose: page.pagePurpose,
+            panelCount: page.panelCount,
+            promptPackCopyText: page.promptPackCopyText,
+            referenceNotesCopyText: page.referenceNotesCopyText,
+            panels: page.panels
+          }
+        : null
     },
     null,
     2
@@ -112,7 +188,23 @@ export async function editComicPageImageForAsset(input: {
       sourceImage,
       episodeTitle: asset.episode.title,
       pageNumber: asset.sortOrder,
-      editInstruction
+      editInstruction,
+      pageContext: page
+        ? {
+            pagePurpose: page.pagePurpose,
+            promptPackCopyText: page.promptPackCopyText,
+            referenceNotesCopyText: page.referenceNotesCopyText,
+            panels: page.panels.map((panel) => ({
+              pageNumber: page.pageNumber,
+              ...panel,
+              promptText: panel.promptText || panel.storyBeat,
+              dialogueLines: panel.dialogueLines || []
+            }))
+          }
+        : null,
+      referenceImages,
+      characterLocks,
+      attempt
     });
     const storedImage = await storeComicImage({
       base64Data: editedImage.base64Data,
@@ -163,7 +255,7 @@ export async function editComicPageImageForAsset(input: {
           imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
           status: "READY",
           inputContext,
-          outputSummary: `Edited ${asset.episode.title} page ${asset.sortOrder} from an existing page candidate.`,
+          outputSummary: `Edited ${asset.episode.title} page ${asset.sortOrder} from an existing page candidate with ${referenceImages.length} continuity reference image${referenceImages.length === 1 ? "" : "s"}.`,
           promptPack: editInstruction
         }
       })

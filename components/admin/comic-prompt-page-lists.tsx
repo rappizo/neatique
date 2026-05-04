@@ -175,14 +175,22 @@ export function ComicPromptPageLists({
             </p>
           </div>
           <div className="stack-row">
-            <span className={promptHealth.issueCount > 0 ? "pill pill--warning" : "pill pill--success"}>
+            <span
+              className={
+                promptHealth.issueCount > 0
+                  ? "pill pill--danger"
+                  : promptHealth.warningCount > 0
+                    ? "pill pill--warning"
+                    : "pill pill--success"
+              }
+            >
               QA {promptHealth.readyPages} / {promptHealth.totalPages} ready
             </span>
             {promptHealth.issueCount > 0 ? (
               <span className="pill pill--danger">{promptHealth.issueCount} issues</span>
             ) : null}
             {promptHealth.warningCount > 0 ? (
-              <span className="pill">{promptHealth.warningCount} warnings</span>
+              <span className="pill pill--warning">{promptHealth.warningCount} warnings</span>
             ) : null}
           </div>
           {canGeneratePages ? (
@@ -228,8 +236,20 @@ export function ComicPromptPageLists({
                       <span className="pill">{uploadNames.length} upload images</span>
                       {pageHealth ? (
                         <>
-                          <span className={pageHealth.ready ? "pill pill--success" : "pill pill--danger"}>
-                            {pageHealth.ready ? "QA ready" : `${pageHealth.issueCount} QA issues`}
+                          <span
+                            className={
+                              pageHealth.issueCount
+                                ? "pill pill--danger"
+                                : pageHealth.warningCount
+                                  ? "pill pill--warning"
+                                  : "pill pill--success"
+                            }
+                          >
+                            {pageHealth.issueCount
+                              ? `${pageHealth.issueCount} QA issue${pageHealth.issueCount === 1 ? "" : "s"}`
+                              : pageHealth.warningCount
+                                ? `${pageHealth.warningCount} QA warning${pageHealth.warningCount === 1 ? "" : "s"}`
+                                : "QA ready"}
                           </span>
                           <span className="pill">{pageHealth.dialogueLineCount} dialogue lines</span>
                           <span className={pageHealth.hasLetteringGuide ? "pill pill--success" : "pill pill--warning"}>

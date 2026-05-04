@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import type { ComicReferenceImageFile } from "@/lib/comic-reference-images";
 import type { ComicCharacterIdentityLock } from "@/lib/comic-character-identity";
 import { buildSimilarTeardropSeparationLock } from "@/lib/comic-similar-character-locks";
+import sharp from "sharp";
 
 function normalizeApiBaseUrl(value: string) {
   return (value.trim() || "https://api.openai.com/v1").replace(/\/+$/, "");
@@ -285,6 +286,19 @@ export type ComicPageImageReferenceAsset = {
   fileName: string;
 };
 
+type PreparedComicImageInput = {
+  mimeType: string;
+  data: ArrayBuffer;
+  fileName: string;
+};
+
+type ComicPageImageEditPageContext = {
+  pagePurpose?: string | null;
+  promptPackCopyText?: string | null;
+  referenceNotesCopyText?: string | null;
+  panels?: GeneratedComicPanelPrompt[];
+};
+
 type GenerateComicPromptPackageInput = {
   project: ComicProjectContext;
   season: ComicSeasonContext;
@@ -441,6 +455,42 @@ function getOpenAiComicImageOutputCompression() {
   }
 
   return Math.min(Math.max(configured, 50), 100);
+}
+
+function getOpenAiComicImageEditQuality() {
+  const configured = process.env.OPENAI_COMIC_IMAGE_EDIT_QUALITY?.trim();
+
+  return configured || "low";
+}
+
+function getOpenAiComicImageEditSourceQuality(attempt = 1) {
+  const configured = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_EDIT_SOURCE_QUALITY || "", 10);
+
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.min(Math.max(configured, 45), 90);
+  }
+
+  return attempt >= 2 ? 58 : 68;
+}
+
+function getOpenAiComicImageEditSourceMaxWidth() {
+  const configured = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_EDIT_SOURCE_MAX_WIDTH || "", 10);
+
+  if (!Number.isFinite(configured) || configured <= 0) {
+    return 1024;
+  }
+
+  return Math.min(Math.max(configured, 768), 1536);
+}
+
+function getOpenAiComicImageEditSourceMaxHeight() {
+  const configured = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_EDIT_SOURCE_MAX_HEIGHT || "", 10);
+
+  if (!Number.isFinite(configured) || configured <= 0) {
+    return 1536;
+  }
+
+  return Math.min(Math.max(configured, 1152), 2048);
 }
 
 function getOpenAiComicImageMimeType(outputFormat: string) {
@@ -1836,6 +1886,52 @@ function selectComicPageImageReferenceImages(
   return references.slice(0, Math.min(referenceLimit, 2));
 }
 
+function toStandaloneArrayBuffer(data: Uint8Array) {
+  const buffer = new ArrayBuffer(data.byteLength);
+  new Uint8Array(buffer).set(data);
+  return buffer;
+}
+
+async function prepareComicImageReferenceForEdit(
+  image: ComicPageImageReferenceAsset,
+  attempt: number
+): Promise<PreparedComicImageInput> {
+  const sourceBuffer = Buffer.from(image.base64Data, "base64");
+  const prepared = await sharp(sourceBuffer, { failOn: "none" })
+    .rotate()
+    .resize({
+      width: getOpenAiComicImageEditSourceMaxWidth(),
+      height: getOpenAiComicImageEditSourceMaxHeight(),
+      fit: "inside",
+      withoutEnlargement: true
+    })
+    .flatten({ background: "#ffffff" })
+    .jpeg({
+      quality: getOpenAiComicImageEditSourceQuality(attempt),
+      mozjpeg: true
+    })
+    .toBuffer();
+
+  return {
+    mimeType: "image/jpeg",
+    data: toStandaloneArrayBuffer(new Uint8Array(prepared)),
+    fileName: image.fileName.replace(/\.[a-z0-9]+$/i, "") + "-edit-source.jpg"
+  };
+}
+
+function selectComicPageEditReferenceImages(
+  references: ComicReferenceImageFile[] = [],
+  attempt: number
+) {
+  const selected = selectComicPageImageReferenceImages(references, attempt);
+
+  if (attempt >= 3) {
+    return selected.filter(isComicCharacterReferenceImage).slice(0, 4);
+  }
+
+  return selected.slice(0, attempt >= 2 ? 4 : 6);
+}
+
 function ensureReferenceNotesIncludeLettering(notes: string) {
   return /lettering|speech balloon|speech balloons|caption/i.test(notes)
     ? notes.trim()
@@ -2240,6 +2336,10 @@ export async function editComicPageImageWithAi(input: {
   pageNumber: number;
   episodeTitle: string;
   editInstruction: string;
+  pageContext?: ComicPageImageEditPageContext | null;
+  referenceImages?: ComicReferenceImageFile[];
+  characterLocks?: ComicCharacterIdentityLock[];
+  attempt?: number;
 }): Promise<GeneratedComicPageImageAsset> {
   const imageApiSettings = getComicImageApiSettings();
 
@@ -2253,15 +2353,20 @@ export async function editComicPageImageWithAi(input: {
     throw new Error("Comic page edit instruction is required.");
   }
 
+  const attempt = Math.max(input.attempt || 1, 1);
+  const sourceImage = await prepareComicImageReferenceForEdit(input.sourceImage, attempt);
+  const referenceImages = selectComicPageEditReferenceImages(input.referenceImages || [], attempt);
+  const imageQuality = getOpenAiComicImageEditQuality();
   const formData = new FormData();
-  const sourceBuffer = Buffer.from(input.sourceImage.base64Data, "base64");
   formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
   formData.append(
     "prompt",
     [
       "Edit the supplied finished comic page using it as the primary reference image.",
-      "The following global comic production locks remain mandatory during edits. They override any accidental drift in the source image or edit request:",
+      "The first attached image is the source page to edit. Additional attached images are identity/continuity references and must be used as exact locks, not loose inspiration.",
+      "The following global comic production locks remain mandatory during edits. They override any accidental drift in the source image, attached references, or edit request:",
       COMIC_VISUAL_PRODUCTION_LOCKS,
+      COMIC_LETTERING_STYLE_LOCKS,
       "",
       "Edit-specific constraints:",
       "Make only the requested local/simple change. Preserve the existing page as much as possible.",
@@ -2271,25 +2376,76 @@ export async function editComicPageImageWithAi(input: {
       "Do not elongate Muci or any mascot body. Keep the same cute, compact, model-sheet proportions and pure white body fill.",
       "If the edit request affects text, keep the wording short and fitted to the original balloon/sign space.",
       "If the edit request conflicts with the locked comic style or character model consistency, make the closest safe edit while preserving the original character/page identity.",
+      "",
+      getComicPageImageAttemptGuide({
+        projectTitle: "",
+        seasonTitle: "",
+        chapterTitle: "",
+        episodeTitle: input.episodeTitle,
+        episodeSummary: "",
+        pageNumber: input.pageNumber,
+        panelCount: input.pageContext?.panels?.length || 1,
+        pagePurpose: input.pageContext?.pagePurpose || "",
+        promptPackCopyText: input.pageContext?.promptPackCopyText || "",
+        referenceNotesCopyText: input.pageContext?.referenceNotesCopyText || "",
+        globalGptImage2Notes: null,
+        panels: input.pageContext?.panels || [],
+        requiredUploads: [],
+        referenceImages,
+        characterLocks: input.characterLocks || [],
+        generationAttempt: attempt
+      }),
+      "",
+      "Actual reference images attached after the source page:",
+      buildComicPageReferenceImageSummary(referenceImages),
+      "",
+      "Character Profile MD identity locks loaded for this page:",
+      buildComicPageCharacterIdentityLockSummary(input.characterLocks || []),
+      "",
+      "Character separation and anti-blend locks:",
+      buildComicPageCharacterSeparationLocks(input.characterLocks || []),
+      input.pageContext?.pagePurpose
+        ? `Stored page purpose: ${trimImagePromptContext(input.pageContext.pagePurpose, 700)}`
+        : null,
+      input.pageContext?.panels?.length
+        ? `Stored panel/dialogue plan:\n${buildComicPagePanelSummary(input.pageContext.panels)}`
+        : null,
+      input.pageContext?.promptPackCopyText
+        ? `Stored page prompt:\n${trimImagePromptContext(input.pageContext.promptPackCopyText, 1800)}`
+        : null,
+      input.pageContext?.referenceNotesCopyText
+        ? `Stored reference notes:\n${trimImagePromptContext(input.pageContext.referenceNotesCopyText, 1000)}`
+        : null,
       `Episode: ${input.episodeTitle}`,
       `Page: ${input.pageNumber}`,
       "",
       "Admin edit request:",
       editInstruction
-    ].join("\n")
+    ]
+      .filter(Boolean)
+      .join("\n")
   );
   formData.append("size", "1024x1536");
-  formData.append("quality", getOpenAiComicImageQuality());
+  formData.append("quality", imageQuality);
   const outputFormat = getOpenAiComicImageOutputFormat();
   formData.append("output_format", outputFormat);
   if (outputFormat !== "png") {
     formData.append("output_compression", String(getOpenAiComicImageOutputCompression()));
   }
-  formData.append(
-    "image",
-    new Blob([new Uint8Array(sourceBuffer)], { type: input.sourceImage.mimeType }),
-    input.sourceImage.fileName
-  );
+  const inputFidelity = getOpenAiComicImageInputFidelity(attempt);
+  if (inputFidelity) {
+    formData.append("input_fidelity", inputFidelity);
+  }
+
+  formData.append("image[]", new Blob([sourceImage.data], { type: sourceImage.mimeType }), sourceImage.fileName);
+
+  for (const referenceImage of referenceImages) {
+    formData.append(
+      "image[]",
+      new Blob([new Uint8Array(referenceImage.data)], { type: referenceImage.mimeType }),
+      referenceImage.fileName
+    );
+  }
 
   const response = await fetchOpenAiComicImageResponse(
     `${imageApiSettings.baseUrl}/images/edits`,
@@ -2748,6 +2904,8 @@ export async function generateComicPromptPackageWithAi(
                 "Every page must include a prompt block that is ready to copy and paste directly into gpt-image-2 after the right references are uploaded.",
                 "Every page must also include a reference-notes block that is ready to copy and paste directly into the image workflow without cleanup.",
                 "When you build the upload checklist, explicitly state which character reference images, reusable scene reference images, and chapter scene reference images should be uploaded before using gpt-image-2.",
+                "If a named prop or object appears on multiple pages, treat it like a continuity asset: use an existing chapter scene reference if one exists, or explicitly flag that a prop/object reference should be created before image generation.",
+                "When a recurring prop reference exists in the chapter scene reference files, include it in requiredUploads on every page where that prop appears.",
                 "Never invent file names. Only use file names that appear in the provided reference libraries.",
                 "Assume the team wants stable characters, reusable scenes, and a polished comic workflow."
               ].join(" ")

@@ -21,15 +21,16 @@ Original location used during import:
 ## Imported on 2026-04-24
 
 ### Chapter 1 scene reference pack
-- `Barrier Sciences Hall.png`
-- `dorm hallway.png`
-- `Founder Walk.png`
-- `Neatique Main.png`
-- `old restricted hallway.png`
-- `Residence hall.png`
-- `student room.png`
-- `Student Store.png`
-- `Sunscreen Field.png`
+- `Barrier Sciences Hall.jpg`
+- `dorm hallway.jpg`
+- `Founder Walk.jpg`
+- `Neatique Main.jpg`
+- `old restricted hallway.jpg`
+- `Residence hall.jpg`
+- `student room.jpg`
+- `Student Store.jpg`
+- `Sunscreen Field.jpg`
+- `Sunscreen Field Handbook.jpg` (locked from approved Episode 2 Page 10 as the recurring field-handbook prop reference)
 
 Original location used during import:
 

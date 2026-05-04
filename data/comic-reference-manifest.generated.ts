@@ -8,7 +8,7 @@ type ComicReferenceManifest = {
 };
 
 const comicReferenceManifest = {
-  "generatedAt": "2026-05-04T02:06:09.093Z",
+  "generatedAt": "2026-05-04T07:16:27.286Z",
   "characters": {
     "artrans": [
       {
@@ -180,6 +180,14 @@ const comicReferenceManifest = {
         "extension": "jpg"
       }
     ],
+    "season-01-chapter-01-orientation-week-is-a-scam-sunscreen-field-handbook": [
+      {
+        "label": "Sunscreen Field Handbook",
+        "fileName": "Sunscreen Field Handbook.jpg",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Sunscreen Field Handbook.jpg",
+        "extension": "jpg"
+      }
+    ],
     "similar-character-comparison": [
       {
         "label": "Similar Character Comparison",
@@ -239,6 +247,12 @@ const comicReferenceManifest = {
           "label": "Student Store",
           "fileName": "Student Store.jpg",
           "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Student Store.jpg",
+          "extension": "jpg"
+        },
+        {
+          "label": "Sunscreen Field Handbook",
+          "fileName": "Sunscreen Field Handbook.jpg",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Sunscreen Field Handbook.jpg",
           "extension": "jpg"
         },
         {

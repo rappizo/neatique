@@ -5,6 +5,9 @@ import {
   editComicPageImageForAsset
 } from "@/lib/comic-page-image-edit";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const authenticated = await isAdminAuthenticated();
 

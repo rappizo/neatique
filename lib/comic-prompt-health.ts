@@ -2,6 +2,25 @@ import type { ParsedComicPromptOutput } from "@/lib/comic-prompt-output";
 
 const REQUIRED_PAGE_COUNT = 10;
 const MAX_REFERENCE_IMAGES_PER_PAGE = 16;
+const CONTINUITY_OBJECT_KEYWORDS = [
+  "handbook",
+  "map",
+  "bottle",
+  "serum",
+  "cream",
+  "tray",
+  "stamp",
+  "card",
+  "badge",
+  "poster",
+  "notebook",
+  "folder",
+  "clipboard",
+  "key",
+  "door",
+  "shelf",
+  "desk"
+];
 
 export type ComicPromptHealthSeverity = "issue" | "warning";
 
@@ -56,6 +75,104 @@ function hasLetteringGuide(promptText: string) {
   );
 }
 
+function keywordPattern(keyword: string) {
+  return new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?\\b`, "i");
+}
+
+function getPageContinuityText(page: ParsedComicPromptOutput["pages"][number]) {
+  return [
+    page.pagePurpose,
+    page.promptPackCopyText,
+    page.referenceNotesCopyText,
+    page.panels
+      .map((panel) =>
+        [
+          panel.panelTitle,
+          panel.storyBeat,
+          panel.promptText || "",
+          panel.dialogueLines?.map((line) => `${line.speaker}: ${line.text}`).join("\n") || ""
+        ].join("\n")
+      )
+      .join("\n\n")
+  ].join("\n\n");
+}
+
+function getUploadContinuityText(page: ParsedComicPromptOutput["pages"][number]) {
+  return page.requiredUploads
+    .map((upload) =>
+      [
+        upload.label,
+        upload.slug,
+        upload.whyThisMatters,
+        upload.contentSummary,
+        upload.uploadImageNames.join(" "),
+        upload.relativePaths.join(" ")
+      ].join(" ")
+    )
+    .join("\n");
+}
+
+function getRecurringContinuityObjectKeywords(promptOutput: ParsedComicPromptOutput) {
+  const pageHits = new Map<string, Set<number>>();
+
+  promptOutput.pages.forEach((page) => {
+    const pageText = getPageContinuityText(page);
+
+    CONTINUITY_OBJECT_KEYWORDS.forEach((keyword) => {
+      if (!keywordPattern(keyword).test(pageText)) {
+        return;
+      }
+
+      const pages = pageHits.get(keyword) || new Set<number>();
+      pages.add(page.pageNumber);
+      pageHits.set(keyword, pages);
+    });
+  });
+
+  return new Map(
+    Array.from(pageHits.entries()).filter(([, pages]) => pages.size >= 2)
+  );
+}
+
+function pageHasContinuityReferenceForKeyword(
+  page: ParsedComicPromptOutput["pages"][number],
+  keyword: string
+) {
+  const uploadText = getUploadContinuityText(page);
+
+  if (keywordPattern(keyword).test(uploadText)) {
+    return true;
+  }
+
+  const normalizedPageText = normalizeText(getPageContinuityText(page));
+  const keywordIndex = normalizedPageText.indexOf(keyword);
+
+  if (keywordIndex < 0) {
+    return true;
+  }
+
+  const nearby = normalizedPageText.slice(Math.max(0, keywordIndex - 80), keywordIndex + 160);
+
+  return (
+    nearby.includes("exact") ||
+    nearby.includes("continuity") ||
+    nearby.includes("locked") ||
+    nearby.includes("approved") ||
+    nearby.includes(`same ${keyword}`) ||
+    nearby.includes(`${keyword} reference`) ||
+    nearby.includes(`reference ${keyword}`) ||
+    nearby.includes(`${keyword} design`) ||
+    nearby.includes(`model ${keyword}`)
+  );
+}
+
+function formatContinuityKeywordPages(pages: Set<number>) {
+  return Array.from(pages)
+    .sort((left, right) => left - right)
+    .map((pageNumber) => `P${pageNumber}`)
+    .join(", ");
+}
+
 function addFinding(
   findings: ComicPromptHealthFinding[],
   severity: ComicPromptHealthSeverity,
@@ -93,6 +210,7 @@ export function getComicPromptHealthSummary(
     };
   }
 
+  const recurringContinuityObjectKeywords = getRecurringContinuityObjectKeywords(promptOutput);
   const pages = promptOutput.pages.map((page): ComicPromptPageHealth => {
     const findings: ComicPromptHealthFinding[] = [];
     const uploadNames = getUniqueUploadNames(page);
@@ -137,6 +255,24 @@ export function getComicPromptHealthSummary(
           `${upload.label || upload.slug} has incomplete reference file metadata.`
         );
       }
+    });
+
+    recurringContinuityObjectKeywords.forEach((pagesWithKeyword, keyword) => {
+      if (!pagesWithKeyword.has(page.pageNumber)) {
+        return;
+      }
+
+      if (pageHasContinuityReferenceForKeyword(page, keyword)) {
+        return;
+      }
+
+      addFinding(
+        findings,
+        "warning",
+        `Recurring prop "${keyword}" appears on ${formatContinuityKeywordPages(
+          pagesWithKeyword
+        )} without a dedicated continuity reference or explicit lock on this page. Create/attach a prop, scene, or object reference before image generation.`
+      );
     });
 
     page.panels.forEach((panel) => {

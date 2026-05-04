@@ -340,7 +340,8 @@ async function executeComicAiTask(
     case "edit":
       return editComicPageImageForAsset({
         assetId: toStringValue(payload.assetId || payload.sourceAssetId),
-        editInstruction: toStringValue(payload.editInstruction)
+        editInstruction: toStringValue(payload.editInstruction),
+        attempt: context.attempt
       });
     case "prompt-package":
       return generateComicPromptPackageForEpisode({

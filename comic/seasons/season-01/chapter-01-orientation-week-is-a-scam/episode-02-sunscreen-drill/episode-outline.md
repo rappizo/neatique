@@ -34,5 +34,10 @@ The scene is funny on the surface, but it also starts teaching the reader how th
 - Snacri notices that different students received different versions of the handbook.
 - Version differences will become the first real investigative thread.
 
+## Production continuity locks
+- Recurring prop: **Sunscreen Field Handbook**. Use `comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Sunscreen Field Handbook.jpg` whenever the field handbook appears in Episode 2 or later callbacks.
+- The handbook must match the approved Episode 2 Page 10 design: white tabbed handbook, thick black cover outline, stacked title text "Sunscreen Field Handbook", simple sun emblem centered below the title, visible page stack on the right and bottom edge, floating through campus telekinesis/device motion.
+- Do not replace the handbook cover with generic droplets, wreath marks, random version numbers, or alternate logos unless the story explicitly needs a different copy.
+
 ## Ending hook
 Snacri hands Muci her manual and quietly tells him his copy is older.
