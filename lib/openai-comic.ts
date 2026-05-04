@@ -33,7 +33,7 @@ const OPENAI_COMIC_PROMPT_REASONING_EFFORT =
   process.env.OPENAI_COMIC_PROMPT_REASONING_EFFORT || "low";
 const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 55;
 const DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS = 1000 * 55;
-const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 55;
+const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 105;
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 const OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH = 30000;
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
@@ -278,6 +278,7 @@ export type GeneratedComicPageImageAsset = {
 export type GenerateStandaloneComicImageInput = {
   prompt: string;
   aspectRatio: string;
+  quality?: string | null;
   referenceImage?: ComicPageImageReferenceAsset | null;
   generationAttempt?: number;
 };
@@ -417,7 +418,7 @@ function getOpenAiComicImageTimeoutMs() {
     return DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS;
   }
 
-  return Math.min(Math.max(configuredSeconds, 20), 55) * 1000;
+  return Math.min(Math.max(configuredSeconds, 20), 110) * 1000;
 }
 
 function getOpenAiComicOutlineAbortSignal() {
@@ -439,7 +440,30 @@ function getOpenAiComicImageQuality(attempt = 1) {
     return configured;
   }
 
-  return attempt >= 2 ? "low" : "medium";
+  return attempt >= 3 ? "low" : "medium";
+}
+
+function normalizeStandaloneComicImageQuality(value?: string | null) {
+  const normalized = (value || "").trim().toLowerCase();
+  const canonical = normalized === "mediem" ? "medium" : normalized;
+
+  return ["high", "medium", "low"].includes(canonical) ? canonical : "";
+}
+
+function getStandaloneComicImageQuality(value: string | null | undefined, attempt: number) {
+  return normalizeStandaloneComicImageQuality(value) || getOpenAiComicImageQuality(attempt);
+}
+
+function getStandaloneComicImageQualityGuide(quality: string) {
+  switch (quality) {
+    case "high":
+      return "Quality mode: high. Use final-art polish, stronger detail, cleaner texture, and more precise prompt adherence. Keep the composition focused so the high-quality request can finish reliably.";
+    case "low":
+      return "Quality mode: low. Prioritize a clear readable draft, simple composition, and reliable completion over fine detail.";
+    case "medium":
+    default:
+      return "Quality mode: medium. Balance detail, prompt adherence, and generation reliability.";
+  }
 }
 
 function getOpenAiComicImageOutputFormat() {
@@ -2399,6 +2423,7 @@ export async function generateStandaloneComicImageWithAi(
   }
 
   const attempt = Math.max(input.generationAttempt || 1, 1);
+  const imageQuality = getStandaloneComicImageQuality(input.quality, attempt);
   const outputFormat = getOpenAiComicImageOutputFormat();
   const outputMimeType = getOpenAiComicImageMimeType(outputFormat);
   const standalonePrompt = [
@@ -2408,6 +2433,7 @@ export async function generateStandaloneComicImageWithAi(
       ? "Use the supplied reference image as the visual starting point and style/content reference. Follow the user's prompt for what to preserve, change, add, or remove."
       : null,
     `Canvas aspect ratio: ${parseStandaloneAspectRatio(input.aspectRatio).label}.`,
+    getStandaloneComicImageQualityGuide(imageQuality),
     "Follow the user's prompt closely. Do not add watermarks, signatures, UI chrome, or unrelated text."
   ]
     .filter(Boolean)
@@ -2420,7 +2446,7 @@ export async function generateStandaloneComicImageWithAi(
     formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
     formData.append("prompt", standalonePrompt);
     formData.append("size", getStandaloneComicImageApiSize(input.aspectRatio));
-    formData.append("quality", getOpenAiComicImageQuality(attempt));
+    formData.append("quality", imageQuality);
     if (outputFormat) {
       formData.append("output_format", outputFormat);
     }
@@ -2481,7 +2507,7 @@ export async function generateStandaloneComicImageWithAi(
     model: DEFAULT_OPENAI_COMIC_IMAGE_MODEL,
     prompt: standalonePrompt,
     size: getStandaloneComicImageApiSize(input.aspectRatio),
-    quality: getOpenAiComicImageQuality(attempt),
+    quality: imageQuality,
     n: 1
   };
 

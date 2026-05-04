@@ -3671,6 +3671,49 @@ main {
   color: var(--accent-strong);
 }
 
+.admin-comic-quality-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-comic-quality-option {
+  display: grid;
+  gap: 4px;
+  min-height: 82px;
+  padding: 12px;
+  border: 1px solid rgba(46, 40, 37, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.admin-comic-quality-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-comic-quality-option strong {
+  font-weight: 900;
+}
+
+.admin-comic-quality-option span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.admin-comic-quality-option.is-selected {
+  border-color: rgba(237, 115, 97, 0.5);
+  background: rgba(237, 115, 97, 0.1);
+}
+
+.admin-comic-quality-option.is-selected strong {
+  color: var(--accent-strong);
+}
+
 .admin-comic-image-creation-latest {
   display: grid;
   gap: 12px;
@@ -5447,6 +5490,10 @@ main {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .admin-comic-quality-grid {
+    grid-template-columns: 1fr;
+  }
+
   .review-showcase {
     column-count: 2;
   }
@@ -5553,7 +5600,8 @@ main {
   }
 
   .admin-comic-image-creation-grid,
-  .admin-comic-ratio-grid {
+  .admin-comic-ratio-grid,
+  .admin-comic-quality-grid {
     grid-template-columns: 1fr 1fr;
   }
 

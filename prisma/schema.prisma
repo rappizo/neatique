@@ -356,6 +356,7 @@ model ComicImageCreation {
   id                       String   @id @default(cuid())
   prompt                   String
   aspectRatio              String
+  quality                  String   @default("medium")
   model                    String
   sourceType               String   @default("TEXT")
   referenceCreationId      String?

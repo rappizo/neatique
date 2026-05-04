@@ -56,6 +56,7 @@ export type ComicAiTaskClientRecord = {
   revisionInstruction?: string;
   imagePrompt?: string;
   aspectRatio?: string;
+  imageQuality?: string;
   referenceCreationId?: string;
   referenceImageName?: string;
   imageCreationId?: string;
@@ -89,6 +90,11 @@ type ComicAiTaskResult = {
   assetId?: string;
   imageUrl?: string;
   payloadPatch?: ComicAiTaskPayload;
+  attemptFailures?: Array<{
+    attempt: number;
+    errorMessage: string;
+    createdAt: string;
+  }>;
   [key: string]: unknown;
 };
 
@@ -242,7 +248,9 @@ function isRetryableComicAiTaskError(errorMessage: string) {
     "etimedout",
     "fetch failed",
     "network",
+    "upstream",
     "socket",
+    "connection refused",
     "rate limit",
     "429",
     "500",
@@ -270,6 +278,54 @@ function getPayloadPatch(result: ComicAiTaskResult | null) {
     !Array.isArray(result.payloadPatch)
     ? result.payloadPatch
     : {};
+}
+
+function getAttemptFailures(result: ComicAiTaskResult | null) {
+  return Array.isArray(result?.attemptFailures)
+    ? result.attemptFailures.filter(
+        (failure) =>
+          failure &&
+          Number.isFinite(failure.attempt) &&
+          typeof failure.errorMessage === "string" &&
+          typeof failure.createdAt === "string"
+      )
+    : [];
+}
+
+function buildRetryAttemptResult(
+  task: ComicAiTaskModelRecord,
+  previousResult: ComicAiTaskResult | null,
+  errorMessage: string
+): ComicAiTaskResult {
+  return {
+    ok: false,
+    retrying: true,
+    message: getRetryingErrorMessage(errorMessage),
+    errorMessage,
+    attemptFailures: [
+      ...getAttemptFailures(previousResult),
+      {
+        attempt: task.attempts,
+        errorMessage,
+        createdAt: new Date().toISOString()
+      }
+    ]
+  };
+}
+
+function mergeAttemptFailuresIntoSuccessResult(
+  previousResult: ComicAiTaskResult | null,
+  nextResult: ComicAiTaskResult | null
+) {
+  const attemptFailures = getAttemptFailures(previousResult);
+  const result = nextResult || { ok: true };
+
+  return attemptFailures.length > 0
+    ? {
+        ...result,
+        attemptFailures
+      }
+    : result;
 }
 
 function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayload) {
@@ -393,6 +449,7 @@ async function executeComicAiTask(
       return generateComicImageCreation({
         prompt: toStringValue(payload.prompt || payload.imagePrompt),
         aspectRatio: toStringValue(payload.aspectRatio),
+        quality: toStringValue(payload.quality || payload.imageQuality),
         referenceCreationId: toStringValue(payload.referenceCreationId),
         referenceImage:
           payload.referenceImage && typeof payload.referenceImage === "object"
@@ -445,6 +502,7 @@ export function toClientComicAiTask(task: ComicAiTaskModelRecord): ComicAiTaskCl
     revisionInstruction: toOptionalStringValue(payload.revisionInstruction),
     imagePrompt: toOptionalStringValue(payload.prompt || payload.imagePrompt),
     aspectRatio: toOptionalStringValue(payload.aspectRatio),
+    imageQuality: toOptionalStringValue(payload.quality || payload.imageQuality || result?.quality),
     referenceCreationId: toOptionalStringValue(payload.referenceCreationId),
     referenceImageName:
       payload.referenceImage && typeof payload.referenceImage === "object"
@@ -656,6 +714,7 @@ function selectQueuedComicAiTasks(tasks: ComicAiTaskModelRecord[], limit: number
 async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
   const taskType = task.taskType as ComicAiTaskType;
   const payload = parseTaskPayload(task.payload);
+  const previousResult = parseTaskResult(task.result);
 
   try {
     const result = (await executeComicAiTask(taskType, payload, {
@@ -713,7 +772,7 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
         data: shouldRetry
           ? {
               status: "QUEUED",
-              result: null,
+              result: JSON.stringify(buildRetryAttemptResult(task, previousResult, errorMessage)),
               errorMessage: getRetryingErrorMessage(errorMessage),
               completedAt: null,
               lockedAt: null
@@ -741,7 +800,7 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
       where: { id: task.id, status: "RUNNING" },
       data: {
         status: "SUCCEEDED",
-        result: JSON.stringify(result || { ok: true }),
+        result: JSON.stringify(mergeAttemptFailuresIntoSuccessResult(previousResult, result)),
         errorMessage: null,
         completedAt: new Date(),
         lockedAt: null
@@ -762,7 +821,9 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
       where: { id: task.id, status: "RUNNING" },
       data: {
         status: shouldRetry ? "QUEUED" : "FAILED",
-        result: null,
+        result: shouldRetry
+          ? JSON.stringify(buildRetryAttemptResult(task, previousResult, errorMessage))
+          : null,
         errorMessage: shouldRetry ? getRetryingErrorMessage(errorMessage) : errorMessage,
         completedAt: shouldRetry ? null : new Date(),
         lockedAt: null

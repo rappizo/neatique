@@ -50,6 +50,7 @@ type ComicImageTask = {
   revisionInstruction?: string;
   imagePrompt?: string;
   aspectRatio?: string;
+  imageQuality?: string;
   referenceCreationId?: string;
   referenceImageName?: string;
   imageCreationId?: string;
@@ -113,6 +114,7 @@ type ComicImageTaskQueueContextValue = {
   enqueueImageCreation: (input: {
     prompt: string;
     aspectRatio: string;
+    quality?: string;
     referenceCreationId?: string;
     referenceImage?: ComicImageCreationReferencePayload | null;
     label?: string;
@@ -126,6 +128,46 @@ type ComicImageTaskQueueContextValue = {
 const ComicImageTaskQueueContext = createContext<ComicImageTaskQueueContextValue | null>(null);
 const COMIC_TASK_HISTORY_LIMIT = 40;
 const COMIC_TASK_POLL_INTERVAL_MS = 3000;
+const COMIC_IMAGE_CREATION_QUALITY_VALUES = ["high", "medium", "low"] as const;
+
+type ComicImageCreationQualityValue = (typeof COMIC_IMAGE_CREATION_QUALITY_VALUES)[number];
+
+function normalizeComicImageCreationQuality(value?: string | null): ComicImageCreationQualityValue {
+  const normalized = (value || "").trim().toLowerCase();
+  const canonical = normalized === "mediem" ? "medium" : normalized;
+
+  return COMIC_IMAGE_CREATION_QUALITY_VALUES.includes(canonical as ComicImageCreationQualityValue)
+    ? (canonical as ComicImageCreationQualityValue)
+    : "medium";
+}
+
+function getComicImageCreationQualityLabel(value?: string | null) {
+  const quality = normalizeComicImageCreationQuality(value);
+
+  switch (quality) {
+    case "high":
+      return "High";
+    case "low":
+      return "Low";
+    case "medium":
+    default:
+      return "Medium";
+  }
+}
+
+function getComicImageCreationQualityNote(value?: string | null) {
+  const quality = normalizeComicImageCreationQuality(value);
+
+  switch (quality) {
+    case "high":
+      return "Final polish, slower, best for selected concepts.";
+    case "low":
+      return "Fast draft, simpler detail, best for quick exploration.";
+    case "medium":
+    default:
+      return "Balanced quality and reliability.";
+  }
+}
 
 function formatPageLabel(pageNumber: number) {
   return `Page ${String(pageNumber).padStart(2, "0")}`;
@@ -563,18 +605,20 @@ export function ComicImageTaskQueueProvider({
     (input: {
       prompt: string;
       aspectRatio: string;
+      quality?: string;
       referenceCreationId?: string;
       referenceImage?: ComicImageCreationReferencePayload | null;
       label?: string;
     }) => {
       const prompt = input.prompt.trim();
       const aspectRatio = input.aspectRatio.trim() || "1:1";
+      const imageQuality = normalizeComicImageCreationQuality(input.quality);
       const referenceCreationId = input.referenceCreationId?.trim() || "";
       const referenceImage = input.referenceImage || null;
       const referenceImageName = referenceImage?.fileName || "";
       const label =
         input.label ||
-        `${referenceCreationId || referenceImage ? "Create from reference" : "Create image"} ${aspectRatio}`;
+        `${referenceCreationId || referenceImage ? "Create from reference" : "Create image"} ${aspectRatio} ${getComicImageCreationQualityLabel(imageQuality)}`;
 
       return enqueueServerTask({
         kind: "image-creation",
@@ -583,12 +627,15 @@ export function ComicImageTaskQueueProvider({
           prompt,
           imagePrompt: prompt,
           aspectRatio,
+          quality: imageQuality,
+          imageQuality,
           referenceCreationId,
           referenceImage
         },
         optimisticFields: {
           imagePrompt: prompt,
           aspectRatio,
+          imageQuality,
           referenceCreationId,
           referenceImageName
         },
@@ -596,6 +643,7 @@ export function ComicImageTaskQueueProvider({
           task.kind === "image-creation" &&
           task.imagePrompt === prompt &&
           task.aspectRatio === aspectRatio &&
+          normalizeComicImageCreationQuality(task.imageQuality) === imageQuality &&
           (task.referenceCreationId || "") === referenceCreationId &&
           (task.referenceImageName || "") === referenceImageName
       });
@@ -1699,14 +1747,17 @@ export function ComicImageCreationUseReferenceButton({
 
 export function ComicImageCreationQueueForm({
   aspectRatios,
+  qualities = ["high", "medium", "low"],
   referenceImages = []
 }: {
   aspectRatios: readonly string[];
+  qualities?: readonly string[];
   referenceImages?: ComicImageCreationReferenceOption[];
 }) {
   const { enqueueImageCreation, tasks } = useComicImageTaskQueue();
   const [prompt, setPrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState(aspectRatios[0] || "1:1");
+  const [quality, setQuality] = useState("medium");
   const [selectedReferenceId, setSelectedReferenceId] = useState("");
   const [uploadedReference, setUploadedReference] =
     useState<ComicImageCreationReferencePayload | null>(null);
@@ -1802,9 +1853,10 @@ export function ComicImageCreationQueueForm({
     enqueueImageCreation({
       prompt: trimmedPrompt,
       aspectRatio,
+      quality,
       referenceCreationId: uploadedReference ? undefined : selectedReference?.id,
       referenceImage: uploadedReference,
-      label: `${hasReference ? "Image from reference" : "Image"} ${aspectRatio}`
+      label: `${hasReference ? "Image from reference" : "Image"} ${aspectRatio} ${getComicImageCreationQualityLabel(quality)}`
     });
     setNotice("Added to Comic tasks.");
   }
@@ -1914,6 +1966,36 @@ export function ComicImageCreationQueueForm({
               <span>{ratio}</span>
             </label>
           ))}
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Quality</label>
+        <div className="admin-comic-quality-grid">
+          {qualities.map((option) => {
+            const normalizedQuality = normalizeComicImageCreationQuality(option);
+
+            return (
+              <label
+                key={option}
+                className={
+                  normalizedQuality === quality
+                    ? "admin-comic-quality-option is-selected"
+                    : "admin-comic-quality-option"
+                }
+              >
+                <input
+                  type="radio"
+                  name="quality"
+                  value={normalizedQuality}
+                  checked={normalizedQuality === quality}
+                  onChange={() => setQuality(normalizedQuality)}
+                />
+                <strong>{getComicImageCreationQualityLabel(normalizedQuality)}</strong>
+                <span>{getComicImageCreationQualityNote(normalizedQuality)}</span>
+              </label>
+            );
+          })}
         </div>
       </div>
 

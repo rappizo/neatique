@@ -9,7 +9,9 @@ import {
 } from "@/components/admin/comic-image-task-queue";
 import {
   COMIC_IMAGE_CREATION_ASPECT_RATIOS,
+  COMIC_IMAGE_CREATION_QUALITIES,
   getComicImageCreationAspectRatioValue,
+  getComicImageCreationQualityLabel,
   listComicImageCreations
 } from "@/lib/comic-image-creation";
 import { formatDate } from "@/lib/format";
@@ -69,6 +71,7 @@ export default async function AdminComicImageCreationPage() {
           <h2>Create image</h2>
           <ComicImageCreationQueueForm
             aspectRatios={COMIC_IMAGE_CREATION_ASPECT_RATIOS}
+            qualities={COMIC_IMAGE_CREATION_QUALITIES}
             referenceImages={referenceImages}
           />
         </section>
@@ -103,6 +106,7 @@ export default async function AdminComicImageCreationPage() {
                   <div className="admin-comic-image-creation-card__body">
                     <div className="stack-row">
                       <span className="pill">{image.aspectRatio}</span>
+                      <span className="pill">{getComicImageCreationQualityLabel(image.quality)}</span>
                       <span className="pill">{image.model}</span>
                       {image.sourceType === "TEXT" ? null : <span className="pill">Image to image</span>}
                     </div>

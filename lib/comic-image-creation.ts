@@ -25,12 +25,17 @@ export const COMIC_IMAGE_CREATION_ASPECT_RATIOS = [
 
 export type ComicImageCreationAspectRatio = (typeof COMIC_IMAGE_CREATION_ASPECT_RATIOS)[number];
 
+export const COMIC_IMAGE_CREATION_QUALITIES = ["high", "medium", "low"] as const;
+
+export type ComicImageCreationQuality = (typeof COMIC_IMAGE_CREATION_QUALITIES)[number];
+
 export type ComicImageCreationTaskResult = {
   ok: boolean;
   message: string;
   errorMessage?: string;
   creationId?: string;
   imageUrl?: string;
+  quality?: ComicImageCreationQuality;
 };
 
 const COMIC_IMAGE_CREATION_PROMPT_MAX_LENGTH = 8000;
@@ -52,6 +57,31 @@ export function normalizeComicImageCreationAspectRatio(
   )
     ? (normalized as ComicImageCreationAspectRatio)
     : "1:1";
+}
+
+export function normalizeComicImageCreationQuality(
+  value?: string | null
+): ComicImageCreationQuality {
+  const normalized = (value || "").trim().toLowerCase();
+  const canonical = normalized === "mediem" ? "medium" : normalized;
+
+  return COMIC_IMAGE_CREATION_QUALITIES.includes(canonical as ComicImageCreationQuality)
+    ? (canonical as ComicImageCreationQuality)
+    : "medium";
+}
+
+export function getComicImageCreationQualityLabel(value?: string | null) {
+  const quality = normalizeComicImageCreationQuality(value);
+
+  switch (quality) {
+    case "high":
+      return "High";
+    case "low":
+      return "Low";
+    case "medium":
+    default:
+      return "Medium";
+  }
 }
 
 export function getComicImageCreationAspectRatioValue(aspectRatio: string) {
@@ -112,12 +142,14 @@ export async function listComicImageCreations(limit = 24) {
 export async function generateComicImageCreation(input: {
   prompt: string;
   aspectRatio: string;
+  quality?: string;
   referenceCreationId?: string;
   referenceImage?: ComicImageCreationReferenceImageInput | null;
   attempt?: number;
 }): Promise<ComicImageCreationTaskResult> {
   const prompt = normalizePrompt(input.prompt);
   const aspectRatio = normalizeComicImageCreationAspectRatio(input.aspectRatio);
+  const quality = normalizeComicImageCreationQuality(input.quality);
   const referenceCreationId = (input.referenceCreationId || "").trim();
 
   if (!prompt) {
@@ -180,6 +212,7 @@ export async function generateComicImageCreation(input: {
     const image = await generateStandaloneComicImageWithAi({
       prompt,
       aspectRatio,
+      quality,
       referenceImage,
       generationAttempt: input.attempt
     });
@@ -223,6 +256,7 @@ export async function generateComicImageCreation(input: {
         id: creationId,
         prompt,
         aspectRatio,
+        quality,
         model: getOpenAiComicSettings().imageModel,
         sourceType,
         referenceCreationId: sourceType === "CREATION" ? referenceCreationId : null,
@@ -248,7 +282,8 @@ export async function generateComicImageCreation(input: {
       ok: true,
       message: referenceImage ? "Image created from reference." : "Image created.",
       creationId,
-      imageUrl
+      imageUrl,
+      quality
     };
   } catch (error) {
     return {
