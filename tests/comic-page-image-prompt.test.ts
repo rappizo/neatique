@@ -1,9 +1,38 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildComicPageImagePrompt } from "../lib/openai-comic";
+import {
+  buildComicPageImagePrompt,
+  selectComicPageImageReferenceImages
+} from "../lib/openai-comic";
+import type { ComicReferenceImageFile } from "../lib/comic-reference-images";
 
 function makeLongText(seed: string, count: number) {
   return Array.from({ length: count }, (_, index) => `${seed} ${index + 1}.`).join(" ");
+}
+
+function referenceImage(input: {
+  label: string;
+  slug: string;
+  bucket: ComicReferenceImageFile["bucket"];
+  relativePath: string;
+  source?: ComicReferenceImageFile["source"];
+}): ComicReferenceImageFile {
+  const fileName = input.relativePath.split("/").pop() || "model-sheet.jpg";
+
+  return {
+    label: input.label,
+    fileName,
+    relativePath: input.relativePath,
+    bucket: input.bucket,
+    slug: input.slug,
+    source: input.source || "prompt-required-upload",
+    mimeType: "image/jpeg",
+    imageUrl: `/${input.relativePath}`,
+    sizeBytes: 4,
+    whyThisMatters: `${input.label} identity lock.`,
+    contentSummary: `${input.label} visual lock.`,
+    data: Buffer.from("fake")
+  };
 }
 
 test("comic page image prompt stays under OpenAI length limit while preserving reference locks", () => {
@@ -295,8 +324,68 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   });
 
   assert.match(prompt, /Similar teardrop cast separation lock/);
+  assert.match(prompt, /Muci\/Nia high-risk head-shape guardrail/);
+  assert.match(prompt, /must not receive Nia's tall narrow sharp vertical spike/);
   assert.match(prompt, /Muci: compact broad centered teardrop/);
   assert.match(prompt, /Nia: taller and sharper pointed teardrop/);
   assert.match(prompt, /Snacri: fatter quiet droplet/);
   assert.match(prompt, /Similar Teardrop Character Comparison/);
+});
+
+test("comic page image reference selection keeps similar teardrop comparison during retries", () => {
+  const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+  process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";
+
+  try {
+    const selected = selectComicPageImageReferenceImages(
+      [
+        referenceImage({
+          label: "Muci Model Sheet",
+          slug: "muci",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/muci/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Nia Model Sheet",
+          slug: "nia",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/nia/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Snacri Model Sheet",
+          slug: "snacri",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/snacri/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Padaruna Model Sheet",
+          slug: "padaruna",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/padaruna/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Similar Teardrop Character Comparison",
+          slug: "similar-teardrop-character-comparison",
+          bucket: "CAST_COMPARISON",
+          relativePath: "comic/scenes/similar-character-comparison/refs/similar-character-comparison.jpg",
+          source: "auto-detected"
+        })
+      ],
+      2
+    );
+
+    assert.equal(selected.length, 4);
+    assert.ok(selected.some((reference) => reference.slug === "muci"));
+    assert.ok(selected.some((reference) => reference.slug === "nia"));
+    assert.ok(
+      selected.some((reference) => reference.slug === "similar-teardrop-character-comparison"),
+      "The comparison sheet should not be dropped when retry mode prioritizes identity references."
+    );
+  } finally {
+    if (previousLimit === undefined) {
+      delete process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+    } else {
+      process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = previousLimit;
+    }
+  }
 });

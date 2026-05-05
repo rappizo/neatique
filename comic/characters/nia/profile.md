@@ -37,6 +37,7 @@ Nia should sound precise, clear, and slightly high-pressure. She rarely wastes w
 - Keep the sharper point, taller body read, and single angled left brow
 - Do not soften her into an emotionally generic mascot in neutral scenes
 - In group scenes with other droplet characters, make Nia identifiable by the sharp vertical top and one angled brow before adding any pose or emotion.
+- In scenes with Muci, preserve the contrast explicitly: Nia stays taller, narrower, sharper, and marked by the angled brow, while Muci stays shorter, broader, rounder at the base, open-smiling, and soft-sided.
 
 ## Reusable prompt notes
-When prompting Nia, emphasize "tall sharp-pointed teardrop mascot, one angled left brow, controlled confident smile, precise analytical expression, clean tense silhouette, not Muci, not Snacri, not Padaruna, not Padarana."
+When prompting Nia, emphasize "tall sharp-pointed teardrop mascot, one angled left brow, controlled confident smile, precise analytical expression, clean tense silhouette, not Muci, not Snacri, not Padaruna, not Padarana; when with Muci, keep Nia taller and sharper while Muci stays short broad soft-sided."

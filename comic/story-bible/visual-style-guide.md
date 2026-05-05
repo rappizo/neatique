@@ -68,6 +68,7 @@
 - For Padaruna, explicitly preserve the sharp pointed head, fuller rounder lively body, open eyes, and eager smile whenever she appears.
 - For Padarana, explicitly preserve the slimmer soft pointed body, closed smiling eyes, calm reassuring mouth, and gentle presence whenever she appears.
 - When two or more of Muci, Nia, Snacri, Padaruna, and Padarana appear together, use the similar-character comparison reference and state their silhouette differences before describing acting.
+- When Muci and Nia appear together, treat them as a high-risk pair: Muci may keep his soft centered model-sheet point, but he must not receive Nia's tall narrow sharp vertical spike, controlled narrow body, angled brow, or analytical expression. Muci stays shorter, broader, rounder at the base, open-smiling, and soft-sided; Nia stays taller, narrower, sharper, and marked by one angled left brow.
 - For Coach Ray, explicitly repeat the broad squat shield-shaped body, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, pure white body fill, small connected feet, controlled smile, and planted drill-instructor posture whenever he appears.
 - When Muci and Coach Ray appear together, state that their silhouettes must not be averaged: Muci stays a compact centered teardrop, while Coach Ray stays a broad protective shield.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.

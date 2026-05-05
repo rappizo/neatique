@@ -23,7 +23,10 @@ import {
 } from "@/components/admin/comic-publish-approval-controls";
 import { ComicPublishEpisodeDetails } from "@/components/admin/comic-publish-episode-details";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
-import { deleteComicEpisodeAssetAction } from "@/app/admin/comic-editor-actions";
+import {
+  deleteComicEpisodeAssetAction,
+  uploadComicPageAssetAction
+} from "@/app/admin/comic-editor-actions";
 import { restoreComicPagePromptRevisionAction } from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
 import {
@@ -64,6 +67,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   "page-image-failed": "Comic page image generation failed. Check the episode prompt run history.",
   "page-edit-created": "Comic page edit saved as a new draft candidate.",
   "page-edit-failed": "Comic page edit failed. Check the episode prompt run history.",
+  "page-uploaded": "Comic page image uploaded as a draft.",
+  "page-uploaded-approved": "Comic page image uploaded and approved.",
   "page-prompt-revised": "Comic page prompt updated.",
   "page-prompt-restored": "Comic page prompt restored from history.",
   "page-prompt-revision-failed": "Comic page prompt revision failed. Check the episode prompt run history.",
@@ -71,6 +76,9 @@ const STATUS_MESSAGES: Record<string, string> = {
   "missing-approved-page": "Approve an English page image before creating a Chinese version.",
   "missing-asset": "That comic page asset could not be found.",
   "missing-source-image": "This page image does not have stored image data for AI editing.",
+  "missing-upload": "Choose an image file before uploading.",
+  "upload-too-large": "Comic page uploads must stay under 20MB.",
+  "upload-type": "Upload PNG, JPG, WEBP, or AVIF images only.",
   "missing-prompt-suggestion": "Enter a prompt suggestion before updating this page prompt.",
   "missing-page-edit-instruction": "Enter an edit instruction before editing this page image.",
   "missing-page-prompt": "Generate a page-by-page prompt package before creating page images.",
@@ -104,6 +112,33 @@ function buildImageResultMessages(errorMessage?: string | null) {
         ? `OpenAI returned: ${errorMessage}`
         : "The page image edit did not complete. Open the episode editor and check the latest prompt run entry for the stored error message.",
       tone: "danger"
+    },
+    "page-uploaded": {
+      title: "Page uploaded",
+      description:
+        "The uploaded page is saved as a draft candidate. Review it here, then approve it when it is ready.",
+      tone: "success"
+    },
+    "page-uploaded-approved": {
+      title: "Page uploaded and approved",
+      description:
+        "The uploaded page is now the approved English image for this page. Any previous Chinese version for this page was cleared for review.",
+      tone: "success"
+    },
+    "missing-upload": {
+      title: "No upload selected",
+      description: "Choose a PNG, JPG, WEBP, or AVIF image before uploading.",
+      tone: "warning"
+    },
+    "upload-too-large": {
+      title: "Upload is too large",
+      description: "Comic page uploads must stay under 20MB.",
+      tone: "warning"
+    },
+    "upload-type": {
+      title: "Unsupported image type",
+      description: "Upload PNG, JPG, WEBP, or AVIF images only.",
+      tone: "warning"
     },
     "missing-page-prompt": {
       title: "No page prompt found",
@@ -177,6 +212,69 @@ function PromptHealthFindingList({
         </span>
       ))}
     </div>
+  );
+}
+
+function ComicPageUploadForm({
+  episodeId,
+  episodeTitle,
+  pageNumber,
+  pagePurpose,
+  redirectTo,
+  episodePublished
+}: {
+  episodeId: string;
+  episodeTitle: string;
+  pageNumber: number;
+  pagePurpose?: string | null;
+  redirectTo: string;
+  episodePublished: boolean;
+}) {
+  const pageLabel = formatPageLabel(pageNumber);
+  const fileInputId = `page-upload-${episodeId}-${pageNumber}`;
+
+  return (
+    <form
+      action={uploadComicPageAssetAction}
+      className="admin-comic-page-upload-form"
+      encType="multipart/form-data"
+    >
+      <input type="hidden" name="episodeId" value={episodeId} />
+      <input type="hidden" name="pageNumber" value={pageNumber} />
+      <input type="hidden" name="redirectTo" value={redirectTo} />
+      <input type="hidden" name="title" value={`${episodeTitle} - Uploaded ${pageLabel}`} />
+      <input
+        type="hidden"
+        name="altText"
+        value={`${episodeTitle} uploaded comic page ${pageNumber}`}
+      />
+      {pagePurpose ? <input type="hidden" name="caption" value={pagePurpose} /> : null}
+
+      <div className="admin-comic-page-upload-form__header">
+        <strong>Page Upload</strong>
+        <span className="form-note">PNG, JPG, WEBP, AVIF / max 20MB</span>
+      </div>
+      <div className="field">
+        <label htmlFor={fileInputId}>Upload edited page</label>
+        <input
+          id={fileInputId}
+          type="file"
+          name="comicPageFile"
+          accept="image/png,image/jpeg,image/webp,image/avif"
+          required
+        />
+      </div>
+      <label className="field field--checkbox">
+        <input type="checkbox" name="approveAfterUpload" disabled={episodePublished} />
+        Approve after upload
+      </label>
+      {episodePublished ? (
+        <span className="form-note">Unpublish this episode before changing approvals.</span>
+      ) : null}
+      <button type="submit" className="button button--secondary">
+        Upload page
+      </button>
+    </form>
   );
 }
 
@@ -870,6 +968,15 @@ export default async function AdminComicPublishChapterPage({
                               className="button button--secondary"
                             />
                           ) : null}
+
+                          <ComicPageUploadForm
+                            episodeId={episode.id}
+                            episodeTitle={episode.title}
+                            pageNumber={pageNumber}
+                            pagePurpose={promptPage?.pagePurpose}
+                            redirectTo={redirectTo}
+                            episodePublished={episode.published}
+                          />
 
                           {promptPage ? (
                             <ComicRevisePromptQueueForm

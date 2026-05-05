@@ -5,7 +5,10 @@ import {
   formatComicCharacterChineseNameLocks,
   type ComicCharacterChineseNameLock
 } from "@/lib/comic-character-chinese-names";
-import { buildSimilarTeardropSeparationLock } from "@/lib/comic-similar-character-locks";
+import {
+  buildSimilarTeardropSeparationLock,
+  SIMILAR_TEARDROP_COMPARISON_REFERENCE
+} from "@/lib/comic-similar-character-locks";
 import sharp from "sharp";
 
 function normalizeApiBaseUrl(value: string) {
@@ -2028,6 +2031,59 @@ function isComicCharacterReferenceImage(reference: ComicReferenceImageFile) {
   return reference.bucket === "CHARACTER" || reference.bucket === "DETECTED_CHARACTER";
 }
 
+function isComicCastComparisonReferenceImage(reference: ComicReferenceImageFile) {
+  return (
+    reference.bucket === "CAST_COMPARISON" ||
+    reference.slug === "similar-teardrop-character-comparison" ||
+    reference.relativePath === SIMILAR_TEARDROP_COMPARISON_REFERENCE.relativePath
+  );
+}
+
+function isComicIdentityReferenceImage(reference: ComicReferenceImageFile) {
+  return isComicCharacterReferenceImage(reference) || isComicCastComparisonReferenceImage(reference);
+}
+
+function referenceIdentityKey(reference: ComicReferenceImageFile) {
+  return reference.relativePath || `${reference.bucket}:${reference.slug}:${reference.fileName}`;
+}
+
+function includePriorityReferences(
+  references: ComicReferenceImageFile[],
+  limit: number,
+  isPriorityReference: (reference: ComicReferenceImageFile) => boolean
+) {
+  const selected = references.slice(0, limit);
+  const selectedKeys = new Set(selected.map(referenceIdentityKey));
+
+  for (const priorityReference of references.filter(isPriorityReference)) {
+    const priorityKey = referenceIdentityKey(priorityReference);
+
+    if (selectedKeys.has(priorityKey)) {
+      continue;
+    }
+
+    if (selected.length < limit) {
+      selected.push(priorityReference);
+      selectedKeys.add(priorityKey);
+      continue;
+    }
+
+    const replaceIndex = selected.findLastIndex(
+      (reference) => !isPriorityReference(reference)
+    );
+
+    if (replaceIndex < 0) {
+      continue;
+    }
+
+    selectedKeys.delete(referenceIdentityKey(selected[replaceIndex]));
+    selected[replaceIndex] = priorityReference;
+    selectedKeys.add(priorityKey);
+  }
+
+  return selected;
+}
+
 function getOpenAiComicImageReferenceLimit() {
   const maxReferenceImages = Number.parseInt(process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES || "", 10);
 
@@ -2036,24 +2092,34 @@ function getOpenAiComicImageReferenceLimit() {
     : 8;
 }
 
-function selectComicPageImageReferenceImages(
+export function selectComicPageImageReferenceImages(
   references: ComicReferenceImageFile[],
   attempt: number
 ) {
   const referenceLimit = getOpenAiComicImageReferenceLimit();
 
   if (attempt <= 1) {
-    return references.slice(0, referenceLimit);
+    return includePriorityReferences(
+      references,
+      referenceLimit,
+      isComicCastComparisonReferenceImage
+    );
   }
 
-  const characterReferences = references.filter(isComicCharacterReferenceImage);
-  const nonCharacterReferences = references.filter((reference) => !isComicCharacterReferenceImage(reference));
+  const identityReferences = references.filter(isComicIdentityReferenceImage);
+  const nonIdentityReferences = references.filter(
+    (reference) => !isComicIdentityReferenceImage(reference)
+  );
 
-  if (characterReferences.length > 0) {
-    const selected = characterReferences.slice(0, referenceLimit);
+  if (identityReferences.length > 0) {
+    const selected = includePriorityReferences(
+      identityReferences,
+      referenceLimit,
+      isComicCastComparisonReferenceImage
+    );
 
     if (attempt === 2 && selected.length < referenceLimit) {
-      selected.push(...nonCharacterReferences.slice(0, referenceLimit - selected.length));
+      selected.push(...nonIdentityReferences.slice(0, referenceLimit - selected.length));
     }
 
     return selected;
@@ -2102,7 +2168,11 @@ function selectComicPageEditReferenceImages(
   const selected = selectComicPageImageReferenceImages(references, attempt);
 
   if (attempt >= 3) {
-    return selected.filter(isComicCharacterReferenceImage).slice(0, 4);
+    return includePriorityReferences(
+      selected.filter(isComicIdentityReferenceImage),
+      4,
+      isComicCastComparisonReferenceImage
+    );
   }
 
   return selected.slice(0, attempt >= 2 ? 4 : 6);
@@ -3222,6 +3292,7 @@ export async function generateComicPromptPackageWithAi(
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
                 "Muci must always match the Muci model sheet and written appearance lock exactly: compact cute friendly teardrop mascot, centered point, broad rounded base, short rounded body proportions, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, soft approachable protagonist energy.",
                 "Muci must never become tall, thin, stretched, elongated, pear-like, or a long raindrop. Keep him broad, squat, soft, and close to the model-sheet width-to-height proportion.",
+                "When Muci appears with Nia, Muci may keep his soft centered model-sheet point, but he must not inherit Nia's tall narrow sharp vertical spike, controlled narrow body, or angled brow. If Muci can be mistaken for Nia, rewrite the page prompt to make Muci wider, shorter, rounder at the base, and friendlier.",
                 "For full-body Muci views, never omit the two small rounded feet or flatten the base; keep the same feet shown in the model sheet.",
                 "Nia must keep her sharper taller pointed teardrop silhouette and one angled brow above the left eye; do not soften her into Muci, Padaruna, Padarana, or Snacri.",
                 "Snacri must keep her fatter quiet droplet silhouette with the top leaning left and restrained minimal expression; do not straighten her into a generic teardrop.",
@@ -3316,6 +3387,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Every Muci prompt must explicitly preserve his model-sheet identity, compact broad centered-teardrop design, pure white body fill, and two small rounded feet.",
                 "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci compact centered teardrop, Nia sharp tall point plus one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point plus fuller lively body, and Padarana sharp point plus slimmer gentle closed-eye body.",
+                "- Every page where Muci and Nia appear together must include a high-risk Muci/Nia shape note: Muci keeps a short broad soft-sided body and friendly open face, while Nia keeps a taller narrower sharp vertical point and one angled left brow. Muci must not be drawn with Nia's sharp spike or angled brow.",
                 "- Every Coach Ray prompt must explicitly preserve his model-sheet identity, broad squat shield-shaped protective design, centered shallow crest, firm shoulders, near-vertical sides, pure white body fill, and planted small feet.",
                 "- Every page where Muci and Coach Ray appear together must include a Muci-vs-Coach-Ray separation note so their silhouettes are not averaged.",
                 "- Every referenceNotesCopyText block must remind production that character model sheets are exact identity locks, not loose inspiration.",
