@@ -25,7 +25,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   muci: {
     name: "Muci",
     identity:
-      "compact broad teardrop with a soft point leaning toward Muci's right side / viewer's left, squat body, round lower half, soft curved sides, open friendly smile, large dot eyes, upper-left glossy highlights, soft protagonist energy; never Nia's tall narrow vertical point or angled brow"
+      "exact Muci model-sheet droplet: broad squat pure-white body, round heavy lower half, soft bulging sides, curved rounded base, rounded hooked top tip offset toward reader-left/Muci's right, two attached small rounded feet, large black dot eyes with catchlights, small friendly U-smile, oval-plus-dot highlight on upper reader-left, no brow by default; never Nia's tall narrow vertical point or angled brow"
   },
   nia: {
     name: "Nia",
@@ -74,9 +74,9 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
     "- Do not average these white droplet mascots into one generic body. Match each named character to their own model sheet and comparison slot.",
     hasMuciAndNia
       ? [
-          "- Muci/Nia high-risk head-shape guardrail: Muci's model-sheet point leans toward Muci's right side / viewer's left. Do not draw Muci with a vertical top point, Nia's tall narrow vertical point, Nia's controlled narrow body, or Nia's angled brow.",
-          "- In any panel where Muci and Nia appear together, draw Muci first as short, broad, squat, round-based, open-smiling, soft-sided, and viewer-left-leaning at the top; draw Nia separately as taller, narrower, sharper, vertically pointed, and marked by one angled left brow.",
-          "- Before final rendering, compare the two silhouettes: if Muci can be mistaken for Nia in black-and-white, redraw Muci wider, shorter, rounder at the base, friendlier, and with the soft point leaning toward viewer-left before adding acting or background detail."
+          "- Muci/Nia high-risk model-sheet guardrail: draw Muci from the Muci Model Sheet Exact Lock, not from generic teardrop memory. Muci's top is a rounded hooked tip offset toward reader-left/Muci's right; it is not centered, vertical, sharp, needle-like, or Nia-like.",
+          "- In any panel where Muci and Nia appear together, draw Muci first as short, broad, squat, round-lower-half, open-smiling, browless, soft-sided, and hooked toward reader-left at the top; draw Nia separately as taller, narrower, sharper, vertically pointed, and marked by one angled left brow.",
+          "- Before final rendering, compare the two silhouettes: if Muci can be mistaken for Nia in black-and-white, redraw Muci wider, shorter, rounder at the base, friendlier, browless, and more model-sheet-accurate before adding acting or background detail."
         ].join("\n")
       : null,
     ...similarSlugs.map((slug) => {
