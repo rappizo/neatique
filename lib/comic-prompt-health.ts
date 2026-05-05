@@ -2,24 +2,44 @@ import type { ParsedComicPromptOutput } from "@/lib/comic-prompt-output";
 
 const REQUIRED_PAGE_COUNT = 10;
 const MAX_REFERENCE_IMAGES_PER_PAGE = 16;
-const CONTINUITY_OBJECT_KEYWORDS = [
+const STORY_CONTINUITY_OBJECT_KEYWORDS = [
   "handbook",
   "map",
+  "stamp",
+  "badge",
+  "notebook",
+  "folder",
+  "clipboard",
+  "key"
+];
+const CONTEXTUAL_CONTINUITY_OBJECT_KEYWORDS = [
   "bottle",
   "serum",
   "cream",
   "tray",
-  "stamp",
   "card",
-  "badge",
   "poster",
-  "notebook",
-  "folder",
-  "clipboard",
-  "key",
-  "door",
   "shelf",
-  "desk"
+  "desk",
+  "door"
+];
+const STORY_SIGNIFICANCE_KEYWORDS = [
+  "important",
+  "significant",
+  "story",
+  "plot",
+  "clue",
+  "evidence",
+  "reveal",
+  "mystery",
+  "secret",
+  "hidden",
+  "old",
+  "archive",
+  "thesis",
+  "founder",
+  "canon",
+  "continuity-critical"
 ];
 
 export type ComicPromptHealthSeverity = "issue" | "warning";
@@ -79,6 +99,25 @@ function keywordPattern(keyword: string) {
   return new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?\\b`, "i");
 }
 
+function keywordMatches(keyword: string, text: string) {
+  return keywordPattern(keyword).test(text);
+}
+
+function textHasStorySignificanceSignal(text: string) {
+  return STORY_SIGNIFICANCE_KEYWORDS.some((keyword) => keywordMatches(keyword, text));
+}
+
+function getKeywordContext(text: string, keyword: string) {
+  const normalized = normalizeText(text);
+  const match = keywordPattern(keyword).exec(normalized);
+
+  if (!match || typeof match.index !== "number") {
+    return "";
+  }
+
+  return normalized.slice(Math.max(0, match.index - 120), match.index + 220);
+}
+
 function getPageContinuityText(page: ParsedComicPromptOutput["pages"][number]) {
   return [
     page.pagePurpose,
@@ -118,8 +157,24 @@ function getRecurringContinuityObjectKeywords(promptOutput: ParsedComicPromptOut
   promptOutput.pages.forEach((page) => {
     const pageText = getPageContinuityText(page);
 
-    CONTINUITY_OBJECT_KEYWORDS.forEach((keyword) => {
-      if (!keywordPattern(keyword).test(pageText)) {
+    STORY_CONTINUITY_OBJECT_KEYWORDS.forEach((keyword) => {
+      if (!keywordMatches(keyword, pageText)) {
+        return;
+      }
+
+      const pages = pageHits.get(keyword) || new Set<number>();
+      pages.add(page.pageNumber);
+      pageHits.set(keyword, pages);
+    });
+
+    CONTEXTUAL_CONTINUITY_OBJECT_KEYWORDS.forEach((keyword) => {
+      if (!keywordMatches(keyword, pageText)) {
+        return;
+      }
+
+      const keywordContext = getKeywordContext(pageText, keyword);
+
+      if (!textHasStorySignificanceSignal(keywordContext)) {
         return;
       }
 

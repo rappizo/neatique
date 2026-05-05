@@ -103,3 +103,29 @@ test("comic prompt health accepts recurring props with a continuity reference", 
   assert.equal(summary.issueCount, 0);
   assert.equal(summary.warningCount, 0);
 });
+
+test("comic prompt health ignores ambient recurring objects", () => {
+  const promptOutput = buildPromptOutput();
+  promptOutput.pages[0].promptPackCopyText += "\nA bottle, card, and shelf sit in the background.";
+  promptOutput.pages[1].promptPackCopyText += "\nThe bottle, card, and shelf appear again as room dressing.";
+
+  const summary = getComicPromptHealthSummary(promptOutput);
+
+  assert.equal(summary.issueCount, 0);
+  assert.equal(summary.warningCount, 0);
+});
+
+test("comic prompt health warns for contextual objects when they affect the story", () => {
+  const promptOutput = buildPromptOutput();
+  promptOutput.pages[0].promptPackCopyText += "\nA hidden bottle clue floats beside Ava.";
+  promptOutput.pages[1].promptPackCopyText += "\nThe bottle clue returns in close-up.";
+
+  const summary = getComicPromptHealthSummary(promptOutput);
+
+  assert.equal(summary.issueCount, 0);
+  assert.equal(summary.warningCount > 0, true);
+  assert.match(
+    summary.pages[0].findings.map((finding) => finding.message).join("\n"),
+    /Recurring prop "bottle"/
+  );
+});
