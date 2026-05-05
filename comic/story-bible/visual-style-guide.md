@@ -27,7 +27,7 @@
 
 ## Fixed shape language
 - **Artrans**: cream-swirl silhouette, layered spiral volume, half-lidded eyes, sly sleepy face
-- **Muci**: exact match to Muci model sheet; broad squat pure-white droplet mascot with a round heavy lower half, low center of gravity, soft bulging sides, curved rounded base, rounded hooked top tip offset toward reader-left/Muci's right, two attached small rounded feet, large black dot eyes with tiny catchlights, small friendly U-smile, oval-plus-dot glossy highlights on upper reader-left, no brow by default, cute approachable protagonist energy
+- **Muci**: exact match to Muci model sheet; broad squat pure-white droplet mascot with a round heavy lower half, low center of gravity, soft bulging sides, curved rounded base, natural rounded teardrop point with only a subtle near-center lean toward reader-left/Muci's right, two attached small rounded feet, large black dot eyes with tiny catchlights, small friendly U-smile, oval-plus-dot glossy highlights on upper reader-left, no brow by default, cute approachable protagonist energy
 - **Nia**: taller teardrop with the sharpest vertical point, one angled left brow, controlled confident smile, composed analytical confidence
 - **Padarana**: slimmer soft pointed teardrop, closed smiling eyes, calm reassuring mouth, emotional warmth
 - **Padaruna**: sharp pointed head with a noticeably fuller rounder body than Padarana, energetic openness, highly expressive open eyes and eager smile
@@ -62,15 +62,15 @@
 - Include a lower-frame foot visibility check in every full-body prompt so feet are not cropped away.
 - For Sunny Spritz, explicitly preserve two small rounded feet directly under her soft five-point star body whenever she appears full-body.
 - Translate holding, pointing, grabbing, opening, carrying, writing, pushing, or handing something over into telekinetic object movement with floating objects, motion lines, or subtle manga emphasis marks.
-- For Muci, explicitly repeat the Muci Model Sheet Exact Lock whenever he appears: broad squat pure-white droplet, round heavy lower half, rounded hooked top tip offset toward reader-left/Muci's right, never a centered vertical spike, curved rounded base, two attached small rounded feet, pure white body fill, large black dot eyes with catchlights, small friendly U-smile, upper reader-left oval-plus-dot highlights, and no brow by default.
+- For Muci, explicitly repeat the Muci Model Sheet Exact Lock whenever he appears: broad squat pure-white droplet, round heavy lower half, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, never an exaggerated hook or sideways curl, curved rounded base, two attached small rounded feet, pure white body fill, large black dot eyes with catchlights, small friendly U-smile, upper reader-left oval-plus-dot highlights, and no brow by default.
 - For Nia, explicitly preserve the taller sharper vertical point and one angled left brow whenever she appears.
 - For Snacri, explicitly preserve the fatter left-leaning quiet droplet silhouette and restrained minimal expression whenever she appears.
 - For Padaruna, explicitly preserve the sharp pointed head, fuller rounder lively body, open eyes, and eager smile whenever she appears.
 - For Padarana, explicitly preserve the slimmer soft pointed body, closed smiling eyes, calm reassuring mouth, and gentle presence whenever she appears.
 - When two or more of Muci, Nia, Snacri, Padaruna, and Padarana appear together, use the similar-character comparison reference and state their silhouette differences before describing acting.
-- When Muci and Nia appear together, treat them as a high-risk pair: draw Muci from the Muci model sheet first, with the rounded hooked top offset toward reader-left/Muci's right, broad squat body, round heavy lower half, friendly U-smile, upper reader-left highlights, and no brow. Draw Nia separately as taller, narrower, sharply vertical, controlled, and marked by one angled left brow. If Muci's top is centered, vertical, sharp, or Nia-like, redraw Muci before adding acting or background detail.
+- When Muci and Nia appear together, treat them as a high-risk pair: draw Muci from the Muci model sheet first, with the subtle near-center top lean from the sheet, broad squat body, round heavy lower half, friendly U-smile, upper reader-left highlights, and no brow. Draw Nia separately as taller, narrower, sharply vertical, controlled, and marked by one angled left brow. If Muci's top becomes a sharp Nia-like point or an over-leaning hook/curl, redraw Muci before adding acting or background detail.
 - For Coach Ray, explicitly repeat the broad squat shield-shaped body, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, pure white body fill, small connected feet, controlled smile, and planted drill-instructor posture whenever he appears.
-- When Muci and Coach Ray appear together, state that their silhouettes must not be averaged: Muci stays the broad squat model-sheet droplet with a rounded hooked reader-left top tip, while Coach Ray stays a broad protective shield.
+- When Muci and Coach Ray appear together, state that their silhouettes must not be averaged: Muci stays the broad squat model-sheet droplet with a subtle near-center top lean, while Coach Ray stays a broad protective shield.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.
 - If a panel depends on a specific reaction, include the exact expression target in the prompt and mention which reference sheet to upload.
 
@@ -79,7 +79,7 @@
 - Gray wash, muddy gray pages, gray-filled character bodies, over-toned characters, or smoky charcoal rendering
 - Turning every character into the same generic teardrop
 - Turning Coach Ray into Muci, a water-drop character, a generic polygon mascot, or a soft rounded blob
-- Stretching Muci into a tall narrow droplet, centered vertical spike, sharp Nia-like point, or long pear shape
+- Stretching Muci into a tall narrow droplet, sharp Nia-like point, exaggerated hooked top, sideways curl, or long pear shape
 - Over-rendering that loses mascot simplicity
 - Random costume or accessory drift
 - Hyper-real textures that fight the comic line language
@@ -88,7 +88,7 @@
 - Removing Muci's two small rounded feet in full-body views
 - Removing Sunny Spritz's small rounded feet in full-body views
 - Cropping a full-body character at the lower edge so the feet disappear
-- Muci redesigns, centered or vertical Muci top points, shifted highlight marks, animal-like features, humanoid bodies, Nia-like brows, or altered droplet proportions
+- Muci redesigns, over-leaning Muci top points, shifted highlight marks, animal-like features, humanoid bodies, Nia-like brows, or altered droplet proportions
 
 ## Dialogue voice locks
 - **Sunny Spritz**: hyper-enthusiastic, fast, cheerful, orientation-host energy, many exclamation marks

@@ -39,7 +39,7 @@ Coach Ray speaks in a loud, short, commanding drill-instructor style. His lines 
 - Preserve the uploaded reference image's shield-like outline, firm shoulders/top edge, grounded base, face placement, glossy highlight marks, and small feet/lower-body nubs
 - Preserve the authoritative planted body language
 - Do not soften him into a shy or timid read
-- Never borrow Muci's broad squat hooked-tip droplet silhouette, round lower half, beginner-friendly softness, or protagonist expression. Coach Ray and Muci must remain visually separate even when both model sheets are attached.
+- Never borrow Muci's broad squat soft droplet silhouette, round lower half, beginner-friendly softness, or protagonist expression. Coach Ray and Muci must remain visually separate even when both model sheets are attached.
 - Never describe or draw Coach Ray with generic polygon language; use "broad shield-shaped protective mascot" instead.
 
 ## Reusable prompt notes

@@ -126,9 +126,9 @@ test("comic page image prompt separates Coach Ray from Muci and normalizes legac
     panelCount: 3,
     pagePurpose: "Coach Ray and Muci compare panic with planning.",
     promptPackCopyText:
-      "Use exact uploaded model sheets. Coach Ray must stay broad pentagonal and planted. Muci stays the broad squat model-sheet droplet with a rounded hooked reader-left top tip.",
+      "Use exact uploaded model sheets. Coach Ray must stay broad pentagonal and planted. Muci stays the broad squat model-sheet droplet with a subtle near-center reader-left top lean.",
     referenceNotesCopyText:
-      "Upload Muci and Coach Ray. Keep Coach Ray's pentagonal authority and Muci's broad squat hooked-tip droplet.",
+      "Upload Muci and Coach Ray. Keep Coach Ray's pentagonal authority and Muci's broad squat soft droplet.",
     globalGptImage2Notes:
       "Coach Ray remains broad pentagonal, planted, and authoritative. Muci remains broad, squat, round-lower-half-heavy, and browless.",
     panels: [
@@ -219,12 +219,13 @@ test("comic page image prompt separates Coach Ray from Muci and normalizes legac
         slug: "muci",
         name: "Muci",
         role: "Audience surrogate.",
-        appearance: "Broad squat model-sheet droplet with a rounded hooked top offset toward reader-left.",
+        appearance:
+          "Broad squat model-sheet droplet with a natural rounded top point and subtle near-center reader-left lean.",
         personality: "Curious.",
         speechGuide: "Plainspoken.",
         referenceNotes: "Use refs/model-sheet.jpg.",
         profileMarkdown:
-          "# Muci\n\n## Appearance lock\nMuci Model Sheet Exact Lock: broad squat pure-white droplet with a rounded hooked top offset toward reader-left/Muci's right.",
+          "# Muci\n\n## Appearance lock\nMuci Model Sheet Exact Lock: broad squat pure-white droplet with a natural rounded top point and subtle near-center reader-left lean.",
         referenceFiles: [
           {
             label: "Model Sheet",
@@ -291,7 +292,8 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
         slug: "muci",
         name: "Muci",
         role: "Audience surrogate.",
-        appearance: "Broad squat model-sheet droplet with a rounded hooked top offset toward reader-left.",
+        appearance:
+          "Broad squat model-sheet droplet with a natural rounded top point and subtle near-center reader-left lean.",
         personality: "Curious.",
         speechGuide: "Plainspoken.",
         referenceNotes: "Use refs/model-sheet.jpg.",
@@ -327,8 +329,8 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   assert.match(prompt, /Similar teardrop cast separation lock/);
   assert.match(prompt, /Muci Model Sheet Exact Lock/);
   assert.match(prompt, /Muci\/Nia high-risk model-sheet guardrail/);
-  assert.match(prompt, /rounded hooked tip offset toward reader-left\/Muci's right/);
-  assert.match(prompt, /not centered, vertical, sharp, needle-like, or Nia-like/);
+  assert.match(prompt, /subtle near-center lean toward reader-left\/Muci's right/);
+  assert.match(prompt, /not a sharp Nia point, exaggerated hook, sideways curl, or flopped-over cap/);
   assert.match(prompt, /Muci: exact Muci model-sheet droplet/);
   assert.match(prompt, /Nia: taller and sharper pointed teardrop/);
   assert.match(prompt, /Snacri: fatter quiet droplet/);

@@ -45,12 +45,12 @@ const MUCI_MODEL_SHEET_EXACT_LOCK = [
   "Muci Model Sheet Exact Lock:",
   "- Draw Muci from comic/characters/muci/refs/model-sheet.jpg exactly, not from generic teardrop memory.",
   "- Silhouette: broad squat pure-white droplet mascot with a round heavy lower half, low center of gravity, soft bulging sides, and a curved rounded base.",
-  "- Top: rounded hooked tip offset toward reader-left/Muci's right, bending softly toward reader-left. It is never centered, vertical, sharp, needle-like, or Nia-like.",
+  "- Top: natural rounded teardrop point with only a subtle near-center lean toward reader-left/Muci's right. The apex stays above the upper body and close to center like the model sheet; it is never a sharp Nia point, exaggerated hook, sideways curl, or flopped-over cap.",
   "- Feet: two small rounded foot nubs attached at the lower left and lower right, visible in every full-body view.",
   "- Face: large black dot eyes with tiny white catchlights and a small friendly U-smile; no brow by default.",
   "- Highlights: one tilted oval plus one small dot on the upper reader-left side.",
   "- Fill: pure white interior with clean black outline; no gray fill, gradient fill, smoky body shadow, or body screentone.",
-  "- Acceptance check: if Muci could be mistaken for Nia in black-and-white, redraw Muci broader, shorter, rounder, browless, and more model-sheet-accurate before adding acting or background detail."
+  "- Acceptance check: if Muci could be mistaken for Nia in black-and-white or if the top leans farther than the model sheet, redraw Muci broader, shorter, rounder, browless, and closer to the model sheet before adding acting or background detail."
 ].join("\n");
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Non-negotiable visual production locks:",
@@ -64,9 +64,9 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Feet and body must be visually connected as one continuous mascot form, matching the model sheets. Do not draw a hard horizontal outline, seam, shoe line, dividing stroke, or solid separating line between the body and feet.",
   "- For Sunny Spritz, draw two small rounded feet directly beneath the lower points of her soft five-point star body. Do not let the star points replace the feet, hide the feet, or crop the feet away.",
   MUCI_MODEL_SHEET_EXACT_LOCK,
-  "- When Muci, Nia, Snacri, Padaruna, or Padarana appear together, use the similar-character comparison reference and keep their black-and-white identities separate: Muci is the broad squat model-sheet droplet with a rounded hooked reader-left top tip and no brow, Nia is the sharper tall vertical point with one angled brow, Snacri is the fatter left-leaning quiet droplet, Padaruna is the sharp point with fuller lively body, and Padarana is the sharp point with slimmer gentle body and closed smiling eyes.",
+  "- When Muci, Nia, Snacri, Padaruna, or Padarana appear together, use the similar-character comparison reference and keep their black-and-white identities separate: Muci is the broad squat model-sheet droplet with a subtle near-center reader-left top lean and no brow, Nia is the sharper tall vertical point with one angled brow, Snacri is the fatter left-leaning quiet droplet, Padaruna is the sharp point with fuller lively body, and Padarana is the sharp point with slimmer gentle body and closed smiling eyes.",
   "- Do not redesign Coach Ray. Coach Ray must stay a broad squat shield-shaped protective mascot, with a centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted stance, pure white body fill, and small connected feet exactly like his model sheet.",
-  "- Coach Ray is not Muci and is not a teardrop/drop character. Never average Coach Ray's shield silhouette with Muci's broad squat hooked-tip droplet silhouette, even when both model sheets are attached.",
+  "- Coach Ray is not Muci and is not a teardrop/drop character. Never average Coach Ray's shield silhouette with Muci's broad squat soft droplet silhouette, even when both model sheets are attached.",
   "- Do not use generic polygon wording for Coach Ray. The intended lock is shield-shaped protective mascot.",
   "- All characters in this world have no hands and no arms. Never draw arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs on any character.",
   "- Preserve every character's small feet, lower body nubs, base shape, or tiny legs exactly as shown in each character's model sheet.",
@@ -1924,7 +1924,7 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
       [
         "Coach Ray anti-drift lock:",
         "- Draw Coach Ray from the Coach Ray model-sheet only: broad squat shield-shaped protective mascot, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted stance, pure white body fill, and small connected feet.",
-        "- Coach Ray is not Muci, not a teardrop/drop, not a pear, not a rounded blob, and not a generic polygon mascot. Do not borrow Muci's broad squat hooked-tip droplet outline or soft protagonist expression.",
+        "- Coach Ray is not Muci, not a teardrop/drop, not a pear, not a rounded blob, and not a generic polygon mascot. Do not borrow Muci's broad squat soft droplet outline or soft protagonist expression.",
         "- If the page prompt still contains legacy polygon wording for Coach Ray, ignore that wording and follow the shield-shaped Coach Ray lock instead."
       ].join("\n")
     );
@@ -1934,7 +1934,7 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
     locks.push(
       [
         "Muci vs Coach Ray separation:",
-        "- Muci keeps the Muci model-sheet droplet exactly: broad squat body, round heavy lower half, rounded hooked top tip offset toward reader-left/Muci's right, upper reader-left highlights, two attached feet, and a soft open protagonist expression.",
+        "- Muci keeps the Muci model-sheet droplet exactly: broad squat body, round heavy lower half, natural rounded top point with only a subtle near-center reader-left lean, upper reader-left highlights, two attached feet, and a soft open protagonist expression.",
         "- Coach Ray keeps the broad squat shield-shaped model-sheet silhouette with planted drill-instructor authority.",
         "- Do not average, merge, swap, or cross-contaminate their outlines, face placement, highlight marks, feet, or expressions."
       ].join("\n")
@@ -2806,7 +2806,7 @@ export async function editComicPageImageWithAi(input: {
       "Keep the same panel layout, page size, camera angles, composition, gutters, character identities, character proportions, facial expressions, clean black-and-white manga linework, pure white mascot body fills, and readable page rhythm.",
       "Do not regenerate the page from scratch. Do not add new panels, extra characters, random props, watermarks, signatures, logos, or unrelated text.",
       "Keep all characters handless and armless. Preserve visible small rounded feet or foot nubs in any full-body character view. Do not crop, flatten, hide, remove, or separate the feet from the body with hard dividing lines while editing.",
-      "When Muci is visible, correct him to the Muci model sheet: broad squat pure-white droplet, round heavy lower half, rounded hooked top tip offset toward reader-left/Muci's right, no brow, upper reader-left highlights, and two attached small feet. Do not let him become tall, vertical-pointed, sharp, or Nia-like.",
+      "When Muci is visible, correct him to the Muci model sheet: broad squat pure-white droplet, round heavy lower half, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, no brow, upper reader-left highlights, and two attached small feet. Do not let him become tall, vertical-pointed, sharp, Nia-like, or over-leaned into a hook/curl.",
       "If the edit request affects text, keep the wording short and fitted to the original balloon/sign space.",
       "If the edit request conflicts with the locked comic style or character model consistency, make the closest safe edit while preserving the original character/page identity.",
       "",
@@ -3318,9 +3318,9 @@ export async function generateComicPromptPackageWithAi(
                 "Every promptPackCopyText block must include the exact dialogue text to render on the page, organized by panel.",
                 "Every visual prompt must enforce one consistent lettering style for all dialogue balloons, captions, and SFX.",
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
-                "Muci must always match the Muci model sheet and written appearance lock exactly: broad squat pure-white droplet mascot, round heavy lower half, soft bulging sides, curved rounded base, rounded hooked top tip offset toward reader-left/Muci's right, two attached small rounded feet, large black dot eyes with catchlights, small friendly U-smile, upper reader-left oval-plus-dot highlights, no brow by default, soft approachable protagonist energy.",
-                "Muci must never become tall, thin, stretched, elongated, pear-like, a centered vertical spike, a sharp needle point, or a long raindrop. Keep him broad, squat, round-lower-half-heavy, browless, and close to the model-sheet width-to-height proportion.",
-                "When Muci appears with Nia, draw Muci from the Muci model sheet first. Muci keeps the rounded hooked top offset toward reader-left/Muci's right and must not inherit Nia's tall narrow vertical point, controlled narrow body, angled brow, or analytical expression. If Muci can be mistaken for Nia, rewrite the page prompt to make Muci wider, shorter, rounder at the base, friendlier, browless, and model-sheet-accurate.",
+                "Muci must always match the Muci model sheet and written appearance lock exactly: broad squat pure-white droplet mascot, round heavy lower half, soft bulging sides, curved rounded base, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, two attached small rounded feet, large black dot eyes with catchlights, small friendly U-smile, upper reader-left oval-plus-dot highlights, no brow by default, soft approachable protagonist energy.",
+                "Muci must never become tall, thin, stretched, elongated, pear-like, a sharp needle point, a long raindrop, an exaggerated hooked top, a sideways curl, or a flopped-over cap. Keep him broad, squat, round-lower-half-heavy, browless, and close to the model-sheet width-to-height proportion.",
+                "When Muci appears with Nia, draw Muci from the Muci model sheet first. Muci keeps only the subtle near-center top lean from the model sheet and must not inherit Nia's tall narrow vertical point, controlled narrow body, angled brow, or analytical expression. If Muci can be mistaken for Nia or if Muci's top leans farther than the model sheet, rewrite the page prompt to make Muci wider, shorter, rounder at the base, friendlier, browless, and closer to the model sheet.",
                 "For full-body Muci views, never omit the two small rounded feet, flatten the base, or separate the feet from the body; keep the same attached foot nubs shown in the model sheet.",
                 "Nia must keep her sharper taller pointed teardrop silhouette and one angled brow above the left eye; do not soften her into Muci, Padaruna, Padarana, or Snacri.",
                 "Snacri must keep her fatter quiet droplet silhouette with the top leaning left and restrained minimal expression; do not straighten her into a generic teardrop.",
@@ -3329,7 +3329,7 @@ export async function generateComicPromptPackageWithAi(
                 "When two or more of Muci, Nia, Snacri, Padaruna, and Padarana appear together, include a similar-teardrop separation note in promptPackCopyText and referenceNotesCopyText. The image generation step will attach the comparison reference automatically.",
                 "Coach Ray must always match the Coach Ray model sheet and written appearance lock exactly: broad squat shield-shaped protective mascot, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted drill-instructor posture, pure white body fill, and small connected feet.",
                 "Coach Ray must never become Muci, a teardrop/drop character, a pear shape, a rounded blob, or a generic polygon mascot. Use shield-shaped protective mascot wording for Coach Ray.",
-                "When Muci and Coach Ray appear together, explicitly state their silhouette separation: Muci is the broad squat model-sheet droplet with a rounded hooked top offset toward reader-left; Coach Ray is the broad shield-shaped instructor. Do not average or blend them.",
+                "When Muci and Coach Ray appear together, explicitly state their silhouette separation: Muci is the broad squat model-sheet droplet with a subtle near-center top lean; Coach Ray is the broad shield-shaped instructor. Do not average or blend them.",
                 "Never invent arms, hands, fingers, gloves, sleeves, humanoid bodies, animal paws, or redesigned mascot silhouettes.",
                 "You must think like a comic production assistant, not like a novelist only.",
                 "Return only valid JSON matching the schema.",
@@ -3413,9 +3413,9 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block must include a mouth-state check: non-speaking characters keep closed mouths, and only speaking or explicitly vocal characters may have open mouths.",
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
-                "- Every Muci prompt must explicitly preserve his Muci Model Sheet Exact Lock: broad squat pure-white droplet, round heavy lower half, rounded hooked top tip offset toward reader-left/Muci's right, pure white body fill, no brow by default, and two attached small rounded feet.",
-                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci broad squat hooked-tip model-sheet droplet with no brow, Nia sharp tall vertical point plus one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point plus fuller lively body, and Padarana sharp point plus slimmer gentle closed-eye body.",
-                "- Every page where Muci and Nia appear together must include a high-risk Muci/Nia shape note: Muci keeps a short broad soft-sided body, friendly U-smile, no brow, and a rounded hooked top offset toward reader-left, while Nia keeps a taller narrower sharp vertical point and one angled left brow. Muci must not be drawn with Nia's vertical point or angled brow.",
+                "- Every Muci prompt must explicitly preserve his Muci Model Sheet Exact Lock: broad squat pure-white droplet, round heavy lower half, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, pure white body fill, no brow by default, and two attached small rounded feet.",
+                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci broad squat model-sheet droplet with subtle top asymmetry and no brow, Nia sharp tall vertical point plus one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point plus fuller lively body, and Padarana sharp point plus slimmer gentle closed-eye body.",
+                "- Every page where Muci and Nia appear together must include a high-risk Muci/Nia shape note: Muci keeps a short broad soft-sided body, friendly U-smile, no brow, and only the subtle near-center top lean shown in the model sheet, while Nia keeps a taller narrower sharp vertical point and one angled left brow. Muci must not be drawn with Nia's vertical point, angled brow, or an exaggerated hooked/curling top.",
                 "- Every Coach Ray prompt must explicitly preserve his model-sheet identity, broad squat shield-shaped protective design, centered shallow crest, firm shoulders, near-vertical sides, pure white body fill, and planted small feet.",
                 "- Every page where Muci and Coach Ray appear together must include a Muci-vs-Coach-Ray separation note so their silhouettes are not averaged.",
                 "- Every referenceNotesCopyText block must remind production that character model sheets are exact identity locks, not loose inspiration.",
