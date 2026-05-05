@@ -3617,28 +3617,57 @@ main {
 .admin-comic-image-reference-preview {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
   gap: 12px;
-  align-items: center;
   padding: 10px;
   border: 1px solid rgba(46, 40, 37, 0.1);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.74);
 }
 
-.admin-comic-image-reference-preview img {
-  width: 104px;
-  height: 104px;
+.admin-comic-image-reference-preview__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-comic-image-reference-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.admin-comic-image-reference-item {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-comic-image-reference-item img {
+  width: 86px;
+  height: 86px;
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid rgba(46, 40, 37, 0.1);
   background: #fff;
 }
 
-.admin-comic-image-reference-preview > div {
+.admin-comic-image-reference-item > div {
   display: grid;
   gap: 6px;
   min-width: 0;
+}
+
+.admin-comic-image-reference-item strong,
+.admin-comic-image-reference-item span {
+  overflow-wrap: anywhere;
 }
 
 .admin-comic-ratio-grid {
@@ -5597,14 +5626,17 @@ main {
 }
 
 @media (max-width: 720px) {
-  .admin-comic-image-reference-preview {
+  .admin-comic-image-reference-list {
     grid-template-columns: 1fr;
   }
 
-  .admin-comic-image-reference-preview img {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
+  .admin-comic-image-reference-item {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .admin-comic-image-reference-item img {
+    width: 76px;
+    height: 76px;
   }
 
   .site-shell:has(.comic-reader-page) .announcement-bar,

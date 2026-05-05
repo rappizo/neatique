@@ -27,7 +27,7 @@
 
 ## Fixed shape language
 - **Artrans**: cream-swirl silhouette, layered spiral volume, half-lidded eyes, sly sleepy face
-- **Muci**: compact broad centered teardrop, rounded base, short rounded body, two small rounded feet at the bottom, beginner-friendly open smile, large dot eyes, glossy highlight marks near the upper-left side, pure white body fill, cute approachable protagonist energy
+- **Muci**: compact broad teardrop with a soft point leaning toward Muci's right side / viewer's left, rounded base, short rounded body, two small rounded feet at the bottom, beginner-friendly open smile, large dot eyes, glossy highlight marks near the upper-left side, pure white body fill, cute approachable protagonist energy
 - **Nia**: taller teardrop with the sharpest vertical point, one angled left brow, controlled confident smile, composed analytical confidence
 - **Padarana**: slimmer soft pointed teardrop, closed smiling eyes, calm reassuring mouth, emotional warmth
 - **Padaruna**: sharp pointed head with a noticeably fuller rounder body than Padarana, energetic openness, highly expressive open eyes and eager smile
@@ -62,15 +62,15 @@
 - Include a lower-frame foot visibility check in every full-body prompt so feet are not cropped away.
 - For Sunny Spritz, explicitly preserve two small rounded feet directly under her soft five-point star body whenever she appears full-body.
 - Translate holding, pointing, grabbing, opening, carrying, writing, pushing, or handing something over into telekinetic object movement with floating objects, motion lines, or subtle manga emphasis marks.
-- For Muci, explicitly repeat the compact broad centered teardrop shape, short rounded body, rounded base, two small rounded feet, pure white body fill, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
+- For Muci, explicitly repeat the compact broad teardrop shape with the soft point leaning toward Muci's right side / viewer's left, short rounded body, rounded base, two small rounded feet, pure white body fill, large dot eyes, open friendly smile, and upper-left glossy highlights whenever he appears.
 - For Nia, explicitly preserve the taller sharper vertical point and one angled left brow whenever she appears.
 - For Snacri, explicitly preserve the fatter left-leaning quiet droplet silhouette and restrained minimal expression whenever she appears.
 - For Padaruna, explicitly preserve the sharp pointed head, fuller rounder lively body, open eyes, and eager smile whenever she appears.
 - For Padarana, explicitly preserve the slimmer soft pointed body, closed smiling eyes, calm reassuring mouth, and gentle presence whenever she appears.
 - When two or more of Muci, Nia, Snacri, Padaruna, and Padarana appear together, use the similar-character comparison reference and state their silhouette differences before describing acting.
-- When Muci and Nia appear together, treat them as a high-risk pair: Muci may keep his soft centered model-sheet point, but he must not receive Nia's tall narrow sharp vertical spike, controlled narrow body, angled brow, or analytical expression. Muci stays shorter, broader, rounder at the base, open-smiling, and soft-sided; Nia stays taller, narrower, sharper, and marked by one angled left brow.
+- When Muci and Nia appear together, treat them as a high-risk pair: Muci keeps his soft model-sheet point leaning toward Muci's right side / viewer's left, and he must not receive Nia's tall narrow vertical point, controlled narrow body, angled brow, or analytical expression. Muci stays shorter, broader, rounder at the base, open-smiling, soft-sided, and viewer-left-leaning at the top; Nia stays taller, narrower, vertically pointed, sharper, and marked by one angled left brow.
 - For Coach Ray, explicitly repeat the broad squat shield-shaped body, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, pure white body fill, small connected feet, controlled smile, and planted drill-instructor posture whenever he appears.
-- When Muci and Coach Ray appear together, state that their silhouettes must not be averaged: Muci stays a compact centered teardrop, while Coach Ray stays a broad protective shield.
+- When Muci and Coach Ray appear together, state that their silhouettes must not be averaged: Muci stays a compact teardrop with the soft point leaning toward viewer-left, while Coach Ray stays a broad protective shield.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.
 - If a panel depends on a specific reaction, include the exact expression target in the prompt and mention which reference sheet to upload.
 

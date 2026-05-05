@@ -53,6 +53,7 @@ type ComicImageTask = {
   imageQuality?: string;
   referenceCreationId?: string;
   referenceImageName?: string;
+  referenceCount?: number;
   imageCreationId?: string;
 };
 
@@ -61,6 +62,34 @@ type ComicImageCreationReferencePayload = {
   mimeType: string;
   fileName: string;
 };
+
+type ComicImageCreationReferenceTaskInput =
+  | {
+      type: "creation";
+      id: string;
+    }
+  | {
+      type: "upload";
+      image: ComicImageCreationReferencePayload;
+    };
+
+type ComicImageCreationReferenceItem =
+  | {
+      key: string;
+      type: "creation";
+      id: string;
+      imageUrl: string;
+      label: string;
+      note: string;
+    }
+  | {
+      key: string;
+      type: "upload";
+      imageUrl: string;
+      label: string;
+      note: string;
+      payload: ComicImageCreationReferencePayload;
+    };
 
 export type ComicImageCreationReferenceOption = {
   id: string;
@@ -117,6 +146,7 @@ type ComicImageTaskQueueContextValue = {
     quality?: string;
     referenceCreationId?: string;
     referenceImage?: ComicImageCreationReferencePayload | null;
+    references?: ComicImageCreationReferenceTaskInput[];
     label?: string;
   }) => string;
   getLatestPageTask: (episodeId: string, pageNumber: number) => ComicImageTask | null;
@@ -129,6 +159,7 @@ const ComicImageTaskQueueContext = createContext<ComicImageTaskQueueContextValue
 const COMIC_TASK_HISTORY_LIMIT = 40;
 const COMIC_TASK_POLL_INTERVAL_MS = 3000;
 const COMIC_IMAGE_CREATION_QUALITY_VALUES = ["high", "medium", "low"] as const;
+const COMIC_IMAGE_CREATION_REFERENCE_LIMIT = 5;
 
 type ComicImageCreationQualityValue = (typeof COMIC_IMAGE_CREATION_QUALITY_VALUES)[number];
 
@@ -608,17 +639,50 @@ export function ComicImageTaskQueueProvider({
       quality?: string;
       referenceCreationId?: string;
       referenceImage?: ComicImageCreationReferencePayload | null;
+      references?: ComicImageCreationReferenceTaskInput[];
       label?: string;
     }) => {
       const prompt = input.prompt.trim();
       const aspectRatio = input.aspectRatio.trim() || "1:1";
       const imageQuality = normalizeComicImageCreationQuality(input.quality);
-      const referenceCreationId = input.referenceCreationId?.trim() || "";
-      const referenceImage = input.referenceImage || null;
-      const referenceImageName = referenceImage?.fileName || "";
+      const fallbackReferences: ComicImageCreationReferenceTaskInput[] = [];
+
+      if (input.referenceCreationId?.trim()) {
+        fallbackReferences.push({
+          type: "creation",
+          id: input.referenceCreationId.trim()
+        });
+      }
+
+      if (input.referenceImage) {
+        fallbackReferences.push({
+          type: "upload",
+          image: input.referenceImage
+        });
+      }
+
+      const references: ComicImageCreationReferenceTaskInput[] =
+        input.references && input.references.length > 0
+          ? input.references.slice(0, COMIC_IMAGE_CREATION_REFERENCE_LIMIT)
+          : fallbackReferences;
+      const referenceCreationIds = references
+        .filter((reference): reference is Extract<ComicImageCreationReferenceTaskInput, { type: "creation" }> => reference.type === "creation")
+        .map((reference) => reference.id.trim())
+        .filter(Boolean);
+      const referenceImageNames = references
+        .filter((reference): reference is Extract<ComicImageCreationReferenceTaskInput, { type: "upload" }> => reference.type === "upload")
+        .map((reference) => reference.image.fileName)
+        .filter(Boolean);
+      const referenceKey = references
+        .map((reference) =>
+          reference.type === "creation"
+            ? `creation:${reference.id.trim()}`
+            : `upload:${reference.image.fileName}`
+        )
+        .join("|");
       const label =
         input.label ||
-        `${referenceCreationId || referenceImage ? "Create from reference" : "Create image"} ${aspectRatio} ${getComicImageCreationQualityLabel(imageQuality)}`;
+        `${references.length > 0 ? "Create from reference" : "Create image"} ${aspectRatio} ${getComicImageCreationQualityLabel(imageQuality)}`;
 
       return enqueueServerTask({
         kind: "image-creation",
@@ -629,23 +693,29 @@ export function ComicImageTaskQueueProvider({
           aspectRatio,
           quality: imageQuality,
           imageQuality,
-          referenceCreationId,
-          referenceImage
+          referenceCreationId: referenceCreationIds[0] || "",
+          referenceCreationIds,
+          referenceImage:
+            references.length === 1 && references[0]?.type === "upload"
+              ? references[0].image
+              : null,
+          references
         },
         optimisticFields: {
           imagePrompt: prompt,
           aspectRatio,
           imageQuality,
-          referenceCreationId,
-          referenceImageName
+          referenceCreationId: referenceCreationIds.join(","),
+          referenceImageName: referenceImageNames.join(", "),
+          referenceCount: references.length
         },
         duplicateMatch: (task) =>
           task.kind === "image-creation" &&
           task.imagePrompt === prompt &&
           task.aspectRatio === aspectRatio &&
           normalizeComicImageCreationQuality(task.imageQuality) === imageQuality &&
-          (task.referenceCreationId || "") === referenceCreationId &&
-          (task.referenceImageName || "") === referenceImageName
+          (task.referenceCreationId || "") === referenceCreationIds.join(",") &&
+          (task.referenceImageName || "") === referenceImageNames.join(", ")
       });
     },
     [enqueueServerTask]
@@ -1758,40 +1828,58 @@ export function ComicImageCreationQueueForm({
   const [prompt, setPrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState(aspectRatios[0] || "1:1");
   const [quality, setQuality] = useState("medium");
-  const [selectedReferenceId, setSelectedReferenceId] = useState("");
-  const [uploadedReference, setUploadedReference] =
-    useState<ComicImageCreationReferencePayload | null>(null);
-  const [uploadPreviewUrl, setUploadPreviewUrl] = useState("");
+  const [referenceSelectValue, setReferenceSelectValue] = useState("");
+  const [referenceItems, setReferenceItems] = useState<ComicImageCreationReferenceItem[]>([]);
   const [isPreparingReference, setIsPreparingReference] = useState(false);
   const [notice, setNotice] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const trimmedPrompt = prompt.trim();
-  const selectedReference = useMemo(
-    () => referenceImages.find((image) => image.id === selectedReferenceId) || null,
-    [referenceImages, selectedReferenceId]
-  );
+  const referenceCount = referenceItems.length;
   const latestTask =
     [...tasks]
       .filter((task) => task.kind === "image-creation")
       .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
   const isCreating = latestTask?.status === "queued" || latestTask?.status === "running";
 
+  function addExistingReference(id: string) {
+    const image = referenceImages.find((candidate) => candidate.id === id);
+
+    if (!image) {
+      return;
+    }
+
+    setReferenceItems((items) => {
+      if (items.some((item) => item.type === "creation" && item.id === id)) {
+        setNotice("That reference is already selected.");
+        return items;
+      }
+
+      if (items.length >= COMIC_IMAGE_CREATION_REFERENCE_LIMIT) {
+        setNotice(`Use up to ${COMIC_IMAGE_CREATION_REFERENCE_LIMIT} reference images.`);
+        return items;
+      }
+
+      setNotice("Reference added. Add a prompt and generate.");
+      return [
+        ...items,
+        {
+          key: `creation-${image.id}`,
+          type: "creation",
+          id: image.id,
+          imageUrl: image.imageUrl,
+          label: "Generated image",
+          note: `${image.aspectRatio} / ${image.prompt.slice(0, 120)}`
+        }
+      ];
+    });
+  }
+
   useEffect(() => {
     function handleReferenceSelected(event: Event) {
       const detail = (event as CustomEvent<{ id?: string }>).detail;
       const id = detail?.id || "";
 
-      if (!referenceImages.some((image) => image.id === id)) {
-        return;
-      }
-
-      setSelectedReferenceId(id);
-      setUploadedReference(null);
-      setUploadPreviewUrl("");
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      setNotice("Reference selected. Add a prompt and generate.");
+      addExistingReference(id);
     }
 
     window.addEventListener(COMIC_IMAGE_REFERENCE_SELECTED_EVENT, handleReferenceSelected);
@@ -1800,38 +1888,86 @@ export function ComicImageCreationQueueForm({
       window.removeEventListener(COMIC_IMAGE_REFERENCE_SELECTED_EVENT, handleReferenceSelected);
   }, [referenceImages]);
 
-  async function handleReferenceUpload(file: File | null) {
-    if (!file) {
-      setUploadedReference(null);
-      setUploadPreviewUrl("");
+  useEffect(() => {
+    setReferenceItems((items) =>
+      items
+        .map((item) => {
+          if (item.type !== "creation") {
+            return item;
+          }
+
+          const image = referenceImages.find((candidate) => candidate.id === item.id);
+
+          return image
+            ? {
+                ...item,
+                imageUrl: image.imageUrl,
+                note: `${image.aspectRatio} / ${image.prompt.slice(0, 120)}`
+              }
+            : null;
+        })
+        .filter((item): item is ComicImageCreationReferenceItem => Boolean(item))
+    );
+  }, [referenceImages]);
+
+  async function handleReferenceUpload(files: FileList | null) {
+    const selectedFiles = Array.from(files || []);
+
+    if (selectedFiles.length === 0) {
       return;
     }
 
-    setIsPreparingReference(true);
-    setNotice("Preparing uploaded reference...");
+    const remainingSlots = COMIC_IMAGE_CREATION_REFERENCE_LIMIT - referenceItems.length;
 
-    try {
-      const preparedReference = await fileToComicImageReferencePayload(file);
-      setUploadedReference(preparedReference);
-      setUploadPreviewUrl(`data:${preparedReference.mimeType};base64,${preparedReference.base64Data}`);
-      setSelectedReferenceId("");
-      setNotice("Reference upload ready. Add a prompt and generate.");
-    } catch (error) {
-      setUploadedReference(null);
-      setUploadPreviewUrl("");
-      setNotice(error instanceof Error ? error.message : "Could not prepare reference image.");
+    if (remainingSlots <= 0) {
+      setNotice(`Use up to ${COMIC_IMAGE_CREATION_REFERENCE_LIMIT} reference images.`);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+      return;
+    }
+
+    const filesToPrepare = selectedFiles.slice(0, remainingSlots);
+    setIsPreparingReference(true);
+    setNotice(
+      `Preparing ${filesToPrepare.length} uploaded reference${filesToPrepare.length === 1 ? "" : "s"}...`
+    );
+
+    try {
+      const preparedReferences = await Promise.all(
+        filesToPrepare.map(async (file, index) => {
+          const payload = await fileToComicImageReferencePayload(file);
+
+          return {
+            key: `upload-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
+            type: "upload" as const,
+            imageUrl: `data:${payload.mimeType};base64,${payload.base64Data}`,
+            label: payload.fileName,
+            note: "Uploaded reference",
+            payload
+          };
+        })
+      );
+
+      setReferenceItems((items) => [...items, ...preparedReferences].slice(0, COMIC_IMAGE_CREATION_REFERENCE_LIMIT));
+      setNotice(
+        selectedFiles.length > filesToPrepare.length
+          ? `Added ${filesToPrepare.length} reference${filesToPrepare.length === 1 ? "" : "s"}. The rest were skipped because the limit is ${COMIC_IMAGE_CREATION_REFERENCE_LIMIT}.`
+          : `Added ${filesToPrepare.length} uploaded reference${filesToPrepare.length === 1 ? "" : "s"}.`
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not prepare reference image.");
     } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       setIsPreparingReference(false);
     }
   }
 
   function clearReference() {
-    setSelectedReferenceId("");
-    setUploadedReference(null);
-    setUploadPreviewUrl("");
+    setReferenceItems([]);
+    setReferenceSelectValue("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -1848,17 +1984,34 @@ export function ComicImageCreationQueueForm({
       return;
     }
 
-    const hasReference = Boolean(selectedReference || uploadedReference);
+    const references: ComicImageCreationReferenceTaskInput[] = referenceItems.map((item) =>
+      item.type === "creation"
+        ? {
+            type: "creation",
+            id: item.id
+          }
+        : {
+            type: "upload",
+            image: item.payload
+          }
+    );
+    const hasReference = references.length > 0;
 
     enqueueImageCreation({
       prompt: trimmedPrompt,
       aspectRatio,
       quality,
-      referenceCreationId: uploadedReference ? undefined : selectedReference?.id,
-      referenceImage: uploadedReference,
+      references,
       label: `${hasReference ? "Image from reference" : "Image"} ${aspectRatio} ${getComicImageCreationQualityLabel(quality)}`
     });
     setNotice("Added to Comic tasks.");
+  }
+
+  function removeReference(key: string) {
+    setReferenceItems((items) => items.filter((item) => item.key !== key));
+    if (notice) {
+      setNotice("");
+    }
   }
 
   return (
@@ -1882,23 +2035,17 @@ export function ComicImageCreationQueueForm({
 
       <div className="admin-comic-image-reference-panel">
         <div className="field">
-          <label htmlFor="comic-image-creation-reference">Reference image</label>
+          <label htmlFor="comic-image-creation-reference">Add existing reference</label>
           <select
             id="comic-image-creation-reference"
-            value={selectedReferenceId}
+            value={referenceSelectValue}
             onChange={(event) => {
-              setSelectedReferenceId(event.target.value);
-              setUploadedReference(null);
-              setUploadPreviewUrl("");
-              if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-              }
-              if (notice) {
-                setNotice("");
-              }
+              const nextId = event.target.value;
+              setReferenceSelectValue("");
+              addExistingReference(nextId);
             }}
           >
-            <option value="">No reference / text to image</option>
+            <option value="">No existing reference selected</option>
             {referenceImages.map((image) => (
               <option key={image.id} value={image.id}>
                 {image.aspectRatio} / {image.prompt.slice(0, 80)}
@@ -1908,37 +2055,54 @@ export function ComicImageCreationQueueForm({
         </div>
 
         <div className="field">
-          <label htmlFor="comic-image-creation-reference-upload">Upload reference</label>
+          <label htmlFor="comic-image-creation-reference-upload">Upload references</label>
           <input
             ref={fileInputRef}
             id="comic-image-creation-reference-upload"
             type="file"
             accept="image/*"
+            multiple
             onChange={(event) => {
-              void handleReferenceUpload(event.target.files?.[0] || null);
+              void handleReferenceUpload(event.target.files);
             }}
           />
         </div>
 
-        {selectedReference || uploadPreviewUrl ? (
+        {referenceItems.length > 0 ? (
           <div className="admin-comic-image-reference-preview">
-            <Image
-              src={uploadPreviewUrl || selectedReference?.imageUrl || ""}
-              alt="Selected reference"
-              width={104}
-              height={104}
-              unoptimized
-            />
-            <div>
-              <strong>{uploadedReference ? uploadedReference.fileName : "Selected generated image"}</strong>
-              <span className="form-note">
-                {uploadedReference
-                  ? "Uploaded reference will be used for image-to-image."
-                  : selectedReference?.prompt}
-              </span>
+            <div className="admin-comic-image-reference-preview__header">
+              <strong>
+                {referenceItems.length} / {COMIC_IMAGE_CREATION_REFERENCE_LIMIT} references
+              </strong>
               <button type="button" className="button button--ghost" onClick={clearReference}>
-                Clear reference
+                Clear all
               </button>
+            </div>
+            <div className="admin-comic-image-reference-list">
+              {referenceItems.map((item, index) => (
+                <div key={item.key} className="admin-comic-image-reference-item">
+                  <Image
+                    src={item.imageUrl}
+                    alt={item.label}
+                    width={104}
+                    height={104}
+                    unoptimized
+                  />
+                  <div>
+                    <strong>
+                      {index + 1}. {item.label}
+                    </strong>
+                    <span className="form-note">{item.note}</span>
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      onClick={() => removeReference(item.key)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ) : null}
@@ -2012,7 +2176,7 @@ export function ComicImageCreationQueueForm({
             ? "Queued..."
             : latestTask?.status === "running"
               ? "Creating..."
-              : selectedReference || uploadedReference
+              : referenceItems.length > 0
                 ? "Generate from reference"
                 : "Generate image"}
         </button>

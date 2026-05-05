@@ -52,12 +52,12 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- In full-body shots, leave clear white space under each character's body so the small feet or foot nubs are visible; never crop the lower frame edge through the feet.",
   "- Feet and body must be visually connected as one continuous mascot form, matching the model sheets. Do not draw a hard horizontal outline, seam, shoe line, dividing stroke, or solid separating line between the body and feet.",
   "- For Sunny Spritz, draw two small rounded feet directly beneath the lower points of her soft five-point star body. Do not let the star points replace the feet, hide the feet, or crop the feet away.",
-  "- Do not redesign Muci. Muci must stay a compact cute friendly teardrop mascot with a centered point, broad rounded base, large dot eyes, an open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, and soft approachable protagonist energy.",
+  "- Do not redesign Muci. Muci must stay a compact cute friendly teardrop mascot with a soft top point leaning toward Muci's right side / viewer's left, broad rounded base, large dot eyes, an open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, and soft approachable protagonist energy.",
   "- Muci's proportions must stay squat and rounded like the model sheet, not tall or stretched: the full front-view body should feel broad and compact, with body height only about 1.2 to 1.35 times the body width. Avoid long narrow droplet proportions.",
   "- For any full-body Muci view, show the two small rounded feet exactly like the model sheet. Do not crop them away, hide them, replace them with a flat base, or remove them.",
-  "- When Muci, Nia, Snacri, Padaruna, or Padarana appear together, use the similar-character comparison reference and keep their black-and-white identities separate: Muci compact centered teardrop, Nia sharper tall point with one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point with fuller lively body, Padarana sharp point with slimmer gentle body and closed smiling eyes.",
+  "- When Muci, Nia, Snacri, Padaruna, or Padarana appear together, use the similar-character comparison reference and keep their black-and-white identities separate: Muci compact broad teardrop with a soft point leaning toward Muci's right / viewer's left, Nia sharper tall vertical point with one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point with fuller lively body, Padarana sharp point with slimmer gentle body and closed smiling eyes.",
   "- Do not redesign Coach Ray. Coach Ray must stay a broad squat shield-shaped protective mascot, with a centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted stance, pure white body fill, and small connected feet exactly like his model sheet.",
-  "- Coach Ray is not Muci and is not a teardrop/drop character. Never average Coach Ray's shield silhouette with Muci's centered teardrop silhouette, even when both model sheets are attached.",
+  "- Coach Ray is not Muci and is not a teardrop/drop character. Never average Coach Ray's shield silhouette with Muci's compact right-leaning soft-point teardrop silhouette, even when both model sheets are attached.",
   "- Do not use generic polygon wording for Coach Ray. The intended lock is shield-shaped protective mascot.",
   "- All characters in this world have no hands and no arms. Never draw arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs on any character.",
   "- Preserve every character's small feet, lower body nubs, base shape, or tiny legs exactly as shown in each character's model sheet.",
@@ -285,6 +285,7 @@ export type GenerateStandaloneComicImageInput = {
   aspectRatio: string;
   quality?: string | null;
   referenceImage?: ComicPageImageReferenceAsset | null;
+  referenceImages?: ComicPageImageReferenceAsset[];
   generationAttempt?: number;
 };
 
@@ -1676,6 +1677,17 @@ async function normalizeStandaloneReferenceImageForAi(
   }
 }
 
+function getStandaloneReferenceImages(input: GenerateStandaloneComicImageInput) {
+  const references =
+    input.referenceImages && input.referenceImages.length > 0
+      ? input.referenceImages
+      : input.referenceImage
+        ? [input.referenceImage]
+        : [];
+
+  return references.filter((reference) => reference.base64Data).slice(0, 5);
+}
+
 async function fetchImageUrlAsBase64(url: string): Promise<GeneratedComicPageImageAsset> {
   const response = await fetchOpenAiComicImageResponse(
     url,
@@ -1913,7 +1925,7 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
     locks.push(
       [
         "Muci vs Coach Ray separation:",
-        "- Muci keeps the compact broad centered-teardrop model-sheet silhouette with a soft open protagonist expression.",
+        "- Muci keeps the compact broad model-sheet teardrop with the soft point leaning toward Muci's right side / viewer's left and a soft open protagonist expression.",
         "- Coach Ray keeps the broad squat shield-shaped model-sheet silhouette with planted drill-instructor authority.",
         "- Do not average, merge, swap, or cross-contaminate their outlines, face placement, highlight marks, feet, or expressions."
       ].join("\n")
@@ -2515,11 +2527,12 @@ export async function generateStandaloneComicImageWithAi(
   const imageQuality = getStandaloneComicImageQuality(input.quality, attempt);
   const outputFormat = getOpenAiComicImageOutputFormat();
   const outputMimeType = getOpenAiComicImageMimeType(outputFormat);
+  const referenceImages = getStandaloneReferenceImages(input);
   const standalonePrompt = [
     prompt,
     "",
-    input.referenceImage
-      ? "Use the supplied reference image as the visual starting point and style/content reference. Follow the user's prompt for what to preserve, change, add, or remove."
+    referenceImages.length > 0
+      ? `Use the ${referenceImages.length} supplied reference image${referenceImages.length === 1 ? "" : "s"} as visual starting points and style/content references. Follow the user's prompt for what to preserve, combine, change, add, or remove.`
       : null,
     `Canvas aspect ratio: ${parseStandaloneAspectRatio(input.aspectRatio).label}.`,
     getStandaloneComicImageQualityGuide(imageQuality),
@@ -2528,9 +2541,10 @@ export async function generateStandaloneComicImageWithAi(
     .filter(Boolean)
     .join("\n");
 
-  if (input.referenceImage) {
-    const referenceImage = await normalizeStandaloneReferenceImageForAi(input.referenceImage);
-    const referenceBuffer = Buffer.from(referenceImage.base64Data, "base64");
+  if (referenceImages.length > 0) {
+    const normalizedReferenceImages = await Promise.all(
+      referenceImages.map((referenceImage) => normalizeStandaloneReferenceImageForAi(referenceImage))
+    );
     const formData = new FormData();
     formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
     formData.append("prompt", standalonePrompt);
@@ -2542,11 +2556,16 @@ export async function generateStandaloneComicImageWithAi(
     if (outputFormat !== "png") {
       formData.append("output_compression", String(getOpenAiComicImageOutputCompression()));
     }
-    formData.append(
-      "image",
-      new Blob([new Uint8Array(referenceBuffer)], { type: referenceImage.mimeType }),
-      referenceImage.fileName
-    );
+    formData.append("n", "1");
+
+    for (const referenceImage of normalizedReferenceImages) {
+      const referenceBuffer = Buffer.from(referenceImage.base64Data, "base64");
+      formData.append(
+        normalizedReferenceImages.length === 1 ? "image" : "image[]",
+        new Blob([new Uint8Array(referenceBuffer)], { type: referenceImage.mimeType }),
+        referenceImage.fileName
+      );
+    }
 
     const response = await fetchOpenAiComicImageResponse(
       `${imageApiSettings.baseUrl}/images/edits`,
@@ -3290,9 +3309,9 @@ export async function generateComicPromptPackageWithAi(
                 "Every promptPackCopyText block must include the exact dialogue text to render on the page, organized by panel.",
                 "Every visual prompt must enforce one consistent lettering style for all dialogue balloons, captions, and SFX.",
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
-                "Muci must always match the Muci model sheet and written appearance lock exactly: compact cute friendly teardrop mascot, centered point, broad rounded base, short rounded body proportions, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, soft approachable protagonist energy.",
+                "Muci must always match the Muci model sheet and written appearance lock exactly: compact cute friendly teardrop mascot, soft top point leaning toward Muci's right side / viewer's left, broad rounded base, short rounded body proportions, large dot eyes, open friendly smile, glossy highlight marks near the upper-left side, two small rounded feet at the bottom, soft approachable protagonist energy.",
                 "Muci must never become tall, thin, stretched, elongated, pear-like, or a long raindrop. Keep him broad, squat, soft, and close to the model-sheet width-to-height proportion.",
-                "When Muci appears with Nia, Muci may keep his soft centered model-sheet point, but he must not inherit Nia's tall narrow sharp vertical spike, controlled narrow body, or angled brow. If Muci can be mistaken for Nia, rewrite the page prompt to make Muci wider, shorter, rounder at the base, and friendlier.",
+                "When Muci appears with Nia, Muci must keep his soft model-sheet point leaning toward Muci's right side / viewer's left. He must not inherit Nia's tall narrow vertical point, controlled narrow body, or angled brow. If Muci can be mistaken for Nia, rewrite the page prompt to make Muci wider, shorter, rounder at the base, friendlier, and viewer-left-leaning at the top.",
                 "For full-body Muci views, never omit the two small rounded feet or flatten the base; keep the same feet shown in the model sheet.",
                 "Nia must keep her sharper taller pointed teardrop silhouette and one angled brow above the left eye; do not soften her into Muci, Padaruna, Padarana, or Snacri.",
                 "Snacri must keep her fatter quiet droplet silhouette with the top leaning left and restrained minimal expression; do not straighten her into a generic teardrop.",
@@ -3301,7 +3320,7 @@ export async function generateComicPromptPackageWithAi(
                 "When two or more of Muci, Nia, Snacri, Padaruna, and Padarana appear together, include a similar-teardrop separation note in promptPackCopyText and referenceNotesCopyText. The image generation step will attach the comparison reference automatically.",
                 "Coach Ray must always match the Coach Ray model sheet and written appearance lock exactly: broad squat shield-shaped protective mascot, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted drill-instructor posture, pure white body fill, and small connected feet.",
                 "Coach Ray must never become Muci, a teardrop/drop character, a pear shape, a rounded blob, or a generic polygon mascot. Use shield-shaped protective mascot wording for Coach Ray.",
-                "When Muci and Coach Ray appear together, explicitly state their silhouette separation: Muci is the compact centered teardrop; Coach Ray is the broad shield-shaped instructor. Do not average or blend them.",
+                "When Muci and Coach Ray appear together, explicitly state their silhouette separation: Muci is the compact teardrop with a soft point leaning toward viewer-left; Coach Ray is the broad shield-shaped instructor. Do not average or blend them.",
                 "Never invent arms, hands, fingers, gloves, sleeves, humanoid bodies, animal paws, or redesigned mascot silhouettes.",
                 "You must think like a comic production assistant, not like a novelist only.",
                 "Return only valid JSON matching the schema.",
@@ -3385,9 +3404,9 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block must include a mouth-state check: non-speaking characters keep closed mouths, and only speaking or explicitly vocal characters may have open mouths.",
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
-                "- Every Muci prompt must explicitly preserve his model-sheet identity, compact broad centered-teardrop design, pure white body fill, and two small rounded feet.",
-                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci compact centered teardrop, Nia sharp tall point plus one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point plus fuller lively body, and Padarana sharp point plus slimmer gentle closed-eye body.",
-                "- Every page where Muci and Nia appear together must include a high-risk Muci/Nia shape note: Muci keeps a short broad soft-sided body and friendly open face, while Nia keeps a taller narrower sharp vertical point and one angled left brow. Muci must not be drawn with Nia's sharp spike or angled brow.",
+                "- Every Muci prompt must explicitly preserve his model-sheet identity, compact broad teardrop design with the soft top point leaning toward Muci's right side / viewer's left, pure white body fill, and two small rounded feet.",
+                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci compact broad teardrop with a soft viewer-left-leaning point, Nia sharp tall vertical point plus one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point plus fuller lively body, and Padarana sharp point plus slimmer gentle closed-eye body.",
+                "- Every page where Muci and Nia appear together must include a high-risk Muci/Nia shape note: Muci keeps a short broad soft-sided body, friendly open face, and a top point leaning toward viewer-left, while Nia keeps a taller narrower sharp vertical point and one angled left brow. Muci must not be drawn with Nia's vertical point or angled brow.",
                 "- Every Coach Ray prompt must explicitly preserve his model-sheet identity, broad squat shield-shaped protective design, centered shallow crest, firm shoulders, near-vertical sides, pure white body fill, and planted small feet.",
                 "- Every page where Muci and Coach Ray appear together must include a Muci-vs-Coach-Ray separation note so their silhouettes are not averaged.",
                 "- Every referenceNotesCopyText block must remind production that character model sheets are exact identity locks, not loose inspiration.",

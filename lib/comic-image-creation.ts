@@ -40,11 +40,31 @@ export type ComicImageCreationTaskResult = {
 
 const COMIC_IMAGE_CREATION_PROMPT_MAX_LENGTH = 8000;
 const COMIC_IMAGE_CREATION_REFERENCE_MAX_BYTES = 8 * 1024 * 1024;
+export const COMIC_IMAGE_CREATION_REFERENCE_LIMIT = 5;
 
 type ComicImageCreationReferenceImageInput = {
   base64Data?: string | null;
   mimeType?: string | null;
   fileName?: string | null;
+};
+
+type ComicImageCreationReferenceInput =
+  | {
+      type?: "creation";
+      id?: string | null;
+    }
+  | {
+      type?: "upload";
+      image?: ComicImageCreationReferenceImageInput | null;
+    };
+
+type ResolvedComicImageCreationReference = {
+  sourceType: "CREATION" | "UPLOAD";
+  sourceId: string | null;
+  image: ComicImageSource;
+  imageUrl: string | null;
+  imageMimeType: string | null;
+  displayName: string;
 };
 
 export function normalizeComicImageCreationAspectRatio(
@@ -123,6 +143,91 @@ function normalizeReferenceImage(
   };
 }
 
+function normalizeReferenceImages(
+  values?: Array<ComicImageCreationReferenceImageInput | null | undefined> | null
+) {
+  return (values || [])
+    .map((value) => normalizeReferenceImage(value))
+    .filter((value): value is ComicImageSource => Boolean(value))
+    .slice(0, COMIC_IMAGE_CREATION_REFERENCE_LIMIT);
+}
+
+function normalizeReferenceCreationIds(values?: string[] | null) {
+  return Array.from(
+    new Set((values || []).map((value) => value.trim()).filter(Boolean))
+  ).slice(0, COMIC_IMAGE_CREATION_REFERENCE_LIMIT);
+}
+
+function normalizeReferenceInputs(input: {
+  referenceCreationId?: string;
+  referenceCreationIds?: string[];
+  referenceImage?: ComicImageCreationReferenceImageInput | null;
+  referenceImages?: ComicImageCreationReferenceImageInput[] | null;
+  references?: ComicImageCreationReferenceInput[] | null;
+}) {
+  const normalized: ComicImageCreationReferenceInput[] = [];
+
+  for (const reference of input.references || []) {
+    if (!reference || typeof reference !== "object") {
+      continue;
+    }
+
+    if (reference.type === "creation" && reference.id) {
+      normalized.push({
+        type: "creation",
+        id: reference.id
+      });
+      continue;
+    }
+
+    if (reference.type === "upload" && reference.image) {
+      normalized.push({
+        type: "upload",
+        image: reference.image
+      });
+    }
+  }
+
+  if (normalized.length === 0) {
+    const referenceCreationIds = normalizeReferenceCreationIds([
+      input.referenceCreationId || "",
+      ...(input.referenceCreationIds || [])
+    ]);
+
+    normalized.push(
+      ...referenceCreationIds.map((id) => ({
+        type: "creation" as const,
+        id
+      }))
+    );
+
+    normalized.push(
+      ...[
+        input.referenceImage || null,
+        ...(input.referenceImages || [])
+      ]
+        .filter(Boolean)
+        .map((image) => ({
+          type: "upload" as const,
+          image
+        }))
+    );
+  }
+
+  return normalized.slice(0, COMIC_IMAGE_CREATION_REFERENCE_LIMIT);
+}
+
+function getReferenceSummary(references: ResolvedComicImageCreationReference[]) {
+  if (references.length === 0) {
+    return null;
+  }
+
+  const [firstReference] = references;
+  return references.length === 1
+    ? firstReference.displayName
+    : `${firstReference.displayName} + ${references.length - 1} more`;
+}
+
 function buildComicImageCreationFallbackUrl(creationId: string, kind?: "reference") {
   const url = buildComicMediaFallbackUrl(creationId).replace(
     "/media/comic/",
@@ -144,13 +249,16 @@ export async function generateComicImageCreation(input: {
   aspectRatio: string;
   quality?: string;
   referenceCreationId?: string;
+  referenceCreationIds?: string[];
   referenceImage?: ComicImageCreationReferenceImageInput | null;
+  referenceImages?: ComicImageCreationReferenceImageInput[] | null;
+  references?: ComicImageCreationReferenceInput[] | null;
   attempt?: number;
 }): Promise<ComicImageCreationTaskResult> {
   const prompt = normalizePrompt(input.prompt);
   const aspectRatio = normalizeComicImageCreationAspectRatio(input.aspectRatio);
   const quality = normalizeComicImageCreationQuality(input.quality);
-  const referenceCreationId = (input.referenceCreationId || "").trim();
+  const referenceInputs = normalizeReferenceInputs(input);
 
   if (!prompt) {
     return {
@@ -162,65 +270,104 @@ export async function generateComicImageCreation(input: {
 
   try {
     const creationId = randomUUID();
-    const uploadedReferenceImage = normalizeReferenceImage(input.referenceImage);
-    let referenceImage: ComicImageSource | null = uploadedReferenceImage;
-    let sourceType = uploadedReferenceImage ? "UPLOAD" : "TEXT";
+    const references: ResolvedComicImageCreationReference[] = [];
+    let sourceType = "TEXT";
     let referenceImageUrl: string | null = null;
     let referenceImageData: string | null = null;
-    let referenceImageMimeType: string | null = uploadedReferenceImage?.mimeType || null;
+    let referenceImageMimeType: string | null = null;
     let referenceImageStorageKey: string | null = null;
     let referenceImageByteSize: number | null = null;
     let referenceImageSha256: string | null = null;
-    let referenceImageName: string | null = uploadedReferenceImage?.fileName || null;
+    let referenceImageName: string | null = null;
+    let referenceCreationId: string | null = null;
 
-    if (!referenceImage && referenceCreationId) {
-      const referenceCreation = await prisma.comicImageCreation.findUnique({
-        where: { id: referenceCreationId },
-        select: {
-          id: true,
-          prompt: true,
-          imageUrl: true,
-          imageData: true,
-          imageMimeType: true
+    for (const referenceInput of referenceInputs) {
+      if (referenceInput.type === "creation" && referenceInput.id) {
+        const referenceCreation = await prisma.comicImageCreation.findUnique({
+          where: { id: referenceInput.id },
+          select: {
+            id: true,
+            prompt: true,
+            imageUrl: true,
+            imageData: true,
+            imageMimeType: true
+          }
+        });
+
+        if (!referenceCreation) {
+          return {
+            ok: false,
+            message: "Image creation failed.",
+            errorMessage: "Selected reference image no longer exists."
+          };
         }
-      });
 
-      if (!referenceCreation) {
-        return {
-          ok: false,
-          message: "Image creation failed.",
-          errorMessage: "Selected reference image no longer exists."
-        };
+        const referenceImage = await getComicImageSource(referenceCreation);
+
+        if (!referenceImage) {
+          return {
+            ok: false,
+            message: "Image creation failed.",
+            errorMessage: "Selected reference image could not be loaded."
+          };
+        }
+
+        references.push({
+          sourceType: "CREATION",
+          sourceId: referenceCreation.id,
+          image: referenceImage,
+          imageUrl: referenceCreation.imageUrl,
+          imageMimeType: referenceCreation.imageMimeType || referenceImage.mimeType,
+          displayName: referenceCreation.prompt.slice(0, 140)
+        });
+        continue;
       }
 
-      referenceImage = await getComicImageSource(referenceCreation);
+      if (referenceInput.type === "upload") {
+        const uploadedReferenceImage = normalizeReferenceImage(referenceInput.image);
 
-      if (!referenceImage) {
-        return {
-          ok: false,
-          message: "Image creation failed.",
-          errorMessage: "Selected reference image could not be loaded."
-        };
+        if (uploadedReferenceImage) {
+          references.push({
+            sourceType: "UPLOAD",
+            sourceId: null,
+            image: uploadedReferenceImage,
+            imageUrl: null,
+            imageMimeType: uploadedReferenceImage.mimeType,
+            displayName: uploadedReferenceImage.fileName
+          });
+        }
       }
-
-      sourceType = "CREATION";
-      referenceImageUrl = referenceCreation.imageUrl;
-      referenceImageMimeType = referenceCreation.imageMimeType || referenceImage.mimeType;
-      referenceImageName = referenceCreation.prompt.slice(0, 140);
     }
 
     const image = await generateStandaloneComicImageWithAi({
       prompt,
       aspectRatio,
       quality,
-      referenceImage,
+      referenceImages: references.map((reference) => reference.image),
       generationAttempt: input.attempt
     });
 
-    if (uploadedReferenceImage) {
+    const firstReference = references[0] || null;
+    const firstUploadedReference = firstReference?.sourceType === "UPLOAD" ? firstReference.image : null;
+
+    if (firstReference) {
+      sourceType =
+        references.length > 1
+          ? "MULTI_REFERENCE"
+          : firstReference.sourceType === "CREATION"
+            ? "CREATION"
+            : "UPLOAD";
+      referenceCreationId =
+        firstReference.sourceType === "CREATION" ? firstReference.sourceId : null;
+      referenceImageUrl = firstReference.imageUrl;
+      referenceImageMimeType = firstReference.imageMimeType || firstReference.image.mimeType;
+      referenceImageName = getReferenceSummary(references);
+    }
+
+    if (firstUploadedReference) {
       const storedReference = await storeComicImage({
-        base64Data: uploadedReferenceImage.base64Data,
-        mimeType: uploadedReferenceImage.mimeType,
+        base64Data: firstUploadedReference.base64Data,
+        mimeType: firstUploadedReference.mimeType,
         category: "image-creation-references",
         targetId: creationId,
         fileName: `reference-${Date.now()}`
@@ -259,7 +406,7 @@ export async function generateComicImageCreation(input: {
         quality,
         model: getOpenAiComicSettings().imageModel,
         sourceType,
-        referenceCreationId: sourceType === "CREATION" ? referenceCreationId : null,
+        referenceCreationId,
         referenceImageUrl,
         referenceImageData,
         referenceImageMimeType,
@@ -280,7 +427,7 @@ export async function generateComicImageCreation(input: {
 
     return {
       ok: true,
-      message: referenceImage ? "Image created from reference." : "Image created.",
+      message: references.length > 0 ? "Image created from reference." : "Image created.",
       creationId,
       imageUrl,
       quality

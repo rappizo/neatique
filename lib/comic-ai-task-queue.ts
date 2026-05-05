@@ -59,6 +59,7 @@ export type ComicAiTaskClientRecord = {
   imageQuality?: string;
   referenceCreationId?: string;
   referenceImageName?: string;
+  referenceCount?: number;
   imageCreationId?: string;
 };
 
@@ -171,6 +172,71 @@ function toStringValue(value: unknown) {
 
 function toOptionalStringValue(value: unknown) {
   return typeof value === "string" && value ? value : undefined;
+}
+
+function toStringArrayValue(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && Boolean(item))
+    : [];
+}
+
+function getReferenceImagesPayload(payload: ComicAiTaskPayload) {
+  const references = Array.isArray(payload.references) ? payload.references : [];
+  const uploadReferences = references
+    .map((reference) =>
+      reference && typeof reference === "object" ? (reference as Record<string, unknown>) : null
+    )
+    .filter((reference) => reference?.type === "upload" && reference.image && typeof reference.image === "object")
+    .map((reference) => reference?.image as {
+      base64Data?: string | null;
+      mimeType?: string | null;
+      fileName?: string | null;
+    });
+
+  if (uploadReferences.length > 0) {
+    return uploadReferences;
+  }
+
+  return payload.referenceImage && typeof payload.referenceImage === "object"
+    ? [
+        payload.referenceImage as {
+          base64Data?: string | null;
+          mimeType?: string | null;
+          fileName?: string | null;
+        }
+      ]
+    : [];
+}
+
+function getReferenceCreationIdsPayload(payload: ComicAiTaskPayload) {
+  const references = Array.isArray(payload.references) ? payload.references : [];
+  const ids = references
+    .map((reference) =>
+      reference && typeof reference === "object" ? (reference as Record<string, unknown>) : null
+    )
+    .filter((reference) => reference?.type === "creation")
+    .map((reference) => toStringValue(reference?.id))
+    .filter(Boolean);
+
+  if (ids.length > 0) {
+    return ids;
+  }
+
+  const arrayIds = toStringArrayValue(payload.referenceCreationIds);
+
+  if (arrayIds.length > 0) {
+    return arrayIds;
+  }
+
+  const singularId = toStringValue(payload.referenceCreationId);
+  return singularId ? [singularId] : [];
+}
+
+function getReferenceImageNamesPayload(payload: ComicAiTaskPayload) {
+  return getReferenceImagesPayload(payload)
+    .map((image) => image.fileName || "")
+    .filter(Boolean)
+    .join(", ");
 }
 
 function toNumberValue(value: unknown) {
@@ -475,14 +541,11 @@ async function executeComicAiTask(
         aspectRatio: toStringValue(payload.aspectRatio),
         quality: toStringValue(payload.quality || payload.imageQuality),
         referenceCreationId: toStringValue(payload.referenceCreationId),
-        referenceImage:
-          payload.referenceImage && typeof payload.referenceImage === "object"
-            ? (payload.referenceImage as {
-                base64Data?: string | null;
-                mimeType?: string | null;
-                fileName?: string | null;
-              })
-            : null,
+        referenceCreationIds: getReferenceCreationIdsPayload(payload),
+        referenceImages: getReferenceImagesPayload(payload),
+        references: Array.isArray(payload.references)
+          ? (payload.references as Array<Record<string, unknown>>)
+          : undefined,
         attempt: context.attempt
       });
   }
@@ -527,11 +590,13 @@ export function toClientComicAiTask(task: ComicAiTaskModelRecord): ComicAiTaskCl
     imagePrompt: toOptionalStringValue(payload.prompt || payload.imagePrompt),
     aspectRatio: toOptionalStringValue(payload.aspectRatio),
     imageQuality: toOptionalStringValue(payload.quality || payload.imageQuality || result?.quality),
-    referenceCreationId: toOptionalStringValue(payload.referenceCreationId),
-    referenceImageName:
-      payload.referenceImage && typeof payload.referenceImage === "object"
-        ? toOptionalStringValue((payload.referenceImage as Record<string, unknown>).fileName)
-        : undefined,
+    referenceCreationId:
+      getReferenceCreationIdsPayload(payload).join(",") ||
+      toOptionalStringValue(payload.referenceCreationId),
+    referenceImageName: getReferenceImageNamesPayload(payload),
+    referenceCount: Array.isArray(payload.references)
+      ? payload.references.length
+      : getReferenceCreationIdsPayload(payload).length + getReferenceImagesPayload(payload).length,
     imageCreationId: toOptionalStringValue(result?.creationId)
   };
 }

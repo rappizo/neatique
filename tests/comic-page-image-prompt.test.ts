@@ -126,7 +126,7 @@ test("comic page image prompt separates Coach Ray from Muci and normalizes legac
     panelCount: 3,
     pagePurpose: "Coach Ray and Muci compare panic with planning.",
     promptPackCopyText:
-      "Use exact uploaded model sheets. Coach Ray must stay broad pentagonal and planted. Muci stays compact broad centered teardrop.",
+      "Use exact uploaded model sheets. Coach Ray must stay broad pentagonal and planted. Muci stays compact broad teardrop with a soft viewer-left-leaning point.",
     referenceNotesCopyText:
       "Upload Muci and Coach Ray. Keep Coach Ray's pentagonal authority and Muci's compact teardrop.",
     globalGptImage2Notes:
@@ -219,11 +219,11 @@ test("comic page image prompt separates Coach Ray from Muci and normalizes legac
         slug: "muci",
         name: "Muci",
         role: "Audience surrogate.",
-        appearance: "Compact broad centered teardrop.",
+        appearance: "Compact broad teardrop with a soft viewer-left-leaning point.",
         personality: "Curious.",
         speechGuide: "Plainspoken.",
         referenceNotes: "Use refs/model-sheet.jpg.",
-        profileMarkdown: "# Muci\n\n## Appearance lock\nCompact broad centered teardrop.",
+        profileMarkdown: "# Muci\n\n## Appearance lock\nCompact broad teardrop with a soft viewer-left-leaning point.",
         referenceFiles: [
           {
             label: "Model Sheet",
@@ -290,7 +290,7 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
         slug: "muci",
         name: "Muci",
         role: "Audience surrogate.",
-        appearance: "Compact broad centered teardrop.",
+        appearance: "Compact broad teardrop with a soft viewer-left-leaning point.",
         personality: "Curious.",
         speechGuide: "Plainspoken.",
         referenceNotes: "Use refs/model-sheet.jpg.",
@@ -325,8 +325,8 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
 
   assert.match(prompt, /Similar teardrop cast separation lock/);
   assert.match(prompt, /Muci\/Nia high-risk head-shape guardrail/);
-  assert.match(prompt, /must not receive Nia's tall narrow sharp vertical spike/);
-  assert.match(prompt, /Muci: compact broad centered teardrop/);
+  assert.match(prompt, /Muci's model-sheet point leans toward Muci's right side \/ viewer's left/);
+  assert.match(prompt, /Muci: compact broad teardrop with a soft point leaning toward Muci's right side \/ viewer's left/);
   assert.match(prompt, /Nia: taller and sharper pointed teardrop/);
   assert.match(prompt, /Snacri: fatter quiet droplet/);
   assert.match(prompt, /Similar Teardrop Character Comparison/);
