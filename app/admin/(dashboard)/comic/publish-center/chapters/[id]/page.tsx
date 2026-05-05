@@ -27,13 +27,17 @@ import {
   deleteComicEpisodeAssetAction,
   uploadComicPageAssetAction
 } from "@/app/admin/comic-editor-actions";
-import { restoreComicPagePromptRevisionAction } from "@/app/admin/comic-prompt-actions";
+import {
+  neglectComicPromptQaFindingAction,
+  restoreComicPagePromptRevisionAction
+} from "@/app/admin/comic-prompt-actions";
 import { getComicPublishCenter } from "@/lib/comic-queries";
 import {
   getComicPromptHealthSummary,
   type ComicPromptHealthFinding,
   type ComicPromptPageHealth
 } from "@/lib/comic-prompt-health";
+import { getNeglectedComicPromptQaFindingKeys } from "@/lib/comic-prompt-health-neglect";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { resolveComicPageReferenceImages } from "@/lib/comic-reference-images";
 import { formatDate } from "@/lib/format";
@@ -72,6 +76,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   "page-prompt-revised": "Comic page prompt updated.",
   "page-prompt-restored": "Comic page prompt restored from history.",
   "page-prompt-revision-failed": "Comic page prompt revision failed. Check the episode prompt run history.",
+  "prompt-qa-neglected": "Prompt QA item ignored. Matching QA findings will pass by default.",
+  "missing-prompt-qa-finding": "That Prompt QA item could not be ignored.",
   "missing-approved-pages": "Approve pages 1-10 before publishing this episode.",
   "missing-approved-page": "Approve an English page image before creating a Chinese version.",
   "missing-asset": "That comic page asset could not be found.",
@@ -186,12 +192,14 @@ function formatHealthFindingPrefix(pageNumber: number) {
 }
 
 function PromptHealthFindingList({
-  findings
+  findings,
+  redirectTo
 }: {
   findings: Array<{
     pageNumber: number;
     finding: ComicPromptHealthFinding;
   }>;
+  redirectTo: string;
 }) {
   if (findings.length === 0) {
     return null;
@@ -200,16 +208,27 @@ function PromptHealthFindingList({
   return (
     <div className="admin-comic-health-list">
       {findings.map(({ pageNumber, finding }, findingIndex) => (
-        <span
-          key={`${pageNumber}-${finding.severity}-${findingIndex}`}
+        <div
+          key={`${pageNumber}-${finding.key}-${findingIndex}`}
           className={
             finding.severity === "issue"
               ? "admin-comic-health-item admin-comic-health-item--issue"
               : "admin-comic-health-item admin-comic-health-item--warning"
           }
         >
-          <strong>{formatHealthFindingPrefix(pageNumber)}:</strong> {finding.message}
-        </span>
+          <span>
+            <strong>{formatHealthFindingPrefix(pageNumber)}:</strong> {finding.message}
+          </span>
+          <form action={neglectComicPromptQaFindingAction}>
+            <input type="hidden" name="findingKey" value={finding.key} />
+            <input type="hidden" name="severity" value={finding.severity} />
+            <input type="hidden" name="message" value={finding.message} />
+            <input type="hidden" name="redirectTo" value={redirectTo} />
+            <button type="submit" className="button button--ghost button--compact">
+              Neglect
+            </button>
+          </form>
+        </div>
       ))}
     </div>
   );
@@ -397,10 +416,11 @@ export default async function AdminComicPublishChapterPage({
   params,
   searchParams
 }: AdminComicPublishChapterPageProps) {
-  const [{ id }, query, publishCenter] = await Promise.all([
+  const [{ id }, query, publishCenter, neglectedFindingKeys] = await Promise.all([
     params,
     searchParams,
-    getComicPublishCenter()
+    getComicPublishCenter(),
+    getNeglectedComicPromptQaFindingKeys()
   ]);
   const match = getChapterMatch(publishCenter.seasons, id);
 
@@ -513,7 +533,9 @@ export default async function AdminComicPublishChapterPage({
                 pages: []
               };
             const redirectTo = buildRedirectTo(chapter.id, episode.id);
-            const promptHealth = getComicPromptHealthSummary(promptState.parsedPromptOutput);
+            const promptHealth = getComicPromptHealthSummary(promptState.parsedPromptOutput, {
+              neglectedFindingKeys
+            });
             const promptHealthByPage = new Map(
               promptHealth.pages
                 .filter((pageHealth) => pageHealth.pageNumber > 0)
@@ -586,7 +608,10 @@ export default async function AdminComicPublishChapterPage({
                         Fix issues before generation; warnings mark continuity risks to review.
                       </p>
                     </div>
-                    <PromptHealthFindingList findings={promptHealthFindings} />
+                    <PromptHealthFindingList
+                      findings={promptHealthFindings}
+                      redirectTo={redirectTo}
+                    />
                   </div>
                 ) : null}
 
@@ -659,6 +684,7 @@ export default async function AdminComicPublishChapterPage({
                               pageNumber,
                               finding
                             }))}
+                            redirectTo={redirectTo}
                           />
                         ) : null}
 
@@ -747,16 +773,25 @@ export default async function AdminComicPublishChapterPage({
                               {pageHealth?.findings.length ? (
                                 <div className="admin-comic-health-list">
                                   {pageHealth.findings.map((finding, findingIndex) => (
-                                    <span
-                                      key={`${episode.id}-${pageNumber}-${finding.severity}-${findingIndex}`}
+                                    <div
+                                      key={`${episode.id}-${pageNumber}-${finding.key}-${findingIndex}`}
                                       className={
                                         finding.severity === "issue"
                                           ? "admin-comic-health-item admin-comic-health-item--issue"
                                           : "admin-comic-health-item admin-comic-health-item--warning"
                                       }
                                     >
-                                      {finding.message}
-                                    </span>
+                                      <span>{finding.message}</span>
+                                      <form action={neglectComicPromptQaFindingAction}>
+                                        <input type="hidden" name="findingKey" value={finding.key} />
+                                        <input type="hidden" name="severity" value={finding.severity} />
+                                        <input type="hidden" name="message" value={finding.message} />
+                                        <input type="hidden" name="redirectTo" value={redirectTo} />
+                                        <button type="submit" className="button button--ghost button--compact">
+                                          Neglect
+                                        </button>
+                                      </form>
+                                    </div>
                                   ))}
                                 </div>
                               ) : null}

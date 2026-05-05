@@ -28,6 +28,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   "asset-deleted": "Comic asset deleted.",
   "prompt-generated": "A fresh comic prompt package is ready.",
   "prompt-failed": "Comic prompt generation failed. Check the latest prompt run entry below.",
+  "prompt-qa-neglected": "Prompt QA item ignored. Matching QA findings will pass by default.",
+  "missing-prompt-qa-finding": "That Prompt QA item could not be ignored.",
   "page-image-generated": "Comic page image generated and saved as a draft asset.",
   "page-image-failed": "Comic page image generation failed. Check the latest prompt run entry below.",
   "missing-fields": "Fill in the required episode fields before saving.",

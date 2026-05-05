@@ -82,6 +82,25 @@ test("comic prompt health warns when recurring props lack a continuity reference
   );
 });
 
+test("comic prompt health neglects matching QA findings by key", () => {
+  const promptOutput = buildPromptOutput();
+  promptOutput.pages[0].promptPackCopyText += "\nA handbook floats beside Ava.";
+  promptOutput.pages[1].promptPackCopyText += "\nThe handbook returns in close-up.";
+
+  const summary = getComicPromptHealthSummary(promptOutput, {
+    neglectedFindingKeys: ["page.recurring-prop.missing-reference:handbook"]
+  });
+
+  assert.equal(summary.issueCount, 0);
+  assert.equal(summary.warningCount, 0);
+  assert.equal(
+    summary.pages.some((page) =>
+      page.findings.some((finding) => finding.message.includes("handbook"))
+    ),
+    false
+  );
+});
+
 test("comic prompt health accepts recurring props with a continuity reference", () => {
   const promptOutput = buildPromptOutput();
   const handbookReference = {

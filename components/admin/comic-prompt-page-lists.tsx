@@ -3,11 +3,13 @@ import {
   ComicGenerateImageQueueButton
 } from "@/components/admin/comic-image-task-queue";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
+import { neglectComicPromptQaFindingAction } from "@/app/admin/comic-prompt-actions";
 import {
   getComicPromptHealthSummary,
   type ComicPromptHealthFinding,
   type ComicPromptPageHealth
 } from "@/lib/comic-prompt-health";
+import { getNeglectedComicPromptQaFindingKeys } from "@/lib/comic-prompt-health-neglect";
 
 type PromptPanelView = {
   panelNumber: number;
@@ -142,12 +144,14 @@ function formatHealthFindingPrefix(pageNumber: number) {
 }
 
 function PromptHealthFindingList({
-  findings
+  findings,
+  redirectTo
 }: {
   findings: Array<{
     pageNumber: number;
     finding: ComicPromptHealthFinding;
   }>;
+  redirectTo?: string;
 }) {
   if (findings.length === 0) {
     return null;
@@ -156,22 +160,35 @@ function PromptHealthFindingList({
   return (
     <div className="admin-comic-health-list">
       {findings.map(({ pageNumber, finding }, findingIndex) => (
-        <span
-          key={`${pageNumber}-${finding.severity}-${findingIndex}`}
+        <div
+          key={`${pageNumber}-${finding.key}-${findingIndex}`}
           className={
             finding.severity === "issue"
               ? "admin-comic-health-item admin-comic-health-item--issue"
               : "admin-comic-health-item admin-comic-health-item--warning"
           }
         >
-          <strong>{formatHealthFindingPrefix(pageNumber)}:</strong> {finding.message}
-        </span>
+          <span>
+            <strong>{formatHealthFindingPrefix(pageNumber)}:</strong> {finding.message}
+          </span>
+          {redirectTo ? (
+            <form action={neglectComicPromptQaFindingAction}>
+              <input type="hidden" name="findingKey" value={finding.key} />
+              <input type="hidden" name="severity" value={finding.severity} />
+              <input type="hidden" name="message" value={finding.message} />
+              <input type="hidden" name="redirectTo" value={redirectTo} />
+              <button type="submit" className="button button--ghost button--compact">
+                Neglect
+              </button>
+            </form>
+          ) : null}
+        </div>
       ))}
     </div>
   );
 }
 
-export function ComicPromptPageLists({
+export async function ComicPromptPageLists({
   episodeLogline,
   episodeSynopsis,
   promptPages,
@@ -180,12 +197,15 @@ export function ComicPromptPageLists({
   redirectTo,
   showGenerateActions = false
 }: ComicPromptPageListsProps) {
+  const neglectedFindingKeys = await getNeglectedComicPromptQaFindingKeys();
   const canGeneratePages = Boolean(showGenerateActions && episodeId && redirectTo);
   const promptHealth = getComicPromptHealthSummary({
     episodeLogline,
     episodeSynopsis,
     globalGptImage2Notes,
     pages: promptPages
+  }, {
+    neglectedFindingKeys
   });
   const pageHealthByNumber = new Map(
     promptHealth.pages
@@ -262,7 +282,7 @@ export function ComicPromptPageLists({
               <h3>Prompt QA details</h3>
               <p className="form-note">Warnings and issues are listed here before page generation.</p>
             </div>
-            <PromptHealthFindingList findings={promptHealthFindings} />
+            <PromptHealthFindingList findings={promptHealthFindings} redirectTo={redirectTo} />
           </div>
         ) : null}
 
@@ -340,16 +360,27 @@ export function ComicPromptPageLists({
                 {pageHealth?.findings.length ? (
                   <div className="admin-comic-health-list">
                     {pageHealth.findings.map((finding, findingIndex) => (
-                      <span
-                        key={`${page.pageNumber}-${finding.severity}-${findingIndex}`}
+                      <div
+                        key={`${page.pageNumber}-${finding.key}-${findingIndex}`}
                         className={
                           finding.severity === "issue"
                             ? "admin-comic-health-item admin-comic-health-item--issue"
                             : "admin-comic-health-item admin-comic-health-item--warning"
                         }
                       >
-                        {finding.message}
-                      </span>
+                        <span>{finding.message}</span>
+                        {redirectTo ? (
+                          <form action={neglectComicPromptQaFindingAction}>
+                            <input type="hidden" name="findingKey" value={finding.key} />
+                            <input type="hidden" name="severity" value={finding.severity} />
+                            <input type="hidden" name="message" value={finding.message} />
+                            <input type="hidden" name="redirectTo" value={redirectTo} />
+                            <button type="submit" className="button button--ghost button--compact">
+                              Neglect
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
                     ))}
                   </div>
                 ) : null}

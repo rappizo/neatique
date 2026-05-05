@@ -1,9 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
+import { addNeglectedComicPromptQaFinding } from "@/lib/comic-prompt-health-neglect";
 import {
   ComicPageImageGenerationInputError,
   generateComicPageImageForEpisode
@@ -15,6 +17,29 @@ import {
 } from "@/lib/comic-reference-manifest";
 import { buildComicRedirect, revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 import { toInt, toPlainString } from "@/lib/utils";
+
+export async function neglectComicPromptQaFindingAction(formData: FormData) {
+  await requireAdminSession();
+
+  const findingKey = toPlainString(formData.get("findingKey"));
+  const severity = toPlainString(formData.get("severity")) || "warning";
+  const message = toPlainString(formData.get("message"));
+  const redirectTo =
+    toPlainString(formData.get("redirectTo")) || "/admin/comic/publish-center";
+
+  if (!findingKey) {
+    redirect(buildComicRedirect(redirectTo, "missing-prompt-qa-finding"));
+  }
+
+  await addNeglectedComicPromptQaFinding({
+    key: findingKey,
+    severity,
+    message
+  });
+
+  revalidatePath(redirectTo);
+  redirect(buildComicRedirect(redirectTo, "prompt-qa-neglected"));
+}
 
 export async function generateComicPromptPackageAction(formData: FormData) {
   await requireAdminSession();

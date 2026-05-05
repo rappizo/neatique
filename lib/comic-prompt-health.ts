@@ -46,6 +46,7 @@ export type ComicPromptHealthSeverity = "issue" | "warning";
 
 export type ComicPromptHealthFinding = {
   severity: ComicPromptHealthSeverity;
+  key: string;
   message: string;
 };
 
@@ -66,6 +67,10 @@ export type ComicPromptHealthSummary = {
   issueCount: number;
   warningCount: number;
   pages: ComicPromptPageHealth[];
+};
+
+export type ComicPromptHealthOptions = {
+  neglectedFindingKeys?: string[];
 };
 
 function normalizeText(value: string) {
@@ -231,35 +236,58 @@ function formatContinuityKeywordPages(pages: Set<number>) {
 function addFinding(
   findings: ComicPromptHealthFinding[],
   severity: ComicPromptHealthSeverity,
+  key: string,
   message: string
 ) {
-  findings.push({ severity, message });
+  findings.push({ severity, key, message });
+}
+
+function filterNeglectedFindings(
+  findings: ComicPromptHealthFinding[],
+  neglectedFindingKeys: Set<string>
+) {
+  if (neglectedFindingKeys.size === 0) {
+    return findings;
+  }
+
+  return findings.filter((finding) => !neglectedFindingKeys.has(finding.key));
 }
 
 export function getComicPromptHealthSummary(
-  promptOutput: ParsedComicPromptOutput | null
+  promptOutput: ParsedComicPromptOutput | null,
+  options: ComicPromptHealthOptions = {}
 ): ComicPromptHealthSummary {
+  const neglectedFindingKeys = new Set(options.neglectedFindingKeys || []);
+
   if (!promptOutput) {
+    const findings = filterNeglectedFindings(
+      [
+        {
+          severity: "issue" as const,
+          key: "prompt-package.missing",
+          message: "Generate a 10-page prompt package before creating images."
+        }
+      ],
+      neglectedFindingKeys
+    );
+    const issueCount = findings.filter((finding) => finding.severity === "issue").length;
+    const warningCount = findings.length - issueCount;
+
     return {
       totalPages: 0,
       readyPages: 0,
-      issueCount: 1,
-      warningCount: 0,
+      issueCount,
+      warningCount,
       pages: [
         {
           pageNumber: 0,
-          ready: false,
-          issueCount: 1,
-          warningCount: 0,
+          ready: issueCount === 0,
+          issueCount,
+          warningCount,
           dialogueLineCount: 0,
           uploadImageCount: 0,
           hasLetteringGuide: false,
-          findings: [
-            {
-              severity: "issue",
-              message: "Generate a 10-page prompt package before creating images."
-            }
-          ]
+          findings
         }
       ]
     };
@@ -279,25 +307,41 @@ export function getComicPromptHealthSummary(
     const pageHasLetteringGuide = hasLetteringGuide(pagePromptText);
 
     if (!page.promptPackCopyText.trim()) {
-      addFinding(findings, "issue", "Image prompt text is missing.");
+      addFinding(findings, "issue", "page.image-prompt.missing", "Image prompt text is missing.");
     }
 
     if (page.panelCount !== page.panels.length) {
-      addFinding(findings, "issue", "Panel count does not match listed panels.");
+      addFinding(
+        findings,
+        "issue",
+        "page.panel-count.mismatch",
+        "Panel count does not match listed panels."
+      );
     }
 
     if (![2, 3].includes(page.panelCount)) {
-      addFinding(findings, "warning", "Panel count is outside the 2-3 panel production rhythm.");
+      addFinding(
+        findings,
+        "warning",
+        "page.panel-count.production-rhythm",
+        "Panel count is outside the 2-3 panel production rhythm."
+      );
     }
 
     if (!pageHasLetteringGuide) {
-      addFinding(findings, "issue", "Lettering/font direction is missing from this page prompt.");
+      addFinding(
+        findings,
+        "issue",
+        "page.lettering.missing",
+        "Lettering/font direction is missing from this page prompt."
+      );
     }
 
     if (uploadNames.length > MAX_REFERENCE_IMAGES_PER_PAGE) {
       addFinding(
         findings,
         "warning",
+        "page.reference-uploads.too-many",
         `Reference upload count is ${uploadNames.length}; keep the image input set focused.`
       );
     }
@@ -307,6 +351,7 @@ export function getComicPromptHealthSummary(
         addFinding(
           findings,
           "warning",
+          `page.reference-upload.incomplete-metadata:${normalizeText(upload.label || upload.slug)}`,
           `${upload.label || upload.slug} has incomplete reference file metadata.`
         );
       }
@@ -324,6 +369,7 @@ export function getComicPromptHealthSummary(
       addFinding(
         findings,
         "warning",
+        `page.recurring-prop.missing-reference:${keyword}`,
         `Recurring prop "${keyword}" appears on ${formatContinuityKeywordPages(
           pagesWithKeyword
         )} without a dedicated continuity reference or explicit lock on this page. Create/attach a prop, scene, or object reference before image generation.`
@@ -332,11 +378,21 @@ export function getComicPromptHealthSummary(
 
     page.panels.forEach((panel) => {
       if (!panel.promptText?.trim()) {
-        addFinding(findings, "warning", `Panel ${panel.panelNumber} is missing panel promptText.`);
+        addFinding(
+          findings,
+          "warning",
+          "panel.prompt-text.missing",
+          `Panel ${panel.panelNumber} is missing panel promptText.`
+        );
       }
 
       if (!panel.dialogueLines?.length) {
-        addFinding(findings, "issue", `Panel ${panel.panelNumber} has no dialogueLines.`);
+        addFinding(
+          findings,
+          "issue",
+          "panel.dialogue-lines.missing",
+          `Panel ${panel.panelNumber} has no dialogueLines.`
+        );
         return;
       }
 
@@ -345,6 +401,7 @@ export function getComicPromptHealthSummary(
           addFinding(
             findings,
             "issue",
+            "panel.dialogue-line.incomplete",
             `Panel ${panel.panelNumber} dialogue ${index + 1} is missing speaker or text.`
           );
           return;
@@ -354,14 +411,16 @@ export function getComicPromptHealthSummary(
           addFinding(
             findings,
             "issue",
+            "panel.dialogue-line.not-in-image-prompt",
             `Panel ${panel.panelNumber} dialogue is not written into the image prompt.`
           );
         }
       });
     });
 
-    const issueCount = findings.filter((finding) => finding.severity === "issue").length;
-    const warningCount = findings.length - issueCount;
+    const visibleFindings = filterNeglectedFindings(findings, neglectedFindingKeys);
+    const issueCount = visibleFindings.filter((finding) => finding.severity === "issue").length;
+    const warningCount = visibleFindings.length - issueCount;
 
     return {
       pageNumber: page.pageNumber,
@@ -371,7 +430,7 @@ export function getComicPromptHealthSummary(
       dialogueLineCount: dialogueLines.length,
       uploadImageCount: uploadNames.length,
       hasLetteringGuide: pageHasLetteringGuide,
-      findings
+      findings: visibleFindings
     };
   });
 
@@ -380,11 +439,15 @@ export function getComicPromptHealthSummary(
       ? null
       : {
           severity: "issue",
+          key: "prompt-package.page-count",
           message: `Prompt package has ${promptOutput.pages.length} pages; expected ${REQUIRED_PAGE_COUNT}.`
         };
+  const visiblePageCountFinding = pageCountFinding
+    ? filterNeglectedFindings([pageCountFinding], neglectedFindingKeys)[0] || null
+    : null;
 
-  const pageCountIssues = pageCountFinding?.severity === "issue" ? 1 : 0;
-  const pageCountWarnings = pageCountFinding?.severity === "warning" ? 1 : 0;
+  const pageCountIssues = visiblePageCountFinding?.severity === "issue" ? 1 : 0;
+  const pageCountWarnings = visiblePageCountFinding?.severity === "warning" ? 1 : 0;
   const issueCount =
     pageCountIssues +
     pages.reduce((sum, page) => sum + page.issueCount, 0);
@@ -397,7 +460,7 @@ export function getComicPromptHealthSummary(
     readyPages: pages.filter((page) => page.ready).length,
     issueCount,
     warningCount,
-    pages: pageCountFinding
+    pages: visiblePageCountFinding
       ? [
           {
             pageNumber: 0,
@@ -407,7 +470,7 @@ export function getComicPromptHealthSummary(
             dialogueLineCount: 0,
             uploadImageCount: 0,
             hasLetteringGuide: false,
-            findings: [pageCountFinding]
+            findings: [visiblePageCountFinding]
           },
           ...pages
         ]
