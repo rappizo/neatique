@@ -452,7 +452,9 @@ test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes"
   });
 
   assert.match(prompt, /Padaruna anti-Muci identity lock/);
+  assert.match(prompt, /Muci\/Padaruna high-risk size separation/);
   assert.match(prompt, /no eyebrows or brow marks/);
+  assert.match(prompt, /about 1\.3x Muci's overall size/);
   assert.match(prompt, /not Muci's squat soft protagonist droplet/);
   assert.match(prompt, /Professor Cera Lin six-corner shape lock/);
   assert.match(prompt, /exactly six outer corners/);

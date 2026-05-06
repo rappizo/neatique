@@ -16,7 +16,7 @@ Chaos engine, trend magnet, and lovable instigator who carries the social-pressu
 - No eyebrows or brow marks; her expression comes from eyes, mouth, tilt, and body energy
 - Softer than Nia, more animated than Snacri
 - Should feel like the most socially expressive of the droplet-shaped cast
-- Similar-character lock: Padaruna is the energetic full-bodied pointed droplet. Do not slim her into Padarana, sharpen her into Nia's controlled look, quiet her into Snacri, or soften her into Muci's protagonist baseline. Do not copy Muci's squat soft protagonist body, face spacing, or baseline expression; Padaruna keeps the sharper head, rounder buoyant body, browless open eyes, and eager social smile from her model sheet.
+- Similar-character lock: Padaruna is the energetic full-bodied pointed droplet. Do not slim her into Padarana, sharpen her into Nia's controlled look, quiet her into Snacri, or soften her into Muci's protagonist baseline. Do not copy Muci's squat soft protagonist body, face spacing, or baseline expression; Padaruna keeps the sharper head, rounder buoyant body, browless open eyes, and eager social smile from her model sheet. When Padaruna and Muci appear together, Padaruna's overall body scale should read about 1.3x Muci's size so the two silhouettes separate clearly.
 
 ## Personality lock
 - Energetic
@@ -39,7 +39,7 @@ Padaruna should sound fast, enthusiastic, and emotionally immediate. Her lines s
 - Keep her pointed head, fuller round body, open dot eyes, eager smile, no eyebrows, and energetic face language
 - Avoid flattening her into a neutral background droplet in group scenes
 - In group scenes with Padarana, Padaruna must read as the fuller and more lively one; Padarana must stay slimmer and gentler.
-- In group scenes with Muci, Padaruna must not become Muci. Muci stays short, broad, squat, soft-sided, and protagonist-friendly; Padaruna stays sharper at the head, rounder in the body, browless, open-eyed, and socially explosive.
+- In group scenes with Muci, Padaruna must not become Muci. Muci stays short, broad, squat, soft-sided, and protagonist-friendly; Padaruna stays about 1.3x larger than Muci overall, sharper at the head, rounder in the body, browless, open-eyed, and socially explosive.
 
 ## Reusable prompt notes
-When prompting Padaruna, emphasize "sharp-pointed but fuller round-bodied energetic teardrop mascot, visibly round buoyant body under a sharp head, no eyebrows, lively open dot eyes, eager smile, expressive and trend-sensitive, fast-talking social spark, cute chaos energy, not Muci's squat soft protagonist droplet, not Padarana, not Nia, not Snacri."
+When prompting Padaruna, emphasize "sharp-pointed but fuller round-bodied energetic teardrop mascot, visibly round buoyant body under a sharp head, no eyebrows, lively open dot eyes, eager smile, expressive and trend-sensitive, fast-talking social spark, cute chaos energy, about 1.3x Muci's overall size when they appear together, not Muci's squat soft protagonist droplet, not Padarana, not Nia, not Snacri."

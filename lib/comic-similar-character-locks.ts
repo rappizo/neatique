@@ -40,7 +40,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   padaruna: {
     name: "Padaruna",
     identity:
-      "sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; not Muci's squat soft protagonist droplet"
+      "sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; about 1.3x Muci's overall size when she appears with Muci; not Muci's squat soft protagonist droplet"
   },
   padarana: {
     name: "Padarana",
@@ -67,6 +67,8 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
   }
 
   const hasMuciAndNia = similarSlugs.includes("muci") && similarSlugs.includes("nia");
+  const hasMuciAndPadaruna =
+    similarSlugs.includes("muci") && similarSlugs.includes("padaruna");
 
   return [
     "Similar teardrop cast separation lock:",
@@ -77,6 +79,13 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
           "- Muci/Nia high-risk model-sheet guardrail: draw Muci from the Muci Model Sheet Exact Lock, not from generic teardrop memory. Muci's top is a rounded teardrop point with only a subtle near-center lean toward reader-left/Muci's right; it is not a sharp Nia point, exaggerated hook, sideways curl, or flopped-over cap.",
           "- In any panel where Muci and Nia appear together, draw Muci first as short, broad, squat, round-lower-half, open-smiling, browless, soft-sided, and only gently asymmetric at the top; draw Nia separately as taller, narrower, sharper, vertically pointed, and marked by one angled left brow.",
           "- Before final rendering, compare the two silhouettes: if Muci can be mistaken for Nia or if Muci's top leans farther than the model sheet, redraw Muci wider, shorter, rounder at the base, friendlier, browless, and closer to the model sheet before adding acting or background detail."
+        ].join("\n")
+      : null,
+    hasMuciAndPadaruna
+      ? [
+          "- Muci/Padaruna high-risk size separation: when Muci and Padaruna appear together, Padaruna must read about 1.3x Muci's overall body scale and visual mass, while Muci remains the smaller short broad squat protagonist droplet.",
+          "- Draw Muci first as compact, broad, squat, soft-sided, browless, and friendly; draw Padaruna beside him as visibly larger, sharper-headed, rounder-bodied, browless, open-eyed, eager, and high-energy.",
+          "- Before final rendering, compare their silhouettes: if Padaruna and Muci are the same size or can be mistaken for each other, enlarge Padaruna to roughly 1.3x Muci and restore her sharper head plus fuller round buoyant body."
         ].join("\n")
       : null,
     ...similarSlugs.map((slug) => {
