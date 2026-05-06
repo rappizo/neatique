@@ -36,6 +36,11 @@ Original location used during import:
 
 `F:/Administrator/Documents/WPSDrive/937175334/WPS云盘/Neatique IP Design/Comic/场景设定图/`
 
+## Derived on 2026-05-06
+
+### Episode-approved prop references
+- `Student Handbook (old edition).jpg` (cropped from approved Episode 4 Page 10 as the recurring old student handbook prop reference)
+
 ## Imported on 2026-04-24
 
 ### Season 1 supporting-cast design sheets

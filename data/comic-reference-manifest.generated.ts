@@ -8,7 +8,7 @@ type ComicReferenceManifest = {
 };
 
 const comicReferenceManifest = {
-  "generatedAt": "2026-05-04T07:16:27.286Z",
+  "generatedAt": "2026-05-06T11:48:40.272Z",
   "characters": {
     "artrans": [
       {
@@ -156,6 +156,14 @@ const comicReferenceManifest = {
         "extension": "jpg"
       }
     ],
+    "season-01-chapter-01-orientation-week-is-a-scam-student-handbook-old-edition": [
+      {
+        "label": "Student Handbook (Old Edition)",
+        "fileName": "Student Handbook (old edition).jpg",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Student Handbook (old edition).jpg",
+        "extension": "jpg"
+      }
+    ],
     "season-01-chapter-01-orientation-week-is-a-scam-student-room": [
       {
         "label": "Student Room",
@@ -235,6 +243,12 @@ const comicReferenceManifest = {
           "label": "Residence Hall",
           "fileName": "Residence hall.jpg",
           "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Residence hall.jpg",
+          "extension": "jpg"
+        },
+        {
+          "label": "Student Handbook (Old Edition)",
+          "fileName": "Student Handbook (old edition).jpg",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Student Handbook (old edition).jpg",
           "extension": "jpg"
         },
         {

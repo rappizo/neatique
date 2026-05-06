@@ -73,6 +73,7 @@ During a class exercise, Nia provides correctness, Padaruna imagines errors to t
 ### Visual And Character Locks
 - Use the first-appearance intro box: Padaruna - Try Every Bad Idea Beautifully.
 - Padaruna should feel excited, stylish, impulsive, and never mean. She is not foolish; she trusts experience and momentum too much.
+- Old student handbook lock: every Episode 4 page that shows the old handbook must upload `comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Student Handbook (old edition).jpg` and match the approved Episode 4 Page 10 design exactly: white slightly tilted book/manual, thick black cover outline, stacked cover text "STUDENT HANDBOOK (Old Edition)", shield emblem with a small droplet, ornamental corner flourishes, and visible page stack on the right and bottom edge. Do not substitute the Episode 2 `Sunscreen Field Handbook.jpg` design.
 
 ### American Humor Beats
 - The course title sounds like a threat.

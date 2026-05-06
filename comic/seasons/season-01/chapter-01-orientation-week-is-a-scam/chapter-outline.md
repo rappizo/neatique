@@ -67,3 +67,5 @@ By the end of Chapter 1, readers should understand three things: Neatique's olde
 
 ### Scene Pack
 Use the locked Chapter 1 environment references in `scene-refs/`. Sunscreen Field, Dorm/Residence, Hydration Greenhouse, Founder Walk, Student Store, old restricted hallway, and recurring props must stay continuous. If handbooks, old maps, plaques, bookmarks, or similar objects recur, create or choose a unified reference before page prompts move into image generation.
+
+Specific handbook locks: `Sunscreen Field Handbook.jpg` is only the Episode 2 field-handbook prop. `Student Handbook (old edition).jpg` is the old student handbook locked from approved Episode 4 Page 10: white slightly tilted manual, thick black outline, stacked cover text "STUDENT HANDBOOK (Old Edition)", shield emblem with small droplet, ornamental corner flourishes, and visible page stack on the right and bottom edge.

@@ -3654,6 +3654,7 @@ export async function generateComicPromptPackageWithAi(
                 "When you build the upload checklist, explicitly state which character reference images, reusable scene reference images, and chapter scene reference images should be uploaded before using gpt-image-2.",
                 "If a named prop or object appears on multiple pages, treat it like a continuity asset: use an existing chapter scene reference if one exists, or explicitly flag that a prop/object reference should be created before image generation.",
                 "When a recurring prop reference exists in the chapter scene reference files, include it in requiredUploads on every page where that prop appears.",
+                "When the old student handbook, Student Handbook (old edition), or old handbook appears, use the chapter prop reference named Student Handbook (old edition).jpg if it exists; match its approved Episode 4 Page 10 design exactly, and never substitute the Sunscreen Field Handbook.jpg design.",
                 "Never invent file names. Only use file names that appear in the provided reference libraries.",
                 "Assume the team wants stable characters, reusable scenes, and a polished comic workflow."
               ].join(" ")

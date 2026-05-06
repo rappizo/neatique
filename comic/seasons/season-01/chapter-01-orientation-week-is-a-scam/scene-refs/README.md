@@ -36,6 +36,9 @@ Use them as chapter-level references when building prompts for `gpt-image-2`. On
 - `Sunscreen Field Handbook.jpg`
   Recurring field prop locked from the approved Episode 2 Page 10 handbook: white tabbed handbook, thick black cover outline, stacked title text "Sunscreen Field Handbook", simple sun emblem centered below the title, visible page stack on the right and bottom edge, floating through campus telekinesis/device motion.
 
+- `Student Handbook (old edition).jpg`
+  Recurring old student handbook prop locked from the approved Episode 4 Page 10 image: white slightly tilted book/manual, thick black cover outline, stacked title text "STUDENT HANDBOOK (Old Edition)", shield emblem with a small droplet centered below the title, ornamental corner flourishes, visible page stack on the right and bottom edge, floating through telekinesis. Do not use the Episode 2 `Sunscreen Field Handbook.jpg` sun-emblem field-handbook design for this prop.
+
 ## Prompt use notes
 
 - Keep the chapter line-art style light, clean, and readable.
@@ -43,3 +46,4 @@ Use them as chapter-level references when building prompts for `gpt-image-2`. On
 - Match the scene to the panel purpose: exterior establishing shot, transition shot, dialogue space, or mystery reveal.
 - If a panel only needs a partial background, crop from the correct scene instead of mixing scene logic from different locations.
 - If a named prop appears on multiple pages, create or reuse a dedicated reference like `Sunscreen Field Handbook.jpg` before generating images, then list that prop reference in the page prompt's upload checklist.
+- If the old student handbook appears, use `Student Handbook (old edition).jpg` and match the approved Episode 4 Page 10 cover design exactly.
