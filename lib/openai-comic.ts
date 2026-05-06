@@ -97,6 +97,13 @@ const COMIC_COVER_TYPOGRAPHY_LOCKS = [
   "- Keep the serif title lettering elegant, high-contrast, centered, and consistent; do not mix fonts or add decorative text.",
   "- Render only the uploaded logo and the exact episode title line specified in the prompt."
 ].join("\n");
+const COMIC_COVER_EPISODE_ONE_LAYOUT_LOCKS = [
+  "Episode 1 cover layout template lock:",
+  "- For every cover after Episode 1, match Episode 1's cover layout exactly: same top logo centerline, logo size, Episode title position, logo-to-title spacing, title-to-frame spacing, and lower rectangle frame x/y/width/height.",
+  "- Keep the logo/title stack fixed at the top; only change the Episode title text.",
+  "- Keep the large lower rectangular manga frame the same size and position as Episode 1. Do not make the frame taller, shorter, wider, narrower, higher, or lower to fit the scene.",
+  "- Stage the character interaction inside that fixed rectangle only; crop, scale, and compose the characters within the frame without moving or resizing the frame."
+].join("\n");
 type ComicProjectContext = {
   title: string;
   shortDescription: string;
@@ -2448,10 +2455,12 @@ function buildComicCoverPagePrompt(input: {
   const promptPackCopyText = [
     "Create the episode cover page for Neatique's original comic series.",
     "Cover layout, top to bottom:",
-    `1. Top logo area: place the exact uploaded comic title logo from ${COMIC_LOGO_PUBLIC_PATH}, centered, copied from the reference image, not redesigned.`,
-    `2. Under the logo, render one centered serif title line exactly: "${coverTitle}".`,
-    "3. Under the serif title line, draw one large clean rectangular manga frame with a strong black border. This single frame must occupy most of the lower page.",
+    `1. Top logo area: place the exact uploaded comic title logo from ${COMIC_LOGO_PUBLIC_PATH}, centered, copied from the reference image, not redesigned, in the same position and size as Episode 1's cover.`,
+    `2. Under the logo, render one centered serif title line exactly: "${coverTitle}", in the same position as Episode 1's Episode title line.`,
+    "3. Under the serif title line, draw one large clean rectangular manga frame with a strong black border. Match Episode 1's cover frame size and position exactly.",
     `4. Inside that large frame: ${coverInteraction}`,
+    "",
+    COMIC_COVER_EPISODE_ONE_LAYOUT_LOCKS,
     "",
     "Visible cover text:",
     `Serif title line: "${coverTitle}"`,
@@ -2468,6 +2477,7 @@ function buildComicCoverPagePrompt(input: {
       "- Upload the listed character model sheets for all cover characters. Character model sheets are exact identity locks, not loose inspiration.",
       "- Read each character Profile MD lock together with the uploaded model sheet before drawing that character.",
       `- Render the title line exactly as "${coverTitle}" in one unified serif typeface.`,
+      "- Match Episode 1's cover layout exactly: same logo position/size, same Episode title position, and same lower rectangular frame size/position.",
       "- The cover uses one large framed illustration, not multiple story panels.",
       "- Do not include character dialogue, speech balloons, caption boxes, or SFX.",
       "- Do not include character first-appearance introduction boxes, name cards, role cards, profile boxes, or cast bio labels. The cover does not count as any character's first appearance.",
@@ -2488,7 +2498,7 @@ function buildComicCoverPagePrompt(input: {
         panelTitle: "Large framed cover interaction",
         storyBeat: coverInteraction,
         promptText:
-          `Draw the cover's lower large frame as a polished minimalist Japanese manga illustration with the main characters interacting. Keep the logo/title stack above the frame clean and readable. Render the exact serif title line "${coverTitle}". Do not include dialogue, speech balloons, caption boxes, SFX, character introduction boxes, name cards, role cards, or profile boxes.`,
+          `Draw the cover's lower large frame as a polished minimalist Japanese manga illustration with the main characters interacting. Keep the logo/title stack and lower rectangle frame in the same positions and sizes as Episode 1's cover. Render the exact serif title line "${coverTitle}". Do not include dialogue, speech balloons, caption boxes, SFX, character introduction boxes, name cards, role cards, or profile boxes.`,
         dialogueLines: []
       }
     ],
@@ -2619,6 +2629,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Treat all listed character model sheets as exact identity references, not loose inspiration.",
     "- The actual reference images attached to this API request are binding visual references. Copy their silhouettes, proportions, face placement, highlight placement, body fill, and feet exactly where those characters or scenes appear.",
     "- Treat each character's Profile MD lock and attached model-sheet image as a paired identity contract: the MD tells you what details must stay distinct, and the image tells you the exact shape to draw.",
+    isCoverPage ? COMIC_COVER_EPISODE_ONE_LAYOUT_LOCKS : null,
     "- Only draw the characters named in the panel plan or dialogue for this page. Do not add background mascots just because their references are available.",
     "- When multiple mascot characters appear, compare their Profile MD locks before drawing. Do not blend silhouettes, faces, highlights, feet, expressions, or body proportions across characters.",
     "- Foot visibility check: any full-body character must show small rounded feet or foot nubs with clear space below the body; do not crop off feet.",
@@ -3302,6 +3313,9 @@ export async function reviseComicPagePromptWithAi(
                 isCoverPage
                   ? "- Keep panelCount at 1. This is the single large framed cover interaction."
                   : "- Keep panelCount at 2 or 3.",
+                isCoverPage
+                  ? "- Preserve Episode 1's cover layout template: same logo position/size, same Episode title position, and same lower rectangular frame size/position."
+                  : null,
                 "- Improve pagePurpose, promptPackCopyText, referenceNotesCopyText, and panel story beats to reflect the suggestion.",
                 "- Keep the full page content, all panels, all important reference instructions, and the final visual locks. Do not cut off the prompt mid-sentence.",
                 isCoverPage
