@@ -40,7 +40,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   padaruna: {
     name: "Padaruna",
     identity:
-      "sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; about 1.3x Muci's overall size when she appears with Muci; not Muci's squat soft protagonist droplet"
+      "sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; about 1.1x Muci's overall size when she appears with Muci; not Muci's squat soft protagonist droplet"
   },
   padarana: {
     name: "Padarana",
@@ -83,9 +83,9 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
       : null,
     hasMuciAndPadaruna
       ? [
-          "- Muci/Padaruna high-risk size separation: when Muci and Padaruna appear together, Padaruna must read about 1.3x Muci's overall body scale and visual mass, while Muci remains the smaller short broad squat protagonist droplet.",
+          "- Muci/Padaruna high-risk size separation: when Muci and Padaruna appear together, Padaruna must read about 1.1x Muci's overall body scale and visual mass, while Muci remains the slightly smaller short broad squat protagonist droplet.",
           "- Draw Muci first as compact, broad, squat, soft-sided, browless, and friendly; draw Padaruna beside him as visibly larger, sharper-headed, rounder-bodied, browless, open-eyed, eager, and high-energy.",
-          "- Before final rendering, compare their silhouettes: if Padaruna and Muci are the same size or can be mistaken for each other, enlarge Padaruna to roughly 1.3x Muci and restore her sharper head plus fuller round buoyant body."
+          "- Before final rendering, compare their silhouettes: if Padaruna and Muci are the same size or can be mistaken for each other, make Padaruna roughly 1.1x Muci and restore her sharper head plus fuller round buoyant body."
         ].join("\n")
       : null,
     ...similarSlugs.map((slug) => {
