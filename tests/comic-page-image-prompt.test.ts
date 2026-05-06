@@ -457,7 +457,7 @@ test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes"
   assert.match(prompt, /about 1\.1x Muci's overall size/);
   assert.match(prompt, /not Muci's squat soft protagonist droplet/);
   assert.match(prompt, /Professor Cera Lin six-sided hexagon shape lock/);
-  assert.match(prompt, /exactly six sides and six rounded corners/);
+  assert.match(prompt, /exactly six exterior sides and six rounded corners/);
   assert.match(prompt, /not any star shape/);
 });
 
@@ -529,7 +529,8 @@ test("comic page image prompt normalizes legacy Professor Cera Lin pentagonal wo
   assert.doesNotMatch(prompt, /pointed pentagonal silhouette/i);
   assert.doesNotMatch(prompt, /precise pentagonal professor silhouette/i);
   assert.match(prompt, /Professor Cera Lin rounded six-sided hexagon/);
-  assert.match(prompt, /convex rounded six-sided hexagon mascot/);
+  assert.match(prompt, /one rounded central top peak/);
+  assert.match(prompt, /flat-topped stop-sign\/octagon/);
 });
 
 test("comic page image reference selection keeps similar teardrop comparison during retries", () => {

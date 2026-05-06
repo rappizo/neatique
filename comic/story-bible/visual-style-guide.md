@@ -35,7 +35,7 @@
 - **Sunny Spritz**: soft five-point star silhouette, two small rounded feet directly under the lower star points, bright open smile, orientation-host energy
 - **Coach Ray**: broad squat shield-shaped mascot silhouette matching the uploaded model-sheet reference, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, planted authority, drill-instructor read; never draw him as Muci, a teardrop, or a generic polygon mascot
 - **Mira Mistwell**: rounded-square silhouette, neat balance, quiet administrative authority
-- **Professor Cera Lin**: rounded six-sided hexagon silhouette with exactly six sides and six rounded corners, controlled posture, academic precision; never draw her as any star shape, a five-point star, a six-point star, or Sunny Spritz's soft star
+- **Professor Cera Lin**: model-sheet rounded six-sided hexagon silhouette with one rounded central top peak, two sloped upper sides, two vertical side walls, rounded lower base, exactly six exterior sides and six rounded corners, controlled posture, academic precision; never draw her as any star shape, a five-point star, a six-point star, a flat-topped stop-sign/octagon, or Sunny Spritz's soft star
 - **Dewey Dot**: clean circular silhouette, bookish gentleness, archive-first energy
 - **Vela Sheen**: elegant diamond silhouette, refined balance, polished upperclass composure
 
@@ -71,7 +71,7 @@
 - When Muci and Nia appear together, treat them as a high-risk pair: draw Muci from the Muci model sheet first, with the subtle near-center top lean from the sheet, broad squat body, round heavy lower half, friendly U-smile, upper reader-left highlights, and no brow. Draw Nia separately as taller, narrower, sharply vertical, controlled, and marked by one angled left brow. If Muci's top becomes a sharp Nia-like point or an over-leaning hook/curl, redraw Muci before adding acting or background detail.
 - For Coach Ray, explicitly repeat the broad squat shield-shaped body, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, pure white body fill, small connected feet, controlled smile, and planted drill-instructor posture whenever he appears.
 - When Muci and Coach Ray appear together, state that their silhouettes must not be averaged: Muci stays the broad squat model-sheet droplet with a subtle near-center top lean, while Coach Ray stays a broad protective shield.
-- For Professor Cera Lin, explicitly preserve the rounded six-sided hexagon body with exactly six sides and six rounded corners whenever she appears. Never draw her as any star shape, a five-point star, a six-point star, pentagon, Sunny Spritz-style soft star, or generic polygon.
+- For Professor Cera Lin, explicitly preserve the model-sheet rounded six-sided hexagon body whenever she appears: one rounded central top peak, two sloped upper sides, two vertical side walls, rounded lower base, exactly six exterior sides and six rounded corners. Never draw her as any star shape, a five-point star, a six-point star, pentagon, flat-topped stop-sign/octagon, Sunny Spritz-style soft star, or generic polygon.
 - Mention mood, camera angle, and scene function, but do not let style flourishes override character-lock consistency.
 - If a panel depends on a specific reaction, include the exact expression target in the prompt and mention which reference sheet to upload.
 
@@ -91,7 +91,7 @@
 - Cropping a full-body character at the lower edge so the feet disappear
 - Muci redesigns, over-leaning Muci top points, shifted highlight marks, animal-like features, humanoid bodies, Nia-like brows, or altered droplet proportions
 - Padaruna drifting into Muci's squat soft protagonist droplet, Padaruna eyebrows, or a generic rounded drop with no sharp head
-- Professor Cera Lin drifting into any star shape, five-point star, six-point star, pentagon, Sunny Spritz-style soft star, or generic polygon
+- Professor Cera Lin drifting into any star shape, five-point star, six-point star, pentagon, flat-topped stop-sign/octagon, Sunny Spritz-style soft star, generic polygon, or any flat-top shape instead of the model-sheet single rounded top peak
 
 ## Dialogue voice locks
 - **Sunny Spritz**: hyper-enthusiastic, fast, cheerful, orientation-host energy, many exclamation marks
