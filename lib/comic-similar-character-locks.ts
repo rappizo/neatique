@@ -40,7 +40,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   padaruna: {
     name: "Padaruna",
     identity:
-      "sharp pointed head with a noticeably rounder fuller body, open lively dot eyes, eager smile, most socially expressive and energetic droplet"
+      "sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; not Muci's squat soft protagonist droplet"
   },
   padarana: {
     name: "Padarana",

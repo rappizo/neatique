@@ -337,6 +337,128 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   assert.match(prompt, /Similar Teardrop Character Comparison/);
 });
 
+test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "Know Your Barrier or Go Home",
+    episodeSummary: "Padaruna joins Barrier Sciences while Professor Cera Lin teaches restraint.",
+    pageNumber: 4,
+    panelCount: 2,
+    pagePurpose: "Keep Padaruna and Professor Cera Lin visually distinct during class comedy.",
+    promptPackCopyText: "Draw Padaruna, Muci, and Professor Cera Lin in Barrier Sciences Hall.",
+    referenceNotesCopyText: "Use model sheets exactly.",
+    globalGptImage2Notes: null,
+    panels: [
+      {
+        pageNumber: 4,
+        panelNumber: 1,
+        panelTitle: "Bad Idea Pitch",
+        storyBeat: "Padaruna pitches a chaotic routine while Professor Cera Lin observes.",
+        promptText: "Padaruna and Professor Cera Lin react to Muci.",
+        dialogueLines: [{ speaker: "Padaruna", text: "What if faster is prettier?" }]
+      }
+    ],
+    requiredUploads: [
+      {
+        label: "Muci Model Sheet",
+        slug: "muci",
+        bucket: "CHARACTER",
+        uploadImageNames: ["model-sheet.jpg"],
+        relativePaths: ["comic/characters/muci/refs/model-sheet.jpg"],
+        whyThisMatters: "Muci identity lock.",
+        contentSummary: "Muci model sheet."
+      },
+      {
+        label: "Padaruna Model Sheet",
+        slug: "padaruna",
+        bucket: "CHARACTER",
+        uploadImageNames: ["model-sheet.jpg"],
+        relativePaths: ["comic/characters/padaruna/refs/model-sheet.jpg"],
+        whyThisMatters: "Padaruna identity lock.",
+        contentSummary: "Padaruna model sheet."
+      },
+      {
+        label: "Professor Cera Lin Model Sheet",
+        slug: "professor-cera-lin",
+        bucket: "CHARACTER",
+        uploadImageNames: ["model-sheet.jpg"],
+        relativePaths: ["comic/characters/professor-cera-lin/refs/model-sheet.jpg"],
+        whyThisMatters: "Professor Cera Lin identity lock.",
+        contentSummary: "Professor Cera Lin model sheet."
+      }
+    ],
+    referenceImages: [
+      referenceImage({
+        label: "Muci Model Sheet",
+        slug: "muci",
+        bucket: "CHARACTER",
+        relativePath: "comic/characters/muci/refs/model-sheet.jpg"
+      }),
+      referenceImage({
+        label: "Padaruna Model Sheet",
+        slug: "padaruna",
+        bucket: "CHARACTER",
+        relativePath: "comic/characters/padaruna/refs/model-sheet.jpg"
+      }),
+      referenceImage({
+        label: "Professor Cera Lin Model Sheet",
+        slug: "professor-cera-lin",
+        bucket: "CHARACTER",
+        relativePath: "comic/characters/professor-cera-lin/refs/model-sheet.jpg"
+      })
+    ],
+    characterLocks: [
+      {
+        slug: "muci",
+        name: "Muci",
+        chineseName: null,
+        role: "Freshman protagonist",
+        appearance: "Broad squat pure-white droplet, no brow by default.",
+        personality: "Anxious and sincere.",
+        speechGuide: "Plainspoken.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Muci",
+        referenceFiles: []
+      },
+      {
+        slug: "padaruna",
+        name: "Padaruna",
+        chineseName: null,
+        role: "Trend magnet",
+        appearance:
+          "Sharp pointed head, fuller rounder buoyant body, no eyebrows, open lively dot eyes.",
+        personality: "Energetic.",
+        speechGuide: "Fast and excited.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Padaruna",
+        referenceFiles: []
+      },
+      {
+        slug: "professor-cera-lin",
+        name: "Professor Cera Lin",
+        chineseName: null,
+        role: "Barrier Sciences professor",
+        appearance: "Six-corner rounded star / hexagonal-star silhouette.",
+        personality: "Precise.",
+        speechGuide: "Concise.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Professor Cera Lin",
+        referenceFiles: []
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /Padaruna anti-Muci identity lock/);
+  assert.match(prompt, /no eyebrows or brow marks/);
+  assert.match(prompt, /not Muci's squat soft protagonist droplet/);
+  assert.match(prompt, /Professor Cera Lin six-corner shape lock/);
+  assert.match(prompt, /exactly six outer corners/);
+  assert.match(prompt, /not a five-point star/);
+});
+
 test("comic page image reference selection keeps similar teardrop comparison during retries", () => {
   const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
   process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";

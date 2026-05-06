@@ -69,7 +69,9 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Feet and body must be visually connected as one continuous mascot form, matching the model sheets. Do not draw a hard horizontal outline, seam, shoe line, dividing stroke, or solid separating line between the body and feet.",
   "- For Sunny Spritz, draw two small rounded feet directly beneath the lower points of her soft five-point star body. Do not let the star points replace the feet, hide the feet, or crop the feet away.",
   MUCI_MODEL_SHEET_EXACT_LOCK,
-  "- When Muci, Nia, Snacri, Padaruna, or Padarana appear together, use the similar-character comparison reference and keep their black-and-white identities separate: Muci is the broad squat model-sheet droplet with a subtle near-center reader-left top lean and no brow, Nia is the sharper tall vertical point with one angled brow, Snacri is the fatter left-leaning quiet droplet, Padaruna is the sharp point with fuller lively body, and Padarana is the sharp point with slimmer gentle body and closed smiling eyes.",
+  "- When Muci, Nia, Snacri, Padaruna, or Padarana appear together, use the similar-character comparison reference and keep their black-and-white identities separate: Muci is the broad squat model-sheet droplet with a subtle near-center reader-left top lean and no brow, Nia is the sharper tall vertical point with one angled brow, Snacri is the fatter left-leaning quiet droplet, Padaruna is the sharp point with fuller rounder buoyant lively body, no eyebrows, and eager open-dot-eye smile, and Padarana is the sharp point with slimmer gentle body and closed smiling eyes.",
+  "- Padaruna exact lock: draw Padaruna from comic/characters/padaruna/refs/model-sheet.jpg as a sharp pointed head over a noticeably fuller round buoyant white body, open lively dot eyes, eager smile, no eyebrows or brow marks, and energetic social expression. Do not turn Padaruna into Muci's squat soft protagonist droplet, Muci's face spacing, Muci's baseline smile, Nia's angled brow, Padarana's slim gentle body, or a generic teardrop.",
+  "- Professor Cera Lin exact lock: draw Professor Cera Lin from comic/characters/professor-cera-lin/refs/model-sheet.jpg as a six-corner rounded star / hexagonal-star mascot with exactly six outer corners, clean controlled edges, balanced academic posture, large dot eyes, measured smile, and upper reader-left glossy highlights. Never draw Professor Cera Lin as a five-point star, pentagon, Sunny Spritz-style soft star, generic polygon, or a star with five tips.",
   "- Do not redesign Coach Ray. Coach Ray must stay a broad squat shield-shaped protective mascot, with a centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted stance, pure white body fill, and small connected feet exactly like his model sheet.",
   "- Coach Ray is not Muci and is not a teardrop/drop character. Never average Coach Ray's shield silhouette with Muci's broad squat soft droplet silhouette, even when both model sheets are attached.",
   "- Do not use generic polygon wording for Coach Ray. The intended lock is shield-shaped protective mascot.",
@@ -1941,6 +1943,28 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
     locks.push(similarTeardropLock);
   }
 
+  if (slugs.has("padaruna")) {
+    locks.push(
+      [
+        "Padaruna anti-Muci identity lock:",
+        "- Draw Padaruna from the Padaruna model sheet only: sharp pointed head, noticeably fuller round buoyant body, open lively dot eyes, eager smile, no eyebrows or brow marks, pure white body fill, and small connected feet.",
+        "- Padaruna is not Muci. Do not copy Muci's short broad squat body, soft protagonist face spacing, gentle baseline expression, or rounded near-center top. Padaruna keeps a sharper head and a rounder high-energy body.",
+        "- If Padaruna appears in the same episode or page as Muci, compare them before final render: Muci stays squat and soft-sided; Padaruna stays fuller, rounder, sharper-headed, browless, and socially energetic."
+      ].join("\n")
+    );
+  }
+
+  if (slugs.has("professor-cera-lin")) {
+    locks.push(
+      [
+        "Professor Cera Lin six-corner shape lock:",
+        "- Draw Professor Cera Lin from the Professor Cera Lin model sheet only: six-corner rounded star / hexagonal-star mascot with exactly six outer corners, clean controlled edges, balanced academic posture, large dot eyes, measured smile, upper reader-left glossy highlights, pure white body fill, and small connected feet.",
+        "- Professor Cera Lin is not a five-point star, not a pentagon, not Sunny Spritz's soft five-point star, and not a generic polygon mascot.",
+        "- Before final render, count the outer corners: if Professor Cera Lin reads as five points or as Sunny Spritz, redraw her as the six-corner model-sheet character."
+      ].join("\n")
+    );
+  }
+
   if (slugs.has("coach-ray")) {
     locks.push(
       [
@@ -3612,8 +3636,9 @@ export async function generateComicPromptPackageWithAi(
                 "For full-body Muci views, never omit the two small rounded feet, flatten the base, or separate the feet from the body; keep the same attached foot nubs shown in the model sheet.",
                 "Nia must keep her sharper taller pointed teardrop silhouette and one angled brow above the left eye; do not soften her into Muci, Padaruna, Padarana, or Snacri.",
                 "Snacri must keep her fatter quiet droplet silhouette with the top leaning left and restrained minimal expression; do not straighten her into a generic teardrop.",
-                "Padaruna must keep a sharp pointed head with a noticeably fuller rounder body, open lively dot eyes, eager smile, and energetic social expression.",
+                "Padaruna must keep a sharp pointed head with a noticeably fuller rounder buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, and energetic social expression. Padaruna must not drift into Muci's short broad squat soft protagonist droplet.",
                 "Padarana must keep a sharp pointed head with a slimmer softer body than Padaruna, closed smiling eyes, calm reassuring mouth, and gentle emotional-anchor expression.",
+                "Professor Cera Lin must keep the model-sheet six-corner rounded star / hexagonal-star silhouette with exactly six outer corners, controlled academic posture, large dot eyes, measured smile, and upper reader-left glossy highlights. Never draw Professor Cera Lin as a five-point star, pentagon, Sunny Spritz-style soft star, or generic polygon.",
                 "When two or more of Muci, Nia, Snacri, Padaruna, and Padarana appear together, include a similar-teardrop separation note in promptPackCopyText and referenceNotesCopyText. The image generation step will attach the comparison reference automatically.",
                 "Coach Ray must always match the Coach Ray model sheet and written appearance lock exactly: broad squat shield-shaped protective mascot, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted drill-instructor posture, pure white body fill, and small connected feet.",
                 "Coach Ray must never become Muci, a teardrop/drop character, a pear shape, a rounded blob, or a generic polygon mascot. Use shield-shaped protective mascot wording for Coach Ray.",
@@ -3704,7 +3729,9 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Every Muci prompt must explicitly preserve his Muci Model Sheet Exact Lock: broad squat pure-white droplet, round heavy lower half, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, pure white body fill, no brow by default, and two attached small rounded feet.",
-                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci broad squat model-sheet droplet with subtle top asymmetry and no brow, Nia sharp tall vertical point plus one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point plus fuller lively body, and Padarana sharp point plus slimmer gentle closed-eye body.",
+                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci broad squat model-sheet droplet with subtle top asymmetry and no brow, Nia sharp tall vertical point plus one angled brow, Snacri fatter left-leaning quiet droplet, Padaruna sharp point plus fuller rounder buoyant lively body with no eyebrows, and Padarana sharp point plus slimmer gentle closed-eye body.",
+                "- Every Padaruna prompt must explicitly preserve her Padaruna Model Sheet Exact Lock: sharp pointed head, visibly round fuller buoyant body, open lively dot eyes, eager smile, no eyebrows or brow marks, pure white body fill, small connected feet, and not Muci's squat soft protagonist droplet.",
+                "- Every Professor Cera Lin prompt must explicitly preserve her Professor Cera Lin Model Sheet Exact Lock: six-corner rounded star / hexagonal-star body with exactly six outer corners, controlled academic posture, measured smile, pure white body fill, small connected feet, and never a five-point star, pentagon, Sunny Spritz-style soft star, or generic polygon.",
                 "- Every page where Muci and Nia appear together must include a high-risk Muci/Nia shape note: Muci keeps a short broad soft-sided body, friendly U-smile, no brow, and only the subtle near-center top lean shown in the model sheet, while Nia keeps a taller narrower sharp vertical point and one angled left brow. Muci must not be drawn with Nia's vertical point, angled brow, or an exaggerated hooked/curling top.",
                 "- Every Coach Ray prompt must explicitly preserve his model-sheet identity, broad squat shield-shaped protective design, centered shallow crest, firm shoulders, near-vertical sides, pure white body fill, and planted small feet.",
                 "- Every page where Muci and Coach Ray appear together must include a Muci-vs-Coach-Ray separation note so their silhouettes are not averaged.",
