@@ -461,6 +461,77 @@ test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes"
   assert.match(prompt, /not any star shape/);
 });
 
+test("comic page image prompt normalizes legacy Professor Cera Lin pentagonal wording", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "Know Your Barrier or Go Home",
+    episodeSummary: "Professor Cera Lin teaches a Barrier Sciences exercise.",
+    pageNumber: 5,
+    panelCount: 1,
+    pagePurpose: "Fix legacy wording before image generation.",
+    promptPackCopyText:
+      "Characters: Muci and Professor Cera Lin. Professor Cera Lin pointed pentagonal. Professor Cera Lin stays pointed pentagonal and composed.",
+    referenceNotesCopyText:
+      "Professor Cera Lin exact model sheet: pointed pentagonal silhouette, controlled face, pure white fill.",
+    globalGptImage2Notes:
+      "Keep Professor Cera Lin pointed pentagonal, composed, and precise.",
+    panels: [
+      {
+        pageNumber: 5,
+        panelNumber: 1,
+        panelTitle: "Exercise Begins",
+        storyBeat:
+          "Professor Cera Lin keeps her pointed pentagonal composed professor silhouette while teaching.",
+        promptText:
+          "Professor Cera Lin pointed pentagonal, controlled, speaking beside the board.",
+        dialogueLines: [{ speaker: "Professor Cera Lin", text: "Diagnose first." }]
+      }
+    ],
+    requiredUploads: [
+      {
+        label: "Professor Cera Lin Model Sheet",
+        slug: "professor-cera-lin",
+        bucket: "CHARACTER",
+        uploadImageNames: ["model-sheet.jpg"],
+        relativePaths: ["comic/characters/professor-cera-lin/refs/model-sheet.jpg"],
+        whyThisMatters: "Needed for her precise pentagonal professor silhouette.",
+        contentSummary: "Professor Cera Lin exact model sheet: pointed pentagonal silhouette."
+      }
+    ],
+    referenceImages: [
+      referenceImage({
+        label: "Professor Cera Lin Model Sheet",
+        slug: "professor-cera-lin",
+        bucket: "CHARACTER",
+        relativePath: "comic/characters/professor-cera-lin/refs/model-sheet.jpg"
+      })
+    ],
+    characterLocks: [
+      {
+        slug: "professor-cera-lin",
+        name: "Professor Cera Lin",
+        chineseName: null,
+        role: "Barrier Sciences professor",
+        appearance: "Rounded six-sided hexagon silhouette.",
+        personality: "Precise.",
+        speechGuide: "Concise.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Professor Cera Lin",
+        referenceFiles: []
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.doesNotMatch(prompt, /Professor Cera Lin pointed pentagonal/i);
+  assert.doesNotMatch(prompt, /pointed pentagonal silhouette/i);
+  assert.doesNotMatch(prompt, /precise pentagonal professor silhouette/i);
+  assert.match(prompt, /Professor Cera Lin rounded six-sided hexagon/);
+  assert.match(prompt, /convex rounded six-sided hexagon mascot/);
+});
+
 test("comic page image reference selection keeps similar teardrop comparison during retries", () => {
   const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
   process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";

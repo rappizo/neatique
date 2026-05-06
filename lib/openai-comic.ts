@@ -1861,9 +1861,50 @@ function normalizeLegacyCoachRayShapeMentions(value: string | null | undefined) 
     .replace(/broad pentagonal/gi, "broad shield-shaped");
 }
 
+function normalizeLegacyProfessorCeraLinShapeMentions(value: string | null | undefined) {
+  return (value || "")
+    .replace(
+      /Professor Cera Lin keeps her pointed pentagonal composed professor silhouette/gi,
+      "Professor Cera Lin keeps her rounded six-sided hexagon professor silhouette"
+    )
+    .replace(
+      /Professor Cera Lin stays pointed pentagonal and composed/gi,
+      "Professor Cera Lin stays rounded six-sided hexagon and composed"
+    )
+    .replace(
+      /Professor Cera Lin pointed pentagonal and composed/gi,
+      "Professor Cera Lin rounded six-sided hexagon and composed"
+    )
+    .replace(
+      /Professor Cera Lin pointed pentagonal, controlled/gi,
+      "Professor Cera Lin rounded six-sided hexagon, controlled"
+    )
+    .replace(
+      /Professor Cera Lin pointed pentagonal, composed, and precise/gi,
+      "Professor Cera Lin rounded six-sided hexagon, composed, and precise"
+    )
+    .replace(
+      /Professor Cera Lin pointed pentagonal/gi,
+      "Professor Cera Lin rounded six-sided hexagon"
+    )
+    .replace(
+      /Professor Cera Lin exact model sheet: pointed pentagonal silhouette/gi,
+      "Professor Cera Lin exact model sheet: rounded six-sided hexagon silhouette"
+    )
+    .replace(
+      /Professor Cera Lin exact model sheet identity: pointed pentagonal silhouette/gi,
+      "Professor Cera Lin exact model sheet identity: rounded six-sided hexagon silhouette"
+    )
+    .replace(/precise pentagonal professor silhouette/gi, "precise rounded six-sided hexagon professor silhouette")
+    .replace(/pointed pentagonal professor silhouette/gi, "rounded six-sided hexagon professor silhouette")
+    .replace(/pointed pentagonal silhouette/gi, "rounded six-sided hexagon silhouette");
+}
+
 function trimImagePromptContext(value: string | null | undefined, maxLength: number) {
   return trimPromptContext(
-    normalizeLegacyCoachRayShapeMentions(normalizeComicReferenceFileMentions(value)),
+    normalizeLegacyProfessorCeraLinShapeMentions(
+      normalizeLegacyCoachRayShapeMentions(normalizeComicReferenceFileMentions(value))
+    ),
     maxLength
   );
 }
@@ -1958,9 +1999,9 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
     locks.push(
       [
         "Professor Cera Lin six-sided hexagon shape lock:",
-        "- Draw Professor Cera Lin from the Professor Cera Lin model sheet only: rounded six-sided hexagon mascot with exactly six sides and six rounded corners, clean controlled edges, balanced academic posture, large dot eyes, measured smile, upper reader-left glossy highlights, pure white body fill, and small connected feet.",
-        "- Professor Cera Lin is not any star shape, not a five-point star, not a six-point star, not a pentagon, not Sunny Spritz's soft five-point star, and not a generic polygon mascot.",
-        "- Before final render, count the sides and corners: if Professor Cera Lin reads as a star, as five-sided, or as Sunny Spritz, redraw her as the rounded six-sided hexagon model-sheet character."
+        "- Draw Professor Cera Lin from the Professor Cera Lin model sheet only: convex rounded six-sided hexagon mascot with exactly six exterior sides and six rounded corners, clean controlled edges, balanced academic posture, large dot eyes, measured smile, upper reader-left glossy highlights, pure white body fill, and small connected feet.",
+        "- Professor Cera Lin is not any star shape, not a five-point star, not a six-point star, not a pentagon, not Sunny Spritz's soft five-point star, and not a generic polygon mascot. Do not add projecting star tips, concave notches, or a sharp five-sided roof silhouette.",
+        "- Before final render, count the exterior sides and rounded corners: if Professor Cera Lin reads as a star, as five-sided, or as Sunny Spritz, redraw her as the convex rounded six-sided hexagon model-sheet character."
       ].join("\n")
     );
   }
@@ -1999,6 +2040,24 @@ function enforceComicImagePromptLength(prompt: string) {
     "",
     "[Image prompt trimmed to stay under the OpenAI image prompt length limit.]",
     "The attached model-sheet images and the Profile MD identity locks already listed above remain binding."
+  ].join("\n");
+  const nextLength = OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH - suffix.length;
+
+  return `${prompt.slice(0, Math.max(0, nextLength)).trimEnd()}${suffix}`;
+}
+
+function enforceComicImageEditPromptLength(prompt: string, editInstruction: string) {
+  if (prompt.length <= OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH) {
+    return prompt;
+  }
+
+  const suffix = [
+    "",
+    "[Edit prompt context trimmed to stay under the OpenAI image prompt length limit.]",
+    "The attached source page, attached model-sheet references, and character identity locks remain binding.",
+    "",
+    "Admin edit request, preserved after trimming:",
+    editInstruction.trim()
   ].join("\n");
   const nextLength = OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH - suffix.length;
 
@@ -3077,9 +3136,7 @@ export async function editComicPageImageWithAi(input: {
   const imageQuality = getOpenAiComicImageEditQuality();
   const formData = new FormData();
   formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
-  formData.append(
-    "prompt",
-    [
+  const editPrompt = [
       "Edit the supplied finished comic page using it as the primary reference image.",
       "The first attached image is the source page to edit. Additional attached images are identity/continuity references and must be used as exact locks, not loose inspiration.",
       "The following global comic production locks remain mandatory during edits. They override any accidental drift in the source image, attached references, or edit request:",
@@ -3141,8 +3198,8 @@ export async function editComicPageImageWithAi(input: {
       editInstruction
     ]
       .filter(Boolean)
-      .join("\n")
-  );
+      .join("\n");
+  formData.append("prompt", enforceComicImageEditPromptLength(editPrompt, editInstruction));
   formData.append("size", "1024x1536");
   formData.append("quality", imageQuality);
   const outputFormat = getOpenAiComicImageOutputFormat();
