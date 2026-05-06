@@ -17,7 +17,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   "episode-published": "Episode published to the public comic library.",
   "episode-unpublished": "Episode unpublished. Approved pages are still saved.",
   "unpublish-before-approval-change": "Unpublish this episode before removing or deleting an approved comic page.",
-  "missing-approved-pages": "Approve pages 1-10 before publishing this episode.",
+  "missing-approved-pages": "Approve the cover plus pages 1-10 before publishing this episode.",
   "missing-upload": "Choose an image file before uploading.",
   "upload-too-large": "Comic page uploads must stay under 20MB.",
   "upload-type": "Upload PNG, JPG, WEBP, or AVIF images only."
@@ -104,7 +104,7 @@ export default async function AdminComicPublishCenterPage({
         <h1>Approve comic pages by chapter, then publish finished episodes.</h1>
         <p>
           Each chapter opens into an episode production board. Review generated page images, upload
-          externally produced page art, approve one final image for pages 1-10, and publish only
+          externally produced page art, approve one final cover plus pages 1-10, and publish only
           when the full episode is ready.
         </p>
       </div>
@@ -119,7 +119,9 @@ export default async function AdminComicPublishCenterPage({
         <section className="admin-card">
           <p className="eyebrow">Episode pipeline</p>
           <h3>{publishCenter.episodeCount} episodes</h3>
-          <p>{publishCenter.readyEpisodeCount} episodes have all 10 required pages approved.</p>
+          <p>
+            {publishCenter.readyEpisodeCount} episodes have the cover and all 10 story pages approved.
+          </p>
         </section>
         <section className="admin-card">
           <p className="eyebrow">Published library</p>
@@ -138,8 +140,8 @@ export default async function AdminComicPublishCenterPage({
           <div>
             <h2>Chapter production list</h2>
             <p className="form-note">
-              Open a chapter to work episode by episode. The approval count tracks pages 1-10 for
-              each episode.
+              Open a chapter to work episode by episode. The approval count tracks the cover plus
+              pages 1-10 for each episode.
             </p>
           </div>
           <Link href="/admin/comic/seasons" className="button button--secondary">

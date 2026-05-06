@@ -23,7 +23,7 @@ type PromptPanelView = {
 };
 
 type PromptUploadView = {
-  bucket: "CHARACTER" | "SCENE" | "CHAPTER_SCENE";
+  bucket: "CHARACTER" | "SCENE" | "CHAPTER_SCENE" | "BRAND_LOGO";
   label: string;
   slug: string;
   whyThisMatters: string;
@@ -58,7 +58,7 @@ function getTextareaRows(value: string, minRows: number, maxRows: number) {
 }
 
 function formatPageLabel(pageNumber: number) {
-  return `Page ${String(pageNumber).padStart(2, "0")}`;
+  return pageNumber === 0 ? "Cover" : `Page ${String(pageNumber).padStart(2, "0")}`;
 }
 
 function formatPanelLabel(panel: PromptPanelView) {
@@ -123,6 +123,10 @@ function buildPageProductionText(page: PromptPageView) {
 function getPreviewUrl(relativePath: string) {
   const normalized = relativePath.replaceAll("\\", "/");
 
+  if (normalized.startsWith("/")) {
+    return normalized;
+  }
+
   if (normalized.startsWith("public/")) {
     return `/${normalized.replace(/^public\//, "")}`;
   }
@@ -140,7 +144,7 @@ function getPromptHealthFindings(pages: ComicPromptPageHealth[]) {
 }
 
 function formatHealthFindingPrefix(pageNumber: number) {
-  return pageNumber > 0 ? formatPageLabel(pageNumber) : "Prompt package";
+  return pageNumber >= 0 ? formatPageLabel(pageNumber) : "Prompt package";
 }
 
 function PromptHealthFindingList({
@@ -209,7 +213,7 @@ export async function ComicPromptPageLists({
   });
   const pageHealthByNumber = new Map(
     promptHealth.pages
-      .filter((pageHealth) => pageHealth.pageNumber > 0)
+      .filter((pageHealth) => pageHealth.pageNumber >= 0)
       .map((pageHealth) => [pageHealth.pageNumber, pageHealth])
   );
   const promptHealthFindings = getPromptHealthFindings(promptHealth.pages);

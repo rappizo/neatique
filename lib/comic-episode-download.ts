@@ -1,12 +1,16 @@
 import { Buffer } from "node:buffer";
 import { prisma } from "@/lib/db";
 import { getComicImageExtension, getComicImageSource } from "@/lib/comic-image-storage";
+import {
+  COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_PAGE_ASSET_TYPES,
+  COMIC_STORY_PAGES_PER_EPISODE,
+  formatComicPageFileSlug,
+  getComicRequiredPageNumbers,
+  isComicPublishPageNumber
+} from "@/lib/comic-pages";
 
 export type ComicDownloadLanguage = "en" | "zh";
-
-const COMIC_REQUIRED_PAGES_PER_EPISODE = 10;
-const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
-const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
 
 type ComicDownloadAsset = {
   id: string;
@@ -125,7 +129,7 @@ function isComicDownloadLanguage(value: string | null): value is ComicDownloadLa
 }
 
 function isRequiredPageNumber(pageNumber: number) {
-  return pageNumber >= 1 && pageNumber <= COMIC_REQUIRED_PAGES_PER_EPISODE;
+  return isComicPublishPageNumber(pageNumber);
 }
 
 function isLanguageAsset(asset: ComicDownloadAsset, language: ComicDownloadLanguage) {
@@ -165,9 +169,7 @@ function getCompletedLanguageAssets(
       }
     });
 
-  return Array.from({ length: COMIC_REQUIRED_PAGES_PER_EPISODE }, (_, index) =>
-    byPage.get(index + 1)
-  );
+  return getComicRequiredPageNumbers().map((pageNumber) => byPage.get(pageNumber));
 }
 
 export function parseComicDownloadLanguage(value: string | null): ComicDownloadLanguage {
@@ -192,7 +194,7 @@ export async function createComicEpisodeDownloadZip({
       assets: {
         where: {
           published: true,
-          sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
+          sortOrder: { gte: 0, lte: COMIC_STORY_PAGES_PER_EPISODE }
         },
         select: {
           id: true,
@@ -256,7 +258,7 @@ export async function createComicEpisodeDownloadZip({
     return {
       ok: false as const,
       status: 409,
-      error: "This language version needs all 10 approved pages before download."
+      error: "This language version needs the cover plus all 10 approved pages before download."
     };
   }
 
@@ -264,10 +266,10 @@ export async function createComicEpisodeDownloadZip({
   const episodeNumber = String(episode.episodeNumber).padStart(3, "0");
   const zipBaseName = sanitizeFileName(`${episodeNumber}-${episode.title}-${languageLabel}`);
   const files = imageSources.map((source, index) => {
-    const pageNumber = String(index + 1).padStart(2, "0");
+    const pageNumber = getComicRequiredPageNumbers()[index] ?? index;
 
     return {
-      name: `${zipBaseName}/page-${pageNumber}.${getComicImageExtension(source?.mimeType || null)}`,
+      name: `${zipBaseName}/${formatComicPageFileSlug(pageNumber)}.${getComicImageExtension(source?.mimeType || null)}`,
       data: Buffer.from(source?.base64Data || "", "base64"),
       date: assets[index]?.createdAt || new Date()
     };

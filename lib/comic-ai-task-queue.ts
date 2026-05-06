@@ -9,6 +9,7 @@ import {
   generateComicPromptPackageForEpisode,
   reviseComicPagePromptForEpisode
 } from "@/lib/comic-prompt-generation";
+import { isComicPublishPageNumber } from "@/lib/comic-pages";
 
 export type ComicAiTaskType =
   | "generate"
@@ -252,6 +253,11 @@ function toNumberValue(value: unknown) {
   return 0;
 }
 
+function toNullableComicPageNumber(value: unknown) {
+  const pageNumber = toNumberValue(value);
+  return isComicPublishPageNumber(pageNumber) ? pageNumber : null;
+}
+
 function toClientStatus(status: string): ComicAiTaskClientStatus {
   switch (status) {
     case "RUNNING":
@@ -423,14 +429,14 @@ function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayl
     case "generate":
       return {
         episodeId: toStringValue(payload.episodeId) || null,
-        pageNumber: toNumberValue(payload.pageNumber) || null,
+        pageNumber: toNullableComicPageNumber(payload.pageNumber),
         targetId: null,
         sourceAssetId: null
       };
     case "edit":
       return {
         episodeId: toStringValue(payload.episodeId) || null,
-        pageNumber: toNumberValue(payload.pageNumber) || null,
+        pageNumber: toNullableComicPageNumber(payload.pageNumber),
         targetId: null,
         sourceAssetId: toStringValue(payload.assetId || payload.sourceAssetId) || null
       };
@@ -444,7 +450,7 @@ function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayl
     case "prompt-revision":
       return {
         episodeId: toStringValue(payload.episodeId) || null,
-        pageNumber: toNumberValue(payload.pageNumber) || null,
+        pageNumber: toNullableComicPageNumber(payload.pageNumber),
         targetId: null,
         sourceAssetId: null
       };
@@ -472,7 +478,7 @@ function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayl
     case "chinese-page-version":
       return {
         episodeId: toStringValue(payload.episodeId) || null,
-        pageNumber: toNumberValue(payload.pageNumber) || null,
+        pageNumber: toNullableComicPageNumber(payload.pageNumber),
         targetId: null,
         sourceAssetId: toStringValue(payload.assetId || payload.sourceAssetId) || null
       };
@@ -563,7 +569,7 @@ export function toClientComicAiTask(task: ComicAiTaskModelRecord): ComicAiTaskCl
     id: task.id,
     kind: task.taskType as ComicAiTaskType,
     episodeId: task.episodeId || toStringValue(payload.episodeId),
-    pageNumber: task.pageNumber || toNumberValue(payload.pageNumber),
+    pageNumber: task.pageNumber ?? toNumberValue(payload.pageNumber),
     label: task.label,
     status: toClientStatus(task.status),
     createdAt: task.createdAt.getTime(),

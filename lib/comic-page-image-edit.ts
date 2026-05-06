@@ -12,9 +12,13 @@ import {
   resolveComicPageReferenceImages
 } from "@/lib/comic-reference-images";
 import { prisma } from "@/lib/db";
+import {
+  COMIC_PAGE_ASSET_TYPES,
+  formatComicPageFileSlug,
+  formatComicPageLabel,
+  isComicPublishPageNumber
+} from "@/lib/comic-pages";
 
-const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
-const COMIC_PUBLISH_PAGE_COUNT = 10;
 
 export type ComicPageImageEditStatus =
   | "page-edit-created"
@@ -47,10 +51,6 @@ export type ComicPageImageEditResult = {
 
 function isComicPageAssetType(assetType: string) {
   return COMIC_PAGE_ASSET_TYPES.includes(assetType);
-}
-
-function isComicPublishPageNumber(pageNumber: number) {
-  return Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= COMIC_PUBLISH_PAGE_COUNT;
 }
 
 export async function editComicPageImageForAsset(input: {
@@ -212,21 +212,21 @@ export async function editComicPageImageForAsset(input: {
       mimeType: editedImage.mimeType,
       category: "edited-pages",
       targetId: asset.episodeId,
-      fileName: `page-${String(asset.sortOrder).padStart(2, "0")}-edit-${Date.now()}`
+      fileName: `${formatComicPageFileSlug(asset.sortOrder)}-edit-${Date.now()}`
     });
 
     const createdAsset = await prisma.comicEpisodeAsset.create({
       data: {
         episodeId: asset.episodeId,
         assetType: "GENERATED_PAGE",
-        title: `${asset.episode.title} - Page ${String(asset.sortOrder).padStart(2, "0")} Edit`,
+        title: `${asset.episode.title} - ${formatComicPageLabel(asset.sortOrder)} Edit`,
         imageUrl: storedImage.imageUrl,
         imageData: storedImage.imageData,
         imageMimeType: storedImage.imageMimeType,
         imageStorageKey: storedImage.imageStorageKey,
         imageByteSize: storedImage.imageByteSize,
         imageSha256: storedImage.imageSha256,
-        altText: `${asset.episode.title} comic page ${asset.sortOrder} edited candidate`,
+        altText: `${asset.episode.title} comic ${formatComicPageLabel(asset.sortOrder).toLowerCase()} edited candidate`,
         caption: editInstruction,
         sortOrder: asset.sortOrder,
         published: false
@@ -256,7 +256,7 @@ export async function editComicPageImageForAsset(input: {
           imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
           status: "READY",
           inputContext,
-          outputSummary: `Edited ${asset.episode.title} page ${asset.sortOrder} from an existing page candidate with ${referenceImages.length} continuity reference image${referenceImages.length === 1 ? "" : "s"}.`,
+          outputSummary: `Edited ${asset.episode.title} ${formatComicPageLabel(asset.sortOrder).toLowerCase()} from an existing page candidate with ${referenceImages.length} continuity reference image${referenceImages.length === 1 ? "" : "s"}.`,
           promptPack: editInstruction
         }
       })
@@ -276,7 +276,7 @@ export async function editComicPageImageForAsset(input: {
       sourceAssetId: asset.id,
       assetId: createdAsset.id,
       imageUrl,
-      message: `Edited ${asset.episode.title} page ${asset.sortOrder}.`
+      message: `Edited ${asset.episode.title} ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`
     };
   } catch (error) {
     if (isNextRedirectError(error)) {
@@ -297,7 +297,7 @@ export async function editComicPageImageForAsset(input: {
         imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
         status: "FAILED",
         inputContext,
-        outputSummary: `Page ${asset.sortOrder} image edit failed.`,
+        outputSummary: `${formatComicPageLabel(asset.sortOrder)} image edit failed.`,
         promptPack: editInstruction,
         errorMessage
       }
@@ -315,7 +315,7 @@ export async function editComicPageImageForAsset(input: {
       episodeId: asset.episodeId,
       pageNumber: asset.sortOrder,
       sourceAssetId: asset.id,
-      message: `Page ${asset.sortOrder} image edit failed.`,
+      message: `${formatComicPageLabel(asset.sortOrder)} image edit failed.`,
       errorMessage
     };
   }

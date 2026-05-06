@@ -9,6 +9,11 @@ import {
   buildSimilarTeardropSeparationLock,
   SIMILAR_TEARDROP_COMPARISON_REFERENCE
 } from "@/lib/comic-similar-character-locks";
+import {
+  COMIC_COVER_PAGE_NUMBER,
+  formatComicPageLabel,
+  isComicCoverPageNumber
+} from "@/lib/comic-pages";
 import sharp from "sharp";
 
 function normalizeApiBaseUrl(value: string) {
@@ -158,7 +163,7 @@ export type GeneratedComicDialogueLine = {
 };
 
 export type GeneratedComicPageUpload = {
-  bucket: "CHARACTER" | "SCENE" | "CHAPTER_SCENE";
+  bucket: "CHARACTER" | "SCENE" | "CHAPTER_SCENE" | "BRAND_LOGO";
   label: string;
   slug: string;
   whyThisMatters: string;
@@ -169,7 +174,7 @@ export type GeneratedComicPageUpload = {
 
 export type GeneratedComicPagePrompt = {
   pageNumber: number;
-  panelCount: 2 | 3;
+  panelCount: 1 | 2 | 3;
   pagePurpose: string;
   promptPackCopyText: string;
   referenceNotesCopyText: string;
@@ -2060,8 +2065,20 @@ function isComicCastComparisonReferenceImage(reference: ComicReferenceImageFile)
   );
 }
 
+function isComicBrandLogoReferenceImage(reference: ComicReferenceImageFile) {
+  return reference.bucket === "BRAND_LOGO";
+}
+
 function isComicIdentityReferenceImage(reference: ComicReferenceImageFile) {
-  return isComicCharacterReferenceImage(reference) || isComicCastComparisonReferenceImage(reference);
+  return (
+    isComicBrandLogoReferenceImage(reference) ||
+    isComicCharacterReferenceImage(reference) ||
+    isComicCastComparisonReferenceImage(reference)
+  );
+}
+
+function isComicPriorityReferenceImage(reference: ComicReferenceImageFile) {
+  return isComicBrandLogoReferenceImage(reference) || isComicCastComparisonReferenceImage(reference);
 }
 
 function referenceIdentityKey(reference: ComicReferenceImageFile) {
@@ -2123,7 +2140,7 @@ export function selectComicPageImageReferenceImages(
     return includePriorityReferences(
       references,
       referenceLimit,
-      isComicCastComparisonReferenceImage
+      isComicPriorityReferenceImage
     );
   }
 
@@ -2136,7 +2153,7 @@ export function selectComicPageImageReferenceImages(
     const selected = includePriorityReferences(
       identityReferences,
       referenceLimit,
-      isComicCastComparisonReferenceImage
+      isComicPriorityReferenceImage
     );
 
     if (attempt === 2 && selected.length < referenceLimit) {
@@ -2259,8 +2276,8 @@ function getPendingComicPromptPackage(response: unknown): PendingComicPromptPack
     status,
     message:
       status === "queued"
-        ? "OpenAI is preparing this 10-page prompt package."
-        : "OpenAI is still generating this 10-page prompt package."
+        ? "OpenAI is preparing this cover-plus-10-page prompt package."
+        : "OpenAI is still generating this cover-plus-10-page prompt package."
   };
 }
 
@@ -2270,6 +2287,211 @@ function assertOpenAiPromptPackageIsComplete(response: unknown) {
   if (["failed", "cancelled", "incomplete", "expired"].includes(status)) {
     throw new Error(getOpenAiResponseFailureMessage(response) || `OpenAI response ${status}.`);
   }
+}
+
+const COMIC_LOGO_PUBLIC_PATH = "/images/comiclogo.png";
+
+function getPrimaryCoverReferenceFile(character: ComicCharacterContext) {
+  return (
+    character.referenceFiles.find((file) => /model|sheet|front|master/i.test(file.fileName)) ||
+    character.referenceFiles[0] ||
+    null
+  );
+}
+
+function buildCoverCharacterUpload(
+  character: ComicCharacterContext,
+  whyThisMatters: string
+): GeneratedComicPageUpload | null {
+  const referenceFile = getPrimaryCoverReferenceFile(character);
+
+  if (!referenceFile) {
+    return null;
+  }
+
+  return {
+    bucket: "CHARACTER",
+    label: `${character.name} model sheet`,
+    slug: character.slug,
+    whyThisMatters,
+    contentSummary: `${character.name} must stay visually identical to the uploaded model sheet on the episode cover.`,
+    uploadImageNames: [referenceFile.fileName],
+    relativePaths: [referenceFile.relativePath]
+  };
+}
+
+function buildComicLogoUpload(): GeneratedComicPageUpload {
+  return {
+    bucket: "BRAND_LOGO",
+    label: "Neatique comic title logo",
+    slug: "comic-logo",
+    whyThisMatters:
+      "The cover must place the uploaded comic title logo at the top without redesigning it.",
+    contentSummary:
+      "Exact uploaded logo reference for the top title-logo area of the cover page.",
+    uploadImageNames: ["comiclogo.png"],
+    relativePaths: [COMIC_LOGO_PUBLIC_PATH]
+  };
+}
+
+function getCoverCharacterUploads(
+  input: GenerateComicPromptPackageInput,
+  pages: GeneratedComicPagePrompt[]
+) {
+  const characterBySlug = new Map(input.characters.map((character) => [character.slug, character]));
+  const characterScores = new Map<
+    string,
+    {
+      upload: GeneratedComicPageUpload;
+      count: number;
+      firstPageNumber: number;
+    }
+  >();
+
+  pages.forEach((page) => {
+    page.requiredUploads
+      .filter((upload) => upload.bucket === "CHARACTER")
+      .forEach((upload) => {
+        const existing = characterScores.get(upload.slug);
+
+        characterScores.set(upload.slug, {
+          upload,
+          count: (existing?.count || 0) + 1,
+          firstPageNumber: existing?.firstPageNumber ?? page.pageNumber
+        });
+      });
+  });
+
+  const rankedUploads = Array.from(characterScores.values())
+    .sort((left, right) => {
+      if (left.count !== right.count) {
+        return right.count - left.count;
+      }
+
+      return left.firstPageNumber - right.firstPageNumber;
+    })
+    .map((entry) => {
+      const character = characterBySlug.get(entry.upload.slug);
+      return character
+        ? buildCoverCharacterUpload(
+            character,
+            `${character.name} is one of the episode's main recurring cover characters.`
+          ) || entry.upload
+        : entry.upload;
+    })
+    .slice(0, 4);
+
+  if (rankedUploads.length > 0) {
+    return rankedUploads;
+  }
+
+  return input.characters
+    .slice(0, 4)
+    .map((character) =>
+      buildCoverCharacterUpload(
+        character,
+        `${character.name} is available as a locked character reference for the episode cover.`
+      )
+    )
+    .filter(Boolean) as GeneratedComicPageUpload[];
+}
+
+function getCoverCharacterNames(characterUploads: GeneratedComicPageUpload[]) {
+  const names = characterUploads
+    .filter((upload) => upload.bucket === "CHARACTER")
+    .map((upload) => upload.label.replace(/\s+model sheet$/i, "").trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(names));
+}
+
+function buildComicCoverPagePrompt(input: {
+  packageInput: GenerateComicPromptPackageInput;
+  pages: GeneratedComicPagePrompt[];
+  episodeLogline: string;
+  episodeSynopsis: string;
+}) {
+  const characterUploads = getCoverCharacterUploads(input.packageInput, input.pages);
+  const characterNames = getCoverCharacterNames(characterUploads);
+  const characterLabel =
+    characterNames.length > 0 ? characterNames.join(", ") : "the episode's main characters";
+  const firstStoryBeats = input.pages
+    .slice(0, 3)
+    .map((page) => `${formatComicPageLabel(page.pageNumber)}: ${page.pagePurpose}`)
+    .join("\n");
+  const coverInteraction = [
+    `Inside the large framed cover illustration, show ${characterLabel} in one clear interaction that previews this episode.`,
+    `Interaction content should be based on the episode logline and synopsis: ${input.episodeLogline} ${input.episodeSynopsis}`,
+    firstStoryBeats ? `Use these early page beats as cover staging clues:\n${firstStoryBeats}` : null,
+    "The interaction should feel like a polished manga cover moment, not a normal multi-panel page: big readable silhouettes, expressive eye contact, telekinetic object movement where action would require hands, and strong negative space."
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const promptPackCopyText = ensurePromptIncludesDialogueAndLettering(
+    [
+      "Create the episode cover page for Neatique's original comic series.",
+      "Cover layout, top to bottom:",
+      `1. Top logo area: place the exact uploaded comic title logo from ${COMIC_LOGO_PUBLIC_PATH}, centered, copied from the reference image, not redesigned.`,
+      `2. Under the logo, render the comic title text exactly: "${input.packageInput.project.title}".`,
+      `3. Under the comic title, render the episode title exactly: "${input.packageInput.episode.title}".`,
+      "4. Under the titles, draw one large clean rectangular manga frame with a strong black border. This single frame must occupy most of the lower page.",
+      `5. Inside that large frame: ${coverInteraction}`,
+      "",
+      "Visible cover text:",
+      `Title: "${input.packageInput.project.title}"`,
+      `Episode title: "${input.packageInput.episode.title}"`,
+      "",
+      "Style and production locks:",
+      "Use the same clean high-contrast black-and-white manga style as the story pages. Keep pure white character bodies, exact model-sheet silhouettes, visible connected feet, handless/armless mascot anatomy, and clean rounded manga lettering. Do not add extra logos, watermarks, product labels, or unrelated text."
+    ].join("\n"),
+    [
+      {
+        pageNumber: COMIC_COVER_PAGE_NUMBER,
+        panelNumber: 1,
+        panelTitle: "Large framed cover interaction",
+        storyBeat: coverInteraction,
+        promptText:
+          "Draw one large framed manga cover illustration beneath the logo/title stack. Stage the named main characters interacting in a single readable cover moment while preserving all model-sheet locks.",
+        dialogueLines: [
+          { speaker: "Title", text: input.packageInput.project.title },
+          { speaker: "Episode title", text: input.packageInput.episode.title }
+        ]
+      }
+    ]
+  );
+  const referenceNotesCopyText = ensureReferenceNotesIncludeLettering(
+    [
+      "Cover page reference notes:",
+      `- Upload and attach ${COMIC_LOGO_PUBLIC_PATH} as the exact title-logo reference. Copy the logo shape faithfully at the top of the cover.`,
+      "- Upload the listed character model sheets for all cover characters. Character model sheets are exact identity locks, not loose inspiration.",
+      "- Read each character Profile MD lock together with the uploaded model sheet before drawing that character.",
+      "- The cover uses one large framed illustration, not multiple story panels.",
+      "- Keep the same black-and-white manga production locks as the story pages."
+    ].join("\n")
+  );
+
+  return {
+    pageNumber: COMIC_COVER_PAGE_NUMBER,
+    panelCount: 1,
+    pagePurpose: `Cover: logo, ${input.packageInput.project.title}, ${input.packageInput.episode.title}, and main-character interaction.`,
+    promptPackCopyText,
+    referenceNotesCopyText,
+    panels: [
+      {
+        pageNumber: COMIC_COVER_PAGE_NUMBER,
+        panelNumber: 1,
+        panelTitle: "Large framed cover interaction",
+        storyBeat: coverInteraction,
+        promptText:
+          "Draw the cover's lower large frame as a polished manga illustration with the main characters interacting. Keep the logo/title stack above the frame clean and readable.",
+        dialogueLines: [
+          { speaker: "Title", text: input.packageInput.project.title },
+          { speaker: "Episode title", text: input.packageInput.episode.title }
+        ]
+      }
+    ],
+    requiredUploads: [buildComicLogoUpload(), ...characterUploads]
+  } satisfies GeneratedComicPagePrompt;
 }
 
 async function readOpenAiJsonResponse(response: Response, fallbackMessage: string) {
@@ -2393,7 +2615,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     `Chapter: ${input.chapterTitle}`,
     `Episode: ${input.episodeTitle}`,
     `Episode summary: ${trimImagePromptContext(input.episodeSummary, 900)}`,
-    `Page ${input.pageNumber} purpose: ${trimImagePromptContext(input.pagePurpose, 700)}`,
+    `${formatComicPageLabel(input.pageNumber)} purpose: ${trimImagePromptContext(input.pagePurpose, 700)}`,
     "",
     "Required references for visual continuity:",
     buildComicPageUploadSummary(input.requiredUploads),
@@ -2929,18 +3151,21 @@ export async function reviseComicPagePromptWithAi(
     throw new Error("OpenAI API key is not configured.");
   }
 
+  const isCoverPage = isComicCoverPageNumber(input.pageNumber);
+  const allowedPanelCounts = isCoverPage ? [1] : [2, 3];
+  const minPanelCount = isCoverPage ? 1 : 2;
   const schema = {
     type: "object",
     additionalProperties: false,
     properties: {
       pageNumber: { type: "integer", minimum: input.pageNumber, maximum: input.pageNumber },
-      panelCount: { type: "integer", enum: [2, 3] },
+      panelCount: { type: "integer", enum: allowedPanelCounts },
       pagePurpose: { type: "string", minLength: 12, maxLength: 520 },
       promptPackCopyText: { type: "string", minLength: 180, maxLength: 12000 },
       referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 8000 },
       panels: {
         type: "array",
-        minItems: 2,
+        minItems: minPanelCount,
         maxItems: 3,
         items: {
           type: "object",
@@ -3042,7 +3267,9 @@ export async function reviseComicPagePromptWithAi(
                 "",
                 "Revision requirements:",
                 "- Keep the same pageNumber.",
-                "- Keep panelCount at 2 or 3.",
+                isCoverPage
+                  ? "- Keep panelCount at 1. This is the single large framed cover interaction."
+                  : "- Keep panelCount at 2 or 3.",
                 "- Improve pagePurpose, promptPackCopyText, referenceNotesCopyText, and panel story beats to reflect the suggestion.",
                 "- Keep the full page content, all panels, all important reference instructions, and the final visual locks. Do not cut off the prompt mid-sentence.",
                 "- Keep or improve the visible dialogue for every panel. Do not remove all dialogue from the page.",
@@ -3114,7 +3341,7 @@ export async function reviseComicPagePromptWithAi(
         )
     : [];
 
-  if (panels.length < 2) {
+  if (panels.length < minPanelCount) {
     throw new Error("OpenAI returned too few revised panel beats.");
   }
 
@@ -3333,7 +3560,7 @@ export async function generateComicPromptPackageWithAi(
                 "Never invent arms, hands, fingers, gloves, sleeves, humanoid bodies, animal paws, or redesigned mascot silhouettes.",
                 "You must think like a comic production assistant, not like a novelist only.",
                 "Return only valid JSON matching the schema.",
-                "Build exactly 10 pages for every episode.",
+                "Build exactly 10 story pages for every episode. The application prepends a generated Cover page prompt as page 0.",
                 "Use 3 panels per page by default. Only use 2 panels when the story beat deserves extra visual space, such as a reveal, pause, emotional beat, or dramatic transition.",
                 "Every page must include a prompt block that is ready to copy and paste directly into gpt-image-2 after the right references are uploaded.",
                 "Every page must also include a reference-notes block that is ready to copy and paste directly into the image workflow without cleanup.",
@@ -3395,7 +3622,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Keep every character name in English exactly as provided.",
                 "- Expand the episode into a readable production script.",
                 "- The episodeScript must include dialogue, not only prose narration.",
-                "- Create a 10-page plan.",
+                "- Create a 10-story-page plan. Do not include the cover in the returned pages array; the application prepends the cover page prompt as pageNumber 0.",
                 "- Keep every returned field compact enough for a production dashboard; avoid repeating the same global locks verbatim inside every field.",
                 "- Every page should normally contain 3 panels.",
                 "- A page may contain 2 panels only when the beat is visually important enough to justify extra space.",
@@ -3426,7 +3653,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Prefer the chapter-specific scene reference files whenever the page happens in a known chapter scene location.",
                 "- Required uploads must be organized per page, and each item must include real upload image file names plus the matching relative paths.",
                 "- Use CHARACTER for character model sheets, SCENE for reusable master location refs, and CHAPTER_SCENE for chapter-only location sheets.",
-                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, reference reuse, clean high-contrast black-and-white manga style, pure white character fills, model-sheet exactness, mouth-state continuity, handless telekinetic action, exact dialogue rendering, and consistent lettering style across all 10 pages.",
+                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, reference reuse, clean high-contrast black-and-white manga style, pure white character fills, model-sheet exactness, mouth-state continuity, handless telekinetic action, exact dialogue rendering, and consistent lettering style across all 10 story pages plus the generated cover.",
                 "- Keep the tone useful, concrete, and ready for actual image production."
               ].join("\n")
             }
@@ -3502,10 +3729,10 @@ export async function generateComicPromptPackageWithAi(
     });
 
   if (!hasValidPageShape) {
-    throw new Error("OpenAI returned pages that do not match the 10-page comic workflow.");
+    throw new Error("OpenAI returned story pages that do not match the 10-page comic workflow.");
   }
 
-  const normalizedPages = pages
+  const normalizedStoryPages = pages
     .map((page) => {
       const normalizedPanels = [...page.panels]
         .map((panel) => ({
@@ -3538,12 +3765,24 @@ export async function generateComicPromptPackageWithAi(
     })
     .sort((left, right) => left.pageNumber - right.pageNumber);
 
+  const episodeLogline = normalizedOutput.episodeLogline.trim();
+  const episodeSynopsis = normalizedOutput.episodeSynopsis.trim();
+  const coverPage = buildComicCoverPagePrompt({
+    packageInput: input,
+    pages: normalizedStoryPages,
+    episodeLogline,
+    episodeSynopsis
+  });
+
   return {
-    episodeLogline: normalizedOutput.episodeLogline.trim(),
-    episodeSynopsis: normalizedOutput.episodeSynopsis.trim(),
+    episodeLogline,
+    episodeSynopsis,
     episodeScript: normalizedOutput.episodeScript.trim(),
-    pagePlan: normalizedOutput.pagePlan.trim(),
-    pages: normalizedPages,
+    pagePlan: [
+      `Cover: ${coverPage.pagePurpose}`,
+      normalizedOutput.pagePlan.trim()
+    ].join("\n\n"),
+    pages: [coverPage, ...normalizedStoryPages],
     globalGptImage2Notes: ensureReferenceNotesIncludeLettering(
       normalizedOutput.globalGptImage2Notes
     )

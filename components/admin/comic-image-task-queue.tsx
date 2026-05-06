@@ -201,7 +201,7 @@ function getComicImageCreationQualityNote(value?: string | null) {
 }
 
 function formatPageLabel(pageNumber: number) {
-  return `Page ${String(pageNumber).padStart(2, "0")}`;
+  return pageNumber === 0 ? "Cover" : `Page ${String(pageNumber).padStart(2, "0")}`;
 }
 
 function createTaskId(kind: ComicImageTaskKind, episodeId: string, pageNumber: number) {
@@ -906,7 +906,7 @@ export function ComicGenerateAllImagesQueueButton({
   idleLabel?: string;
 }) {
   const { enqueue, tasks } = useComicImageTaskQueue();
-  const uniquePageNumbers = Array.from(new Set(pageNumbers)).filter((pageNumber) => pageNumber > 0);
+  const uniquePageNumbers = Array.from(new Set(pageNumbers)).filter((pageNumber) => pageNumber >= 0);
   const activeCount = tasks.filter(
     (task) =>
       task.kind === "generate" &&

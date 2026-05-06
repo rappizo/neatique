@@ -1,6 +1,11 @@
 import type { ParsedComicPromptOutput } from "@/lib/comic-prompt-output";
+import {
+  COMIC_REQUIRED_PAGE_COUNT,
+  formatComicPageLabel,
+  isComicCoverPageNumber
+} from "@/lib/comic-pages";
 
-const REQUIRED_PAGE_COUNT = 10;
+const REQUIRED_PAGE_COUNT = COMIC_REQUIRED_PAGE_COUNT;
 const MAX_REFERENCE_IMAGES_PER_PAGE = 16;
 const STORY_CONTINUITY_OBJECT_KEYWORDS = [
   "handbook",
@@ -229,7 +234,7 @@ function pageHasContinuityReferenceForKeyword(
 function formatContinuityKeywordPages(pages: Set<number>) {
   return Array.from(pages)
     .sort((left, right) => left - right)
-    .map((pageNumber) => `P${pageNumber}`)
+    .map((pageNumber) => formatComicPageLabel(pageNumber))
     .join(", ");
 }
 
@@ -265,7 +270,7 @@ export function getComicPromptHealthSummary(
         {
           severity: "issue" as const,
           key: "prompt-package.missing",
-          message: "Generate a 10-page prompt package before creating images."
+          message: "Generate a cover-plus-10-page prompt package before creating images."
         }
       ],
       neglectedFindingKeys
@@ -280,7 +285,7 @@ export function getComicPromptHealthSummary(
       warningCount,
       pages: [
         {
-          pageNumber: 0,
+          pageNumber: -1,
           ready: issueCount === 0,
           issueCount,
           warningCount,
@@ -319,12 +324,17 @@ export function getComicPromptHealthSummary(
       );
     }
 
-    if (![2, 3].includes(page.panelCount)) {
+    if (
+      (isComicCoverPageNumber(page.pageNumber) && page.panelCount !== 1) ||
+      (!isComicCoverPageNumber(page.pageNumber) && ![2, 3].includes(page.panelCount))
+    ) {
       addFinding(
         findings,
         "warning",
         "page.panel-count.production-rhythm",
-        "Panel count is outside the 2-3 panel production rhythm."
+        isComicCoverPageNumber(page.pageNumber)
+          ? "The cover should use one large framed interaction."
+          : "Panel count is outside the 2-3 panel production rhythm."
       );
     }
 
@@ -463,7 +473,7 @@ export function getComicPromptHealthSummary(
     pages: visiblePageCountFinding
       ? [
           {
-            pageNumber: 0,
+            pageNumber: -1,
             ready: false,
             issueCount: pageCountIssues,
             warningCount: pageCountWarnings,

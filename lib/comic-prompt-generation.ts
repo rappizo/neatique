@@ -7,6 +7,7 @@ import {
   getComicSceneReferenceFiles
 } from "@/lib/comic-reference-manifest";
 import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
+import { formatComicPageLabel, isComicPublishPageNumber } from "@/lib/comic-pages";
 
 export type ComicPromptPackageGenerationStatus =
   | "prompt-generated"
@@ -377,7 +378,7 @@ export async function reviseComicPagePromptForEpisode(input: {
     throw new ComicPromptGenerationInputError("missing-episode", "Episode is required.");
   }
 
-  if (!pageNumber) {
+  if (!isComicPublishPageNumber(pageNumber)) {
     throw new ComicPromptGenerationInputError("missing-page-prompt", "Page number is required.");
   }
 
@@ -510,7 +511,7 @@ export async function reviseComicPagePromptForEpisode(input: {
           imageModel: getComicImageModel(),
           status: "READY",
           inputContext,
-          outputSummary: `Revised ${episode.title} page ${pageNumber} prompt from admin suggestion.`,
+          outputSummary: `Revised ${episode.title} ${formatComicPageLabel(pageNumber).toLowerCase()} prompt from admin suggestion.`,
           promptPack: revisedPage.promptPackCopyText,
           referenceChecklist: revisedPage.referenceNotesCopyText
         }
@@ -528,7 +529,7 @@ export async function reviseComicPagePromptForEpisode(input: {
       status: "page-prompt-revised",
       episodeId,
       pageNumber,
-      message: `Revised ${episode.title} page ${pageNumber} prompt.`
+      message: `Revised ${episode.title} ${formatComicPageLabel(pageNumber).toLowerCase()} prompt.`
     };
   } catch (error) {
     const errorMessage =
@@ -542,7 +543,7 @@ export async function reviseComicPagePromptForEpisode(input: {
         imageModel: getComicImageModel(),
         status: "FAILED",
         inputContext,
-        outputSummary: `Page ${pageNumber} prompt revision failed.`,
+        outputSummary: `${formatComicPageLabel(pageNumber)} prompt revision failed.`,
         promptPack: page.promptPackCopyText,
         referenceChecklist: page.referenceNotesCopyText,
         errorMessage
@@ -560,7 +561,7 @@ export async function reviseComicPagePromptForEpisode(input: {
       status: "page-prompt-revision-failed",
       episodeId,
       pageNumber,
-      message: `Page ${pageNumber} prompt revision failed.`,
+      message: `${formatComicPageLabel(pageNumber)} prompt revision failed.`,
       errorMessage
     };
   }

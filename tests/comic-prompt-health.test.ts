@@ -4,7 +4,43 @@ import type { ParsedComicPromptOutput } from "../lib/comic-prompt-output";
 import { getComicPromptHealthSummary } from "../lib/comic-prompt-health";
 
 function buildPromptOutput(overrides: Partial<ParsedComicPromptOutput> = {}): ParsedComicPromptOutput {
-  const pages = Array.from({ length: 10 }, (_, index) => {
+  const coverPage: ParsedComicPromptOutput["pages"][number] = {
+    pageNumber: 0,
+    panelCount: 1,
+    pagePurpose: "Cover: Neatique Skincare College logo, episode title, and Ava meeting Coach Ray.",
+    promptPackCopyText: [
+      "Cover image prompt.",
+      "Place the exact Neatique Skincare College comic logo at the top, then the comic title, then a large framed manga interaction scene.",
+      "Use consistent rounded hand-lettered font, clean lettering, speech balloons, and caption boxes.",
+      'Visible dialogue: Title: "Neatique Skincare College" Caption: "Sunscreen Drill"'
+    ].join("\n"),
+    referenceNotesCopyText: "Use the uploaded comiclogo.png brand logo and the listed character references.",
+    panels: [
+      {
+        panelNumber: 1,
+        panelTitle: "Cover Interaction",
+        storyBeat: "Ava and Coach Ray square up for a sunscreen lesson.",
+        promptText:
+          "Inside the large cover frame, Ava and Coach Ray interact with a clear caption box and clean manga lettering.",
+        dialogueLines: [
+          { speaker: "Title", text: "Neatique Skincare College" },
+          { speaker: "Caption", text: "Sunscreen Drill" }
+        ]
+      }
+    ],
+    requiredUploads: [
+      {
+        bucket: "BRAND_LOGO",
+        label: "Comic title logo",
+        slug: "comic-title-logo",
+        whyThisMatters: "Locks the cover title logo.",
+        contentSummary: "Exact uploaded comiclogo.png logo.",
+        uploadImageNames: ["comiclogo.png"],
+        relativePaths: ["/images/comiclogo.png"]
+      }
+    ]
+  };
+  const storyPages = Array.from({ length: 10 }, (_, index) => {
     const pageNumber = index + 1;
     const dialogueText = `Line ${pageNumber}`;
     const captionText = `Caption ${pageNumber}`;
@@ -38,6 +74,7 @@ function buildPromptOutput(overrides: Partial<ParsedComicPromptOutput> = {}): Pa
       requiredUploads: []
     };
   });
+  const pages = [coverPage, ...storyPages];
 
   return {
     episodeLogline: "A short logline.",
@@ -51,20 +88,20 @@ function buildPromptOutput(overrides: Partial<ParsedComicPromptOutput> = {}): Pa
 test("comic prompt health accepts complete dialogue and lettering prompts", () => {
   const summary = getComicPromptHealthSummary(buildPromptOutput());
 
-  assert.equal(summary.totalPages, 10);
-  assert.equal(summary.readyPages, 10);
+  assert.equal(summary.totalPages, 11);
+  assert.equal(summary.readyPages, 11);
   assert.equal(summary.issueCount, 0);
 });
 
 test("comic prompt health catches missing dialogue in image prompts", () => {
   const promptOutput = buildPromptOutput();
-  promptOutput.pages[0].promptPackCopyText = "Page 1 image prompt with lettering but no line text.";
+  promptOutput.pages[1].promptPackCopyText = "Page 1 image prompt with lettering but no line text.";
 
   const summary = getComicPromptHealthSummary(promptOutput);
 
-  assert.equal(summary.readyPages, 9);
+  assert.equal(summary.readyPages, 10);
   assert.equal(summary.issueCount > 0, true);
-  assert.match(summary.pages[0].findings.map((finding) => finding.message).join("\n"), /dialogue/);
+  assert.match(summary.pages[1].findings.map((finding) => finding.message).join("\n"), /dialogue/);
 });
 
 test("comic prompt health warns when recurring props lack a continuity reference", () => {

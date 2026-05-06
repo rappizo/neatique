@@ -20,6 +20,7 @@ import {
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 
 const COMIC_REFERENCE_ROOT = "comic";
+const COMIC_LOGO_PUBLIC_PATH = "/images/comiclogo.png";
 const DEFAULT_MAX_COMIC_REFERENCE_IMAGES = 8;
 const DEFAULT_MAX_COMIC_CHARACTER_REFERENCE_IMAGES = 5;
 const SUPPORTED_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
@@ -59,7 +60,8 @@ export type ComicResolvedReferenceImage = {
     | StoredPromptUpload["bucket"]
     | "DETECTED_CHARACTER"
     | "DETECTED_CHAPTER_SCENE"
-    | "CAST_COMPARISON";
+    | "CAST_COMPARISON"
+    | "BRAND_LOGO";
   label: string;
   slug: string;
   fileName: string;
@@ -362,11 +364,46 @@ function addReferenceImage(
   });
 }
 
+function shouldUseComicLogoUpload(upload: StoredPromptUpload) {
+  return (
+    upload.bucket === "BRAND_LOGO" ||
+    upload.relativePaths.some((relativePath) =>
+      normalizeSlashes(relativePath).toLowerCase().endsWith("images/comiclogo.png")
+    )
+  );
+}
+
+function addComicLogoReference(byPath: Map<string, ComicResolvedReferenceImage>) {
+  if (byPath.has(COMIC_LOGO_PUBLIC_PATH)) {
+    return;
+  }
+
+  byPath.set(COMIC_LOGO_PUBLIC_PATH, {
+    bucket: "BRAND_LOGO",
+    slug: "comic-logo",
+    label: "Neatique comic title logo",
+    fileName: "comiclogo.png",
+    relativePath: COMIC_LOGO_PUBLIC_PATH,
+    imageUrl: COMIC_LOGO_PUBLIC_PATH,
+    mimeType: "image/png",
+    sizeBytes: 0,
+    whyThisMatters:
+      "Used as the exact title-logo reference for the top of the comic cover page.",
+    contentSummary: "Uploaded comic title logo for cover-page branding.",
+    source: "prompt-required-upload"
+  });
+}
+
 function addRequiredUploadReferences(
   input: ResolveComicPageReferenceImagesInput,
   byPath: Map<string, ComicResolvedReferenceImage>
 ) {
   for (const upload of input.requiredUploads) {
+    if (shouldUseComicLogoUpload(upload)) {
+      addComicLogoReference(byPath);
+      continue;
+    }
+
     const records = getReferenceRecordsForUpload(upload, input.seasonSlug, input.chapterSlug);
     const fallbackFolder = getReferenceFolderForUpload(upload, input.seasonSlug, input.chapterSlug);
     const primaryRecord = getPrimaryReferenceRecordForUpload(upload, records, fallbackFolder);
@@ -550,12 +587,13 @@ function addSimilarTeardropComparisonReference(byPath: Map<string, ComicResolved
 
 function sortResolvedReferences(references: ComicResolvedReferenceImage[]) {
   const bucketOrder: Record<string, number> = {
-    CHARACTER: 0,
-    DETECTED_CHARACTER: 1,
-    CAST_COMPARISON: 2,
-    CHAPTER_SCENE: 3,
-    DETECTED_CHAPTER_SCENE: 4,
-    SCENE: 5
+    BRAND_LOGO: 0,
+    CHARACTER: 1,
+    DETECTED_CHARACTER: 2,
+    CAST_COMPARISON: 3,
+    CHAPTER_SCENE: 4,
+    DETECTED_CHAPTER_SCENE: 5,
+    SCENE: 6
   };
 
   return [...references].sort((left, right) => {
@@ -575,6 +613,10 @@ function sortResolvedReferences(references: ComicResolvedReferenceImage[]) {
 
 function isCharacterReference(reference: ComicResolvedReferenceImage) {
   return reference.bucket === "CHARACTER" || reference.bucket === "DETECTED_CHARACTER";
+}
+
+function isBrandLogoReference(reference: ComicResolvedReferenceImage) {
+  return reference.bucket === "BRAND_LOGO";
 }
 
 function isChapterSceneReference(reference: ComicResolvedReferenceImage) {
@@ -611,6 +653,7 @@ function selectResolvedReferences(references: ComicResolvedReferenceImage[]) {
     }
   }
 
+  addWhere(isBrandLogoReference, Math.min(1, maxReferences));
   addWhere(isCharacterReference, maxCharacterReferences);
   addWhere(isCastComparisonReference, Math.max(0, Math.min(1, maxReferences - selected.size)));
   addWhere(isChapterSceneReference, Math.max(1, Math.min(2, maxReferences - selected.size)));
@@ -647,12 +690,33 @@ async function readLocalComicReferenceImage(relativePath: string) {
   }
 }
 
+async function readLocalComicLogoImage() {
+  const candidates = [
+    join(process.cwd(), "public", "images", "comiclogo.png"),
+    join(process.cwd(), "images", "comiclogo.png"),
+    join(process.cwd(), "images", "ComicLogo.png")
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      return await readFile(candidate);
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
 export async function loadComicReferenceImageFiles(
   references: ComicResolvedReferenceImage[]
 ): Promise<ComicReferenceImageFile[]> {
   const files = await Promise.all(
     references.map(async (reference) => {
-      const localBuffer = await readLocalComicReferenceImage(reference.relativePath);
+      const localBuffer =
+        reference.bucket === "BRAND_LOGO"
+          ? await readLocalComicLogoImage()
+          : await readLocalComicReferenceImage(reference.relativePath);
 
       if (localBuffer) {
         return {
@@ -663,7 +727,10 @@ export async function loadComicReferenceImageFiles(
         };
       }
 
-      const absoluteUrl = toComicReferenceAbsoluteUrl(reference.relativePath);
+      const absoluteUrl =
+        reference.bucket === "BRAND_LOGO"
+          ? new URL(reference.imageUrl, `${getComicReferenceBaseUrl()}/`).toString()
+          : toComicReferenceAbsoluteUrl(reference.relativePath);
 
       if (!absoluteUrl) {
         return null;

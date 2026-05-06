@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ComicEpisodeReader } from "@/components/site/comic-episode-reader";
@@ -9,7 +10,12 @@ import {
   getFlattenedComicEpisodes
 } from "@/lib/comic-public-navigation";
 import { getComicLanguageHref, getComicLanguageState } from "@/lib/comic-language";
-import { getPublishedComicLibrary } from "@/lib/comic-queries";
+import {
+  getPublishedComicEpisodeBySlugs,
+  getPublishedComicLibrary
+} from "@/lib/comic-queries";
+import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
+import { siteConfig } from "@/lib/site-config";
 
 type ComicEpisodePageProps = {
   params: Promise<{ seasonSlug: string; chapterSlug: string; episodeSlug: string }>;
@@ -18,6 +24,74 @@ type ComicEpisodePageProps = {
 
 function buildPublicEpisodeDownloadHref(episodeId: string, language: "en" | "zh") {
   return `/api/comic/episode-download?episodeId=${encodeURIComponent(episodeId)}&language=${language}`;
+}
+
+function buildComicEpisodePath(seasonSlug: string, chapterSlug: string, episodeSlug: string) {
+  return `/comic/${seasonSlug}/${chapterSlug}/${episodeSlug}`;
+}
+
+function safeAbsoluteComicImageUrl(path: string | null | undefined) {
+  try {
+    return toAbsoluteUrl(path || defaultOgImage.url);
+  } catch {
+    return toAbsoluteUrl(defaultOgImage.url);
+  }
+}
+
+export async function generateMetadata({
+  params,
+  searchParams
+}: ComicEpisodePageProps): Promise<Metadata> {
+  const { seasonSlug, chapterSlug, episodeSlug } = await params;
+  const query = await searchParams;
+  const languageState = await getComicLanguageState(query);
+  const episode = await getPublishedComicEpisodeBySlugs(
+    seasonSlug,
+    chapterSlug,
+    episodeSlug,
+    languageState.language
+  );
+
+  if (!episode) {
+    return {
+      title: "Comic not found"
+    };
+  }
+
+  const canonicalPath = getComicLanguageHref(
+    buildComicEpisodePath(seasonSlug, chapterSlug, episodeSlug),
+    languageState.language
+  );
+  const previewAsset = episode.assets[0] || null;
+  const previewImageUrl = safeAbsoluteComicImageUrl(previewAsset?.imageUrl);
+  const previewImageAlt = previewAsset?.altText || previewAsset?.title || episode.title;
+
+  return {
+    title: episode.title,
+    description: episode.summary,
+    alternates: {
+      canonical: canonicalPath
+    },
+    openGraph: {
+      type: "article",
+      title: episode.title,
+      description: episode.summary,
+      url: toAbsoluteUrl(canonicalPath),
+      siteName: siteConfig.title,
+      images: [
+        {
+          url: previewImageUrl,
+          alt: previewImageAlt
+        }
+      ]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: episode.title,
+      description: episode.summary,
+      images: [previewImageUrl]
+    }
+  };
 }
 
 export default async function ComicEpisodePage({ params, searchParams }: ComicEpisodePageProps) {

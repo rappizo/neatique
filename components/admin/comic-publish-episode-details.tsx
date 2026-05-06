@@ -169,7 +169,7 @@ export function ComicPublishEpisodeDetails({
             </span>
             <span className="pill">{draftPageCount} draft images</span>
             <span className="pill">
-              {hasPromptPackage ? "10-page prompts loaded" : "No prompts yet"}
+              {hasPromptPackage ? "Cover + 10 prompts loaded" : "No prompts yet"}
             </span>
             {typeof promptReadyCount === "number" ? (
               <span

@@ -17,6 +17,7 @@ import {
 } from "@/lib/comic-reference-manifest";
 import { buildComicRedirect, revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 import { toInt, toPlainString } from "@/lib/utils";
+import { formatComicPageLabel, isComicPublishPageNumber } from "@/lib/comic-pages";
 
 export async function neglectComicPromptQaFindingAction(formData: FormData) {
   await requireAdminSession();
@@ -288,7 +289,7 @@ export async function generateComicPageImageAction(formData: FormData) {
     redirect(buildComicRedirect("/admin/comic/publish-center", "missing-episode"));
   }
 
-  if (!pageNumber) {
+  if (!isComicPublishPageNumber(pageNumber)) {
     redirect(buildComicRedirect(redirectTo, "missing-page-prompt"));
   }
 
@@ -371,7 +372,7 @@ export async function restoreComicPagePromptRevisionAction(formData: FormData) {
     redirect(buildComicRedirect("/admin/comic/publish-center", "missing-episode"));
   }
 
-  if (!pageNumber) {
+  if (!isComicPublishPageNumber(pageNumber)) {
     redirect(buildComicRedirect(redirectTo, "missing-page-prompt"));
   }
 
@@ -533,7 +534,7 @@ export async function restoreComicPagePromptRevisionAction(formData: FormData) {
         imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
         status: "READY",
         inputContext,
-        outputSummary: `Restored ${episode.title} page ${pageNumber} ${restoreVersion} prompt from revision history.`,
+          outputSummary: `Restored ${episode.title} ${formatComicPageLabel(pageNumber).toLowerCase()} ${restoreVersion} prompt from revision history.`,
         promptPack: restoredPromptPack,
         referenceChecklist: restoredReferenceChecklist || page.referenceNotesCopyText
       }
@@ -561,7 +562,7 @@ export async function reviseComicPagePromptAction(formData: FormData) {
     redirect(buildComicRedirect("/admin/comic/publish-center", "missing-episode"));
   }
 
-  if (!pageNumber) {
+  if (!isComicPublishPageNumber(pageNumber)) {
     redirect(buildComicRedirect(redirectTo, "missing-page-prompt"));
   }
 
@@ -694,7 +695,7 @@ export async function reviseComicPagePromptAction(formData: FormData) {
           imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
           status: "READY",
           inputContext,
-          outputSummary: `Revised ${episode.title} page ${pageNumber} prompt from admin suggestion.`,
+          outputSummary: `Revised ${episode.title} ${formatComicPageLabel(pageNumber).toLowerCase()} prompt from admin suggestion.`,
           promptPack: revisedPage.promptPackCopyText,
           referenceChecklist: revisedPage.referenceNotesCopyText
         }
@@ -720,7 +721,7 @@ export async function reviseComicPagePromptAction(formData: FormData) {
         imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
         status: "FAILED",
         inputContext,
-        outputSummary: `Page ${pageNumber} prompt revision failed.`,
+        outputSummary: `${formatComicPageLabel(pageNumber)} prompt revision failed.`,
         promptPack: page.promptPackCopyText,
         referenceChecklist: page.referenceNotesCopyText,
         errorMessage: error instanceof Error ? error.message : "Unknown comic page prompt revision error."

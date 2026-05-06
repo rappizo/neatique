@@ -8,6 +8,11 @@ import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity"
 import { isNextRedirectError } from "@/lib/comic-action-errors";
 import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
+import {
+  formatComicPageFileSlug,
+  formatComicPageLabel,
+  isComicPublishPageNumber
+} from "@/lib/comic-pages";
 
 export type ComicPageImageGenerationStatus =
   | "page-image-generated"
@@ -50,7 +55,7 @@ export async function generateComicPageImageForEpisode(input: {
     throw new ComicPageImageGenerationInputError("missing-episode", "Episode is required.");
   }
 
-  if (!pageNumber) {
+  if (!isComicPublishPageNumber(pageNumber)) {
     throw new ComicPageImageGenerationInputError("missing-page-prompt", "Page number is required.");
   }
 
@@ -177,20 +182,20 @@ export async function generateComicPageImageForEpisode(input: {
       mimeType: imageAsset.mimeType,
       category: "generated-pages",
       targetId: episodeId,
-      fileName: `page-${String(page.pageNumber).padStart(2, "0")}-${Date.now()}`
+      fileName: `${formatComicPageFileSlug(page.pageNumber)}-${Date.now()}`
     });
     const createdAsset = await prisma.comicEpisodeAsset.create({
       data: {
         episodeId,
         assetType: "GENERATED_PAGE",
-        title: `${episode.title} - Page ${String(page.pageNumber).padStart(2, "0")}`,
+        title: `${episode.title} - ${formatComicPageLabel(page.pageNumber)}`,
         imageUrl: storedImage.imageUrl,
         imageData: storedImage.imageData,
         imageMimeType: storedImage.imageMimeType,
         imageStorageKey: storedImage.imageStorageKey,
         imageByteSize: storedImage.imageByteSize,
         imageSha256: storedImage.imageSha256,
-        altText: `${episode.title} comic page ${page.pageNumber}`,
+        altText: `${episode.title} comic ${formatComicPageLabel(page.pageNumber).toLowerCase()}`,
         caption: page.pagePurpose,
         sortOrder: page.pageNumber,
         published: false
@@ -221,7 +226,7 @@ export async function generateComicPageImageForEpisode(input: {
           imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
           status: "READY",
           inputContext,
-          outputSummary: `Generated ${episode.title} page ${page.pageNumber} with ${imageInput.referenceImages.length} direct reference image${imageInput.referenceImages.length === 1 ? "" : "s"}.`,
+          outputSummary: `Generated ${episode.title} ${formatComicPageLabel(page.pageNumber).toLowerCase()} with ${imageInput.referenceImages.length} direct reference image${imageInput.referenceImages.length === 1 ? "" : "s"}.`,
           promptPack: page.promptPackCopyText,
           referenceChecklist: page.referenceNotesCopyText
         }
@@ -242,7 +247,7 @@ export async function generateComicPageImageForEpisode(input: {
       assetId: createdAsset.id,
       imageUrl,
       referenceImageCount: imageInput.referenceImages.length,
-      message: `Generated ${episode.title} page ${page.pageNumber}.`
+      message: `Generated ${episode.title} ${formatComicPageLabel(page.pageNumber).toLowerCase()}.`
     };
   } catch (error) {
     if (isNextRedirectError(error)) {
@@ -264,7 +269,7 @@ export async function generateComicPageImageForEpisode(input: {
         imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
         status: "FAILED",
         inputContext,
-        outputSummary: `Page ${page.pageNumber} image generation failed.`,
+        outputSummary: `${formatComicPageLabel(page.pageNumber)} image generation failed.`,
         promptPack: page.promptPackCopyText,
         referenceChecklist: page.referenceNotesCopyText,
         errorMessage
@@ -283,7 +288,7 @@ export async function generateComicPageImageForEpisode(input: {
       episodeId,
       pageNumber: page.pageNumber,
       referenceImageCount: imageInput.referenceImages.length,
-      message: `Page ${page.pageNumber} image generation failed.`,
+      message: `${formatComicPageLabel(page.pageNumber)} image generation failed.`,
       errorMessage
     };
   }

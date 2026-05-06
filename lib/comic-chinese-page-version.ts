@@ -6,10 +6,14 @@ import {
   storeComicImage
 } from "@/lib/comic-image-storage";
 import { toComicCharacterChineseNameLocks } from "@/lib/comic-character-chinese-names";
+import {
+  COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_PAGE_ASSET_TYPES,
+  formatComicPageFileSlug,
+  formatComicPageLabel,
+  isComicPublishPageNumber
+} from "@/lib/comic-pages";
 
-const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
-const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
-const COMIC_PUBLISH_PAGE_COUNT = 10;
 
 export type ComicChinesePageVersionStatus =
   | "page-chinese-created"
@@ -42,10 +46,6 @@ export type ComicChinesePageVersionResult = {
 
 function isComicPageAssetType(assetType: string) {
   return COMIC_PAGE_ASSET_TYPES.includes(assetType);
-}
-
-function isComicPublishPageNumber(pageNumber: number) {
-  return Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= COMIC_PUBLISH_PAGE_COUNT;
 }
 
 function getComicModel() {
@@ -146,7 +146,7 @@ export async function createChineseComicPageVersion(input: {
       mimeType: translatedImage.mimeType,
       category: "chinese-pages",
       targetId: asset.episodeId,
-      fileName: `page-${String(asset.sortOrder).padStart(2, "0")}-zh-${Date.now()}`
+      fileName: `${formatComicPageFileSlug(asset.sortOrder)}-zh-${Date.now()}`
     });
 
     const createdAsset = await prisma.comicEpisodeAsset.create({
@@ -186,7 +186,7 @@ export async function createChineseComicPageVersion(input: {
           imageModel: getComicImageModel(),
           status: "READY",
           inputContext,
-          outputSummary: `Created Chinese draft version for ${asset.episode.title} page ${asset.sortOrder}.`
+          outputSummary: `Created Chinese draft version for ${asset.episode.title} ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`
         }
       })
     ]);
@@ -205,7 +205,7 @@ export async function createChineseComicPageVersion(input: {
       pageNumber: asset.sortOrder,
       assetId: createdAsset.id,
       imageUrl,
-      message: `Created Chinese draft for ${asset.episode.title} page ${asset.sortOrder}.`
+      message: `Created Chinese draft for ${asset.episode.title} ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`
     };
   } catch (error) {
     const errorMessage =
@@ -219,7 +219,7 @@ export async function createChineseComicPageVersion(input: {
         imageModel: getComicImageModel(),
         status: "FAILED",
         inputContext,
-        outputSummary: `Chinese version creation failed for page ${asset.sortOrder}.`,
+        outputSummary: `Chinese version creation failed for ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`,
         errorMessage
       }
     });
@@ -236,7 +236,7 @@ export async function createChineseComicPageVersion(input: {
       sourceAssetId: asset.id,
       episodeId: asset.episodeId,
       pageNumber: asset.sortOrder,
-      message: `Chinese version creation failed for page ${asset.sortOrder}.`,
+      message: `Chinese version creation failed for ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`,
       errorMessage
     };
   }

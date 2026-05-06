@@ -1,13 +1,16 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
+import {
+  COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_PAGE_ASSET_TYPES,
+  COMIC_REQUIRED_PAGE_COUNT,
+  getComicRequiredPageNumbers,
+  isComicPublishPageNumber
+} from "@/lib/comic-pages";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
-
-const COMIC_PUBLISH_PAGE_COUNT = 10;
-const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
-const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
 
 type PublishCenterIntent =
   | "approve-asset"
@@ -41,10 +44,6 @@ function isComicPageAssetType(assetType: string) {
 
 function isChineseComicPageAssetType(assetType: string) {
   return assetType === COMIC_CHINESE_PAGE_ASSET_TYPE;
-}
-
-function isComicPublishPageNumber(pageNumber: number) {
-  return pageNumber >= 1 && pageNumber <= COMIC_PUBLISH_PAGE_COUNT;
 }
 
 function countApprovedRequiredPages(
@@ -124,9 +123,9 @@ async function getEpisodeStatus(episodeId: string) {
     episodePublished: episode.published,
     englishApprovedCount,
     chineseApprovedCount,
-    requiredPageCount: COMIC_PUBLISH_PAGE_COUNT,
-    canPublish: englishApprovedCount === COMIC_PUBLISH_PAGE_COUNT,
-    canPublishChinese: chineseApprovedCount === COMIC_PUBLISH_PAGE_COUNT,
+    requiredPageCount: COMIC_REQUIRED_PAGE_COUNT,
+    canPublish: englishApprovedCount === COMIC_REQUIRED_PAGE_COUNT,
+    canPublishChinese: chineseApprovedCount === COMIC_REQUIRED_PAGE_COUNT,
     slugs: {
       seasonSlug: episode.chapter.season.slug,
       chapterSlug: episode.chapter.slug,
@@ -406,15 +405,14 @@ async function publishEpisode(episodeId: string) {
       .filter((asset) => isComicPageAssetType(asset.assetType) && isComicPublishPageNumber(asset.sortOrder))
       .map((asset) => asset.sortOrder)
   );
-  const hasAllRequiredPages = Array.from(
-    { length: COMIC_PUBLISH_PAGE_COUNT },
-    (_, index) => index + 1
-  ).every((pageNumber) => approvedPageNumbers.has(pageNumber));
+  const hasAllRequiredPages = getComicRequiredPageNumbers().every((pageNumber) =>
+    approvedPageNumbers.has(pageNumber)
+  );
 
   if (!hasAllRequiredPages) {
     throw new ComicPublishCenterError(
       "missing-approved-pages",
-      "Approve pages 1-10 before publishing this episode."
+      "Approve the cover plus pages 1-10 before publishing this episode."
     );
   }
 
@@ -434,10 +432,10 @@ async function publishEpisode(episodeId: string) {
       data: {
         published: true,
         publishedAt: episode.publishedAt || new Date(),
-        coverImageUrl: episode.coverImageUrl || firstPageAsset?.imageUrl || null,
+        coverImageUrl: firstPageAsset?.imageUrl || episode.coverImageUrl || null,
         coverImageAlt:
-          episode.coverImageAlt ||
           firstPageAsset?.altText ||
+          episode.coverImageAlt ||
           `${episode.title} comic episode cover`
       }
     })

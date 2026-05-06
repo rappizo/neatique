@@ -394,3 +394,58 @@ test("comic page image reference selection keeps similar teardrop comparison dur
     }
   }
 });
+
+test("comic page image reference selection keeps cover logo during retries", () => {
+  const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+  process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";
+
+  try {
+    const selected = selectComicPageImageReferenceImages(
+      [
+        referenceImage({
+          label: "Muci Model Sheet",
+          slug: "muci",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/muci/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Nia Model Sheet",
+          slug: "nia",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/nia/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Snacri Model Sheet",
+          slug: "snacri",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/snacri/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Padaruna Model Sheet",
+          slug: "padaruna",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/padaruna/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Neatique comic title logo",
+          slug: "comic-logo",
+          bucket: "BRAND_LOGO",
+          relativePath: "/images/comiclogo.png"
+        })
+      ],
+      2
+    );
+
+    assert.equal(selected.length, 4);
+    assert.ok(
+      selected.some((reference) => reference.bucket === "BRAND_LOGO"),
+      "The cover logo should not be dropped in retry reference selection."
+    );
+  } finally {
+    if (previousLimit === undefined) {
+      delete process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+    } else {
+      process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = previousLimit;
+    }
+  }
+});

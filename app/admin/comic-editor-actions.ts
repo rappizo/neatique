@@ -24,6 +24,15 @@ import {
   normalizeComicCharacterChineseName,
   resolveComicCharacterChineseName
 } from "@/lib/comic-character-chinese-names";
+import {
+  COMIC_APPROVAL_ASSET_TYPES,
+  COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_PAGE_ASSET_TYPES,
+  formatComicPageFileSlug,
+  formatComicPageLabel,
+  getComicRequiredPageNumbers,
+  isComicPublishPageNumber
+} from "@/lib/comic-pages";
 import { toBool, toInt, toPlainString } from "@/lib/utils";
 import {
   buildComicRedirect,
@@ -1042,11 +1051,7 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
   );
 }
 
-const COMIC_PUBLISH_PAGE_COUNT = 10;
 const COMIC_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
-const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
-const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
-const COMIC_APPROVAL_ASSET_TYPES = [...COMIC_PAGE_ASSET_TYPES, COMIC_CHINESE_PAGE_ASSET_TYPE];
 
 function isComicPageAssetType(assetType: string) {
   return COMIC_PAGE_ASSET_TYPES.includes(assetType);
@@ -1058,10 +1063,6 @@ function isChineseComicPageAssetType(assetType: string) {
 
 function isComicApprovalAssetType(assetType: string) {
   return COMIC_APPROVAL_ASSET_TYPES.includes(assetType);
-}
-
-function isComicPublishPageNumber(pageNumber: number) {
-  return pageNumber >= 1 && pageNumber <= COMIC_PUBLISH_PAGE_COUNT;
 }
 
 function getComicPublishRedirect(formData: FormData, fallback = "/admin/comic/publish-center") {
@@ -1388,10 +1389,9 @@ export async function uploadComicPageAssetAction(formData: FormData) {
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const redirectTo = getComicPublishRedirect(formData);
-  const pageNumber = Math.max(
-    1,
-    Math.min(COMIC_PUBLISH_PAGE_COUNT, toInt(formData.get("pageNumber"), 1))
-  );
+  const requestedPageNumber = toInt(formData.get("pageNumber"), 1);
+  const pageNumber = isComicPublishPageNumber(requestedPageNumber) ? requestedPageNumber : 1;
+  const pageLabel = formatComicPageLabel(pageNumber);
   const file = formData.get("comicPageFile");
   const shouldApprove = toBool(formData.get("approveAfterUpload"));
 
@@ -1428,7 +1428,7 @@ export async function uploadComicPageAssetAction(formData: FormData) {
 
   const title =
     toPlainString(formData.get("title")) ||
-    `${episode.title} - Uploaded Page ${String(pageNumber).padStart(2, "0")}`;
+    `${episode.title} - Uploaded ${pageLabel}`;
 
   if (shouldApprove && episode.published) {
     redirect(buildComicRedirect(redirectTo, "unpublish-before-approval-change"));
@@ -1440,7 +1440,7 @@ export async function uploadComicPageAssetAction(formData: FormData) {
     mimeType: file.type || "image/png",
     category: "uploaded-pages",
     targetId: episodeId,
-    fileName: `page-${String(pageNumber).padStart(2, "0")}-${Date.now()}`
+    fileName: `${formatComicPageFileSlug(pageNumber)}-${Date.now()}`
   });
 
   const createdAsset = await prisma.comicEpisodeAsset.create({
@@ -1456,7 +1456,7 @@ export async function uploadComicPageAssetAction(formData: FormData) {
       imageSha256: storedImage.imageSha256,
       altText:
         toPlainString(formData.get("altText")) ||
-        `${episode.title} uploaded comic page ${pageNumber}`,
+        `${episode.title} uploaded comic ${pageLabel.toLowerCase()}`,
       caption: normalizeLongText(formData.get("caption")) || null,
       sortOrder: pageNumber,
       published: shouldApprove
@@ -1556,10 +1556,9 @@ export async function publishComicEpisodeFromCenterAction(formData: FormData) {
       .map((asset) => asset.sortOrder)
   );
 
-  const hasAllRequiredPages = Array.from(
-    { length: COMIC_PUBLISH_PAGE_COUNT },
-    (_, index) => index + 1
-  ).every((pageNumber) => approvedPageNumbers.has(pageNumber));
+  const hasAllRequiredPages = getComicRequiredPageNumbers().every((pageNumber) =>
+    approvedPageNumbers.has(pageNumber)
+  );
 
   if (!hasAllRequiredPages) {
     redirect(buildComicRedirect(redirectTo, "missing-approved-pages"));
@@ -1581,10 +1580,10 @@ export async function publishComicEpisodeFromCenterAction(formData: FormData) {
       data: {
         published: true,
         publishedAt: episode.publishedAt || new Date(),
-        coverImageUrl: episode.coverImageUrl || firstPageAsset?.imageUrl || null,
+        coverImageUrl: firstPageAsset?.imageUrl || episode.coverImageUrl || null,
         coverImageAlt:
-          episode.coverImageAlt ||
           firstPageAsset?.altText ||
+          episode.coverImageAlt ||
           `${episode.title} comic episode cover`
       }
     })

@@ -386,7 +386,7 @@ export function ComicEpisodePublishControls({ episodeId }: ComicEpisodePublishCo
         onClick={() => runEpisodeAction("publish-episode")}
         disabled={isPending || !canPublish}
         aria-busy={isPending}
-        title={!canPublish ? "Approve pages 1-10 before publishing this episode." : undefined}
+        title={!canPublish ? "Approve the cover plus pages 1-10 before publishing this episode." : undefined}
       >
         {isPending
           ? "Publishing..."

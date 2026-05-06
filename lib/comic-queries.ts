@@ -26,6 +26,13 @@ import { getDisplayableComicErrorMessage } from "@/lib/comic-action-errors";
 import { getComicChapterSceneReferenceState } from "@/lib/comic-reference-manifest";
 import type { ComicLanguage } from "@/lib/comic-language";
 import { resolveComicCharacterChineseName } from "@/lib/comic-character-chinese-names";
+import {
+  COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_PAGE_ASSET_TYPES,
+  COMIC_REQUIRED_PAGE_COUNT,
+  COMIC_STORY_PAGES_PER_EPISODE,
+  isComicPublishPageNumber
+} from "@/lib/comic-pages";
 
 function isMissingComicTableError(error: unknown) {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2021") {
@@ -629,9 +636,6 @@ export async function getComicOutlineStudioPage(selectedEpisodeId?: string | nul
   );
 }
 
-const COMIC_REQUIRED_PAGES_PER_EPISODE = 10;
-const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
-const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
 const COMIC_PUBLIC_PAGE_ASSET_TYPES = [...COMIC_PAGE_ASSET_TYPES, COMIC_CHINESE_PAGE_ASSET_TYPE];
 
 type ComicPageApprovalCandidate = Pick<
@@ -648,7 +652,7 @@ function isChineseComicPageAsset(asset: ComicPageApprovalCandidate) {
 }
 
 function isRequiredComicPageNumber(pageNumber: number) {
-  return pageNumber >= 1 && pageNumber <= COMIC_REQUIRED_PAGES_PER_EPISODE;
+  return isComicPublishPageNumber(pageNumber);
 }
 
 function getApprovedRequiredPageCountByPredicate(
@@ -680,10 +684,10 @@ function hasAllRequiredComicPagesForLanguage(
   language: ComicLanguage
 ) {
   if (language === "zh") {
-    return getApprovedRequiredChinesePageCount(assets) === COMIC_REQUIRED_PAGES_PER_EPISODE;
+    return getApprovedRequiredChinesePageCount(assets) === COMIC_REQUIRED_PAGE_COUNT;
   }
 
-  return getApprovedRequiredPageCount(assets) === COMIC_REQUIRED_PAGES_PER_EPISODE;
+  return getApprovedRequiredPageCount(assets) === COMIC_REQUIRED_PAGE_COUNT;
 }
 
 function getPublicComicAssetsForLanguage(
@@ -805,8 +809,8 @@ export async function getComicPublishCenter() {
             const approvedPageCount = getApprovedRequiredPageCount(pageAssets);
             const approvedChinesePageCount = getApprovedRequiredChinesePageCount(chinesePageAssets);
             const draftPageCount = draftPages.length;
-            const canPublish = approvedPageCount === COMIC_REQUIRED_PAGES_PER_EPISODE;
-            const canPublishChinese = approvedChinesePageCount === COMIC_REQUIRED_PAGES_PER_EPISODE;
+            const canPublish = approvedPageCount === COMIC_REQUIRED_PAGE_COUNT;
+            const canPublishChinese = approvedChinesePageCount === COMIC_REQUIRED_PAGE_COUNT;
             const promptRuns = episode.promptRuns.map(mapComicPromptRun);
             const latestImageGenerationRun =
               promptRuns.find((run) =>
@@ -828,7 +832,7 @@ export async function getComicPublishCenter() {
               approvedPageCount,
               approvedChinesePageCount,
               draftPageCount,
-              requiredPageCount: COMIC_REQUIRED_PAGES_PER_EPISODE,
+              requiredPageCount: COMIC_REQUIRED_PAGE_COUNT,
               canPublish,
               canPublishChinese,
               latestImageGenerationAt: latestImageGenerationRun?.createdAt
@@ -878,7 +882,7 @@ export async function getPublishedComicLibrary(language: ComicLanguage = "en") {
                     some: {
                       published: true,
                       assetType: { in: COMIC_PAGE_ASSET_TYPES },
-                      sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
+                      sortOrder: { gte: 0, lte: COMIC_STORY_PAGES_PER_EPISODE }
                     }
                   }
                 }
@@ -897,7 +901,7 @@ export async function getPublishedComicLibrary(language: ComicLanguage = "en") {
                     some: {
                       published: true,
                       assetType: { in: COMIC_PAGE_ASSET_TYPES },
-                      sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
+                      sortOrder: { gte: 0, lte: COMIC_STORY_PAGES_PER_EPISODE }
                     }
                   }
                 }
@@ -911,7 +915,7 @@ export async function getPublishedComicLibrary(language: ComicLanguage = "en") {
                     some: {
                       published: true,
                       assetType: { in: COMIC_PAGE_ASSET_TYPES },
-                      sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
+                      sortOrder: { gte: 0, lte: COMIC_STORY_PAGES_PER_EPISODE }
                     }
                   }
                 },
@@ -920,7 +924,7 @@ export async function getPublishedComicLibrary(language: ComicLanguage = "en") {
                     where: {
                       published: true,
                       assetType: { in: COMIC_PUBLIC_PAGE_ASSET_TYPES },
-                      sortOrder: { gte: 1, lte: COMIC_REQUIRED_PAGES_PER_EPISODE }
+                      sortOrder: { gte: 0, lte: COMIC_STORY_PAGES_PER_EPISODE }
                     },
                     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
                   }

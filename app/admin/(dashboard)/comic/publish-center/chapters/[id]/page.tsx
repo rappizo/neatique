@@ -40,6 +40,12 @@ import {
 import { getNeglectedComicPromptQaFindingKeys } from "@/lib/comic-prompt-health-neglect";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { resolveComicPageReferenceImages } from "@/lib/comic-reference-images";
+import {
+  COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_PAGE_ASSET_TYPES,
+  formatComicPageLabel,
+  getComicRequiredPageNumbers
+} from "@/lib/comic-pages";
 import { formatDate } from "@/lib/format";
 import type {
   ComicEpisodeAssetRecord,
@@ -65,7 +71,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   "episode-published": "Episode published to the public comic library.",
   "episode-unpublished": "Episode unpublished. Approved pages are still saved, but the episode is hidden from the public comic library.",
   "unpublish-before-approval-change": "Unpublish this episode before removing or deleting an approved comic page.",
-  "prompt-generated": "A fresh 10-page prompt package is ready.",
+  "prompt-generated": "A fresh cover-plus-10-page prompt package is ready.",
   "prompt-failed": "Comic prompt generation failed. Check the episode prompt run history.",
   "page-image-generated": "Comic page image generated and saved as a draft asset.",
   "page-image-failed": "Comic page image generation failed. Check the episode prompt run history.",
@@ -78,7 +84,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   "page-prompt-revision-failed": "Comic page prompt revision failed. Check the episode prompt run history.",
   "prompt-qa-neglected": "Prompt QA item ignored. Matching QA findings will pass by default.",
   "missing-prompt-qa-finding": "That Prompt QA item could not be ignored.",
-  "missing-approved-pages": "Approve pages 1-10 before publishing this episode.",
+  "missing-approved-pages": "Approve the cover plus pages 1-10 before publishing this episode.",
   "missing-approved-page": "Approve an English page image before creating a Chinese version.",
   "missing-asset": "That comic page asset could not be found.",
   "missing-source-image": "This page image does not have stored image data for AI editing.",
@@ -148,7 +154,7 @@ function buildImageResultMessages(errorMessage?: string | null) {
     },
     "missing-page-prompt": {
       title: "No page prompt found",
-      description: "Generate the episode's 10-page prompt package before creating a draft image.",
+      description: "Generate the episode's cover-plus-10-page prompt package before creating a draft image.",
       tone: "warning"
     },
     "missing-project": {
@@ -158,10 +164,6 @@ function buildImageResultMessages(errorMessage?: string | null) {
     }
   } as const;
 }
-
-const COMIC_REQUIRED_PAGES_PER_EPISODE = 10;
-const COMIC_PAGE_ASSET_TYPES = ["PAGE", "GENERATED_PAGE", "UPLOADED_PAGE"];
-const COMIC_CHINESE_PAGE_ASSET_TYPE = "CHINESE_PAGE";
 
 type PromptPage = NonNullable<ReturnType<typeof parseComicPromptOutput>>["pages"][number];
 
@@ -174,10 +176,6 @@ function isComicPageAsset(asset: ComicEpisodeAssetRecord) {
   return COMIC_PAGE_ASSET_TYPES.includes(asset.assetType);
 }
 
-function formatPageLabel(pageNumber: number) {
-  return `Page ${String(pageNumber).padStart(2, "0")}`;
-}
-
 function getPromptHealthFindings(pages: ComicPromptPageHealth[]) {
   return pages.flatMap((pageHealth) =>
     pageHealth.findings.map((finding) => ({
@@ -188,7 +186,7 @@ function getPromptHealthFindings(pages: ComicPromptPageHealth[]) {
 }
 
 function formatHealthFindingPrefix(pageNumber: number) {
-  return pageNumber > 0 ? formatPageLabel(pageNumber) : "Prompt package";
+  return pageNumber >= 0 ? formatComicPageLabel(pageNumber) : "Prompt package";
 }
 
 function PromptHealthFindingList({
@@ -249,7 +247,7 @@ function ComicPageUploadForm({
   redirectTo: string;
   episodePublished: boolean;
 }) {
-  const pageLabel = formatPageLabel(pageNumber);
+  const pageLabel = formatComicPageLabel(pageNumber);
   const fileInputId = `page-upload-${episodeId}-${pageNumber}`;
 
   return (
@@ -265,16 +263,16 @@ function ComicPageUploadForm({
       <input
         type="hidden"
         name="altText"
-        value={`${episodeTitle} uploaded comic page ${pageNumber}`}
+        value={`${episodeTitle} uploaded comic ${pageLabel.toLowerCase()}`}
       />
       {pagePurpose ? <input type="hidden" name="caption" value={pagePurpose} /> : null}
 
       <div className="admin-comic-page-upload-form__header">
-        <strong>Page Upload</strong>
+        <strong>{pageLabel} Upload</strong>
         <span className="form-note">PNG, JPG, WEBP, AVIF / max 20MB</span>
       </div>
       <div className="field">
-        <label htmlFor={fileInputId}>Upload edited page</label>
+        <label htmlFor={fileInputId}>Upload edited {pageLabel.toLowerCase()}</label>
         <input
           id={fileInputId}
           type="file"
@@ -291,7 +289,7 @@ function ComicPageUploadForm({
         <span className="form-note">Unpublish this episode before changing approvals.</span>
       ) : null}
       <button type="submit" className="button button--secondary">
-        Upload page
+        Upload {pageLabel.toLowerCase()}
       </button>
     </form>
   );
@@ -350,8 +348,7 @@ async function getEpisodePromptPages(
     (parsedPromptOutput?.pages || []).map((page) => [page.pageNumber, page])
   );
   const pages = await Promise.all(
-    Array.from({ length: COMIC_REQUIRED_PAGES_PER_EPISODE }, async (_, index) => {
-      const pageNumber = index + 1;
+    getComicRequiredPageNumbers().map(async (pageNumber) => {
       const assets = getPageAssets(episode, pageNumber);
       const chineseAssets = getChinesePageAssets(episode, pageNumber);
       const promptPage = promptPageMap.get(pageNumber) || null;
@@ -479,7 +476,7 @@ export default async function AdminComicPublishChapterPage({
         <h1>{chapter.title}</h1>
         <p>
           Work through each episode page by page. Generated images stay private until one image is
-          approved for every page from 1 to 10.
+          approved for the cover plus pages 1 to 10.
         </p>
       </div>
 
@@ -508,19 +505,19 @@ export default async function AdminComicPublishChapterPage({
           <h3>
             {approvedPageCount} / {requiredPageCount}
           </h3>
-          <p>English public pages need 10 approved images per episode.</p>
+          <p>English public pages need an approved cover plus 10 story images per episode.</p>
         </section>
         <section className="admin-card">
           <p className="eyebrow">Chinese approved</p>
           <h3>
             {approvedChinesePageCount} / {requiredPageCount}
           </h3>
-          <p>Chinese public pages and downloads use the same 10-page approval rule.</p>
+          <p>Chinese public pages and downloads use the same cover-plus-10-page rule.</p>
         </section>
         <section className="admin-card">
           <p className="eyebrow">Ready</p>
           <h3>{readyEpisodeCount} episodes</h3>
-          <p>Publish stays disabled until the English version has all 10 approved pages.</p>
+          <p>Publish stays disabled until the English version has the cover and all 10 story pages.</p>
         </section>
       </div>
 
@@ -538,7 +535,7 @@ export default async function AdminComicPublishChapterPage({
             });
             const promptHealthByPage = new Map(
               promptHealth.pages
-                .filter((pageHealth) => pageHealth.pageNumber > 0)
+                .filter((pageHealth) => pageHealth.pageNumber >= 0)
                 .map((pageHealth) => [pageHealth.pageNumber, pageHealth])
             );
             const promptHealthFindings = getPromptHealthFindings(promptHealth.pages);
@@ -638,7 +635,7 @@ export default async function AdminComicPublishChapterPage({
                       >
                         <div className="admin-comic-publish-page__header">
                           <div>
-                            <p className="eyebrow">{formatPageLabel(pageNumber)}</p>
+                            <p className="eyebrow">{formatComicPageLabel(pageNumber)}</p>
                             <h3>{promptPage?.pagePurpose || "No page prompt generated yet"}</h3>
                           </div>
                           <ComicPublishPageHeaderStatus
@@ -1033,7 +1030,7 @@ export default async function AdminComicPublishChapterPage({
           <h2>No episodes in this chapter yet</h2>
           <p className="form-note">
             Add episodes to this chapter first. They will appear here as production boards with
-            10 page approval slots.
+            cover plus 10 page approval slots.
           </p>
           <Link href={`/admin/comic/chapters/${chapter.id}`} className="button button--primary">
             Add episodes
