@@ -464,6 +464,7 @@ test("comic cover image prompt stays dialogue-free with serif title", () => {
       "Create the episode cover page.",
       'Render one centered serif title line exactly: "Episode 1: Welcome to Neatique".',
       "No character dialogue, no speech balloons, no caption boxes, and no SFX.",
+      "The cover does not count as any character's first appearance. Do not include character introduction boxes.",
       "Maintain the unified minimalist Japanese manga style."
     ].join("\n"),
     referenceNotesCopyText: "Use the uploaded comiclogo.png brand logo. Keep cover lettering in one serif font.",
@@ -475,7 +476,7 @@ test("comic cover image prompt stays dialogue-free with serif title", () => {
         panelTitle: "Silent cover interaction",
         storyBeat: "Muci silently reacts to the school gate.",
         promptText:
-          'Draw a silent cover interaction and render the title line "Episode 1: Welcome to Neatique" in one serif font.',
+          'Draw a silent cover interaction and render the title line "Episode 1: Welcome to Neatique" in one serif font. Do not add character introduction boxes.',
         dialogueLines: []
       }
     ],
@@ -505,6 +506,8 @@ test("comic cover image prompt stays dialogue-free with serif title", () => {
   assert.match(prompt, /Episode 1: Welcome to Neatique/);
   assert.match(prompt, /serif/i);
   assert.match(prompt, /unified minimalist Japanese manga style/i);
+  assert.match(prompt, /cover does not count as a character's first appearance/i);
+  assert.match(prompt, /Do not draw character introduction boxes/i);
   assert.doesNotMatch(prompt, /Dialogue lines:/);
   assert.doesNotMatch(prompt, /Render every specified dialogue line/);
 });

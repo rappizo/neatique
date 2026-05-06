@@ -91,6 +91,8 @@ const COMIC_LETTERING_STYLE_LOCKS = [
 const COMIC_COVER_TYPOGRAPHY_LOCKS = [
   "Cover typography locks:",
   "- The cover has no character dialogue, no speech balloons, no caption boxes, and no SFX.",
+  "- The cover must not include character first-appearance introduction boxes, profile boxes, name cards, role cards, or cast bio labels.",
+  "- The cover does not count as any character's first appearance; first-appearance introduction boxes belong only on story pages 1-10.",
   "- Use one unified serif typeface for all rendered cover text below the uploaded logo.",
   "- Keep the serif title lettering elegant, high-contrast, centered, and consistent; do not mix fonts or add decorative text.",
   "- Render only the uploaded logo and the exact episode title line specified in the prompt."
@@ -2438,6 +2440,7 @@ function buildComicCoverPagePrompt(input: {
     `Inside the large framed cover illustration, show ${characterLabel} in one clear interaction that previews this episode.`,
     `Interaction content should be based on the episode logline and synopsis: ${input.episodeLogline} ${input.episodeSynopsis}`,
     firstStoryBeats ? `Use these early page beats as cover staging clues:\n${firstStoryBeats}` : null,
+    "Do not copy any character first-appearance introduction box, name card, role card, profile box, or bio label from those early story beats. The cover does not count as a character's first appearance.",
     "The interaction should feel like a polished manga cover moment, not a normal multi-panel page: big readable silhouettes, expressive eye contact, telekinetic object movement where action would require hands, and strong negative space."
   ]
     .filter(Boolean)
@@ -2456,7 +2459,7 @@ function buildComicCoverPagePrompt(input: {
     COMIC_COVER_TYPOGRAPHY_LOCKS,
     "",
     "Style and production locks:",
-    "Maintain the unified minimalist Japanese manga style used by the whole comic: clean high-contrast black ink on white, elegant negative space, simple readable silhouettes, restrained detail, pure white character bodies, exact model-sheet silhouettes, visible connected feet, and handless/armless mascot anatomy. Do not add dialogue, speech balloons, caption boxes, SFX, extra logos, watermarks, product labels, signatures, or unrelated text."
+    "Maintain the unified minimalist Japanese manga style used by the whole comic: clean high-contrast black ink on white, elegant negative space, simple readable silhouettes, restrained detail, pure white character bodies, exact model-sheet silhouettes, visible connected feet, and handless/armless mascot anatomy. Do not add dialogue, speech balloons, caption boxes, SFX, character introduction boxes, name cards, role cards, profile boxes, extra logos, watermarks, product labels, signatures, or unrelated text."
   ].join("\n");
   const referenceNotesCopyText = ensureReferenceNotesIncludeLettering(
     [
@@ -2467,6 +2470,7 @@ function buildComicCoverPagePrompt(input: {
       `- Render the title line exactly as "${coverTitle}" in one unified serif typeface.`,
       "- The cover uses one large framed illustration, not multiple story panels.",
       "- Do not include character dialogue, speech balloons, caption boxes, or SFX.",
+      "- Do not include character first-appearance introduction boxes, name cards, role cards, profile boxes, or cast bio labels. The cover does not count as any character's first appearance.",
       "- Keep the same unified minimalist Japanese black-and-white manga style as the whole comic."
     ].join("\n")
   );
@@ -2484,7 +2488,7 @@ function buildComicCoverPagePrompt(input: {
         panelTitle: "Large framed cover interaction",
         storyBeat: coverInteraction,
         promptText:
-          `Draw the cover's lower large frame as a polished minimalist Japanese manga illustration with the main characters interacting. Keep the logo/title stack above the frame clean and readable. Render the exact serif title line "${coverTitle}". Do not include dialogue, speech balloons, caption boxes, or SFX.`,
+          `Draw the cover's lower large frame as a polished minimalist Japanese manga illustration with the main characters interacting. Keep the logo/title stack above the frame clean and readable. Render the exact serif title line "${coverTitle}". Do not include dialogue, speech balloons, caption boxes, SFX, character introduction boxes, name cards, role cards, or profile boxes.`,
         dialogueLines: []
       }
     ],
@@ -2626,6 +2630,9 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     isCoverPage
       ? "- Cover text rule: render only the uploaded logo and the exact serif title line specified in the cover prompt. Do not add dialogue, speech balloons, caption boxes, or SFX."
       : "- Render every specified dialogue line, caption, and SFX from the panel plan. Do not omit dialogue balloons.",
+    isCoverPage
+      ? "- Cover first-appearance rule: the cover does not count as a character's first appearance. Do not draw character introduction boxes, name cards, role cards, profile boxes, or cast bio labels on the cover."
+      : "- Story first-appearance rule: if this story page is the first non-cover appearance of a named character and the episode plan calls for a character introduction box, place that box on this story page, not on the cover.",
     isCoverPage ? COMIC_COVER_TYPOGRAPHY_LOCKS : COMIC_LETTERING_STYLE_LOCKS,
     "",
     getComicPageImageAttemptGuide(input),
@@ -3301,6 +3308,9 @@ export async function reviseComicPagePromptWithAi(
                   ? "- Keep the cover dialogue-free. Return dialogueLines as an empty array and do not mention speech balloons, caption boxes, or SFX as visible cover elements."
                   : "- Keep or improve the visible dialogue for every panel. Do not remove all dialogue from the page.",
                 isCoverPage
+                  ? "- The cover does not count as any character's first appearance. Do not add character introduction boxes, name cards, role cards, profile boxes, or cast bio labels."
+                  : "- If the requested revision touches a character's first non-cover appearance, keep any required character introduction box on the story page.",
+                isCoverPage
                   ? "- Keep one unified serif typeface for the exact cover title line."
                   : "- Every panel must return dialogueLines with exact speaker names and exact text to render in balloons or captions.",
                 isCoverPage
@@ -3598,6 +3608,7 @@ export async function generateComicPromptPackageWithAi(
                 "You must think like a comic production assistant, not like a novelist only.",
                 "Return only valid JSON matching the schema.",
                 "Build exactly 10 story pages for every episode. The application prepends a generated Cover page prompt as page 0.",
+                "The generated Cover page does not count as any character's first appearance. Character first-appearance introduction boxes, name cards, role cards, profile boxes, or cast bio labels must only be planned on story pages 1-10.",
                 "Use 3 panels per page by default. Only use 2 panels when the story beat deserves extra visual space, such as a reveal, pause, emotional beat, or dramatic transition.",
                 "Every page must include a prompt block that is ready to copy and paste directly into gpt-image-2 after the right references are uploaded.",
                 "Every page must also include a reference-notes block that is ready to copy and paste directly into the image workflow without cleanup.",
@@ -3660,6 +3671,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Expand the episode into a readable production script.",
                 "- The episodeScript must include dialogue, not only prose narration.",
                 "- Create a 10-story-page plan. Do not include the cover in the returned pages array; the application prepends the cover page prompt as pageNumber 0.",
+                "- If a named character needs a first-appearance introduction box, put it on that character's first story page appearance within pages 1-10. Never reserve it for the cover, and never treat the cover as the first appearance.",
                 "- Keep every returned field compact enough for a production dashboard; avoid repeating the same global locks verbatim inside every field.",
                 "- Every page should normally contain 3 panels.",
                 "- A page may contain 2 panels only when the beat is visually important enough to justify extra space.",
