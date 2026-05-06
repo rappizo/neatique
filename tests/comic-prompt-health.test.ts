@@ -7,25 +7,24 @@ function buildPromptOutput(overrides: Partial<ParsedComicPromptOutput> = {}): Pa
   const coverPage: ParsedComicPromptOutput["pages"][number] = {
     pageNumber: 0,
     panelCount: 1,
-    pagePurpose: "Cover: Neatique Skincare College logo, episode title, and Ava meeting Coach Ray.",
+    pagePurpose: "Cover: Neatique Skincare College logo, Episode 2: Sunscreen Drill, and Ava meeting Coach Ray.",
     promptPackCopyText: [
       "Cover image prompt.",
-      "Place the exact Neatique Skincare College comic logo at the top, then the comic title, then a large framed manga interaction scene.",
-      "Use consistent rounded hand-lettered font, clean lettering, speech balloons, and caption boxes.",
-      'Visible dialogue: Title: "Neatique Skincare College" Caption: "Sunscreen Drill"'
+      "Place the exact Neatique Skincare College comic logo at the top, then render one centered serif title line exactly: Episode 2: Sunscreen Drill.",
+      "Use one unified serif font for all cover text.",
+      "Use the unified minimalist Japanese manga style and one large framed manga interaction scene.",
+      "No character dialogue, no speech balloons, no caption boxes, and no SFX."
     ].join("\n"),
-    referenceNotesCopyText: "Use the uploaded comiclogo.png brand logo and the listed character references.",
+    referenceNotesCopyText:
+      "Use the uploaded comiclogo.png brand logo and the listed character references. Keep cover lettering in one serif font.",
     panels: [
       {
         panelNumber: 1,
         panelTitle: "Cover Interaction",
         storyBeat: "Ava and Coach Ray square up for a sunscreen lesson.",
         promptText:
-          "Inside the large cover frame, Ava and Coach Ray interact with a clear caption box and clean manga lettering.",
-        dialogueLines: [
-          { speaker: "Title", text: "Neatique Skincare College" },
-          { speaker: "Caption", text: "Sunscreen Drill" }
-        ]
+          "Inside the large cover frame, Ava and Coach Ray interact. Render Episode 2: Sunscreen Drill in one serif font above the frame. No dialogue balloons.",
+        dialogueLines: []
       }
     ],
     requiredUploads: [

@@ -301,6 +301,7 @@ export function getComicPromptHealthSummary(
   const recurringContinuityObjectKeywords = getRecurringContinuityObjectKeywords(promptOutput);
   const pages = promptOutput.pages.map((page): ComicPromptPageHealth => {
     const findings: ComicPromptHealthFinding[] = [];
+    const isCoverPage = isComicCoverPageNumber(page.pageNumber);
     const uploadNames = getUniqueUploadNames(page);
     const dialogueLines = page.panels.flatMap((panel) => panel.dialogueLines || []);
     const pagePromptText = [
@@ -325,14 +326,14 @@ export function getComicPromptHealthSummary(
     }
 
     if (
-      (isComicCoverPageNumber(page.pageNumber) && page.panelCount !== 1) ||
-      (!isComicCoverPageNumber(page.pageNumber) && ![2, 3].includes(page.panelCount))
+      (isCoverPage && page.panelCount !== 1) ||
+      (!isCoverPage && ![2, 3].includes(page.panelCount))
     ) {
       addFinding(
         findings,
         "warning",
         "page.panel-count.production-rhythm",
-        isComicCoverPageNumber(page.pageNumber)
+        isCoverPage
           ? "The cover should use one large framed interaction."
           : "Panel count is outside the 2-3 panel production rhythm."
       );
@@ -394,6 +395,18 @@ export function getComicPromptHealthSummary(
           "panel.prompt-text.missing",
           `Panel ${panel.panelNumber} is missing panel promptText.`
         );
+      }
+
+      if (isCoverPage) {
+        if (panel.dialogueLines?.length) {
+          addFinding(
+            findings,
+            "warning",
+            "cover.dialogue-lines.present",
+            `Cover panel ${panel.panelNumber} should not include dialogueLines. Keep the cover dialogue-free.`
+          );
+        }
+        return;
       }
 
       if (!panel.dialogueLines?.length) {

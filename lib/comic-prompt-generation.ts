@@ -215,6 +215,7 @@ export async function generateComicPromptPackageForEpisode(input: {
           outline: episode.chapter.outline
         },
         episode: {
+          episodeNumber: episode.episodeNumber,
           title: episode.title,
           summary: episode.summary,
           outline: episode.outline

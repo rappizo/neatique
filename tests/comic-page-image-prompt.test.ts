@@ -449,3 +449,62 @@ test("comic page image reference selection keeps cover logo during retries", () 
     }
   }
 });
+
+test("comic cover image prompt stays dialogue-free with serif title", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "Welcome to Neatique",
+    episodeSummary: "Muci arrives at Neatique for the first time.",
+    pageNumber: 0,
+    panelCount: 1,
+    pagePurpose: "Cover: logo, Episode 1: Welcome to Neatique, and silent interaction.",
+    promptPackCopyText: [
+      "Create the episode cover page.",
+      'Render one centered serif title line exactly: "Episode 1: Welcome to Neatique".',
+      "No character dialogue, no speech balloons, no caption boxes, and no SFX.",
+      "Maintain the unified minimalist Japanese manga style."
+    ].join("\n"),
+    referenceNotesCopyText: "Use the uploaded comiclogo.png brand logo. Keep cover lettering in one serif font.",
+    globalGptImage2Notes: "Keep the same minimalist black-and-white manga style.",
+    panels: [
+      {
+        pageNumber: 0,
+        panelNumber: 1,
+        panelTitle: "Silent cover interaction",
+        storyBeat: "Muci silently reacts to the school gate.",
+        promptText:
+          'Draw a silent cover interaction and render the title line "Episode 1: Welcome to Neatique" in one serif font.',
+        dialogueLines: []
+      }
+    ],
+    requiredUploads: [
+      {
+        label: "Neatique comic title logo",
+        slug: "comic-logo",
+        bucket: "BRAND_LOGO",
+        uploadImageNames: ["comiclogo.png"],
+        relativePaths: ["/images/comiclogo.png"],
+        whyThisMatters: "Locks the logo.",
+        contentSummary: "Exact uploaded logo."
+      }
+    ],
+    referenceImages: [
+      referenceImage({
+        label: "Neatique comic title logo",
+        slug: "comic-logo",
+        bucket: "BRAND_LOGO",
+        relativePath: "/images/comiclogo.png"
+      })
+    ],
+    characterLocks: [],
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /Episode 1: Welcome to Neatique/);
+  assert.match(prompt, /serif/i);
+  assert.match(prompt, /unified minimalist Japanese manga style/i);
+  assert.doesNotMatch(prompt, /Dialogue lines:/);
+  assert.doesNotMatch(prompt, /Render every specified dialogue line/);
+});

@@ -88,6 +88,13 @@ const COMIC_LETTERING_STYLE_LOCKS = [
   "- Captions and SFX must use the same clean manga lettering family, with SFX hand-drawn but still readable and consistent.",
   "- Do not invent extra visible text. Render only the exact dialogue, captions, SFX, signs, or labels named in the page prompt."
 ].join("\n");
+const COMIC_COVER_TYPOGRAPHY_LOCKS = [
+  "Cover typography locks:",
+  "- The cover has no character dialogue, no speech balloons, no caption boxes, and no SFX.",
+  "- Use one unified serif typeface for all rendered cover text below the uploaded logo.",
+  "- Keep the serif title lettering elegant, high-contrast, centered, and consistent; do not mix fonts or add decorative text.",
+  "- Render only the uploaded logo and the exact episode title line specified in the prompt."
+].join("\n");
 type ComicProjectContext = {
   title: string;
   shortDescription: string;
@@ -143,6 +150,7 @@ type ComicChapterContext = {
 };
 
 type ComicEpisodeContext = {
+  episodeNumber?: number | null;
   title: string;
   summary: string;
   outline: string;
@@ -2405,6 +2413,12 @@ function getCoverCharacterNames(characterUploads: GeneratedComicPageUpload[]) {
   return Array.from(new Set(names));
 }
 
+function formatComicCoverEpisodeTitle(episode: ComicEpisodeContext) {
+  return typeof episode.episodeNumber === "number" && Number.isFinite(episode.episodeNumber)
+    ? `Episode ${episode.episodeNumber}: ${episode.title}`
+    : `Episode: ${episode.title}`;
+}
+
 function buildComicCoverPagePrompt(input: {
   packageInput: GenerateComicPromptPackageInput;
   pages: GeneratedComicPagePrompt[];
@@ -2415,6 +2429,7 @@ function buildComicCoverPagePrompt(input: {
   const characterNames = getCoverCharacterNames(characterUploads);
   const characterLabel =
     characterNames.length > 0 ? characterNames.join(", ") : "the episode's main characters";
+  const coverTitle = formatComicCoverEpisodeTitle(input.packageInput.episode);
   const firstStoryBeats = input.pages
     .slice(0, 3)
     .map((page) => `${formatComicPageLabel(page.pageNumber)}: ${page.pagePurpose}`)
@@ -2427,53 +2442,39 @@ function buildComicCoverPagePrompt(input: {
   ]
     .filter(Boolean)
     .join("\n");
-  const promptPackCopyText = ensurePromptIncludesDialogueAndLettering(
-    [
-      "Create the episode cover page for Neatique's original comic series.",
-      "Cover layout, top to bottom:",
-      `1. Top logo area: place the exact uploaded comic title logo from ${COMIC_LOGO_PUBLIC_PATH}, centered, copied from the reference image, not redesigned.`,
-      `2. Under the logo, render the comic title text exactly: "${input.packageInput.project.title}".`,
-      `3. Under the comic title, render the episode title exactly: "${input.packageInput.episode.title}".`,
-      "4. Under the titles, draw one large clean rectangular manga frame with a strong black border. This single frame must occupy most of the lower page.",
-      `5. Inside that large frame: ${coverInteraction}`,
-      "",
-      "Visible cover text:",
-      `Title: "${input.packageInput.project.title}"`,
-      `Episode title: "${input.packageInput.episode.title}"`,
-      "",
-      "Style and production locks:",
-      "Use the same clean high-contrast black-and-white manga style as the story pages. Keep pure white character bodies, exact model-sheet silhouettes, visible connected feet, handless/armless mascot anatomy, and clean rounded manga lettering. Do not add extra logos, watermarks, product labels, or unrelated text."
-    ].join("\n"),
-    [
-      {
-        pageNumber: COMIC_COVER_PAGE_NUMBER,
-        panelNumber: 1,
-        panelTitle: "Large framed cover interaction",
-        storyBeat: coverInteraction,
-        promptText:
-          "Draw one large framed manga cover illustration beneath the logo/title stack. Stage the named main characters interacting in a single readable cover moment while preserving all model-sheet locks.",
-        dialogueLines: [
-          { speaker: "Title", text: input.packageInput.project.title },
-          { speaker: "Episode title", text: input.packageInput.episode.title }
-        ]
-      }
-    ]
-  );
+  const promptPackCopyText = [
+    "Create the episode cover page for Neatique's original comic series.",
+    "Cover layout, top to bottom:",
+    `1. Top logo area: place the exact uploaded comic title logo from ${COMIC_LOGO_PUBLIC_PATH}, centered, copied from the reference image, not redesigned.`,
+    `2. Under the logo, render one centered serif title line exactly: "${coverTitle}".`,
+    "3. Under the serif title line, draw one large clean rectangular manga frame with a strong black border. This single frame must occupy most of the lower page.",
+    `4. Inside that large frame: ${coverInteraction}`,
+    "",
+    "Visible cover text:",
+    `Serif title line: "${coverTitle}"`,
+    "",
+    COMIC_COVER_TYPOGRAPHY_LOCKS,
+    "",
+    "Style and production locks:",
+    "Maintain the unified minimalist Japanese manga style used by the whole comic: clean high-contrast black ink on white, elegant negative space, simple readable silhouettes, restrained detail, pure white character bodies, exact model-sheet silhouettes, visible connected feet, and handless/armless mascot anatomy. Do not add dialogue, speech balloons, caption boxes, SFX, extra logos, watermarks, product labels, signatures, or unrelated text."
+  ].join("\n");
   const referenceNotesCopyText = ensureReferenceNotesIncludeLettering(
     [
       "Cover page reference notes:",
       `- Upload and attach ${COMIC_LOGO_PUBLIC_PATH} as the exact title-logo reference. Copy the logo shape faithfully at the top of the cover.`,
       "- Upload the listed character model sheets for all cover characters. Character model sheets are exact identity locks, not loose inspiration.",
       "- Read each character Profile MD lock together with the uploaded model sheet before drawing that character.",
+      `- Render the title line exactly as "${coverTitle}" in one unified serif typeface.`,
       "- The cover uses one large framed illustration, not multiple story panels.",
-      "- Keep the same black-and-white manga production locks as the story pages."
+      "- Do not include character dialogue, speech balloons, caption boxes, or SFX.",
+      "- Keep the same unified minimalist Japanese black-and-white manga style as the whole comic."
     ].join("\n")
   );
 
   return {
     pageNumber: COMIC_COVER_PAGE_NUMBER,
     panelCount: 1,
-    pagePurpose: `Cover: logo, ${input.packageInput.project.title}, ${input.packageInput.episode.title}, and main-character interaction.`,
+    pagePurpose: `Cover: logo, ${coverTitle}, and main-character interaction.`,
     promptPackCopyText,
     referenceNotesCopyText,
     panels: [
@@ -2483,11 +2484,8 @@ function buildComicCoverPagePrompt(input: {
         panelTitle: "Large framed cover interaction",
         storyBeat: coverInteraction,
         promptText:
-          "Draw the cover's lower large frame as a polished manga illustration with the main characters interacting. Keep the logo/title stack above the frame clean and readable.",
-        dialogueLines: [
-          { speaker: "Title", text: input.packageInput.project.title },
-          { speaker: "Episode title", text: input.packageInput.episode.title }
-        ]
+          `Draw the cover's lower large frame as a polished minimalist Japanese manga illustration with the main characters interacting. Keep the logo/title stack above the frame clean and readable. Render the exact serif title line "${coverTitle}". Do not include dialogue, speech balloons, caption boxes, or SFX.`,
+        dialogueLines: []
       }
     ],
     requiredUploads: [buildComicLogoUpload(), ...characterUploads]
@@ -2567,24 +2565,43 @@ async function retrieveOpenAiComicPromptPackageResponse(apiKey: string, response
   }
 }
 
-function buildComicPagePanelSummary(panels: GeneratedComicPanelPrompt[]) {
+function buildComicPagePanelSummary(
+  panels: GeneratedComicPanelPrompt[],
+  options: { coverPage?: boolean } = {}
+) {
   if (panels.length === 0) {
     return "No panel beats were listed for this page.";
   }
 
   return panels
-    .map((panel) =>
-      [
+    .map((panel) => {
+      const lines = [
         `Panel ${panel.panelNumber}: ${panel.panelTitle}`,
         `Story beat: ${trimImagePromptContext(panel.storyBeat, 520)}`,
-        `Dialogue lines:\n${formatComicDialogueLines(panel.dialogueLines || [])}`,
         `Panel image direction: ${trimImagePromptContext(panel.promptText || "Use the page prompt and story beat.", 620)}`
-      ].join("\n")
-    )
+      ];
+
+      if (options.coverPage) {
+        lines.splice(
+          2,
+          0,
+          "Cover text rule: no character dialogue, no speech balloons, no caption boxes, and no SFX."
+        );
+      } else {
+        lines.splice(
+          2,
+          0,
+          `Dialogue lines:\n${formatComicDialogueLines(panel.dialogueLines || [])}`
+        );
+      }
+
+      return lines.join("\n");
+    })
     .join("\n\n");
 }
 
 export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
+  const isCoverPage = isComicCoverPageNumber(input.pageNumber);
   const prompt = [
     "Create one finished vertical comic page for Neatique's original comic series.",
     COMIC_VISUAL_PRODUCTION_LOCKS,
@@ -2603,9 +2620,13 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Foot visibility check: any full-body character must show small rounded feet or foot nubs with clear space below the body; do not crop off feet.",
     "- Foot connection check: feet must connect naturally to the body with the same continuous white body fill; do not add a hard separating line between the feet and body.",
     "- Sunny Spritz check: if Sunny appears full-body, her two small rounded feet must be visible directly under the soft five-point star body.",
-    "- Mouth state check: draw closed mouths for characters who are not speaking in that panel; only the active speaker or explicit vocal reaction may have an open mouth.",
-    "- Render every specified dialogue line, caption, and SFX from the panel plan. Do not omit dialogue balloons.",
-    COMIC_LETTERING_STYLE_LOCKS,
+    isCoverPage
+      ? "- Cover mouth-state check: because the cover has no dialogue, do not stage any character as speaking. Keep mouths closed, tiny neutral, or silently expressive without speech balloons."
+      : "- Mouth state check: draw closed mouths for characters who are not speaking in that panel; only the active speaker or explicit vocal reaction may have an open mouth.",
+    isCoverPage
+      ? "- Cover text rule: render only the uploaded logo and the exact serif title line specified in the cover prompt. Do not add dialogue, speech balloons, caption boxes, or SFX."
+      : "- Render every specified dialogue line, caption, and SFX from the panel plan. Do not omit dialogue balloons.",
+    isCoverPage ? COMIC_COVER_TYPOGRAPHY_LOCKS : COMIC_LETTERING_STYLE_LOCKS,
     "",
     getComicPageImageAttemptGuide(input),
     "",
@@ -2630,7 +2651,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     buildComicPageCharacterSeparationLocks(input.characterLocks),
     "",
     "Panel-by-panel content to illustrate:",
-    buildComicPagePanelSummary(input.panels),
+    buildComicPagePanelSummary(input.panels, { coverPage: isCoverPage }),
     "",
     "Production prompt already prepared for this page:",
     trimImagePromptContext(input.promptPackCopyText, 4200),
@@ -3177,8 +3198,8 @@ export async function reviseComicPagePromptWithAi(
             promptText: { type: "string", minLength: 60, maxLength: 1400 },
             dialogueLines: {
               type: "array",
-              minItems: 1,
-              maxItems: 4,
+              minItems: isCoverPage ? 0 : 1,
+              maxItems: isCoverPage ? 0 : 4,
               items: {
                 type: "object",
                 additionalProperties: false,
@@ -3227,11 +3248,15 @@ export async function reviseComicPagePromptWithAi(
                 "Do not shorten, summarize, or truncate the existing page prompt. The revised prompt must stay complete enough to generate the whole page.",
                 "Preserve the existing story continuity unless the suggestion explicitly asks for a composition change.",
                 "Do not remove required character or scene continuity details.",
-                "Every revised panel must include dialogueLines with exact visible dialogue text, plus promptText that explains where balloons/captions/SFX go.",
-                "The revised promptPackCopyText must include a Dialogue and lettering plan section with every dialogue line exactly as it should appear on the page.",
+                isCoverPage
+                  ? "This is a cover page. It must not include character dialogue, speech balloons, caption boxes, or SFX; return dialogueLines as an empty array."
+                  : "Every revised panel must include dialogueLines with exact visible dialogue text, plus promptText that explains where balloons/captions/SFX go.",
+                isCoverPage
+                  ? "The revised promptPackCopyText must include the exact serif cover title line and must explicitly say there is no dialogue on the cover."
+                  : "The revised promptPackCopyText must include a Dialogue and lettering plan section with every dialogue line exactly as it should appear on the page.",
                 "All revised prompt text must enforce these production locks:",
                 COMIC_VISUAL_PRODUCTION_LOCKS,
-                COMIC_LETTERING_STYLE_LOCKS,
+                isCoverPage ? COMIC_COVER_TYPOGRAPHY_LOCKS : COMIC_LETTERING_STYLE_LOCKS,
                 "All characters have small rounded feet or foot nubs in full-body views. Full-body framing must leave the feet visible. Feet must connect naturally to the body without hard separating lines. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body."
               ].join("\n")
             }
@@ -3272,16 +3297,24 @@ export async function reviseComicPagePromptWithAi(
                   : "- Keep panelCount at 2 or 3.",
                 "- Improve pagePurpose, promptPackCopyText, referenceNotesCopyText, and panel story beats to reflect the suggestion.",
                 "- Keep the full page content, all panels, all important reference instructions, and the final visual locks. Do not cut off the prompt mid-sentence.",
-                "- Keep or improve the visible dialogue for every panel. Do not remove all dialogue from the page.",
-                "- Every panel must return dialogueLines with exact speaker names and exact text to render in balloons or captions.",
-                "- The promptPackCopyText must include those exact dialogue lines and must tell gpt-image-2 to render them in consistent clean manga lettering.",
+                isCoverPage
+                  ? "- Keep the cover dialogue-free. Return dialogueLines as an empty array and do not mention speech balloons, caption boxes, or SFX as visible cover elements."
+                  : "- Keep or improve the visible dialogue for every panel. Do not remove all dialogue from the page.",
+                isCoverPage
+                  ? "- Keep one unified serif typeface for the exact cover title line."
+                  : "- Every panel must return dialogueLines with exact speaker names and exact text to render in balloons or captions.",
+                isCoverPage
+                  ? "- The promptPackCopyText must include the exact cover title line and must tell gpt-image-2 to render it in a consistent serif font."
+                  : "- The promptPackCopyText must include those exact dialogue lines and must tell gpt-image-2 to render them in consistent clean manga lettering.",
                 "- Keep character model-sheet identity locked.",
                 "- Make sure every full-body character keeps visible small rounded feet or foot nubs with the lower frame edge below the feet.",
                 "- Keep the feet connected to the body as one continuous mascot form; do not add a hard horizontal dividing line, shoe line, or solid seam between body and feet.",
                 "- If Sunny Spritz appears, explicitly preserve two small rounded feet directly under her soft five-point star body.",
                 "- Keep all characters handless and armless; use telekinesis for object interaction.",
                 "- Keep clean high-contrast black-and-white manga style, pure white character bodies, and no gray wash.",
-                "- Use one consistent rounded manga lettering style across speech balloons, captions, and SFX."
+                isCoverPage
+                  ? "- Use one consistent serif font for cover text and maintain the unified minimalist Japanese manga style."
+                  : "- Use one consistent rounded manga lettering style across speech balloons, captions, and SFX."
               ].join("\n")
             }
           ]
@@ -3337,7 +3370,7 @@ export async function reviseComicPagePromptWithAi(
             panel.panelTitle &&
             panel.storyBeat &&
             panel.promptText &&
-            panel.dialogueLines.length > 0
+            (isCoverPage || panel.dialogueLines.length > 0)
         )
     : [];
 
@@ -3352,8 +3385,12 @@ export async function reviseComicPagePromptWithAi(
   }));
   const promptPackCopyText =
     typeof record.promptPackCopyText === "string" && record.promptPackCopyText.trim()
-      ? ensurePromptIncludesDialogueAndLettering(record.promptPackCopyText, normalizedPanels)
-      : ensurePromptIncludesDialogueAndLettering(input.promptPackCopyText, normalizedPanels);
+      ? isCoverPage
+        ? record.promptPackCopyText.trim()
+        : ensurePromptIncludesDialogueAndLettering(record.promptPackCopyText, normalizedPanels)
+      : isCoverPage
+        ? input.promptPackCopyText.trim()
+        : ensurePromptIncludesDialogueAndLettering(input.promptPackCopyText, normalizedPanels);
   const referenceNotesCopyText =
     typeof record.referenceNotesCopyText === "string" && record.referenceNotesCopyText.trim()
       ? ensureReferenceNotesIncludeLettering(record.referenceNotesCopyText)
