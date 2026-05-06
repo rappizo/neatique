@@ -440,7 +440,7 @@ test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes"
         name: "Professor Cera Lin",
         chineseName: null,
         role: "Barrier Sciences professor",
-        appearance: "Six-corner rounded star / hexagonal-star silhouette.",
+        appearance: "Rounded six-sided hexagon silhouette.",
         personality: "Precise.",
         speechGuide: "Concise.",
         referenceNotes: "Use refs/model-sheet.jpg.",
@@ -456,9 +456,9 @@ test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes"
   assert.match(prompt, /no eyebrows or brow marks/);
   assert.match(prompt, /about 1\.1x Muci's overall size/);
   assert.match(prompt, /not Muci's squat soft protagonist droplet/);
-  assert.match(prompt, /Professor Cera Lin six-corner shape lock/);
-  assert.match(prompt, /exactly six outer corners/);
-  assert.match(prompt, /not a five-point star/);
+  assert.match(prompt, /Professor Cera Lin six-sided hexagon shape lock/);
+  assert.match(prompt, /exactly six sides and six rounded corners/);
+  assert.match(prompt, /not any star shape/);
 });
 
 test("comic page image reference selection keeps similar teardrop comparison during retries", () => {

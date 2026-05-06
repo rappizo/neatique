@@ -10,8 +10,8 @@ Barrier Sciences Hall professor and the academic voice of precision, restraint, 
 "She can dismantle sloppy thinking in one sentence and never raise her voice doing it."
 
 ## Appearance lock
-- Six-corner star / rounded hexagonal-star silhouette with clean edges and a balanced, controlled frame
-- The outline must read as exactly six outer corners/points from the model sheet, not five
+- Rounded six-sided hexagon silhouette with clean edges and a balanced, controlled frame
+- The outline must read as exactly six sides and six rounded corners from the model sheet, not a star and not five-sided
 - Large dot eyes, measured smile, glossy highlight marks near the upper left side
 - Should feel composed, exact, and academically severe without becoming villainous
 - Visual read should suggest clarity, structure, and clinical calm
@@ -34,10 +34,10 @@ Professor Cera Lin speaks in a calm, precise, academically controlled voice. Her
 
 ## Non-negotiable visual references
 - Use `refs/model-sheet.jpg` as the primary shape lock
-- Keep the six-corner star / rounded hexagonal-star silhouette intact
-- Never turn Professor Cera Lin into a five-point star, a pentagon, Sunny Spritz's soft five-point star, or a generic polygon mascot
+- Keep the rounded six-sided hexagon silhouette intact
+- Never turn Professor Cera Lin into any star shape, a five-point star, a six-point star, a pentagon, Sunny Spritz's soft five-point star, or a generic polygon mascot
 - Preserve the controlled, precise visual read
 - Do not turn her into a warm chaos character or a caricature tyrant
 
 ## Reusable prompt notes
-When prompting Professor Cera Lin, emphasize "six-corner rounded star / hexagonal-star mascot, exactly six outer corners, clean controlled academic silhouette, calm academic authority, barrier-science precision, controlled expression, exact posture, quietly intimidating professor energy, never five-point star, never Sunny Spritz."
+When prompting Professor Cera Lin, emphasize "rounded six-sided hexagon mascot, exactly six sides and six rounded corners, clean controlled academic silhouette, calm academic authority, barrier-science precision, controlled expression, exact posture, quietly intimidating professor energy, never any star shape, never five-point star, never six-point star, never Sunny Spritz."
