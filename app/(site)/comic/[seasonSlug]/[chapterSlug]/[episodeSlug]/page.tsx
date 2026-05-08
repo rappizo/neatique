@@ -5,15 +5,10 @@ import { ComicEpisodeReader } from "@/components/site/comic-episode-reader";
 import { ComicLanguageSwitcher } from "@/components/site/comic-language-switcher";
 import {
   formatComicEpisodeTitle,
-  getAdjacentComicEpisodes,
-  getComicEpisodeHref,
-  getFlattenedComicEpisodes
+  getComicEpisodeHref
 } from "@/lib/comic-public-navigation";
 import { getComicLanguageHref, getComicLanguageState } from "@/lib/comic-language";
-import {
-  getPublishedComicEpisodeBySlugs,
-  getPublishedComicLibrary
-} from "@/lib/comic-queries";
+import { getPublishedComicEpisodePageBySlugs } from "@/lib/comic-queries";
 import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
 
@@ -45,7 +40,7 @@ export async function generateMetadata({
   const { seasonSlug, chapterSlug, episodeSlug } = await params;
   const query = await searchParams;
   const languageState = await getComicLanguageState(query);
-  const episode = await getPublishedComicEpisodeBySlugs(
+  const { episode } = await getPublishedComicEpisodePageBySlugs(
     seasonSlug,
     chapterSlug,
     episodeSlug,
@@ -98,41 +93,18 @@ export default async function ComicEpisodePage({ params, searchParams }: ComicEp
   const { seasonSlug, chapterSlug, episodeSlug } = await params;
   const query = await searchParams;
   const languageState = await getComicLanguageState(query);
-  const [englishSeasons, chineseSeasons] = await Promise.all([
-    getPublishedComicLibrary("en"),
-    getPublishedComicLibrary("zh")
-  ]);
-  const seasons = languageState.language === "zh" ? chineseSeasons : englishSeasons;
-  const episodes = getFlattenedComicEpisodes(seasons);
-  const englishEpisodes = getFlattenedComicEpisodes(englishSeasons);
-  const chineseEpisodes = getFlattenedComicEpisodes(chineseSeasons);
-  const episode =
-    episodes.find(
-      (candidate) =>
-        candidate.seasonSlug === seasonSlug &&
-        candidate.chapterSlug === chapterSlug &&
-        candidate.slug === episodeSlug
-    ) || null;
-  const englishEpisode =
-    englishEpisodes.find(
-      (candidate) =>
-        candidate.seasonSlug === seasonSlug &&
-        candidate.chapterSlug === chapterSlug &&
-        candidate.slug === episodeSlug
-    ) || null;
-  const chineseEpisode =
-    chineseEpisodes.find(
-      (candidate) =>
-        candidate.seasonSlug === seasonSlug &&
-        candidate.chapterSlug === chapterSlug &&
-        candidate.slug === episodeSlug
-    ) || null;
+  const { episode, previousEpisode, nextEpisode, availableLanguages } =
+    await getPublishedComicEpisodePageBySlugs(
+      seasonSlug,
+      chapterSlug,
+      episodeSlug,
+      languageState.language
+    );
 
   if (!episode) {
     notFound();
   }
 
-  const { previousEpisode, nextEpisode } = getAdjacentComicEpisodes(episodes, episode);
   const isChinese = languageState.language === "zh";
 
   return (
@@ -155,15 +127,15 @@ export default async function ComicEpisodePage({ params, searchParams }: ComicEp
               {isChinese ? "下载" : "Download"}
             </summary>
             <div className="comic-download-menu__panel">
-              {englishEpisode ? (
-                <a href={buildPublicEpisodeDownloadHref(englishEpisode.id, "en")}>
+              {availableLanguages.en ? (
+                <a href={buildPublicEpisodeDownloadHref(episode.id, "en")}>
                   English ZIP
                 </a>
               ) : (
                 <span className="is-disabled">English ZIP</span>
               )}
-              {chineseEpisode ? (
-                <a href={buildPublicEpisodeDownloadHref(chineseEpisode.id, "zh")}>
+              {availableLanguages.zh ? (
+                <a href={buildPublicEpisodeDownloadHref(episode.id, "zh")}>
                   中文 ZIP
                 </a>
               ) : (

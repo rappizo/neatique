@@ -128,32 +128,6 @@ export default async function AdminComicOverviewPage({
         </section>
 
         <section className="admin-form">
-          <h2>Outline studio</h2>
-          <p className="form-note">
-            Review the full project → season → chapter → episode outline tree, generate missing
-            Chinese outlines, and regenerate lower layers from confirmed parent outlines.
-          </p>
-          <div className="stack-row">
-            <Link href="/admin/comic/outline-studio" className="button button--primary">
-              Open outline studio
-            </Link>
-          </div>
-        </section>
-
-        <section className="admin-form">
-          <h2>Image creation</h2>
-          <p className="form-note">
-            Generate standalone text-to-image drafts with selectable ratios, saved separately from
-            episode page production.
-          </p>
-          <div className="stack-row">
-            <Link href="/admin/comic/image-creation" className="button button--primary">
-              Open image creation
-            </Link>
-          </div>
-        </section>
-
-        <section className="admin-form">
           <h2>Reference library</h2>
           <p className="form-note">
             Add characters and scenes, then keep your stable visual references under the new
@@ -169,6 +143,18 @@ export default async function AdminComicOverviewPage({
           </div>
         </section>
 
+        <section className="admin-form">
+          <h2>Outline studio</h2>
+          <p className="form-note">
+            Review project, season, chapter, and episode outlines, then move the selected episode
+            into prompt generation and publishing.
+          </p>
+          <div className="stack-row">
+            <Link href="/admin/comic/outline-studio" className="button button--primary">
+              Open outline studio
+            </Link>
+          </div>
+        </section>
       </div>
 
       <section className="admin-form admin-table">
@@ -176,8 +162,8 @@ export default async function AdminComicOverviewPage({
           <div>
             <h2>Recent episode work</h2>
             <p className="form-note">
-              Keep moving from outline review to episode prompt generation without leaving the
-              comic workspace.
+              Recent active episodes stay here, and the next untouched episode is added so you can
+              move straight into the following outline.
             </p>
           </div>
           <div className="stack-row">
@@ -208,6 +194,9 @@ export default async function AdminComicOverviewPage({
                       <div className="admin-table__cell-stack">
                         <strong>{episode.title}</strong>
                         <span className="form-note">Episode {episode.episodeNumber}</span>
+                        {episode.overviewWorkLabel ? (
+                          <span className="pill">{episode.overviewWorkLabel}</span>
+                        ) : null}
                       </div>
                     </td>
                     <td>
@@ -239,7 +228,10 @@ export default async function AdminComicOverviewPage({
                     <td>{formatDate(episode.updatedAt)}</td>
                     <td>
                       <div className="admin-table__actions">
-                        <Link href={`/admin/comic/episodes/${episode.id}`} className="button button--primary">
+                        <Link
+                          href={`/admin/comic/outline-studio?scope=episode&id=${episode.id}`}
+                          className="button button--primary"
+                        >
                           Edit
                         </Link>
                         <Link

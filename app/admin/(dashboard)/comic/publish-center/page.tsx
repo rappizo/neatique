@@ -19,6 +19,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   "unpublish-before-approval-change": "Unpublish this episode before removing or deleting an approved comic page.",
   "missing-approved-pages": "Approve the cover plus pages 1-10 before publishing this episode.",
   "missing-upload": "Choose an image file before uploading.",
+  "invalid-page-number": "Choose the cover or a story page from 1 to 10 before uploading.",
   "upload-too-large": "Comic page uploads must stay under 20MB.",
   "upload-type": "Upload PNG, JPG, WEBP, or AVIF images only."
 };

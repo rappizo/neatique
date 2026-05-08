@@ -804,6 +804,7 @@ export type ComicAdminOverviewRecord = {
       seasonSlug: string;
       chapterTitle: string;
       chapterSlug: string;
+      overviewWorkLabel?: string;
     }
   >;
 };
@@ -819,19 +820,6 @@ export type ComicChapterDetailRecord = {
   episodes: ComicEpisodeRecord[];
 };
 
-export type ComicEpisodeDetailRecord = {
-  project: ComicProjectRecord | null;
-  season: ComicSeasonRecord;
-  chapter: ComicChapterRecord;
-  episode: ComicEpisodeRecord;
-  assets: ComicEpisodeAssetRecord[];
-  promptRuns: ComicPromptRunRecord[];
-  characters: ComicCharacterRecord[];
-  scenes: ComicSceneRecord[];
-  chapterSceneReferenceFolder: string;
-  chapterSceneReferences: ComicChapterSceneReferenceRecord[];
-};
-
 export type ComicOutlineStudioPageRecord = {
   project: ComicProjectRecord | null;
   characters: ComicCharacterRecord[];
@@ -845,7 +833,6 @@ export type ComicOutlineStudioPageRecord = {
       >;
     }
   >;
-  selectedEpisode: ComicEpisodeDetailRecord | null;
 };
 
 export type ComicPublishCenterEpisodeRecord = ComicEpisodeRecord & {

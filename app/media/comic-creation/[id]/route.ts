@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
 import { prisma } from "@/lib/db";
 
@@ -54,6 +55,10 @@ function isTransientComicImageCreationError(error: unknown) {
 }
 
 export async function GET(request: Request, { params }: ComicImageCreationMediaRouteProps) {
+  if (!(await isAdminAuthenticated())) {
+    return new NextResponse("Comic image creation not found.", { status: 404 });
+  }
+
   const { id } = await params;
   const url = new URL(request.url);
   const useReferenceImage = url.searchParams.get("kind") === "reference";
@@ -77,7 +82,7 @@ export async function GET(request: Request, { params }: ComicImageCreationMediaR
     return new NextResponse(Buffer.from(imageData, "base64"), {
       headers: {
         "Content-Type": imageMimeType,
-        "Cache-Control": "public, max-age=31536000, immutable"
+        "Cache-Control": "private, no-store"
       }
     });
   } catch (error) {

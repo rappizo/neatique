@@ -106,6 +106,15 @@ const COMIC_COVER_EPISODE_ONE_LAYOUT_LOCKS = [
   "- Keep the large lower rectangular manga frame the same size and position as Episode 1. Do not make the frame taller, shorter, wider, narrower, higher, or lower to fit the scene.",
   "- Stage the character interaction inside that fixed rectangle only; crop, scale, and compose the characters within the frame without moving or resizing the frame."
 ].join("\n");
+const COMIC_COVER_INTERACTION_DESIGN_LOCKS = [
+  "Cover interaction design locks:",
+  "- The lower cover frame must show one specific silent visual hook, not a static lineup, model-sheet group, or characters simply posing in front of a location.",
+  "- Build the hook from the episode premise: a playful misunderstanding, object surprise, awkward pause, tiny victory, role reversal, near-miss, or reaction-chain moment.",
+  "- Give every visible main character a distinct readable expression or reaction: curious lean, wide-eyed surprise, smug tiny smile, nervous sweat-drop mark, deadpan stare, bashful tilt, determined squint, or another episode-appropriate silent expression. Do not use identical neutral faces.",
+  "- Stage the characters in an asymmetric relationship: one character causes or reveals the problem, one notices too late, one reacts, and one tries to contain the moment. Use eye-lines, body tilts, spacing, and motion lines so the interaction reads instantly.",
+  "- Use one to three episode-relevant props or environmental details as the engine of the joke or emotional interaction. If the action would require hands, show the objects floating, tipping, opening, sliding, or bouncing through gentle telekinesis.",
+  "- Keep it poster-clear: one focal gag or emotional beat, big silhouettes, expressive faces, elegant negative space, and no crowded cast lineup."
+].join("\n");
 type ComicProjectContext = {
   title: string;
   shortDescription: string;
@@ -2527,9 +2536,12 @@ function buildComicCoverPagePrompt(input: {
     .map((page) => `${formatComicPageLabel(page.pageNumber)}: ${page.pagePurpose}`)
     .join("\n");
   const coverInteraction = [
-    `Inside the large framed cover illustration, show ${characterLabel} in one clear interaction that previews this episode.`,
-    `Interaction content should be based on the episode logline and synopsis: ${input.episodeLogline} ${input.episodeSynopsis}`,
-    firstStoryBeats ? `Use these early page beats as cover staging clues:\n${firstStoryBeats}` : null,
+    `Inside the large framed cover illustration, show ${characterLabel} caught in one memorable silent interaction that previews this episode through expression, body language, and prop motion.`,
+    `Invent a cover-only visual hook from the episode logline and synopsis; do not merely copy a normal story panel: ${input.episodeLogline} ${input.episodeSynopsis}`,
+    firstStoryBeats
+      ? `Use these early page beats as staging clues, then remix them into one playful cover moment:\n${firstStoryBeats}`
+      : null,
+    COMIC_COVER_INTERACTION_DESIGN_LOCKS,
     "Do not copy any character first-appearance introduction box, name card, role card, profile box, or bio label from those early story beats. The cover does not count as a character's first appearance.",
     "The interaction should feel like a polished manga cover moment, not a normal multi-panel page: big readable silhouettes, expressive eye contact, telekinetic object movement where action would require hands, and strong negative space."
   ]
@@ -2545,13 +2557,15 @@ function buildComicCoverPagePrompt(input: {
     "",
     COMIC_COVER_EPISODE_ONE_LAYOUT_LOCKS,
     "",
+    COMIC_COVER_INTERACTION_DESIGN_LOCKS,
+    "",
     "Visible cover text:",
     `Serif title line: "${coverTitle}"`,
     "",
     COMIC_COVER_TYPOGRAPHY_LOCKS,
     "",
     "Style and production locks:",
-    "Maintain the unified minimalist Japanese manga style used by the whole comic: clean high-contrast black ink on white, elegant negative space, simple readable silhouettes, restrained detail, pure white character bodies, exact model-sheet silhouettes, visible connected feet, and handless/armless mascot anatomy. Do not add dialogue, speech balloons, caption boxes, SFX, character introduction boxes, name cards, role cards, profile boxes, extra logos, watermarks, product labels, signatures, or unrelated text."
+    "Maintain the unified minimalist Japanese manga style used by the whole comic: clean high-contrast black ink on white, elegant negative space, simple readable silhouettes, restrained detail, pure white character bodies, exact model-sheet silhouettes, visible connected feet, and handless/armless mascot anatomy. If a character has no expressive role in the cover hook, omit them instead of adding a static bystander. Do not add dialogue, speech balloons, caption boxes, SFX, character introduction boxes, name cards, role cards, profile boxes, extra logos, watermarks, product labels, signatures, or unrelated text."
   ].join("\n");
   const referenceNotesCopyText = ensureReferenceNotesIncludeLettering(
     [
@@ -2562,6 +2576,9 @@ function buildComicCoverPagePrompt(input: {
       `- Render the title line exactly as "${coverTitle}" in one unified serif typeface.`,
       "- Match Episode 1's cover layout exactly: same logo position/size, same Episode title position, and same lower rectangular frame size/position.",
       "- The cover uses one large framed illustration, not multiple story panels.",
+      "- The lower cover frame must be a specific expressive interaction with a playful or emotionally charged visual hook, not a static lineup or simple character-and-background pose.",
+      "- Every visible cover character needs a distinct silent expression or reaction that supports the hook.",
+      "- Use episode-relevant telekinetic prop movement, eye-lines, body tilts, and motion lines to make the interaction readable without dialogue.",
       "- Do not include character dialogue, speech balloons, caption boxes, or SFX.",
       "- Do not include character first-appearance introduction boxes, name cards, role cards, profile boxes, or cast bio labels. The cover does not count as any character's first appearance.",
       "- Keep the same unified minimalist Japanese black-and-white manga style as the whole comic."
@@ -2571,17 +2588,17 @@ function buildComicCoverPagePrompt(input: {
   return {
     pageNumber: COMIC_COVER_PAGE_NUMBER,
     panelCount: 1,
-    pagePurpose: `Cover: logo, ${coverTitle}, and main-character interaction.`,
+    pagePurpose: `Cover: logo, ${coverTitle}, and an expressive silent visual hook between the main characters.`,
     promptPackCopyText,
     referenceNotesCopyText,
     panels: [
       {
         pageNumber: COMIC_COVER_PAGE_NUMBER,
         panelNumber: 1,
-        panelTitle: "Large framed cover interaction",
+        panelTitle: "Expressive cover visual hook",
         storyBeat: coverInteraction,
         promptText:
-          `Draw the cover's lower large frame as a polished minimalist Japanese manga illustration with the main characters interacting. Keep the logo/title stack and lower rectangle frame in the same positions and sizes as Episode 1's cover. Render the exact serif title line "${coverTitle}". Do not include dialogue, speech balloons, caption boxes, SFX, character introduction boxes, name cards, role cards, or profile boxes.`,
+          `Draw the cover's lower large frame as a polished minimalist Japanese manga illustration built around one specific silent visual hook: expressive reactions, asymmetric eye-lines, body tilts, and episode-relevant telekinetic prop motion. Do not draw a static lineup or simple character-and-background pose. Keep the logo/title stack and lower rectangle frame in the same positions and sizes as Episode 1's cover. Render the exact serif title line "${coverTitle}". Do not include dialogue, speech balloons, caption boxes, SFX, character introduction boxes, name cards, role cards, or profile boxes.`,
         dialogueLines: []
       }
     ],
@@ -2721,6 +2738,12 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     isCoverPage
       ? "- Cover mouth-state check: because the cover has no dialogue, do not stage any character as speaking. Keep mouths closed, tiny neutral, or silently expressive without speech balloons."
       : "- Mouth state check: draw closed mouths for characters who are not speaking in that panel; only the active speaker or explicit vocal reaction may have an open mouth.",
+    isCoverPage
+      ? "- Cover interaction rule: the lower frame must not be a static lineup or simple character-and-background pose. Make one readable silent visual hook with distinct expressions, eye-lines, body tilts, and telekinetic prop motion."
+      : null,
+    isCoverPage
+      ? "- Cover acting rule: every visible main character must have a clear role in the silent interaction. Omit characters who would only stand neutrally as background bystanders."
+      : null,
     isCoverPage
       ? "- Cover text rule: render only the uploaded logo and the exact serif title line specified in the cover prompt. Do not add dialogue, speech balloons, caption boxes, or SFX."
       : "- Render every specified dialogue line, caption, and SFX from the panel plan. Do not omit dialogue balloons.",

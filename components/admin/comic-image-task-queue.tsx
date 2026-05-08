@@ -1841,7 +1841,7 @@ export function ComicImageCreationQueueForm({
       .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
   const isCreating = latestTask?.status === "queued" || latestTask?.status === "running";
 
-  function addExistingReference(id: string) {
+  const addExistingReference = useCallback((id: string) => {
     const image = referenceImages.find((candidate) => candidate.id === id);
 
     if (!image) {
@@ -1872,7 +1872,7 @@ export function ComicImageCreationQueueForm({
         }
       ];
     });
-  }
+  }, [referenceImages]);
 
   useEffect(() => {
     function handleReferenceSelected(event: Event) {
@@ -1886,7 +1886,7 @@ export function ComicImageCreationQueueForm({
 
     return () =>
       window.removeEventListener(COMIC_IMAGE_REFERENCE_SELECTED_EVENT, handleReferenceSelected);
-  }, [referenceImages]);
+  }, [addExistingReference]);
 
   useEffect(() => {
     setReferenceItems((items) =>

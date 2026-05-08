@@ -212,7 +212,10 @@ export default async function AdminComicChapterDetailPage({
                     <td>{episode.promptRunCount || 0}</td>
                     <td>
                       <div className="admin-table__actions">
-                        <Link href={`/admin/comic/episodes/${episode.id}`} className="button button--primary">
+                        <Link
+                          href={`/admin/comic/outline-studio?scope=episode&id=${episode.id}`}
+                          className="button button--primary"
+                        >
                           Edit episode
                         </Link>
                         <Link

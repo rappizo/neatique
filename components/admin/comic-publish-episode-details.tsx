@@ -89,7 +89,7 @@ export function ComicPublishEpisodeDetails({
   promptWarningCount,
   children
 }: ComicPublishEpisodeDetailsProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [publishedState, setPublishedState] = useState(published);
   const [englishApprovedCountState, setEnglishApprovedCountState] =
     useState(englishApprovedCount);
@@ -100,11 +100,7 @@ export function ComicPublishEpisodeDetails({
   useEffect(() => {
     const storedValue = window.localStorage.getItem(storageKey);
 
-    if (storedValue === "closed") {
-      setOpen(false);
-    } else if (storedValue === "open") {
-      setOpen(true);
-    }
+    setOpen(storedValue === "open");
   }, [storageKey]);
 
   function handleToggle(event: SyntheticEvent<HTMLDetailsElement>) {
@@ -190,7 +186,7 @@ export function ComicPublishEpisodeDetails({
             ) : null}
           </div>
         </summary>
-        <div className="admin-comic-publish-episode__body">{children}</div>
+        {open ? <div className="admin-comic-publish-episode__body">{children}</div> : null}
       </details>
     </ComicPublishEpisodeStatusContext.Provider>
   );

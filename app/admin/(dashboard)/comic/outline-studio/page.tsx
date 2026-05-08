@@ -234,7 +234,7 @@ export default async function AdminComicOutlineStudioPage({
 }: AdminComicOutlineStudioPageProps) {
   const [params, pageData, openAiSettings] = await Promise.all([
     searchParams,
-    getComicOutlineStudioPage(null),
+    getComicOutlineStudioPage(),
     Promise.resolve(getOpenAiComicSettings())
   ]);
   const project = pageData.project;

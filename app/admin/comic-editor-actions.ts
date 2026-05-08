@@ -1,6 +1,5 @@
 "use server";
 
-import { Buffer } from "node:buffer";
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
@@ -15,7 +14,6 @@ import {
   pushComicCharacterLockSnapshot,
   pushComicSceneLockSnapshot
 } from "@/lib/comic-lock-history";
-import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
 import {
   getNextComicEpisodeNumber,
   isComicEpisodeNumberTaken
@@ -28,11 +26,13 @@ import {
   COMIC_APPROVAL_ASSET_TYPES,
   COMIC_CHINESE_PAGE_ASSET_TYPE,
   COMIC_PAGE_ASSET_TYPES,
-  formatComicPageFileSlug,
-  formatComicPageLabel,
   getComicRequiredPageNumbers,
   isComicPublishPageNumber
 } from "@/lib/comic-pages";
+import {
+  ComicPageUploadInputError,
+  uploadComicPageAsset
+} from "@/lib/comic-page-upload";
 import { toBool, toInt, toPlainString } from "@/lib/utils";
 import {
   buildComicRedirect,
@@ -803,193 +803,12 @@ export async function createComicEpisodeAction(formData: FormData) {
     chapterSlug: chapter.slug,
     episodeSlug: episode.slug
   });
-  redirect(buildComicRedirect(`/admin/comic/episodes/${episode.id}`, "created"));
-}
-
-export async function updateComicEpisodeAction(formData: FormData) {
-  await requireAdminSession();
-  const { ensureComicEpisodeWorkspace } = await loadComicWorkspaceModule();
-
-  const id = toPlainString(formData.get("id"));
-  if (!id) {
-    redirect(buildComicRedirect("/admin/comic/seasons", "missing-episode"));
-  }
-
-  const existing = await prisma.comicEpisode.findUnique({
-    where: { id },
-    include: {
-      chapter: {
-        include: {
-          season: true
-        }
-      }
-    }
-  });
-
-  if (!existing) {
-    redirect(buildComicRedirect("/admin/comic/seasons", "missing-episode"));
-  }
-
-  const title = toPlainString(formData.get("title"));
-  const slug = buildComicSlug(formData.get("slug"), title || existing.slug);
-  const episodeNumber = Math.max(1, toInt(formData.get("episodeNumber"), existing.episodeNumber));
-  const published = toBool(formData.get("published"));
-
-  if (!title || !slug) {
-    redirect(buildComicRedirect(`/admin/comic/episodes/${id}`, "missing-fields"));
-  }
-
-  if (await isComicEpisodeNumberTaken(episodeNumber, id)) {
-    redirect(buildComicRedirect(`/admin/comic/episodes/${id}`, "duplicate-episode-number"));
-  }
-
-  const publishedAtInput = toPlainString(formData.get("publishedAt"));
-  const publishedAt = published
-    ? publishedAtInput
-      ? new Date(publishedAtInput)
-      : existing.publishedAt || new Date()
-    : null;
-
-  const updated = await prisma.comicEpisode.update({
-    where: { id },
-    data: {
-      episodeNumber,
-      slug,
-      title,
-      summary: normalizeLongText(formData.get("summary")) || existing.summary,
-      outline: normalizeLongText(formData.get("outline")) || existing.outline,
-      script: normalizeLongText(formData.get("script")),
-      panelPlan: normalizeLongText(formData.get("panelPlan")),
-      promptPack: normalizeLongText(formData.get("promptPack")),
-      requiredReferences: normalizeLongText(formData.get("requiredReferences")),
-      coverImageUrl: toPlainString(formData.get("coverImageUrl")) || null,
-      coverImageAlt: toPlainString(formData.get("coverImageAlt")) || null,
-      published,
-      publishedAt,
-      sortOrder: Math.max(0, toInt(formData.get("sortOrder"), existing.sortOrder))
-    }
-  });
-
-  await ensureComicEpisodeWorkspace({
-    seasonSlug: existing.chapter.season.slug,
-    seasonTitle: existing.chapter.season.title,
-    chapterSlug: existing.chapter.slug,
-    chapterTitle: existing.chapter.title,
-    episodeSlug: updated.slug,
-    episodeTitle: updated.title
-  });
-  revalidateComicRoutes({
-    seasonSlug: existing.chapter.season.slug,
-    chapterSlug: existing.chapter.slug,
-    episodeSlug: updated.slug
-  });
-  redirect(buildComicRedirect(`/admin/comic/episodes/${id}`, "saved"));
-}
-
-export async function createComicEpisodeAssetAction(formData: FormData) {
-  await requireAdminSession();
-
-  const episodeId = toPlainString(formData.get("episodeId"));
-  if (!episodeId) {
-    redirect(buildComicRedirect("/admin/comic", "missing-episode"));
-  }
-
-  const episode = await prisma.comicEpisode.findUnique({
-    where: { id: episodeId },
-    include: {
-      chapter: {
-        include: {
-          season: true
-        }
-      }
-    }
-  });
-
-  if (!episode) {
-    redirect(buildComicRedirect("/admin/comic", "missing-episode"));
-  }
-
-  const title = toPlainString(formData.get("title"));
-  const imageUrl = toPlainString(formData.get("imageUrl"));
-
-  if (!title || !imageUrl) {
-    redirect(buildComicRedirect(`/admin/comic/episodes/${episodeId}`, "missing-asset-fields"));
-  }
-
-  await prisma.comicEpisodeAsset.create({
-    data: {
-      episodeId,
-      assetType: toPlainString(formData.get("assetType")) || "PAGE",
-      title,
-      imageUrl,
-      altText: toPlainString(formData.get("altText")) || null,
-      caption: normalizeLongText(formData.get("caption")) || null,
-      sortOrder: Math.max(0, toInt(formData.get("sortOrder"), 0)),
-      published: toBool(formData.get("published"))
-    }
-  });
-
-  revalidateComicRoutes({
-    seasonSlug: episode.chapter.season.slug,
-    chapterSlug: episode.chapter.slug,
-    episodeSlug: episode.slug
-  });
-  redirect(buildComicRedirect(`/admin/comic/episodes/${episodeId}`, "asset-created"));
-}
-
-export async function updateComicEpisodeAssetAction(formData: FormData) {
-  await requireAdminSession();
-
-  const id = toPlainString(formData.get("id"));
-  if (!id) {
-    redirect(buildComicRedirect("/admin/comic", "missing-asset"));
-  }
-
-  const asset = await prisma.comicEpisodeAsset.findUnique({
-    where: { id },
-    include: {
-      episode: {
-        include: {
-          chapter: {
-            include: {
-              season: true
-            }
-          }
-        }
-      }
-    }
-  });
-
-  if (!asset) {
-    redirect(buildComicRedirect("/admin/comic", "missing-asset"));
-  }
-
-  const title = toPlainString(formData.get("title"));
-  const imageUrl = toPlainString(formData.get("imageUrl"));
-
-  if (!title || !imageUrl) {
-    redirect(buildComicRedirect(`/admin/comic/episodes/${asset.episodeId}`, "missing-asset-fields"));
-  }
-
-  await prisma.comicEpisodeAsset.update({
-    where: { id },
-    data: {
-      assetType: toPlainString(formData.get("assetType")) || asset.assetType,
-      title,
-      imageUrl,
-      altText: toPlainString(formData.get("altText")) || null,
-      caption: normalizeLongText(formData.get("caption")) || null,
-      sortOrder: Math.max(0, toInt(formData.get("sortOrder"), asset.sortOrder)),
-      published: toBool(formData.get("published"))
-    }
-  });
-
-  revalidateComicRoutes({
-    seasonSlug: asset.episode.chapter.season.slug,
-    chapterSlug: asset.episode.chapter.slug,
-    episodeSlug: asset.episode.slug
-  });
-  redirect(buildComicRedirect(`/admin/comic/episodes/${asset.episodeId}`, "asset-saved"));
+  redirect(
+    buildComicRedirect(
+      `/admin/comic/outline-studio?scope=episode&id=${episode.id}`,
+      "created"
+    )
+  );
 }
 
 export async function deleteComicEpisodeAssetAction(formData: FormData) {
@@ -1020,6 +839,8 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
     redirect(buildComicRedirect(requestedRedirectTo || "/admin/comic", "missing-asset"));
   }
 
+  const fallbackRedirectTo = `/admin/comic/publish-center/chapters/${asset.episode.chapterId}#episode-${asset.episodeId}`;
+
   if (
     asset.episode.published &&
     asset.published &&
@@ -1028,7 +849,7 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
   ) {
     redirect(
       buildComicRedirect(
-        requestedRedirectTo || `/admin/comic/episodes/${asset.episodeId}`,
+        requestedRedirectTo || fallbackRedirectTo,
         "unpublish-before-approval-change"
       )
     );
@@ -1045,13 +866,11 @@ export async function deleteComicEpisodeAssetAction(formData: FormData) {
   });
   redirect(
     buildComicRedirect(
-      requestedRedirectTo || `/admin/comic/episodes/${asset.episodeId}`,
+      requestedRedirectTo || fallbackRedirectTo,
       requestedRedirectTo ? "page-rejected" : "asset-deleted"
     )
   );
 }
-
-const COMIC_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 
 function isComicPageAssetType(assetType: string) {
   return COMIC_PAGE_ASSET_TYPES.includes(assetType);
@@ -1389,133 +1208,30 @@ export async function uploadComicPageAssetAction(formData: FormData) {
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const redirectTo = getComicPublishRedirect(formData);
-  const requestedPageNumber = toInt(formData.get("pageNumber"), 1);
-  const pageNumber = isComicPublishPageNumber(requestedPageNumber) ? requestedPageNumber : 1;
-  const pageLabel = formatComicPageLabel(pageNumber);
   const file = formData.get("comicPageFile");
-  const shouldApprove = toBool(formData.get("approveAfterUpload"));
+  let status = "page-uploaded";
 
-  if (!episodeId) {
-    redirect(buildComicRedirect(redirectTo, "missing-episode"));
-  }
-
-  const episode = await prisma.comicEpisode.findUnique({
-    where: { id: episodeId },
-    include: {
-      chapter: {
-        include: {
-          season: true
-        }
-      }
-    }
-  });
-
-  if (!episode) {
-    redirect(buildComicRedirect(redirectTo, "missing-episode"));
-  }
-
-  if (!(file instanceof File) || file.size <= 0) {
-    redirect(buildComicRedirect(redirectTo, "missing-upload"));
-  }
-
-  if (file.size > COMIC_UPLOAD_MAX_BYTES) {
-    redirect(buildComicRedirect(redirectTo, "upload-too-large"));
-  }
-
-  if (!/^image\/(png|jpe?g|webp|avif)$/i.test(file.type)) {
-    redirect(buildComicRedirect(redirectTo, "upload-type"));
-  }
-
-  const title =
-    toPlainString(formData.get("title")) ||
-    `${episode.title} - Uploaded ${pageLabel}`;
-
-  if (shouldApprove && episode.published) {
-    redirect(buildComicRedirect(redirectTo, "unpublish-before-approval-change"));
-  }
-
-  const imageBuffer = Buffer.from(await file.arrayBuffer());
-  const storedImage = await storeComicImage({
-    base64Data: imageBuffer.toString("base64"),
-    mimeType: file.type || "image/png",
-    category: "uploaded-pages",
-    targetId: episodeId,
-    fileName: `${formatComicPageFileSlug(pageNumber)}-${Date.now()}`
-  });
-
-  const createdAsset = await prisma.comicEpisodeAsset.create({
-    data: {
+  try {
+    const result = await uploadComicPageAsset({
       episodeId,
-      assetType: "UPLOADED_PAGE",
-      title,
-      imageUrl: storedImage.imageUrl,
-      imageData: storedImage.imageData,
-      imageMimeType: storedImage.imageMimeType,
-      imageStorageKey: storedImage.imageStorageKey,
-      imageByteSize: storedImage.imageByteSize,
-      imageSha256: storedImage.imageSha256,
-      altText:
-        toPlainString(formData.get("altText")) ||
-        `${episode.title} uploaded comic ${pageLabel.toLowerCase()}`,
-      caption: normalizeLongText(formData.get("caption")) || null,
-      sortOrder: pageNumber,
-      published: shouldApprove
-    },
-    select: {
-      id: true
-    }
-  });
-
-  const imageUrl = storedImage.imageData
-    ? buildComicMediaFallbackUrl(createdAsset.id)
-    : storedImage.imageUrl;
-
-  if (shouldApprove) {
-    await prisma.$transaction([
-      prisma.comicEpisodeAsset.updateMany({
-        where: {
-          episodeId,
-          sortOrder: pageNumber,
-          id: { not: createdAsset.id },
-          assetType: { in: COMIC_PAGE_ASSET_TYPES }
-        },
-        data: {
-          published: false
-        }
-      }),
-      prisma.comicEpisodeAsset.updateMany({
-        where: {
-          episodeId,
-          sortOrder: pageNumber,
-          assetType: COMIC_CHINESE_PAGE_ASSET_TYPE
-        },
-        data: {
-          published: false
-        }
-      }),
-      prisma.comicEpisodeAsset.update({
-        where: { id: createdAsset.id },
-        data: {
-          imageUrl,
-          published: true
-        }
-      })
-    ]);
-  } else {
-    await prisma.comicEpisodeAsset.update({
-      where: { id: createdAsset.id },
-      data: {
-        imageUrl
-      }
+      pageNumber: toInt(formData.get("pageNumber"), 1),
+      file: file instanceof File ? file : null,
+      approveAfterUpload: toBool(formData.get("approveAfterUpload")),
+      title: toPlainString(formData.get("title")),
+      altText: toPlainString(formData.get("altText")),
+      caption: normalizeLongText(formData.get("caption")) || null
     });
+
+    status = result.status;
+  } catch (error) {
+    if (error instanceof ComicPageUploadInputError) {
+      status = error.status;
+    } else {
+      throw error;
+    }
   }
 
-  revalidateComicRoutes({
-    seasonSlug: episode.chapter.season.slug,
-    chapterSlug: episode.chapter.slug,
-    episodeSlug: episode.slug
-  });
-  redirect(buildComicRedirect(redirectTo, shouldApprove ? "page-uploaded-approved" : "page-uploaded"));
+  redirect(buildComicRedirect(redirectTo, status));
 }
 
 export async function publishComicEpisodeFromCenterAction(formData: FormData) {

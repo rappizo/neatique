@@ -9,7 +9,7 @@ import {
 
 const APPROVAL_CHANGE_EVENT = "neatique:comic-publish-approval-change";
 
-type AssetApprovalChangeDetail = ComicPublishCenterMutationResult & {
+export type AssetApprovalChangeDetail = ComicPublishCenterMutationResult & {
   language: ComicPublishLanguage;
   pageNumber: number;
 };
@@ -89,7 +89,7 @@ async function runPublishCenterMutation(input: {
   return payload as ComicPublishCenterMutationResult;
 }
 
-function dispatchApprovalChange(detail: AssetApprovalChangeDetail) {
+export function dispatchApprovalChange(detail: AssetApprovalChangeDetail) {
   window.dispatchEvent(
     new CustomEvent<AssetApprovalChangeDetail>(APPROVAL_CHANGE_EVENT, {
       detail

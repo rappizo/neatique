@@ -705,6 +705,8 @@ test("comic cover image prompt stays dialogue-free with serif title", () => {
   assert.match(prompt, /Episode 1 cover layout template lock/i);
   assert.match(prompt, /same top logo centerline, logo size, Episode title position/i);
   assert.match(prompt, /same size and position as Episode 1/i);
+  assert.match(prompt, /must not be a static lineup/i);
+  assert.match(prompt, /distinct expressions, eye-lines, body tilts/i);
   assert.match(prompt, /cover does not count as a character's first appearance/i);
   assert.match(prompt, /Do not draw character introduction boxes/i);
   assert.doesNotMatch(prompt, /Dialogue lines:/);

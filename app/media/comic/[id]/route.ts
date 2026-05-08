@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
-import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
 import { prisma } from "@/lib/db";
 
@@ -10,32 +10,48 @@ type ComicMediaRouteProps = {
   }>;
 };
 
-const COMIC_IMAGE_REVALIDATE_SECONDS = 60 * 60 * 24 * 30;
-
-const getComicImageAsset = unstable_cache(
-  async (id: string) => {
-    const asset = await prisma.comicEpisodeAsset.findUnique({
-      where: { id },
-      select: {
-        imageUrl: true,
-        imageData: true,
-        imageMimeType: true
+async function getComicImageAsset(id: string) {
+  const asset = await prisma.comicEpisodeAsset.findUnique({
+    where: { id },
+    select: {
+      imageUrl: true,
+      imageData: true,
+      imageMimeType: true,
+      published: true,
+      episode: {
+        select: {
+          published: true,
+          chapter: {
+            select: {
+              published: true,
+              season: {
+                select: {
+                  published: true
+                }
+              }
+            }
+          }
+        }
       }
-    });
-
-    if (!asset?.imageData && !asset?.imageUrl) {
-      return null;
     }
+  });
 
-    return {
-      imageUrl: asset.imageUrl,
-      imageData: asset.imageData,
-      imageMimeType: asset.imageMimeType || "image/png"
-    };
-  },
-  ["comic-image-asset"],
-  { revalidate: COMIC_IMAGE_REVALIDATE_SECONDS }
-);
+  if (!asset?.imageData && !asset?.imageUrl) {
+    return null;
+  }
+
+  return {
+    imageUrl: asset.imageUrl,
+    imageData: asset.imageData,
+    imageMimeType: asset.imageMimeType || "image/png",
+    public: Boolean(
+      asset.published &&
+        asset.episode.published &&
+        asset.episode.chapter.published &&
+        asset.episode.chapter.season.published
+    )
+  };
+}
 
 function isTransientComicImageError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -53,6 +69,10 @@ export async function GET(_request: Request, { params }: ComicMediaRouteProps) {
   try {
     const image = await getComicImageAsset(id);
 
+    if (image && !image.public && !(await isAdminAuthenticated())) {
+      return new NextResponse("Comic image not found.", { status: 404 });
+    }
+
     if (!image?.imageData) {
       if (image?.imageUrl && /^https?:\/\//i.test(image.imageUrl)) {
         return NextResponse.redirect(image.imageUrl, 307);
@@ -64,7 +84,9 @@ export async function GET(_request: Request, { params }: ComicMediaRouteProps) {
     return new NextResponse(Buffer.from(image.imageData, "base64"), {
       headers: {
         "Content-Type": image.imageMimeType,
-        "Cache-Control": "public, max-age=31536000, immutable"
+        "Cache-Control": image.public
+          ? "public, max-age=31536000, immutable"
+          : "private, no-store"
       }
     });
   } catch (error) {
