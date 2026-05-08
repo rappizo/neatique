@@ -611,9 +611,9 @@ function addComicCharacterHeightChartReference(byPath: Map<string, ComicResolved
       label: COMIC_CHARACTER_HEIGHT_CHART_REFERENCE.label,
       whyThisMatters: `${heightSlugs
         .map((slug) => slug.replace(/-/g, " "))
-        .join(", ")} appear together; this chart locks their relative heights before composition.`,
+        .join(", ")} appear together; this front-view reference locks their relative heights before composition.`,
       contentSummary:
-        "Height scale chart: Muci and Artrans share the shorter tier; Padaruna, Padarana, and Snacri share the standard tier; Nia is about 1.1x Padaruna."
+        "Front-view character height reference using model-sheet crops: Muci and Artrans share the shorter tier; Padaruna, Padarana, and Snacri share the standard tier; Nia is about 1.1x Padaruna. Reference-only, never visible in the comic panel."
     },
     byPath
   );

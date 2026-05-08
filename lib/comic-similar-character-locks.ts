@@ -25,7 +25,7 @@ export const SIMILAR_TEARDROP_COMPARISON_REFERENCE: ComicChapterSceneReferenceRe
 };
 
 export const COMIC_CHARACTER_HEIGHT_CHART_REFERENCE: ComicChapterSceneReferenceRecord = {
-  label: "Comic Character Height Comparison Chart",
+  label: "Front-View Character Height Reference",
   fileName: "character-height-comparison.jpg",
   relativePath: "comic/scenes/character-height-comparison/refs/character-height-comparison.jpg",
   extension: "jpg"
@@ -51,17 +51,17 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   snacri: {
     name: "Snacri",
     identity:
-      "fatter quiet droplet with the top leaning left, understated asymmetry, minimal dot eyes, tiny restrained smile, low-drama observer expression; same height tier as Padaruna and Padarana"
+      "fatter quiet droplet with the top leaning left, understated asymmetry, fully open round black dot eyes with tiny highlights, tiny restrained smile, low-drama observer expression; never half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired/unimpressed expression lines; same height tier as Padaruna and Padarana; exactly two small connected feet in full-body views, never three feet or extra leg nubs"
   },
   padaruna: {
     name: "Padaruna",
     identity:
-      "sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; standard height tier shared with Padarana and Snacri; about 1.1x Muci's overall size when she appears with Muci; not Muci's squat soft protagonist droplet"
+      "upright sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; standard height tier shared with Padarana and Snacri; about 1.1x Muci's overall size when she appears with Muci; not Muci's squat soft protagonist droplet and never Snacri's left-leaning quiet head/top"
   },
   padarana: {
     name: "Padarana",
     identity:
-      "sharp pointed head with a slimmer softer body than Padaruna, closed smiling eyes, calm reassuring mouth, gentle emotional-anchor expression; same height tier as Padaruna and Snacri"
+      "upright soft sharp pointed head with a slimmer softer body than Padaruna, closed smiling eyes, calm reassuring mouth, gentle emotional-anchor expression; same height tier as Padaruna and Snacri; never Snacri's left-leaning quiet head/top"
   }
 };
 
@@ -134,11 +134,12 @@ export function buildComicCharacterHeightChartLock(slugs: string[]) {
   }
 
   return [
-    "Character height comparison chart lock:",
-    "- The attached Comic Character Height Comparison Chart is a binding scale map whenever two or more listed characters appear together.",
-    "- Put same-panel characters on the same ground baseline before sizing them. Measure apparent body height from the bottom of the connected feet to the top/apex of the body; ignore motion lines, props, perspective, and speech balloons.",
+    "Character height reference lock:",
+    "- The attached Front-View Character Height Reference is an off-canvas production reference only. Do not draw the chart, scale marks, labels, lineup, or height-comparison diagram inside the comic panel.",
+    "- Use the front-view model crops privately to size same-panel characters. Put characters on the same implied floor plane before sizing them, but keep the scene acting natural.",
+    "- Measure apparent body height from the bottom of the connected feet to the top/apex of the body; ignore motion lines, props, perspective, and speech balloons.",
     "- Locked height tiers: Muci and Artrans share the shorter tier, preserving the current Muci/Padaruna ratio; Padaruna, Padarana, and Snacri share the standard Padaruna tier; Nia is only slightly taller at about 1.1x Padaruna.",
-    "- Do not randomly swap heights between pages or panels. When characters stand on the same plane, keep these ratios even if they emote, tilt, run, or lean.",
+    "- Do not randomly swap heights between pages or panels, and do not stretch bodies vertically to satisfy height. Keep every droplet round, cute, and model-sheet proportioned.",
     ...heightSlugs.map((slug) => {
       const lock = COMIC_CHARACTER_HEIGHT_LOCKS[slug];
       return `- ${lock.name}: ${lock.relativeHeight}; ${lock.note}.`;
@@ -157,6 +158,9 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
   const hasMuciAndNia = similarSlugs.includes("muci") && similarSlugs.includes("nia");
   const hasMuciAndPadaruna =
     similarSlugs.includes("muci") && similarSlugs.includes("padaruna");
+  const hasSnacriAndPadarunaOrPadarana =
+    similarSlugs.includes("snacri") &&
+    (similarSlugs.includes("padaruna") || similarSlugs.includes("padarana"));
 
   return [
     "Similar teardrop cast separation lock:",
@@ -174,6 +178,14 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
           "- Muci/Padaruna high-risk size separation: when Muci and Padaruna appear together, Padaruna must read about 1.1x Muci's overall body scale and visual mass, while Muci remains the slightly smaller short broad squat protagonist droplet.",
           "- Draw Muci first as compact, broad, squat, soft-sided, browless, and friendly; draw Padaruna beside him as visibly larger, sharper-headed, rounder-bodied, browless, open-eyed, eager, and high-energy.",
           "- Before final rendering, compare their silhouettes: if Padaruna and Muci are the same size or can be mistaken for each other, make Padaruna roughly 1.1x Muci and restore her sharper head plus fuller round buoyant body."
+        ].join("\n")
+      : null,
+    hasSnacriAndPadarunaOrPadarana
+      ? [
+          "- Padaruna/Padarana anti-Snacri head lock: Snacri is the only droplet in this group with a left-leaning quiet top/head silhouette. Never copy that left-leaning Snacri head onto Padaruna or Padarana.",
+          "- Padaruna must keep an upright sharp pointed head above a fuller round buoyant body, open lively eyes, no eyebrows, and an eager smile.",
+          "- Padarana must keep an upright soft pointed head above a slimmer gentle body with closed smiling eyes.",
+          "- Before final line art, compare the three top silhouettes: if Padaruna or Padarana has Snacri's left-leaning head/top, redraw that character with their own upright pointed model-sheet head."
         ].join("\n")
       : null,
     ...similarSlugs.map((slug) => {

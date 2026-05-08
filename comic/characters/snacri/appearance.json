@@ -1,11 +1,14 @@
 {
   "silhouette": "Simple quiet droplet silhouette with a fatter body and the top leaning left, preserving understated asymmetry.",
-  "face": "Minimal features, restrained smile, low-drama expression.",
+  "face": "Minimal features with two fully open round black dot eyes with tiny white highlights, restrained smile, and low-drama expression.",
   "body_language": "Stable, quiet, observant, never rushed.",
   "do_not_change": [
     "Keep the minimalist readability and left-leaning top.",
     "Do not over-cute or over-emote by default.",
+    "Do not draw half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired/unimpressed expression lines.",
     "Preserve the fatter, quieter silhouette than the other droplets.",
+    "Keep exactly two small connected feet in full-body views; never add a third foot, extra leg nub, shoe, toe, paw, or detached lower appendage.",
+    "Do not stretch Snacri into a tall narrow droplet; preserve the round, cute, compact model-sheet body.",
     "Do not straighten her into Muci, sharpen her into Nia, energize her into Padaruna, or soften her into Padarana."
   ]
 }

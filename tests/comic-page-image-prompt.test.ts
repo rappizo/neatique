@@ -113,6 +113,8 @@ test("comic page image prompt stays under OpenAI length limit while preserving r
   assert.match(prompt, /model-sheet\.jpg/);
   assert.match(prompt, /Profile MD source of truth loaded from database/);
   assert.match(prompt, /Reference image files: model-sheet\.jpg/);
+  assert.match(prompt, /CURRENT PAGE CONTENT - HIGHEST PRIORITY/);
+  assert.match(prompt, /Muci: "I brought sunscreen\."/);
 });
 
 test("comic page image prompt separates Coach Ray from Muci and normalizes legacy pentagonal wording", () => {
@@ -287,7 +289,7 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
         data: Buffer.from("fake")
       },
       {
-        label: "Comic Character Height Comparison Chart",
+        label: "Front-View Character Height Reference",
         fileName: "character-height-comparison.jpg",
         relativePath: "comic/scenes/character-height-comparison/refs/character-height-comparison.jpg",
         bucket: "CAST_COMPARISON",
@@ -341,7 +343,11 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   });
 
   assert.match(prompt, /Similar teardrop cast separation lock/);
-  assert.match(prompt, /Character height comparison chart lock/);
+  assert.match(prompt, /Character height reference lock/);
+  assert.match(prompt, /off-canvas production reference only/);
+  assert.match(prompt, /Do not draw the chart, scale marks, labels, lineup/);
+  assert.match(prompt, /Story intro-card rule/);
+  assert.match(prompt, /Never infer intro cards/);
   assert.match(prompt, /Muci and Artrans share the shorter tier/);
   assert.match(prompt, /Nia: about 1\.10x Padaruna/);
   assert.match(prompt, /Snacri: same as Padaruna/);
@@ -352,8 +358,84 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   assert.match(prompt, /Muci: exact Muci model-sheet droplet/);
   assert.match(prompt, /Nia: taller and sharper pointed teardrop/);
   assert.match(prompt, /Snacri: fatter quiet droplet/);
+  assert.match(prompt, /Snacri eye expression lock/);
+  assert.match(prompt, /fully open round black dot eyes with tiny white highlights/);
+  assert.match(prompt, /Never draw Snacri with half-lidded eyes/);
   assert.match(prompt, /Similar Teardrop Character Comparison/);
-  assert.match(prompt, /Comic Character Height Comparison Chart/);
+  assert.match(prompt, /Front-View Character Height Reference/);
+});
+
+test("comic page image prompt protects Padaruna and Padarana from Snacri head drift", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "The Wrong Handbook",
+    episodeSummary: "Snacri joins Padaruna and Padarana in the dorm.",
+    pageNumber: 5,
+    panelCount: 1,
+    pagePurpose: "Keep Padaruna and Padarana pointed while Snacri stays left-leaning.",
+    promptPackCopyText: "Padaruna, Padarana, and Snacri stand together.",
+    referenceNotesCopyText: "Use model sheets exactly and do not blend head shapes.",
+    globalGptImage2Notes: "Keep silhouettes distinct.",
+    panels: [
+      {
+        pageNumber: 5,
+        panelNumber: 1,
+        panelTitle: "Group Check",
+        storyBeat: "Padaruna and Padarana react while Snacri stays quiet.",
+        promptText:
+          "Padaruna keeps an upright sharp point, Padarana keeps an upright soft point, and Snacri alone leans left.",
+        dialogueLines: [{ speaker: "Padaruna", text: "We still look like ourselves." }]
+      }
+    ],
+    requiredUploads: [],
+    referenceImages: [],
+    characterLocks: [
+      {
+        slug: "padaruna",
+        name: "Padaruna",
+        role: "Trend magnet.",
+        appearance: "Upright sharp pointed head, fuller round buoyant body.",
+        personality: "Energetic.",
+        speechGuide: "Fast.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Padaruna",
+        referenceFiles: []
+      },
+      {
+        slug: "padarana",
+        name: "Padarana",
+        role: "Emotional anchor.",
+        appearance: "Upright soft pointed head, slimmer gentle body, closed smiling eyes.",
+        personality: "Gentle.",
+        speechGuide: "Warm.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Padarana",
+        referenceFiles: []
+      },
+      {
+        slug: "snacri",
+        name: "Snacri",
+        role: "Quiet observer.",
+        appearance: "Fatter left-leaning quiet droplet.",
+        personality: "Minimal.",
+        speechGuide: "Sparse.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Snacri",
+        referenceFiles: []
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /Padaruna\/Padarana anti-Snacri head lock/);
+  assert.match(prompt, /Snacri is the only droplet here with a left-leaning quiet top\/head silhouette/);
+  assert.match(prompt, /Padaruna keeps her own upright sharp pointed head/);
+  assert.match(prompt, /Padarana keeps her own upright soft pointed head/);
+  assert.match(prompt, /never Snacri's left-leaning quiet head\/top/);
+  assert.match(prompt, /Snacri's eyes must match the Snacri model sheet/);
+  assert.match(prompt, /Do not draw Snacri with half-lidded eyes, sleepy droopy eyes/);
 });
 
 test("comic page image prompt locks Artrans to Muci height tier", () => {
@@ -367,7 +449,7 @@ test("comic page image prompt locks Artrans to Muci height tier", () => {
     panelCount: 1,
     pagePurpose: "Keep character heights stable in a two-character panel.",
     promptPackCopyText: "Artrans stands beside Padaruna on the same ground plane.",
-    referenceNotesCopyText: "Use model sheets and the height chart.",
+    referenceNotesCopyText: "Use model sheets and the off-canvas height reference.",
     globalGptImage2Notes: "Keep heights stable.",
     panels: [
       {
@@ -408,7 +490,7 @@ test("comic page image prompt locks Artrans to Muci height tier", () => {
     generationAttempt: 1
   });
 
-  assert.match(prompt, /Character height comparison chart lock/);
+  assert.match(prompt, /Character height reference lock/);
   assert.match(prompt, /Artrans: same as Muci/);
   assert.match(prompt, /Padaruna: 1\.00x Padaruna baseline/);
   assert.match(prompt, /Padaruna keeps the existing about-1\.1x-Muci relationship/);
@@ -649,7 +731,7 @@ test("comic page image reference selection keeps similar teardrop comparison dur
           source: "auto-detected"
         }),
         referenceImage({
-          label: "Comic Character Height Comparison Chart",
+          label: "Front-View Character Height Reference",
           slug: "comic-character-height-comparison",
           bucket: "CAST_COMPARISON",
           relativePath: "comic/scenes/character-height-comparison/refs/character-height-comparison.jpg",
@@ -668,7 +750,7 @@ test("comic page image reference selection keeps similar teardrop comparison dur
     );
     assert.ok(
       selected.some((reference) => reference.slug === "comic-character-height-comparison"),
-      "The height chart should not be dropped when retry mode prioritizes identity references."
+      "The front-view height reference should not be dropped when retry mode prioritizes identity references."
     );
   } finally {
     if (previousLimit === undefined) {

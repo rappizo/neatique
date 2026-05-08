@@ -8,7 +8,7 @@ type ComicReferenceManifest = {
 };
 
 const comicReferenceManifest = {
-  "generatedAt": "2026-05-08T04:04:51.745Z",
+  "generatedAt": "2026-05-08T07:08:55.132Z",
   "characters": {
     "artrans": [
       {

@@ -40,7 +40,7 @@ test("comic reference resolver attaches similar teardrop comparison when similar
   );
 });
 
-test("comic reference resolver attaches height chart when height-locked characters share a page", async () => {
+test("comic reference resolver attaches front-view height reference when height-locked characters share a page", async () => {
   const references = await resolveComicPageReferenceImages({
     seasonSlug: "season-01",
     chapterSlug: "chapter-01-orientation-week-is-a-scam",
@@ -59,11 +59,11 @@ test("comic reference resolver attaches height chart when height-locked characte
         reference.bucket === "CAST_COMPARISON" &&
         reference.relativePath === COMIC_CHARACTER_HEIGHT_CHART_REFERENCE.relativePath
     ),
-    "Expected character height chart reference to be attached."
+    "Expected front-view character height reference to be attached."
   );
 });
 
-test("comic reference resolver preserves comparison charts when reference limit is tight", async () => {
+test("comic reference resolver preserves comparison references when reference limit is tight", async () => {
   const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
   process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";
 
@@ -92,7 +92,7 @@ test("comic reference resolver preserves comparison charts when reference limit 
       references.some(
         (reference) => reference.relativePath === COMIC_CHARACTER_HEIGHT_CHART_REFERENCE.relativePath
       ),
-      "Expected height comparison chart to be preserved."
+      "Expected front-view height reference to be preserved."
     );
   } finally {
     if (previousLimit === undefined) {

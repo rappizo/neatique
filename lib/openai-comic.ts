@@ -70,15 +70,18 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Feet and body must be visually connected as one continuous mascot form, matching the model sheets. Do not draw a hard horizontal outline, seam, shoe line, dividing stroke, or solid separating line between the body and feet.",
   "- For Sunny Spritz, draw two small rounded feet directly beneath the lower points of her soft five-point star body. Do not let the star points replace the feet, hide the feet, or crop the feet away.",
   MUCI_MODEL_SHEET_EXACT_LOCK,
-  "- Character height chart lock: when two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia appear together, use the Comic Character Height Comparison Chart before composition. Muci and Artrans share the shorter tier; Padaruna, Padarana, and Snacri share one equal standard tier; Nia is only slightly taller at about 1.1x Padaruna; Padaruna keeps the existing about-1.1x-Muci relationship.",
-  "- When Muci, Nia, Snacri, Padaruna, or Padarana appear together, use the similar-character comparison reference and keep their black-and-white identities separate: Muci is the broad squat model-sheet droplet with a subtle near-center reader-left top lean and no brow, Nia is the sharper tall vertical point with one angled brow and about 1.1x Padaruna's height, Snacri is the fatter left-leaning quiet droplet at Padaruna's height tier, Padaruna is the sharp point with fuller rounder buoyant lively body, no eyebrows, eager open-dot-eye smile, and about 1.1x Muci's overall size when she appears with Muci, and Padarana is the sharp point with slimmer gentle body, closed smiling eyes, and Padaruna's height tier.",
-  "- Padaruna exact lock: draw Padaruna from comic/characters/padaruna/refs/model-sheet.jpg as a sharp pointed head over a noticeably fuller round buoyant white body, open lively dot eyes, eager smile, no eyebrows or brow marks, and energetic social expression. When Padaruna appears with Muci, make Padaruna about 1.1x Muci's overall body scale and visual mass. Do not turn Padaruna into Muci's squat soft protagonist droplet, Muci's face spacing, Muci's baseline smile, Nia's angled brow, Padarana's slim gentle body, or a generic teardrop.",
+  "- Character height reference lock: when two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia appear together, use the Front-View Character Height Reference as an off-canvas scale guide before composition. Never draw that reference, a height chart, scale marks, labels, or a lineup as a visible story element. Muci and Artrans share the shorter tier; Padaruna, Padarana, and Snacri share one equal standard tier; Nia is only slightly taller at about 1.1x Padaruna; Padaruna keeps the existing about-1.1x-Muci relationship.",
+  "- When Muci, Nia, Snacri, Padaruna, or Padarana appear together, use the similar-character comparison reference and keep their black-and-white identities separate: Muci is the broad squat model-sheet droplet with a subtle near-center reader-left top lean and no brow, Nia is the sharper tall vertical point with one angled brow and about 1.1x Padaruna's height, Snacri is the fatter left-leaning quiet droplet at Padaruna's height tier with fully open round black dot eyes and a tiny restrained smile, Padaruna is the upright sharp point with fuller rounder buoyant lively body, no eyebrows, eager open-dot-eye smile, and about 1.1x Muci's overall size when she appears with Muci, and Padarana is the upright soft sharp point with slimmer gentle body, closed smiling eyes, and Padaruna's height tier.",
+  "- Snacri exact face lock: draw Snacri from comic/characters/snacri/refs/model-sheet.jpg with two fully open round black dot eyes with tiny white highlights and a restrained tiny smile. Never draw Snacri with half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired/unimpressed expression lines.",
+  "- Padaruna exact lock: draw Padaruna from comic/characters/padaruna/refs/model-sheet.jpg as an upright sharp pointed head over a noticeably fuller round buoyant white body, open lively dot eyes, eager smile, no eyebrows or brow marks, and energetic social expression. When Padaruna appears with Muci, make Padaruna about 1.1x Muci's overall body scale and visual mass. Do not turn Padaruna into Snacri's left-leaning quiet head/top, Muci's squat soft protagonist droplet, Muci's face spacing, Muci's baseline smile, Nia's angled brow, Padarana's slim gentle body, or a generic teardrop.",
+  "- Padarana exact lock: draw Padarana from comic/characters/padarana/refs/model-sheet.jpg as an upright soft pointed head over a slimmer gentle white body, closed smiling eyes, calm reassuring mouth, and gentle emotional-anchor expression. Do not turn Padarana into Snacri's left-leaning quiet head/top, Padaruna's fuller energetic body, Nia's angled brow, Muci's open-eyed protagonist face, or a generic droplet.",
   "- Professor Cera Lin exact lock: draw Professor Cera Lin from comic/characters/professor-cera-lin/refs/model-sheet.jpg as the model-sheet rounded six-sided hexagon mascot: one rounded central top peak, two sloped upper sides, two vertical side walls, rounded lower base, exactly six exterior sides and six rounded corners, clean controlled edges, balanced academic posture, large dot eyes, measured smile, and upper reader-left glossy highlights. Never draw Professor Cera Lin as any star shape, a five-point star, a six-point star, pentagon, flat-topped stop-sign/octagon, Sunny Spritz-style soft star, generic polygon, or a shape with projecting star tips.",
   "- Do not redesign Coach Ray. Coach Ray must stay a broad squat shield-shaped protective mascot, with a centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted stance, pure white body fill, and small connected feet exactly like his model sheet.",
   "- Coach Ray is not Muci and is not a teardrop/drop character. Never average Coach Ray's shield silhouette with Muci's broad squat soft droplet silhouette, even when both model sheets are attached.",
   "- Do not use generic polygon wording for Coach Ray. The intended lock is shield-shaped protective mascot.",
   "- All characters in this world have no hands and no arms. Never draw arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, or humanoid upper limbs on any character.",
   "- Preserve every character's small feet, lower body nubs, base shape, or tiny legs exactly as shown in each character's model sheet.",
+  "- Full-body mascot foot count is locked by the model sheet. Droplet characters normally have exactly two small connected feet or foot nubs; never add a third foot, extra leg nub, shoe, toe, paw, or detached lower appendage.",
   "- Mouth state lock: characters who are not actively speaking must have closed mouths, tiny neutral mouths, or quiet expression marks only. Open mouths are allowed only for the character currently speaking, shouting, gasping, singing, or making an explicit vocal sound in that panel.",
   "- Characters interact with nearby objects through gentle telekinesis. Show objects floating, tilting, sliding, or opening near them with small motion lines, glow cues, or manga emphasis marks instead of hands touching objects.",
   "- If a story beat mentions holding, pointing, grabbing, writing, pushing, opening, carrying, or handing something over, translate that action into telekinetic object movement while keeping every character handless.",
@@ -1968,13 +1971,13 @@ function buildComicPageCharacterIdentityLockSummary(
       [
         `${character.name} (${character.slug})`,
         `Chinese name: ${character.chineseName || "None"}`,
-        `Role: ${trimImagePromptContext(character.role, 180)}`,
-        `Profile MD appearance lock: ${trimImagePromptContext(character.appearance, 620)}`,
+        `Role: ${trimImagePromptContext(character.role, 120)}`,
+        `Profile MD appearance lock: ${trimImagePromptContext(character.appearance, 420)}`,
         character.referenceNotes
-          ? `Profile MD reference lock: ${trimImagePromptContext(character.referenceNotes, 620)}`
+          ? `Profile MD reference lock: ${trimImagePromptContext(character.referenceNotes, 320)}`
           : null,
         character.profileMarkdown
-          ? `Profile MD source of truth loaded from database, distilled for image prompt length:\n${trimImagePromptContext(character.profileMarkdown, 900)}`
+          ? `Profile MD source of truth loaded from database, distilled for image prompt length:\n${trimImagePromptContext(character.profileMarkdown, 360)}`
           : "Profile MD source of truth: not available.",
         `Reference image files: ${
           character.referenceFiles.map((file) => file.fileName).join(", ") || "None"
@@ -2004,9 +2007,32 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
     locks.push(
       [
         "Padaruna anti-Muci identity lock:",
-        "- Draw Padaruna from the Padaruna model sheet only: sharp pointed head, noticeably fuller round buoyant body, open lively dot eyes, eager smile, no eyebrows or brow marks, pure white body fill, and small connected feet.",
+        "- Draw Padaruna from the Padaruna model sheet only: upright sharp pointed head, noticeably fuller round buoyant body, open lively dot eyes, eager smile, no eyebrows or brow marks, pure white body fill, and small connected feet.",
         "- Padaruna is not Muci. Do not copy Muci's short broad squat body, soft protagonist face spacing, gentle baseline expression, or rounded near-center top. Padaruna keeps a sharper head and a rounder high-energy body.",
         "- If Padaruna appears in the same episode or page as Muci, compare them before final render: Muci stays the slightly smaller squat soft-sided protagonist droplet; Padaruna stays about 1.1x Muci's overall size, fuller, rounder, sharper-headed, browless, and socially energetic."
+      ].join("\n")
+    );
+  }
+
+  if (slugs.has("snacri") && (slugs.has("padaruna") || slugs.has("padarana"))) {
+    locks.push(
+      [
+        "Padaruna/Padarana anti-Snacri head lock:",
+        "- Snacri is the only droplet here with a left-leaning quiet top/head silhouette. Do not copy Snacri's left-leaning head/top onto Padaruna or Padarana.",
+        "- Padaruna keeps her own upright sharp pointed head, fuller round buoyant body, open lively dot eyes, eager smile, no eyebrows, and energetic expression.",
+        "- Padarana keeps her own upright soft pointed head, slimmer gentle body, closed smiling eyes, calm reassuring mouth, and soothing expression.",
+        "- In any panel with Snacri plus Padaruna or Padarana, check the top silhouettes before final line art: if Padaruna or Padarana tilts left like Snacri or loses the pointed apex, redraw them from their own model sheet."
+      ].join("\n")
+    );
+  }
+
+  if (slugs.has("snacri")) {
+    locks.push(
+      [
+        "Snacri eye expression lock:",
+        "- Snacri's eyes must match the Snacri model sheet: two fully open round black dot eyes with tiny white highlights.",
+        "- Do not draw Snacri with half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired/unimpressed expression marks.",
+        "- Snacri's calm minimalist feeling comes from her left-leaning quiet silhouette, still posture, and tiny restrained smile, not from sleepy or annoyed eyes."
       ].join("\n")
     );
   }
@@ -2047,15 +2073,23 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
   return locks.length > 0 ? locks.join("\n\n") : "No extra character separation locks needed.";
 }
 
-function enforceComicImagePromptLength(prompt: string) {
+function enforceComicImagePromptLength(prompt: string, preservedCurrentPageContext = "") {
   if (prompt.length <= OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH) {
     return prompt;
   }
 
+  const preservedContext = preservedCurrentPageContext
+    ? [
+        "",
+        "Current-page content preserved after trimming. This section overrides episode summaries, character profile examples, and reference-image text:",
+        trimImagePromptContext(preservedCurrentPageContext, 5200)
+      ].join("\n")
+    : "";
   const suffix = [
     "",
     "[Image prompt trimmed to stay under the OpenAI image prompt length limit.]",
-    "The attached model-sheet images and the Profile MD identity locks already listed above remain binding."
+    "The attached model-sheet images and the Profile MD identity locks already listed above remain binding.",
+    preservedContext
   ].join("\n");
   const nextLength = OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH - suffix.length;
 
@@ -2721,8 +2755,71 @@ function buildComicPagePanelSummary(
     .join("\n\n");
 }
 
+function buildComicPageVisibleTextWhitelist(
+  panels: GeneratedComicPanelPrompt[],
+  options: { coverPage?: boolean } = {}
+) {
+  if (options.coverPage) {
+    return [
+      "Visible text whitelist for this page:",
+      "- Cover page only: the uploaded logo and the exact serif episode title from the cover prompt.",
+      "- Do not add speech balloons, captions, SFX, profile cards, name cards, role cards, cast bio labels, or random readable text."
+    ].join("\n");
+  }
+
+  const dialogueLines = panels.flatMap((panel) =>
+    (panel.dialogueLines || []).map((line) => ({
+      panelNumber: panel.panelNumber,
+      speaker: line.speaker,
+      text: line.text
+    }))
+  );
+
+  const exactLines =
+    dialogueLines.length > 0
+      ? dialogueLines
+          .map((line) => `- Panel ${line.panelNumber} ${line.speaker}: "${line.text}"`)
+          .join("\n")
+      : "- No speech/caption dialogue lines are allowed.";
+
+  return [
+    "Visible text whitelist for this page:",
+    exactLines,
+    "- Do not render any other readable English text, character bio, title card, profile card, name card, role card, cast label, or caption unless the panel image direction explicitly names the exact visible word.",
+    "- Text printed inside attached model sheets, character profiles, reference images, and episode summaries is reference-only; never copy it into story panels."
+  ].join("\n");
+}
+
+function buildComicPageCriticalContent(
+  input: GenerateComicPageImageInput,
+  options: { coverPage?: boolean } = {}
+) {
+  const pageLabel = formatComicPageLabel(input.pageNumber);
+
+  return [
+    "CURRENT PAGE CONTENT - HIGHEST PRIORITY:",
+    `Draw ${pageLabel} only, not any other page from the episode.`,
+    `Current page purpose: ${trimImagePromptContext(input.pagePurpose, 520)}`,
+    options.coverPage
+      ? "Cover content overrides all character-reference text. Do not draw story-page intro/profile/name cards."
+      : "Current panel plan and visible-text whitelist override episode summary, character profile text, reference image labels, and prior-page intro cards.",
+    options.coverPage
+      ? null
+      : "Only draw a character intro/name/profile card if its exact visible card text is listed in the whitelist or panel plan below. Otherwise do not draw any intro card.",
+    buildComicPageVisibleTextWhitelist(input.panels, options),
+    "",
+    "Panel-by-panel content to illustrate:",
+    buildComicPagePanelSummary(input.panels, options)
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
   const isCoverPage = isComicCoverPageNumber(input.pageNumber);
+  const currentPageCriticalContent = buildComicPageCriticalContent(input, {
+    coverPage: isCoverPage
+  });
   const prompt = [
     "Create one finished vertical comic page for Neatique's original comic series.",
     COMIC_VISUAL_PRODUCTION_LOCKS,
@@ -2756,17 +2853,21 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
       : "- Render every specified dialogue line, caption, and SFX from the panel plan. Do not omit dialogue balloons.",
     isCoverPage
       ? "- Cover first-appearance rule: the cover does not count as a character's first appearance. Do not draw character introduction boxes, name cards, role cards, profile boxes, or cast bio labels on the cover."
-      : "- Story first-appearance rule: if this story page is the first non-cover appearance of a named character and the episode plan calls for a character introduction box, place that box on this story page, not on the cover.",
+      : "- Story intro-card rule: only draw a character introduction box, name card, role card, or profile box when the current page's panel plan or dialogue explicitly lists that exact visible text. Never infer intro cards from attached character references or repeat a character's intro on later pages.",
     isCoverPage ? COMIC_COVER_TYPOGRAPHY_LOCKS : COMIC_LETTERING_STYLE_LOCKS,
     "",
     getComicPageImageAttemptGuide(input),
+    "",
+    currentPageCriticalContent,
     "",
     "Story context:",
     `Project: ${input.projectTitle}`,
     `Season: ${input.seasonTitle}`,
     `Chapter: ${input.chapterTitle}`,
     `Episode: ${input.episodeTitle}`,
-    `Episode summary: ${trimImagePromptContext(input.episodeSummary, 900)}`,
+    isCoverPage
+      ? `Episode summary for continuity only, not visible page text: ${trimImagePromptContext(input.episodeSummary, 420)}`
+      : "Episode summary for continuity only: omitted for story-page image generation so other-page intro cards or events cannot leak into this page. Follow the current page purpose, visible-text whitelist, and panel plan only.",
     `${formatComicPageLabel(input.pageNumber)} purpose: ${trimImagePromptContext(input.pagePurpose, 700)}`,
     "",
     "Required references for visual continuity:",
@@ -2780,9 +2881,6 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "",
     "Character separation and anti-blend locks:",
     buildComicPageCharacterSeparationLocks(input.characterLocks),
-    "",
-    "Panel-by-panel content to illustrate:",
-    buildComicPagePanelSummary(input.panels, { coverPage: isCoverPage }),
     "",
     "Production prompt already prepared for this page:",
     trimImagePromptContext(input.promptPackCopyText, 4200),
@@ -2798,7 +2896,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "Final output: one complete 2:3 comic page image, not separate files."
   ].join("\n");
 
-  return enforceComicImagePromptLength(prompt);
+  return enforceComicImagePromptLength(prompt, currentPageCriticalContent);
 }
 
 export async function generateComicPageImageWithAi(
@@ -3434,7 +3532,7 @@ export async function reviseComicPagePromptWithAi(
                   : "- Keep or improve the visible dialogue for every panel. Do not remove all dialogue from the page.",
                 isCoverPage
                   ? "- The cover does not count as any character's first appearance. Do not add character introduction boxes, name cards, role cards, profile boxes, or cast bio labels."
-                  : "- If the requested revision touches a character's first non-cover appearance, keep any required character introduction box on the story page.",
+                  : "- Only keep a character introduction box, name card, role card, or profile box when the stored page plan explicitly includes that exact visible text. Never infer or repeat intro cards from attached character references.",
                 isCoverPage
                   ? "- Keep one unified serif typeface for the exact cover title line."
                   : "- Every panel must return dialogueLines with exact speaker names and exact text to render in balloons or captions.",
@@ -3722,12 +3820,13 @@ export async function generateComicPromptPackageWithAi(
                 "When Muci appears with Nia, draw Muci from the Muci model sheet first. Muci keeps only the subtle near-center top lean from the model sheet and must not inherit Nia's tall narrow vertical point, controlled narrow body, angled brow, or analytical expression. If Muci can be mistaken for Nia or if Muci's top leans farther than the model sheet, rewrite the page prompt to make Muci wider, shorter, rounder at the base, friendlier, browless, and closer to the model sheet.",
                 "For full-body Muci views, never omit the two small rounded feet, flatten the base, or separate the feet from the body; keep the same attached foot nubs shown in the model sheet.",
                 "Nia must keep her sharper taller pointed teardrop silhouette and one angled brow above the left eye; Nia is only slightly taller than Padaruna at about 1.1x Padaruna's height on the same ground plane; do not soften her into Muci, Padaruna, Padarana, or Snacri.",
-                "Snacri must keep her fatter quiet droplet silhouette with the top leaning left and restrained minimal expression; Snacri uses the same height tier as Padaruna and Padarana; do not straighten her into a generic teardrop.",
-                "Padaruna must keep a sharp pointed head with a noticeably fuller rounder buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, and energetic social expression. Padaruna must not drift into Muci's short broad squat soft protagonist droplet. Padaruna shares a height tier with Padarana and Snacri, and when Padaruna appears with Muci, Padaruna should read about 1.1x Muci's overall body scale and visual mass.",
-                "Padarana must keep a sharp pointed head with a slimmer softer body than Padaruna, closed smiling eyes, calm reassuring mouth, and gentle emotional-anchor expression. Padarana must stay the same height as Padaruna.",
+                "Snacri must keep her fatter quiet droplet silhouette with the top leaning left, fully open round black dot eyes with tiny white highlights, and restrained tiny smile; Snacri uses the same height tier as Padaruna and Padarana. Never draw Snacri with half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired/unimpressed expression lines; do not straighten her into a generic teardrop.",
+                "Padaruna must keep an upright sharp pointed head with a noticeably fuller rounder buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, and energetic social expression. Padaruna must not drift into Muci's short broad squat soft protagonist droplet or Snacri's left-leaning quiet head/top. Padaruna shares a height tier with Padarana and Snacri, and when Padaruna appears with Muci, Padaruna should read about 1.1x Muci's overall body scale and visual mass.",
+                "Padarana must keep an upright soft sharp pointed head with a slimmer softer body than Padaruna, closed smiling eyes, calm reassuring mouth, and gentle emotional-anchor expression. Padarana must stay the same height as Padaruna and must not borrow Snacri's left-leaning quiet head/top.",
                 "Professor Cera Lin must keep the model-sheet rounded six-sided hexagon silhouette: one rounded central top peak, two sloped upper sides, two vertical side walls, rounded lower base, exactly six exterior sides and six rounded corners, controlled academic posture, large dot eyes, measured smile, and upper reader-left glossy highlights. Never draw Professor Cera Lin as any star shape, a five-point star, a six-point star, pentagon, flat-topped stop-sign/octagon, Sunny Spritz-style soft star, or generic polygon.",
                 "When two or more of Muci, Nia, Snacri, Padaruna, and Padarana appear together, include a similar-teardrop separation note in promptPackCopyText and referenceNotesCopyText. The image generation step will attach the comparison reference automatically.",
-                "When two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia appear together, include a character-height note in promptPackCopyText and referenceNotesCopyText. The image generation step will attach the height comparison chart automatically. The fixed tiers are Muci and Artrans same shorter height, Padaruna/Padarana/Snacri same standard height, and Nia about 1.1x Padaruna.",
+                "When two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia appear together, mention the fixed character height tiers only as production/reference guidance, never as a visible chart, lineup, label set, diagram, or story action. The image generation step will attach a front-view height reference automatically. The fixed tiers are Muci and Artrans same shorter height, Padaruna/Padarana/Snacri same standard height, and Nia about 1.1x Padaruna.",
+                "Character introduction boxes are one-time story devices. Include an intro/name card only on the page where the story deliberately introduces that character, then explicitly avoid repeating that intro/name card on later pages.",
                 "Coach Ray must always match the Coach Ray model sheet and written appearance lock exactly: broad squat shield-shaped protective mascot, centered shallow top crest, firm upper shoulders, near-vertical sides, broad rounded lower body, controlled smile, planted drill-instructor posture, pure white body fill, and small connected feet.",
                 "Coach Ray must never become Muci, a teardrop/drop character, a pear shape, a rounded blob, or a generic polygon mascot. Use shield-shaped protective mascot wording for Coach Ray.",
                 "When Muci and Coach Ray appear together, explicitly state their silhouette separation: Muci is the broad squat model-sheet droplet with a subtle near-center top lean; Coach Ray is the broad shield-shaped instructor. Do not average or blend them.",
@@ -3818,9 +3917,12 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Every Muci prompt must explicitly preserve his Muci Model Sheet Exact Lock: broad squat pure-white droplet, round heavy lower half, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, pure white body fill, no brow by default, and two attached small rounded feet.",
-                "- Every page where two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia appear together must include the fixed character height tiers: Muci and Artrans same shorter height, Padaruna/Padarana/Snacri same standard height, Nia about 1.1x Padaruna, and Padaruna preserving the existing about-1.1x-Muci scale when paired with Muci.",
-                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci broad squat model-sheet droplet with subtle top asymmetry and no brow, Nia sharp tall vertical point plus one angled brow and about 1.1x Padaruna's height, Snacri fatter left-leaning quiet droplet at Padaruna's height tier, Padaruna sharp point plus fuller rounder buoyant lively body with no eyebrows and about 1.1x Muci's size when paired with Muci, and Padarana sharp point plus slimmer gentle closed-eye body at Padaruna's height tier.",
-                "- Every Padaruna prompt must explicitly preserve her Padaruna Model Sheet Exact Lock: sharp pointed head, visibly round fuller buoyant body, open lively dot eyes, eager smile, no eyebrows or brow marks, pure white body fill, small connected feet, about 1.1x Muci's overall size when appearing with Muci, and not Muci's squat soft protagonist droplet.",
+                "- Every page where two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia appear together must preserve the fixed character height tiers as invisible production guidance only: Muci and Artrans same shorter height, Padaruna/Padarana/Snacri same standard height, Nia about 1.1x Padaruna, and Padaruna preserving the existing about-1.1x-Muci scale when paired with Muci. Never make the height reference a visible story object.",
+                "- Character intro/name cards must appear only once per character, on the intended first story-page introduction. On later pages, explicitly do not repeat prior intro/name cards.",
+                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci broad squat model-sheet droplet with subtle top asymmetry and no brow, Nia sharp tall vertical point plus one angled brow and about 1.1x Padaruna's height, Snacri fatter left-leaning quiet droplet at Padaruna's height tier, Padaruna upright sharp point plus fuller rounder buoyant lively body with no eyebrows and about 1.1x Muci's size when paired with Muci, and Padarana upright soft sharp point plus slimmer gentle closed-eye body at Padaruna's height tier.",
+                "- Every Snacri prompt must explicitly preserve her Snacri Model Sheet Exact Face Lock: fully open round black dot eyes with tiny white highlights, restrained tiny smile, no half-lidded eyes, no sleepy droopy eyes, no eyelids, no narrowed side-eye, no angled angry eyes, no brows, and no tired/unimpressed expression lines.",
+                "- Every Padaruna prompt must explicitly preserve her Padaruna Model Sheet Exact Lock: upright sharp pointed head, visibly round fuller buoyant body, open lively dot eyes, eager smile, no eyebrows or brow marks, pure white body fill, small connected feet, about 1.1x Muci's overall size when appearing with Muci, and not Muci's squat soft protagonist droplet or Snacri's left-leaning head/top.",
+                "- Every Padarana prompt must explicitly preserve her Padarana Model Sheet Exact Lock: upright soft pointed head, slimmer gentle body, closed smiling eyes, calm reassuring mouth, pure white body fill, small connected feet, and not Snacri's left-leaning head/top.",
                 "- Every Professor Cera Lin prompt must explicitly preserve her Professor Cera Lin Model Sheet Exact Lock: model-sheet rounded six-sided hexagon body with one rounded central top peak, two sloped upper sides, two vertical side walls, rounded lower base, exactly six exterior sides and six rounded corners, controlled academic posture, measured smile, pure white body fill, small connected feet, and never any star shape, five-point star, six-point star, pentagon, flat-topped stop-sign/octagon, Sunny Spritz-style soft star, or generic polygon.",
                 "- Every page where Muci and Nia appear together must include a high-risk Muci/Nia shape note: Muci keeps a short broad soft-sided body, friendly U-smile, no brow, and only the subtle near-center top lean shown in the model sheet, while Nia keeps a taller narrower sharp vertical point and one angled left brow. Muci must not be drawn with Nia's vertical point, angled brow, or an exaggerated hooked/curling top.",
                 "- Every Coach Ray prompt must explicitly preserve his model-sheet identity, broad squat shield-shaped protective design, centered shallow crest, firm shoulders, near-vertical sides, pure white body fill, and planted small feet.",
