@@ -266,7 +266,6 @@ function mapComicProductLock(lock: any): ComicProductLockRecord {
     usageNotes: lock.usageNotes,
     referenceNotes: lock.referenceNotes ?? null,
     imageUrl: lock.imageUrl ?? null,
-    imageData: lock.imageData ?? null,
     imageMimeType: lock.imageMimeType ?? null,
     imageStorageKey: lock.imageStorageKey ?? null,
     imageByteSize: lock.imageByteSize ?? null,
@@ -1239,8 +1238,34 @@ export async function getComicProductLocksPage() {
     async () => {
       const [locks, activeProducts] = await Promise.all([
         prisma.comicProductLock.findMany({
-          include: {
-            product: true
+          select: {
+            id: true,
+            productId: true,
+            slug: true,
+            displayName: true,
+            shortCode: true,
+            visualNotes: true,
+            usageNotes: true,
+            referenceNotes: true,
+            imageUrl: true,
+            imageMimeType: true,
+            imageStorageKey: true,
+            imageByteSize: true,
+            imageSha256: true,
+            imagePrompt: true,
+            imageGeneratedAt: true,
+            active: true,
+            sortOrder: true,
+            createdAt: true,
+            updatedAt: true,
+            product: {
+              select: {
+                name: true,
+                slug: true,
+                status: true,
+                imageUrl: true
+              }
+            }
           },
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
         }),

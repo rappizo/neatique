@@ -22,7 +22,15 @@ const SUPPORTED_PRODUCT_LOCK_UPLOAD_TYPES = new Set([
 ]);
 
 function isUploadedFile(value: FormDataEntryValue | null): value is File {
-  return typeof File !== "undefined" && value instanceof File && value.size > 0;
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "arrayBuffer" in value &&
+      typeof value.arrayBuffer === "function" &&
+      "size" in value &&
+      typeof value.size === "number" &&
+      value.size > 0
+  );
 }
 
 export async function syncComicProductLocksAction() {

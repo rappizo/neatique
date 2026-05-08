@@ -4,6 +4,10 @@ import {
   getComicImageExtension,
   storeComicImage
 } from "@/lib/comic-image-storage";
+import {
+  compressComicReferenceImage,
+  getCompressedComicReferenceFileName
+} from "@/lib/comic-reference-compression";
 import type {
   ComicReferenceImageFile,
   ComicResolvedReferenceImage
@@ -443,14 +447,21 @@ export async function saveUploadedComicProductLockReferenceImage(input: {
     throw new Error("Product lock could not be found.");
   }
 
-  const storedImage = await storeComicImage({
-    base64Data: input.base64Data,
+  const compressedImage = await compressComicReferenceImage({
+    data: Buffer.from(input.base64Data, "base64"),
+    fileName: input.fileName,
     mimeType: input.mimeType,
+    bucket: "unknown"
+  });
+  const compressedFileName = input.fileName
+    ? getCompressedComicReferenceFileName(input.fileName, compressedImage.extension)
+    : `${lock.slug}-${lock.shortCode.toLowerCase()}-upload-${Date.now()}.jpg`;
+  const storedImage = await storeComicImage({
+    base64Data: compressedImage.buffer.toString("base64"),
+    mimeType: compressedImage.mimeType,
     category: "product-locks",
     targetId: lock.id,
-    fileName:
-      input.fileName ||
-      `${lock.slug}-${lock.shortCode.toLowerCase()}-upload-${Date.now()}`
+    fileName: compressedFileName
   });
   const imageUrl = storedImage.imageData
     ? buildComicProductLockMediaUrl(lock.id)
