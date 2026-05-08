@@ -10,7 +10,8 @@ import {
   ComicGenerateAllImagesQueueButton,
   ComicGenerateImageQueueButton,
   ComicGeneratePromptPackageQueueButton,
-  ComicRevisePromptQueueForm
+  ComicRevisePromptQueueForm,
+  useComicImageTaskQueue
 } from "@/components/admin/comic-image-task-queue";
 import {
   ComicAssetApprovalControls,
@@ -147,6 +148,14 @@ type ComicPublishEpisodeProductionPanelProps = {
   episodePublished: boolean;
 };
 
+const EPISODE_DETAIL_REFRESH_TASK_KINDS = new Set([
+  "generate",
+  "edit",
+  "prompt-package",
+  "prompt-revision",
+  "chinese-page-version"
+]);
+
 function extractErrorMessage(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") {
     return fallback;
@@ -235,19 +244,48 @@ export function ComicPublishEpisodeProductionPanel({
   episodeTitle,
   episodePublished
 }: ComicPublishEpisodeProductionPanelProps) {
+  const { tasks } = useComicImageTaskQueue();
   const [detail, setDetail] = useState<ComicEpisodeProductionDetail | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const redirectTo = useMemo(() => buildRedirectTo(chapterId, episodeId), [chapterId, episodeId]);
+  const episodeDetailRefreshKey = useMemo(
+    () =>
+      tasks
+        .filter(
+          (task) =>
+            task.episodeId === episodeId &&
+            EPISODE_DETAIL_REFRESH_TASK_KINDS.has(task.kind) &&
+            (task.status === "success" || task.status === "failed")
+        )
+        .map((task) =>
+          [
+            task.id,
+            task.kind,
+            task.status,
+            task.completedAt || "",
+            task.assetId || "",
+            task.imageUrl || ""
+          ].join(":")
+        )
+        .sort()
+        .join("|"),
+    [tasks, episodeId]
+  );
 
   useEffect(() => {
     let active = true;
+    const abortController = new AbortController();
 
     async function loadDetail() {
       setErrorMessage(null);
 
       try {
         const response = await fetch(
-          `/api/admin/comic/publish-center/episode-detail?episodeId=${encodeURIComponent(episodeId)}`
+          `/api/admin/comic/publish-center/episode-detail?episodeId=${encodeURIComponent(episodeId)}`,
+          {
+            cache: "no-store",
+            signal: abortController.signal
+          }
         );
         const payload = (await response.json().catch(() => null)) as unknown;
 
@@ -263,6 +301,10 @@ export function ComicPublishEpisodeProductionPanel({
           setDetail(payload as ComicEpisodeProductionDetail);
         }
       } catch (error) {
+        if (!active || (error instanceof Error && error.name === "AbortError")) {
+          return;
+        }
+
         if (active) {
           setErrorMessage(
             error instanceof Error ? error.message : "Comic episode production detail failed to load."
@@ -275,8 +317,9 @@ export function ComicPublishEpisodeProductionPanel({
 
     return () => {
       active = false;
+      abortController.abort();
     };
-  }, [episodeId]);
+  }, [episodeId, episodeDetailRefreshKey]);
 
   if (errorMessage) {
     return (

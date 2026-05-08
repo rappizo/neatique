@@ -160,6 +160,17 @@ const COMIC_TASK_HISTORY_LIMIT = 40;
 const COMIC_TASK_POLL_INTERVAL_MS = 3000;
 const COMIC_IMAGE_CREATION_QUALITY_VALUES = ["high", "medium", "low"] as const;
 const COMIC_IMAGE_CREATION_REFERENCE_LIMIT = 5;
+const COMIC_ROUTE_REFRESH_TASK_KINDS = new Set<ComicImageTaskKind>([
+  "generate",
+  "edit",
+  "prompt-package",
+  "prompt-revision",
+  "outline",
+  "character-lock-revision",
+  "scene-lock-revision",
+  "chinese-page-version",
+  "image-creation"
+]);
 
 type ComicImageCreationQualityValue = (typeof COMIC_IMAGE_CREATION_QUALITY_VALUES)[number];
 
@@ -216,6 +227,26 @@ function isActiveTask(task: ComicImageTask) {
   return task.status === "queued" || task.status === "running";
 }
 
+function isCompletedTask(task: ComicImageTask) {
+  return task.status === "success" || task.status === "failed" || task.status === "cancelled";
+}
+
+function getRouteRefreshTaskKey(task: ComicImageTask) {
+  if (!COMIC_ROUTE_REFRESH_TASK_KINDS.has(task.kind) || !isCompletedTask(task)) {
+    return null;
+  }
+
+  return [
+    task.id,
+    task.kind,
+    task.status,
+    task.completedAt || "",
+    task.assetId || "",
+    task.imageUrl || "",
+    task.imageCreationId || ""
+  ].join(":");
+}
+
 function isComicImageTask(value: unknown): value is ComicImageTask {
   if (!value || typeof value !== "object") {
     return false;
@@ -244,6 +275,8 @@ export function ComicImageTaskQueueProvider({
   const dismissedTaskIds = useRef(new Set<string>());
   const refreshInFlight = useRef(false);
   const runnerInFlight = useRef(false);
+  const routeRefreshTaskKeys = useRef(new Set<string>());
+  const hasLoadedTaskHistory = useRef(false);
 
   useEffect(() => {
     tasksRef.current = tasks;
@@ -263,6 +296,25 @@ export function ComicImageTaskQueueProvider({
       return nextTasks;
     });
   }, []);
+
+  const requestRouteRefreshForCompletedTasks = useCallback(
+    (nextTasks: ComicImageTask[]) => {
+      const nextKeys = nextTasks
+        .map(getRouteRefreshTaskKey)
+        .filter((key): key is string => Boolean(key));
+      const shouldRefresh =
+        hasLoadedTaskHistory.current &&
+        nextKeys.some((key) => !routeRefreshTaskKeys.current.has(key));
+
+      routeRefreshTaskKeys.current = new Set(nextKeys);
+      hasLoadedTaskHistory.current = true;
+
+      if (shouldRefresh) {
+        router.refresh();
+      }
+    },
+    [router]
+  );
 
   const refreshTasks = useCallback(async () => {
     if (refreshInFlight.current) {
@@ -292,10 +344,11 @@ export function ComicImageTaskQueueProvider({
 
       tasksRef.current = visibleTasks;
       setTasks(visibleTasks);
+      requestRouteRefreshForCompletedTasks(visibleTasks);
     } finally {
       refreshInFlight.current = false;
     }
-  }, []);
+  }, [requestRouteRefreshForCompletedTasks]);
 
   const kickRunner = useCallback(async () => {
     if (runnerInFlight.current || !tasksRef.current.some((task) => task.status === "queued")) {
@@ -315,11 +368,10 @@ export function ComicImageTaskQueueProvider({
         })
       });
       await refreshTasks();
-      router.refresh();
     } finally {
       runnerInFlight.current = false;
     }
-  }, [maxConcurrent, refreshTasks, router]);
+  }, [maxConcurrent, refreshTasks]);
 
   useEffect(() => {
     void refreshTasks();
@@ -781,9 +833,7 @@ export function ComicImageTaskQueueProvider({
   );
 
   const clearCompleted = useCallback(() => {
-    const completedIds = tasksRef.current
-      .filter((task) => task.status === "success" || task.status === "failed" || task.status === "cancelled")
-      .map((task) => task.id);
+    const completedIds = tasksRef.current.filter(isCompletedTask).map((task) => task.id);
 
     completedIds.forEach((taskId) => dismissedTaskIds.current.add(taskId));
     setTasks((currentTasks) => {
@@ -838,7 +888,7 @@ export function ComicImageTaskQueueProvider({
   );
 }
 
-function useComicImageTaskQueue() {
+export function useComicImageTaskQueue() {
   const context = useContext(ComicImageTaskQueueContext);
 
   if (!context) {
