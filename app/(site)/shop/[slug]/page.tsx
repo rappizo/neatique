@@ -28,6 +28,7 @@ import {
   pdrnSerumSeo
 } from "@/lib/pdrn-serum-page";
 import { getProductStory } from "@/lib/product-content";
+import { nadSerumCustomerVoiceVideos } from "@/lib/nad-serum-page";
 import {
   getCustomerAccountById,
   getProductBySlug,
@@ -359,6 +360,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const savingsCents = getSavingsCents(product.compareAtPriceCents, product.priceCents);
   const isPdrnCream = product.slug === "pdrn-cream";
   const isPdrnSerum = product.slug === "pdrn-serum";
+  const isNadSerum = product.slug === "nad-collagen-peptide-serum";
   const seoDescription =
     product.slug === "bee-venom-body-cream"
       ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
@@ -480,6 +482,15 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
         </div>
 
         <div className="product-page-stack">
+          {isNadSerum ? (
+            <ProductCustomerVoiceSlider
+              eyebrow="TikTok routine"
+              heading="Watch NAD+ Serum in a real creator routine."
+              description="A full creator clip from @vicky.mendoza11 showing the serum in motion, with the original TikTok post one tap away."
+              videos={nadSerumCustomerVoiceVideos}
+            />
+          ) : null}
+
           {isPdrnCream ? (
             <>
               <ProductCustomerVoiceSlider
