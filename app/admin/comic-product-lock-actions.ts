@@ -1,10 +1,12 @@
 "use server";
 
+import { Buffer } from "node:buffer";
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-auth";
 import {
   buildDefaultComicProductLock,
   generateComicProductLockReferenceImage,
+  saveUploadedComicProductLockReferenceImage,
   syncComicProductLocksFromActiveProducts
 } from "@/lib/comic-product-locks";
 import { prisma } from "@/lib/db";
@@ -12,6 +14,16 @@ import { toBool, toInt, toPlainString } from "@/lib/utils";
 import { buildComicRedirect, revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 
 const PRODUCT_LOCKS_PATH = "/admin/comic/product-locks";
+const MAX_PRODUCT_LOCK_UPLOAD_BYTES = 10 * 1024 * 1024;
+const SUPPORTED_PRODUCT_LOCK_UPLOAD_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp"
+]);
+
+function isUploadedFile(value: FormDataEntryValue | null): value is File {
+  return typeof File !== "undefined" && value instanceof File && value.size > 0;
+}
 
 export async function syncComicProductLocksAction() {
   await requireAdminSession();
@@ -163,4 +175,47 @@ export async function generateComicProductLockImageAction(formData: FormData) {
 
   revalidateComicRoutes();
   redirect(buildComicRedirect(`${PRODUCT_LOCKS_PATH}#lock-${id}`, "product-lock-image-generated"));
+}
+
+export async function uploadComicProductLockImageAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+
+  if (!id) {
+    redirect(buildComicRedirect(PRODUCT_LOCKS_PATH, "missing-product-lock"));
+  }
+
+  const file = formData.get("referenceImage");
+
+  if (!isUploadedFile(file)) {
+    redirect(buildComicRedirect(`${PRODUCT_LOCKS_PATH}#lock-${id}`, "missing-product-lock-image"));
+  }
+
+  const mimeType = file.type || "application/octet-stream";
+
+  if (!SUPPORTED_PRODUCT_LOCK_UPLOAD_TYPES.has(mimeType)) {
+    redirect(buildComicRedirect(`${PRODUCT_LOCKS_PATH}#lock-${id}`, "unsupported-product-lock-image"));
+  }
+
+  if (file.size > MAX_PRODUCT_LOCK_UPLOAD_BYTES) {
+    redirect(buildComicRedirect(`${PRODUCT_LOCKS_PATH}#lock-${id}`, "product-lock-image-too-large"));
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    await saveUploadedComicProductLockReferenceImage({
+      lockId: id,
+      base64Data: Buffer.from(arrayBuffer).toString("base64"),
+      mimeType,
+      fileName: file.name || null
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Product lock image upload failed.";
+    console.error("Comic product lock image upload failed", { id, error: message });
+    redirect(buildComicRedirect(`${PRODUCT_LOCKS_PATH}#lock-${id}`, "product-lock-image-upload-failed"));
+  }
+
+  revalidateComicRoutes();
+  redirect(buildComicRedirect(`${PRODUCT_LOCKS_PATH}#lock-${id}`, "product-lock-image-uploaded"));
 }

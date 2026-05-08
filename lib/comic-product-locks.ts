@@ -427,6 +427,56 @@ export async function generateComicProductLockReferenceImage(lockId: string) {
   };
 }
 
+export async function saveUploadedComicProductLockReferenceImage(input: {
+  lockId: string;
+  base64Data: string;
+  mimeType: string;
+  fileName?: string | null;
+}) {
+  const lock = await prisma.comicProductLock.findUnique({
+    where: {
+      id: input.lockId
+    }
+  });
+
+  if (!lock) {
+    throw new Error("Product lock could not be found.");
+  }
+
+  const storedImage = await storeComicImage({
+    base64Data: input.base64Data,
+    mimeType: input.mimeType,
+    category: "product-locks",
+    targetId: lock.id,
+    fileName:
+      input.fileName ||
+      `${lock.slug}-${lock.shortCode.toLowerCase()}-upload-${Date.now()}`
+  });
+  const imageUrl = storedImage.imageData
+    ? buildComicProductLockMediaUrl(lock.id)
+    : storedImage.imageUrl;
+
+  await prisma.comicProductLock.update({
+    where: {
+      id: lock.id
+    },
+    data: {
+      imageUrl,
+      imageData: storedImage.imageData,
+      imageMimeType: storedImage.imageMimeType,
+      imageStorageKey: storedImage.imageStorageKey,
+      imageByteSize: storedImage.imageByteSize,
+      imageSha256: storedImage.imageSha256,
+      imageGeneratedAt: new Date()
+    }
+  });
+
+  return {
+    id: lock.id,
+    imageUrl
+  };
+}
+
 export function formatComicProductLockPromptContext(locks: ComicProductLockPromptContext[]) {
   if (locks.length === 0) {
     return "No product locks are currently active.";

@@ -4,6 +4,7 @@ import {
   generateComicProductLockImageAction,
   resetComicProductLockDefaultsAction,
   syncComicProductLocksAction,
+  uploadComicProductLockImageAction,
   updateComicProductLockAction
 } from "@/app/admin/comic-product-lock-actions";
 import { getComicProductLocksPage } from "@/lib/comic-queries";
@@ -21,6 +22,11 @@ const STATUS_MESSAGES: Record<string, string> = {
   "product-lock-reset": "Product lock reset from the storefront product.",
   "product-lock-image-generated": "Product lock comic reference image generated.",
   "product-lock-image-failed": "Product lock comic reference image generation failed.",
+  "product-lock-image-uploaded": "Product lock comic reference image uploaded.",
+  "product-lock-image-upload-failed": "Product lock comic reference image upload failed.",
+  "missing-product-lock-image": "Choose an image before uploading.",
+  "unsupported-product-lock-image": "Upload a PNG, JPG, or WEBP image.",
+  "product-lock-image-too-large": "Product lock reference image must be 10MB or smaller.",
   "missing-product-lock": "That product lock could not be found.",
   "missing-product-lock-fields": "Display name, short code, visual notes, and usage notes are required."
 };
@@ -155,10 +161,29 @@ export default async function AdminComicProductLocksPage({
                     </>
                   ) : (
                     <p className="form-note">
-                      Generate a concrete manga bottle reference before using this product in an
-                      extra-story page.
+                      Generate or upload a concrete manga bottle reference before using this
+                      product in an extra-story page.
                     </p>
                   )}
+                  <form
+                    action={uploadComicProductLockImageAction}
+                    className="admin-comic-copy-grid"
+                  >
+                    <input type="hidden" name="id" value={lock.id} />
+                    <div className="field">
+                      <label htmlFor={`referenceImage-${lock.id}`}>Upload comic reference</label>
+                      <input
+                        id={`referenceImage-${lock.id}`}
+                        name="referenceImage"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        required
+                      />
+                    </div>
+                    <button type="submit" className="button button--secondary">
+                      Upload reference
+                    </button>
+                  </form>
                 </section>
               </div>
 
