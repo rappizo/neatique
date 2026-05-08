@@ -109,6 +109,8 @@ const IMAGE_HEAVY_TASK_TYPES = new Set<ComicAiTaskType>([
   "chinese-page-version",
   "image-creation"
 ]);
+const UPSTREAM_CAPACITY_RETRY_DELAY_MS = 1000 * 45;
+const RATE_LIMIT_RETRY_DELAY_MS = 1000 * 30;
 
 function getStaleRunningTaskMs() {
   const configuredMinutes = Number.parseInt(process.env.COMIC_TASK_STALE_MINUTES || "", 10);
@@ -310,7 +312,7 @@ function getImageTaskConcurrency() {
   return Math.min(Math.max(configured, 1), 3);
 }
 
-function isRetryableComicAiTaskError(errorMessage: string) {
+export function isRetryableComicAiTaskError(errorMessage: string) {
   const normalized = errorMessage.toLowerCase();
   const retryableFragments = [
     "timeout",
@@ -332,16 +334,75 @@ function isRetryableComicAiTaskError(errorMessage: string) {
     "temporarily unavailable",
     "overloaded",
     "try again",
+    "retry later",
     "connection",
     "can't reach database",
-    "database server"
+    "database server",
+    "上游负载",
+    "负载已饱和",
+    "分组上游",
+    "请稍后再试",
+    "稍后再试",
+    "系统繁忙",
+    "服务繁忙",
+    "请求过多",
+    "限流"
   ];
 
   return retryableFragments.some((fragment) => normalized.includes(fragment));
 }
 
-function getRetryingErrorMessage(errorMessage: string) {
-  return `Previous attempt failed: ${errorMessage} Retrying automatically.`;
+function isUpstreamCapacityError(errorMessage: string) {
+  const normalized = errorMessage.toLowerCase();
+
+  return [
+    "upstream",
+    "overloaded",
+    "temporarily unavailable",
+    "上游负载",
+    "负载已饱和",
+    "分组上游",
+    "请稍后再试",
+    "稍后再试",
+    "系统繁忙",
+    "服务繁忙"
+  ].some((fragment) => normalized.includes(fragment));
+}
+
+function isRateLimitError(errorMessage: string) {
+  const normalized = errorMessage.toLowerCase();
+
+  return ["rate limit", "429", "请求过多", "限流"].some((fragment) =>
+    normalized.includes(fragment)
+  );
+}
+
+export function getComicAiTaskRetryDelayMs(errorMessage: string, attempt: number) {
+  const normalizedAttempt = Math.max(1, attempt);
+
+  if (isUpstreamCapacityError(errorMessage)) {
+    return Math.min(UPSTREAM_CAPACITY_RETRY_DELAY_MS * normalizedAttempt, 1000 * 60 * 3);
+  }
+
+  if (isRateLimitError(errorMessage)) {
+    return Math.min(RATE_LIMIT_RETRY_DELAY_MS * normalizedAttempt, 1000 * 60 * 2);
+  }
+
+  return 0;
+}
+
+function getRetryAt(errorMessage: string, attempt: number) {
+  const delayMs = getComicAiTaskRetryDelayMs(errorMessage, attempt);
+
+  return delayMs > 0 ? new Date(Date.now() + delayMs) : null;
+}
+
+function getRetryingErrorMessage(errorMessage: string, retryAt?: Date | null) {
+  const retryNote = retryAt
+    ? ` Retrying automatically after a short upstream cool-down at ${retryAt.toISOString()}.`
+    : " Retrying automatically.";
+
+  return `Previous attempt failed: ${errorMessage}${retryNote}`;
 }
 
 function getPayloadPatch(result: ComicAiTaskResult | null) {
@@ -367,12 +428,14 @@ function getAttemptFailures(result: ComicAiTaskResult | null) {
 function buildRetryAttemptResult(
   task: ComicAiTaskModelRecord,
   previousResult: ComicAiTaskResult | null,
-  errorMessage: string
+  errorMessage: string,
+  retryAt?: Date | null
 ): ComicAiTaskResult {
   return {
     ok: false,
     retrying: true,
-    message: getRetryingErrorMessage(errorMessage),
+    retryAt: retryAt ? retryAt.toISOString() : undefined,
+    message: getRetryingErrorMessage(errorMessage, retryAt),
     errorMessage,
     attemptFailures: [
       ...getAttemptFailures(previousResult),
@@ -758,10 +821,19 @@ async function recoverStaleRunningTasks() {
 }
 
 async function claimComicAiTask(id: string) {
+  const now = new Date();
   const claim = await prisma.comicAiTask.updateMany({
     where: {
       id,
-      status: "QUEUED"
+      status: "QUEUED",
+      OR: [
+        { lockedAt: null },
+        {
+          lockedAt: {
+            lte: now
+          }
+        }
+      ]
     },
     data: {
       status: "RUNNING",
@@ -861,16 +933,19 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
             : "Comic AI task failed.";
       const shouldRetry =
         task.attempts < task.maxAttempts && isRetryableComicAiTaskError(errorMessage);
+      const retryAt = shouldRetry ? getRetryAt(errorMessage, task.attempts) : null;
 
       const update = await prisma.comicAiTask.updateMany({
         where: { id: task.id, status: "RUNNING" },
         data: shouldRetry
           ? {
               status: "QUEUED",
-              result: JSON.stringify(buildRetryAttemptResult(task, previousResult, errorMessage)),
-              errorMessage: getRetryingErrorMessage(errorMessage),
+              result: JSON.stringify(
+                buildRetryAttemptResult(task, previousResult, errorMessage, retryAt)
+              ),
+              errorMessage: getRetryingErrorMessage(errorMessage, retryAt),
               completedAt: null,
-              lockedAt: null
+              lockedAt: retryAt
             }
           : {
               status: "FAILED",
@@ -913,17 +988,18 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
     const errorMessage = error instanceof Error ? error.message : "Unknown comic AI task error.";
     const shouldRetry =
       task.attempts < task.maxAttempts && isRetryableComicAiTaskError(errorMessage);
+    const retryAt = shouldRetry ? getRetryAt(errorMessage, task.attempts) : null;
 
     const update = await prisma.comicAiTask.updateMany({
       where: { id: task.id, status: "RUNNING" },
       data: {
         status: shouldRetry ? "QUEUED" : "FAILED",
         result: shouldRetry
-          ? JSON.stringify(buildRetryAttemptResult(task, previousResult, errorMessage))
+          ? JSON.stringify(buildRetryAttemptResult(task, previousResult, errorMessage, retryAt))
           : JSON.stringify(buildFailedAttemptResult(task, previousResult, null, errorMessage)),
-        errorMessage: shouldRetry ? getRetryingErrorMessage(errorMessage) : errorMessage,
+        errorMessage: shouldRetry ? getRetryingErrorMessage(errorMessage, retryAt) : errorMessage,
         completedAt: shouldRetry ? null : new Date(),
-        lockedAt: null
+        lockedAt: shouldRetry ? retryAt : null
       }
     });
 
@@ -941,10 +1017,19 @@ async function runClaimedComicAiTask(task: ComicAiTaskModelRecord) {
 export async function runComicAiTaskQueue(input: { limit?: number } = {}) {
   await recoverStaleRunningTasks();
   const limit = Math.min(Math.max(input.limit || 1, 1), 5);
+  const now = new Date();
 
   const queuedTaskCandidates = await prisma.comicAiTask.findMany({
     where: {
-      status: "QUEUED"
+      status: "QUEUED",
+      OR: [
+        { lockedAt: null },
+        {
+          lockedAt: {
+            lte: now
+          }
+        }
+      ]
     },
     orderBy: [{ createdAt: "asc" }],
     take: limit * 4
