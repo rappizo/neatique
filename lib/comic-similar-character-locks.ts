@@ -172,16 +172,16 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
       : null,
     hasMuciAndPadaruna
       ? [
-          "- Muci/Padaruna high-risk size separation: when Muci and Padaruna appear together, Padaruna must read about 1.1x Muci's overall body scale and visual mass, while Muci remains the slightly smaller short broad squat protagonist droplet.",
-          "- Muci stays broad/squat/friendly/no brow; Padaruna stays sharp-centered/chubby/no side nubs/no brows."
+          "- Padaruna anti-Muci identity lock / Muci/Padaruna high-risk size separation: Padaruna reads about 1.1x Muci's overall size and visual mass while Muci remains the smaller broad squat protagonist droplet.",
+          "- Padaruna uses her model sheet: very sharp upright centered pointed head, plump/chubby full rounded body, no side nubs or arm-like protrusions, no eyebrows or brow marks; not Muci's squat soft protagonist droplet and not skinny, narrow, tall-stretched, or delicate."
         ].join("\n")
       : null,
     hasSnacriAndPadarunaOrPadarana
       ? [
-          "- Padaruna/Padarana anti-Snacri head lock: Snacri is the only droplet in this group with a left-leaning quiet top/head silhouette. Never copy that left-leaning Snacri head onto Padaruna or Padarana.",
-          "- Padaruna must keep a very sharp upright centered pointed head above a cute plump/chubby full rounded buoyant body with a soft wide lower belly, open lively eyes, no eyebrows, no side nubs or arm-like protrusions, and an eager smile.",
-          "- Padarana must keep an upright soft pointed head above a slimmer gentle body with closed smiling eyes.",
-          "- Before final line art, compare the three top silhouettes: if Padaruna or Padarana has Snacri's left-leaning head/top, redraw that character with their own upright pointed model-sheet head. If Padaruna looks skinny, narrow, tall-stretched, or delicate, redraw her wider and chubbier under the sharp apex."
+          "- Padaruna/Padarana anti-Snacri head lock: Snacri is the only droplet here with a left-leaning quiet top/head silhouette. Never copy that left-leaning Snacri head onto Padaruna or Padarana.",
+          "- Padaruna keeps her own very sharp upright centered pointed head, cute plump/chubby full rounded buoyant body, soft wide lower belly, open lively eyes, no eyebrows, no side nubs or arm-like protrusions; never Snacri's left-leaning quiet head/top.",
+          "- Padarana keeps her own upright soft pointed head above a slimmer gentle body with closed smiling eyes; never Snacri's left-leaning quiet head/top.",
+          "- If Padaruna looks skinny, narrow, tall-stretched, or delicate, redraw her wider and chubbier under the sharp apex."
         ].join("\n")
       : null,
     ...similarSlugs.map((slug) => {
