@@ -385,7 +385,7 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
         panelTitle: "Group Check",
         storyBeat: "Padaruna and Padarana react while Snacri stays quiet.",
         promptText:
-          "Padaruna keeps an upright sharp point, Padarana keeps an upright soft point, and Snacri alone leans left.",
+          "Padaruna keeps a very sharp upright point and plump chubby round body, Padarana keeps an upright soft point, and Snacri alone leans left.",
         dialogueLines: [{ speaker: "Padaruna", text: "We still look like ourselves." }]
       }
     ],
@@ -396,7 +396,8 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
         slug: "padaruna",
         name: "Padaruna",
         role: "Trend magnet.",
-        appearance: "Upright sharp pointed head, fuller round buoyant body.",
+        appearance:
+          "Very sharp upright pointed head, cute plump chubby full rounded body, soft wide lower belly.",
         personality: "Energetic.",
         speechGuide: "Fast.",
         referenceNotes: "Use refs/model-sheet.jpg.",
@@ -431,7 +432,11 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
 
   assert.match(prompt, /Padaruna\/Padarana anti-Snacri head lock/);
   assert.match(prompt, /Snacri is the only droplet here with a left-leaning quiet top\/head silhouette/);
-  assert.match(prompt, /Padaruna keeps her own upright sharp pointed head/);
+  assert.match(prompt, /Padaruna keeps her own very sharp upright centered pointed head/);
+  assert.match(prompt, /cute plump\/chubby full rounded buoyant body/);
+  assert.match(prompt, /soft wide lower belly/);
+  assert.match(prompt, /no side nubs or arm-like protrusions/);
+  assert.match(prompt, /skinny, narrow, tall-stretched, or delicate/);
   assert.match(prompt, /Padarana keeps her own upright soft pointed head/);
   assert.match(prompt, /never Snacri's left-leaning quiet head\/top/);
   assert.match(prompt, /Snacri's eyes must match the Snacri model sheet/);
@@ -479,7 +484,7 @@ test("comic page image prompt locks Artrans to Muci height tier", () => {
         slug: "padaruna",
         name: "Padaruna",
         role: "Trend magnet.",
-        appearance: "Sharp pointed head, fuller rounder buoyant body.",
+        appearance: "Very sharp pointed head, cute plump chubby full rounded buoyant body.",
         personality: "Energetic.",
         speechGuide: "Fast.",
         referenceNotes: "Use refs/model-sheet.jpg.",
@@ -587,7 +592,7 @@ test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes"
         chineseName: null,
         role: "Trend magnet",
         appearance:
-          "Sharp pointed head, fuller rounder buoyant body, no eyebrows, open lively dot eyes.",
+          "Very sharp upright pointed head, cute plump chubby full rounded body, no eyebrows, open lively dot eyes.",
         personality: "Energetic.",
         speechGuide: "Fast and excited.",
         referenceNotes: "Use refs/model-sheet.jpg.",
@@ -612,9 +617,13 @@ test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes"
 
   assert.match(prompt, /Padaruna anti-Muci identity lock/);
   assert.match(prompt, /Muci\/Padaruna high-risk size separation/);
+  assert.match(prompt, /very sharp upright centered pointed head/);
+  assert.match(prompt, /plump\/chubby full rounded/);
+  assert.match(prompt, /no side nubs or arm-like protrusions/);
   assert.match(prompt, /no eyebrows or brow marks/);
   assert.match(prompt, /about 1\.1x Muci's overall size/);
-  assert.match(prompt, /not Muci's squat soft protagonist droplet/);
+  assert.match(prompt, /not skinny, narrow, tall-stretched, or delicate/);
+  assert.match(prompt, /Muci's squat soft protagonist droplet/);
   assert.match(prompt, /Professor Cera Lin six-sided hexagon shape lock/);
   assert.match(prompt, /exactly six exterior sides and six rounded corners/);
   assert.match(prompt, /not any star shape/);

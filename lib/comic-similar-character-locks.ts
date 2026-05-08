@@ -56,7 +56,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   padaruna: {
     name: "Padaruna",
     identity:
-      "upright sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; standard height tier shared with Padarana and Snacri; about 1.1x Muci's overall size when she appears with Muci; not Muci's squat soft protagonist droplet and never Snacri's left-leaning quiet head/top"
+      "very sharp upright centered pointed head with a cute plump/chubby, full rounded, buoyant body and soft wide lower belly, no side nubs or arm-like protrusions, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; standard height tier shared with Padarana and Snacri; about 1.1x Muci's overall size when she appears with Muci; never skinny, narrow, tall-stretched, delicate, Muci's squat soft protagonist droplet, or Snacri's left-leaning quiet head/top"
   },
   padarana: {
     name: "Padarana",
@@ -176,16 +176,16 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
     hasMuciAndPadaruna
       ? [
           "- Muci/Padaruna high-risk size separation: when Muci and Padaruna appear together, Padaruna must read about 1.1x Muci's overall body scale and visual mass, while Muci remains the slightly smaller short broad squat protagonist droplet.",
-          "- Draw Muci first as compact, broad, squat, soft-sided, browless, and friendly; draw Padaruna beside him as visibly larger, sharper-headed, rounder-bodied, browless, open-eyed, eager, and high-energy.",
-          "- Before final rendering, compare their silhouettes: if Padaruna and Muci are the same size or can be mistaken for each other, make Padaruna roughly 1.1x Muci and restore her sharper head plus fuller round buoyant body."
+          "- Draw Muci first as compact, broad, squat, soft-sided, browless, and friendly; draw Padaruna beside him as visibly larger, very sharp upright centered-headed, plump/chubby, full-rounded, browless, open-eyed, eager, side-nub-free, and high-energy.",
+          "- Before final rendering, compare their silhouettes: if Padaruna and Muci are the same size or can be mistaken for each other, make Padaruna roughly 1.1x Muci and restore her very sharp upright centered head plus cute plump chubby full rounded body with a soft wide lower belly and no side protrusions."
         ].join("\n")
       : null,
     hasSnacriAndPadarunaOrPadarana
       ? [
           "- Padaruna/Padarana anti-Snacri head lock: Snacri is the only droplet in this group with a left-leaning quiet top/head silhouette. Never copy that left-leaning Snacri head onto Padaruna or Padarana.",
-          "- Padaruna must keep an upright sharp pointed head above a fuller round buoyant body, open lively eyes, no eyebrows, and an eager smile.",
+          "- Padaruna must keep a very sharp upright centered pointed head above a cute plump/chubby full rounded buoyant body with a soft wide lower belly, open lively eyes, no eyebrows, no side nubs or arm-like protrusions, and an eager smile.",
           "- Padarana must keep an upright soft pointed head above a slimmer gentle body with closed smiling eyes.",
-          "- Before final line art, compare the three top silhouettes: if Padaruna or Padarana has Snacri's left-leaning head/top, redraw that character with their own upright pointed model-sheet head."
+          "- Before final line art, compare the three top silhouettes: if Padaruna or Padarana has Snacri's left-leaning head/top, redraw that character with their own upright pointed model-sheet head. If Padaruna looks skinny, narrow, tall-stretched, or delicate, redraw her wider and chubbier under the sharp apex."
         ].join("\n")
       : null,
     ...similarSlugs.map((slug) => {
