@@ -526,6 +526,26 @@ function addDetectedCharacterReferences(
   }
 }
 
+function getChapterSceneReferenceAliases(record: ComicChapterSceneReferenceRecord) {
+  const comparable = normalizeComparable(`${record.label} ${record.fileName}`);
+
+  if (comparable.includes("student handbook") && comparable.includes("old edition")) {
+    return [
+      "old handbook",
+      "old student handbook",
+      "student handbook",
+      "student handbook old edition",
+      "Student Handbook (old edition)"
+    ];
+  }
+
+  if (comparable.includes("sunscreen field handbook")) {
+    return ["sunscreen field handbook", "field handbook"];
+  }
+
+  return [];
+}
+
 function addDetectedChapterSceneReferences(
   input: ResolveComicPageReferenceImagesInput,
   byPath: Map<string, ComicResolvedReferenceImage>
@@ -538,7 +558,10 @@ function addDetectedChapterSceneReferences(
   for (const record of records) {
     if (
       !isTextMentioned(input.promptText, record.label) &&
-      !isTextMentioned(input.promptText, record.fileName)
+      !isTextMentioned(input.promptText, record.fileName) &&
+      !getChapterSceneReferenceAliases(record).some((alias) =>
+        isTextMentioned(input.promptText, alias)
+      )
     ) {
       continue;
     }

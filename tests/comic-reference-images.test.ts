@@ -116,3 +116,21 @@ test("comic reference resolver does not attach comparison for one similar charac
     false
   );
 });
+
+test("comic reference resolver auto-attaches old student handbook prop", async () => {
+  const references = await resolveComicPageReferenceImages({
+    seasonSlug: "season-01",
+    chapterSlug: "chapter-01-orientation-week-is-a-scam",
+    promptText: "Muci and Snacri compare the old handbook with a new student handbook.",
+    requiredUploads: []
+  });
+
+  assert.ok(
+    references.some(
+      (reference) =>
+        reference.relativePath ===
+        "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Student Handbook (old edition).jpg"
+    ),
+    "Expected the old student handbook reference to be attached when the old handbook is mentioned."
+  );
+});

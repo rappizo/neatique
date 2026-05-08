@@ -41,27 +41,27 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   muci: {
     name: "Muci",
     identity:
-      "exact Muci model-sheet droplet: broad squat pure-white body, round heavy lower half, soft bulging sides, curved rounded base, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, two attached small rounded feet, large black dot eyes with catchlights, small friendly U-smile, oval-plus-dot highlight on upper reader-left, no brow by default; shorter height tier than Padaruna while preserving the existing Muci/Padaruna ratio; never Nia's tall narrow vertical point, angled brow, or an exaggerated hooked/curling top"
+      "exact Muci model-sheet droplet: broad squat pure-white body, round heavy lower half, subtle near-center reader-left top lean, two attached feet, friendly U-smile, no brow; shorter tier than Padaruna; never Nia's sharp vertical point or hooked/curling top"
   },
   nia: {
     name: "Nia",
     identity:
-      "taller and sharper pointed teardrop, controlled narrow body tension, sharpest vertical point, one angled brow above the left eye, confident composed smile, analytical expression; about 1.1x Padaruna's height on the same ground plane; never Muci's broad squat soft protagonist face"
+      "taller and sharper pointed teardrop with a vertical point, one angled left brow, confident controlled smile; about 1.1x Padaruna's height; never Muci's broad squat protagonist face"
   },
   snacri: {
     name: "Snacri",
     identity:
-      "fatter quiet droplet with the top leaning left, understated asymmetry, fully open round black dot eyes with tiny highlights, tiny restrained smile, low-drama observer expression; never half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired/unimpressed expression lines; same height tier as Padaruna and Padarana; exactly two small connected feet in full-body views, never three feet or extra leg nubs"
+      "fatter quiet droplet with the top leaning left, fully open round black dot eyes with tiny highlights, tiny restrained smile; never sleepy/angry/browed eyes; same height tier as Padaruna and Padarana; exactly two connected feet"
   },
   padaruna: {
     name: "Padaruna",
     identity:
-      "very sharp upright centered pointed head with a cute plump/chubby, full rounded, buoyant body and soft wide lower belly, no side nubs or arm-like protrusions, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; standard height tier shared with Padarana and Snacri; about 1.1x Muci's overall size when she appears with Muci; never skinny, narrow, tall-stretched, delicate, Muci's squat soft protagonist droplet, or Snacri's left-leaning quiet head/top"
+      "very sharp upright centered point, cute plump/chubby rounded body, soft wide lower belly, no side nubs, no brows, lively open eyes; standard Padaruna tier; about 1.1x Muci's size when paired; never skinny/tall-stretched or Snacri-headed"
   },
   padarana: {
     name: "Padarana",
     identity:
-      "upright soft sharp pointed head with a slimmer softer body than Padaruna, closed smiling eyes, calm reassuring mouth, gentle emotional-anchor expression; same height tier as Padaruna and Snacri; never Snacri's left-leaning quiet head/top"
+      "upright soft pointed head, slimmer gentler body than Padaruna, closed smiling eyes, calm mouth; same height tier as Padaruna and Snacri; never Snacri's left-leaning head"
   }
 };
 
@@ -136,10 +136,8 @@ export function buildComicCharacterHeightChartLock(slugs: string[]) {
   return [
     "Character height reference lock:",
     "- The attached Front-View Character Height Reference is an off-canvas production reference only. Do not draw the chart, scale marks, labels, lineup, or height-comparison diagram inside the comic panel.",
-    "- Use the front-view model crops privately to size same-panel characters. Put characters on the same implied floor plane before sizing them, but keep the scene acting natural.",
-    "- Measure apparent body height from the bottom of the connected feet to the top/apex of the body; ignore motion lines, props, perspective, and speech balloons.",
-    "- Locked height tiers: Muci and Artrans share the shorter tier, preserving the current Muci/Padaruna ratio; Padaruna, Padarana, and Snacri share the standard Padaruna tier; Nia is only slightly taller at about 1.1x Padaruna.",
-    "- Do not randomly swap heights between pages or panels, and do not stretch bodies vertically to satisfy height. Keep every droplet round, cute, and model-sheet proportioned.",
+    "- Locked height tiers: Muci and Artrans share the shorter tier; Padaruna, Padarana, and Snacri share the standard Padaruna tier; Nia is only slightly taller at about 1.1x Padaruna; Padaruna keeps the existing about-1.1x-Muci relationship.",
+    "- Put same-panel characters on the same floor plane, but do not stretch bodies vertically. Keep droplets round, cute, and model-sheet proportioned.",
     ...heightSlugs.map((slug) => {
       const lock = COMIC_CHARACTER_HEIGHT_LOCKS[slug];
       return `- ${lock.name}: ${lock.relativeHeight}; ${lock.note}.`;
@@ -165,19 +163,17 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
   return [
     "Similar teardrop cast separation lock:",
     "- The attached Similar Teardrop Character Comparison reference is a binding difference map for this page.",
-    "- Do not average these white droplet mascots into one generic body. Match each named character to their own model sheet and comparison slot.",
+    "- Do not average these white droplet mascots into one generic body. Match each character to their own model sheet.",
     hasMuciAndNia
       ? [
           "- Muci/Nia high-risk model-sheet guardrail: draw Muci from the Muci Model Sheet Exact Lock, not from generic teardrop memory. Muci's top is a rounded teardrop point with only a subtle near-center lean toward reader-left/Muci's right; it is not a sharp Nia point, exaggerated hook, sideways curl, or flopped-over cap.",
-          "- In any panel where Muci and Nia appear together, draw Muci first as short, broad, squat, round-lower-half, open-smiling, browless, soft-sided, and only gently asymmetric at the top; draw Nia separately as taller, narrower, sharper, vertically pointed, and marked by one angled left brow.",
-          "- Before final rendering, compare the two silhouettes: if Muci can be mistaken for Nia or if Muci's top leans farther than the model sheet, redraw Muci wider, shorter, rounder at the base, friendlier, browless, and closer to the model sheet before adding acting or background detail."
+          "- Muci stays short, broad, squat, friendly, and browless; Nia stays taller, sharper, and marked by one angled left brow."
         ].join("\n")
       : null,
     hasMuciAndPadaruna
       ? [
           "- Muci/Padaruna high-risk size separation: when Muci and Padaruna appear together, Padaruna must read about 1.1x Muci's overall body scale and visual mass, while Muci remains the slightly smaller short broad squat protagonist droplet.",
-          "- Draw Muci first as compact, broad, squat, soft-sided, browless, and friendly; draw Padaruna beside him as visibly larger, very sharp upright centered-headed, plump/chubby, full-rounded, browless, open-eyed, eager, side-nub-free, and high-energy.",
-          "- Before final rendering, compare their silhouettes: if Padaruna and Muci are the same size or can be mistaken for each other, make Padaruna roughly 1.1x Muci and restore her very sharp upright centered head plus cute plump chubby full rounded body with a soft wide lower belly and no side protrusions."
+          "- Muci stays broad/squat/friendly/no brow; Padaruna stays sharp-centered/chubby/no side nubs/no brows."
         ].join("\n")
       : null,
     hasSnacriAndPadarunaOrPadarana
@@ -192,7 +188,7 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
       const lock = SIMILAR_TEARDROP_CHARACTER_LOCKS[slug];
       return `- ${lock.name}: ${lock.identity}.`;
     }),
-    "- In every group panel, silhouette readability comes before decorative acting: each character must be identifiable in black-and-white by outline, face detail, body width, head direction, and default expression."
+    "- In group panels, silhouette readability comes before decorative acting."
   ]
     .filter(Boolean)
     .join("\n");

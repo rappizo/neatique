@@ -87,6 +87,23 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- If a story beat mentions holding, pointing, grabbing, writing, pushing, opening, carrying, or handing something over, translate that action into telekinetic object movement while keeping every character handless.",
   "- Avoid adding extra characters, props, logos, product labels, watermarks, signatures, or random unrelated text. The only visible page text should be the specified dialogue, captions, SFX, signs, or labels from the prompt."
 ].join("\n");
+const COMIC_IMAGE_PRODUCTION_LOCKS = [
+  "Core image locks:",
+  "- Use the attached reference images as the main visual authority. Character model sheets lock silhouette, face placement, body fill, proportions, highlights, and feet.",
+  "- Clean high-contrast black-and-white Japanese manga only. Pure white mascot body fills. No color, gray wash, muddy shading, or heavy body screentone.",
+  "- All mascot characters are handless and armless. Show object handling with gentle telekinesis, floating props, and small manga motion cues.",
+  "- Full-body droplet characters have exactly two small connected feet/foot nubs. Do not add third feet, shoes, toes, side nubs, arms, or detached appendages.",
+  "- Do not copy readable text from model sheets, profiles, reference labels, or continuity notes unless it is explicitly listed in this page's visible-text whitelist.",
+  "- Height/comparison references are off-canvas production guides only. Never draw charts, labels, lineups, or scale marks in story panels.",
+  "Essential character locks:",
+  "- Muci Model Sheet Exact Lock: broad squat pure-white droplet, round heavy lower half, natural rounded top point with subtle near-center reader-left lean, friendly U-smile, no brow, upper-left highlights, two attached feet.",
+  "- Nia: taller sharper vertical-point teardrop, one angled left brow, controlled expression; not Muci, Padaruna, Padarana, or Snacri.",
+  "- Snacri exact face lock: fatter left-leaning quiet droplet, fully open round black dot eyes with tiny highlights, restrained tiny smile; no half-lidded, sleepy, droopy, slanted, angry, browed, or tired eyes.",
+  "- Padaruna exact lock: very sharp upright centered pointed head over cute plump/chubby full rounded body with soft wide lower belly; no side nubs or arm-like protrusions, no eyebrows or brow marks, lively open eyes, eager smile; not skinny, narrow, tall-stretched, delicate, or Snacri-headed.",
+  "- Padarana exact lock: upright soft pointed head, slimmer gentle body, closed smiling eyes, calm mouth; never Snacri's left-leaning head.",
+  "- Professor Cera Lin exact lock: rounded six-sided hexagon body with one rounded central top peak and exactly six exterior sides/corners; not star, pentagon, octagon, or flat-top shape.",
+  "- Coach Ray exact lock: broad squat shield-shaped protective mascot with shallow top crest, planted stance, pure white body, and small connected feet; not Muci or a generic polygon."
+].join("\n");
 const COMIC_LETTERING_STYLE_LOCKS = [
   "Comic lettering style locks:",
   "- Use one consistent lettering style across the whole comic: clean rounded manga hand-lettering, black ink on white balloons or white caption boxes.",
@@ -1929,14 +1946,16 @@ function buildComicPageUploadSummary(uploads: GeneratedComicPageUpload[]) {
   }
 
   return uploads
-    .map((upload) =>
-      [
+    .map((upload) => {
+      const uploadImageNames = upload.uploadImageNames.map(normalizeComicReferenceFileMentions);
+      const relativePaths = upload.relativePaths.map(normalizeComicReferenceFileMentions);
+
+      return [
         `- ${upload.label} (${upload.bucket})`,
-        `  Why it matters: ${trimImagePromptContext(upload.whyThisMatters, 160)}`,
-        `  Visual lock: ${trimImagePromptContext(upload.contentSummary, 190)}`,
-        "  Actual attached reference images below are authoritative if this checklist contains legacy file names."
-      ].join("\n")
-    )
+        uploadImageNames.length > 0 ? `  Files: ${uploadImageNames.join(", ")}` : null,
+        relativePaths.length > 0 ? `  Paths: ${relativePaths.join(", ")}` : null
+      ].join("\n");
+    })
     .join("\n\n");
 }
 
@@ -1948,12 +1967,9 @@ function buildComicPageReferenceImageSummary(referenceImages: ComicReferenceImag
   return referenceImages
     .map((reference, index) =>
       [
-        `${index + 1}. ${reference.label}`,
+        `${index + 1}. ${reference.label} (${reference.bucket})`,
         `   File: ${reference.fileName}`,
-        `   Path: ${reference.relativePath}`,
-        `   Type: ${reference.bucket}`,
-        `   Why it matters: ${trimImagePromptContext(reference.whyThisMatters, 160)}`,
-        `   Visual lock: ${trimImagePromptContext(reference.contentSummary, 190)}`
+        `   Path: ${reference.relativePath}`
       ].join("\n")
     )
     .join("\n\n");
@@ -1966,27 +1982,17 @@ function buildComicPageCharacterIdentityLockSummary(
     return "No character profile MD locks were loaded for this page.";
   }
 
-  return characterLocks
-    .map((character) =>
+  return [
+    "Profile MD source of truth loaded from database. Use these as concise identity notes; the uploaded model-sheet images are the primary visual authority.",
+    ...characterLocks.map((character) =>
       [
-        `${character.name} (${character.slug})`,
-        `Chinese name: ${character.chineseName || "None"}`,
-        `Role: ${trimImagePromptContext(character.role, 120)}`,
-        `Profile MD appearance lock: ${trimImagePromptContext(character.appearance, 420)}`,
-        character.referenceNotes
-          ? `Profile MD reference lock: ${trimImagePromptContext(character.referenceNotes, 320)}`
-          : null,
-        character.profileMarkdown
-          ? `Profile MD source of truth loaded from database, distilled for image prompt length:\n${trimImagePromptContext(character.profileMarkdown, 360)}`
-          : "Profile MD source of truth: not available.",
-        `Reference image files: ${
+        `- ${character.name} (${character.slug}): ${trimImagePromptContext(character.appearance, 170)}`,
+        `  Reference image files: ${
           character.referenceFiles.map((file) => file.fileName).join(", ") || "None"
         }`
-      ]
-        .filter(Boolean)
-        .join("\n")
+      ].join("\n")
     )
-    .join("\n\n---\n\n");
+  ].join("\n");
 }
 
 function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdentityLock[] = []) {
@@ -2007,9 +2013,8 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
     locks.push(
       [
         "Padaruna anti-Muci identity lock:",
-        "- Draw Padaruna from the Padaruna model sheet only: very sharp upright centered pointed head, cute plump/chubby full rounded buoyant body with a soft wide lower belly, no side nubs or arm-like protrusions, open lively dot eyes, eager smile, no eyebrows or brow marks, pure white body fill, and small connected feet.",
-        "- Padaruna is not Muci. Do not copy Muci's short broad squat body, soft protagonist face spacing, gentle baseline expression, or rounded near-center top. Padaruna keeps a much sharper upright head and a plumper, rounder, high-energy body.",
-        "- If Padaruna appears in the same episode or page as Muci, compare them before final render: Muci stays the slightly smaller squat soft-sided protagonist droplet; Padaruna stays about 1.1x Muci's overall size, very sharp-headed, plump/chubby, full rounded, browless, and socially energetic, not skinny, narrow, tall-stretched, or delicate."
+        "- Padaruna uses her model sheet: very sharp upright centered point, plump/chubby full rounded body, no side nubs or arm-like protrusions, no eyebrows or brow marks; not Muci's squat soft protagonist droplet and not skinny, narrow, tall-stretched, or delicate.",
+        "- If Muci and Padaruna share a panel, Muci stays smaller/broad/squat while Padaruna stays about 1.1x Muci's overall size and visual mass."
       ].join("\n")
     );
   }
@@ -2018,10 +2023,10 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
     locks.push(
       [
         "Padaruna/Padarana anti-Snacri head lock:",
-        "- Snacri is the only droplet here with a left-leaning quiet top/head silhouette. Do not copy Snacri's left-leaning head/top onto Padaruna or Padarana.",
+        "- Snacri is the only droplet here with a left-leaning quiet top/head silhouette. Do not copy Snacri's left-leaning head/top onto Padaruna or Padarana; Padaruna is never Snacri's left-leaning quiet head/top.",
         "- Padaruna keeps her own very sharp upright centered pointed head, cute plump/chubby full rounded buoyant body with a soft wide lower belly, no side nubs or arm-like protrusions, open lively dot eyes, eager smile, no eyebrows, and energetic expression.",
         "- Padarana keeps her own upright soft pointed head, slimmer gentle body, closed smiling eyes, calm reassuring mouth, and soothing expression.",
-        "- In any panel with Snacri plus Padaruna or Padarana, check the top silhouettes before final line art: if Padaruna or Padarana tilts left like Snacri or loses the pointed apex, redraw them from their own model sheet. If Padaruna becomes skinny, narrow, tall-stretched, or delicate, redraw her as chubbier and rounder under the sharp apex."
+        "- If Padaruna or Padarana tilts left like Snacri, redraw from their own model sheet."
       ].join("\n")
     );
   }
@@ -2031,7 +2036,7 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
       [
         "Snacri eye expression lock:",
         "- Snacri's eyes must match the Snacri model sheet: two fully open round black dot eyes with tiny white highlights.",
-        "- Do not draw Snacri with half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired/unimpressed expression marks.",
+        "- Never draw Snacri with half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired/unimpressed expression marks. Do not draw Snacri with half-lidded eyes, sleepy droopy eyes.",
         "- Snacri's calm minimalist feeling comes from her left-leaning quiet silhouette, still posture, and tiny restrained smile, not from sleepy or annoyed eyes."
       ].join("\n")
     );
@@ -2219,16 +2224,32 @@ function isComicBrandLogoReferenceImage(reference: ComicReferenceImageFile) {
   return reference.bucket === "BRAND_LOGO";
 }
 
+function isComicPriorityPropReferenceImage(reference: ComicReferenceImageFile) {
+  const searchable = [reference.label, reference.fileName, reference.relativePath, reference.slug]
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    (reference.bucket === "CHAPTER_SCENE" || reference.bucket === "DETECTED_CHAPTER_SCENE") &&
+    (searchable.includes("student handbook") || searchable.includes("old handbook"))
+  );
+}
+
 function isComicIdentityReferenceImage(reference: ComicReferenceImageFile) {
   return (
     isComicBrandLogoReferenceImage(reference) ||
     isComicCharacterReferenceImage(reference) ||
-    isComicCastComparisonReferenceImage(reference)
+    isComicCastComparisonReferenceImage(reference) ||
+    isComicPriorityPropReferenceImage(reference)
   );
 }
 
 function isComicPriorityReferenceImage(reference: ComicReferenceImageFile) {
-  return isComicBrandLogoReferenceImage(reference) || isComicCastComparisonReferenceImage(reference);
+  return (
+    isComicBrandLogoReferenceImage(reference) ||
+    isComicCastComparisonReferenceImage(reference) ||
+    isComicPriorityPropReferenceImage(reference)
+  );
 }
 
 function referenceIdentityKey(reference: ComicReferenceImageFile) {
@@ -2732,8 +2753,8 @@ function buildComicPagePanelSummary(
     .map((panel) => {
       const lines = [
         `Panel ${panel.panelNumber}: ${panel.panelTitle}`,
-        `Story beat: ${trimImagePromptContext(panel.storyBeat, 520)}`,
-        `Panel image direction: ${trimImagePromptContext(panel.promptText || "Use the page prompt and story beat.", 620)}`
+        `Story beat: ${trimImagePromptContext(panel.storyBeat, 360)}`,
+        `Panel image direction: ${trimImagePromptContext(panel.promptText || "Use the page prompt and story beat.", 360)}`
       ];
 
       if (options.coverPage) {
@@ -2799,7 +2820,7 @@ function buildComicPageCriticalContent(
   return [
     "CURRENT PAGE CONTENT - HIGHEST PRIORITY:",
     `Draw ${pageLabel} only, not any other page from the episode.`,
-    `Current page purpose: ${trimImagePromptContext(input.pagePurpose, 520)}`,
+    `Current page purpose: ${trimImagePromptContext(input.pagePurpose, 320)}`,
     options.coverPage
       ? "Cover content overrides all character-reference text. Do not draw story-page intro/profile/name cards."
       : "Current panel plan and visible-text whitelist override episode summary, character profile text, reference image labels, and prior-page intro cards.",
@@ -2822,23 +2843,19 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
   });
   const prompt = [
     "Create one finished vertical comic page for Neatique's original comic series.",
-    COMIC_VISUAL_PRODUCTION_LOCKS,
+    COMIC_IMAGE_PRODUCTION_LOCKS,
     "",
     "Canvas and layout requirements:",
     "- Aspect ratio must be 2:3 vertical.",
     `- The page must contain exactly ${input.panelCount} panel${input.panelCount === 1 ? "" : "s"}.`,
     "- Use clear manga/webcomic page composition with clean panel gutters.",
     "- Keep the page suitable for a polished brand comic, not a rough storyboard.",
-    "- Preserve character shape, facial expression language, and scene continuity from the reference notes.",
-    "- Treat all listed character model sheets as exact identity references, not loose inspiration.",
-    "- The actual reference images attached to this API request are binding visual references. Copy their silhouettes, proportions, face placement, highlight placement, body fill, and feet exactly where those characters or scenes appear.",
-    "- Treat each character's Profile MD lock and attached model-sheet image as a paired identity contract: the MD tells you what details must stay distinct, and the image tells you the exact shape to draw.",
+    "- Attached reference images are binding visual references; copy model-sheet silhouettes, proportions, face placement, body fill, and feet.",
     isCoverPage ? COMIC_COVER_EPISODE_ONE_LAYOUT_LOCKS : null,
     "- Only draw the characters named in the panel plan or dialogue for this page. Do not add background mascots just because their references are available.",
-    "- When multiple mascot characters appear, compare their Profile MD locks before drawing. Do not blend silhouettes, faces, highlights, feet, expressions, or body proportions across characters.",
-    "- Foot visibility check: any full-body character must show small rounded feet or foot nubs with clear space below the body; do not crop off feet.",
-    "- Foot connection check: feet must connect naturally to the body with the same continuous white body fill; do not add a hard separating line between the feet and body.",
-    "- Sunny Spritz check: if Sunny appears full-body, her two small rounded feet must be visible directly under the soft five-point star body.",
+    "- Do not blend silhouettes, faces, highlights, feet, expressions, or body proportions across characters.",
+    "- Foot check: full-body characters show connected small feet with clear lower-frame space; no cropped feet or hard shoe/seam lines.",
+    "- Sunny Spritz check: if Sunny appears full-body, show two small rounded feet directly under the soft five-point star body.",
     isCoverPage
       ? "- Cover mouth-state check: because the cover has no dialogue, do not stage any character as speaking. Keep mouths closed, tiny neutral, or silently expressive without speech balloons."
       : "- Mouth state check: draw closed mouths for characters who are not speaking in that panel; only the active speaker or explicit vocal reaction may have an open mouth.",
@@ -2868,7 +2885,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     isCoverPage
       ? `Episode summary for continuity only, not visible page text: ${trimImagePromptContext(input.episodeSummary, 420)}`
       : "Episode summary for continuity only: omitted for story-page image generation so other-page intro cards or events cannot leak into this page. Follow the current page purpose, visible-text whitelist, and panel plan only.",
-    `${formatComicPageLabel(input.pageNumber)} purpose: ${trimImagePromptContext(input.pagePurpose, 700)}`,
+    `${formatComicPageLabel(input.pageNumber)} purpose: ${trimImagePromptContext(input.pagePurpose, 360)}`,
     "",
     "Required references for visual continuity:",
     buildComicPageUploadSummary(input.requiredUploads),
@@ -2883,14 +2900,14 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     buildComicPageCharacterSeparationLocks(input.characterLocks),
     "",
     "Production prompt already prepared for this page:",
-    trimImagePromptContext(input.promptPackCopyText, 4200),
+    trimImagePromptContext(input.promptPackCopyText, 2200),
     "",
     input.globalGptImage2Notes
-      ? `Global gpt-image-2 continuity notes:\n${trimImagePromptContext(input.globalGptImage2Notes, 1400)}`
+      ? `Global gpt-image-2 continuity notes:\n${trimImagePromptContext(input.globalGptImage2Notes, 700)}`
       : "Global gpt-image-2 continuity notes: none stored.",
     "",
     input.referenceNotesCopyText
-      ? `Page-specific reference notes:\n${trimImagePromptContext(input.referenceNotesCopyText, 1400)}`
+      ? `Page-specific reference notes:\n${trimImagePromptContext(input.referenceNotesCopyText, 700)}`
       : "Page-specific reference notes: none stored.",
     "",
     "Final output: one complete 2:3 comic page image, not separate files."
@@ -3268,7 +3285,7 @@ export async function editComicPageImageWithAi(input: {
       "Edit the supplied finished comic page using it as the primary reference image.",
       "The first attached image is the source page to edit. Additional attached images are identity/continuity references and must be used as exact locks, not loose inspiration.",
       "The following global comic production locks remain mandatory during edits. They override any accidental drift in the source image, attached references, or edit request:",
-      COMIC_VISUAL_PRODUCTION_LOCKS,
+      COMIC_IMAGE_PRODUCTION_LOCKS,
       COMIC_LETTERING_STYLE_LOCKS,
       "",
       "Edit-specific constraints:",
@@ -3308,16 +3325,16 @@ export async function editComicPageImageWithAi(input: {
       "Character separation and anti-blend locks:",
       buildComicPageCharacterSeparationLocks(input.characterLocks || []),
       input.pageContext?.pagePurpose
-        ? `Stored page purpose: ${trimImagePromptContext(input.pageContext.pagePurpose, 700)}`
+        ? `Stored page purpose: ${trimImagePromptContext(input.pageContext.pagePurpose, 320)}`
         : null,
       input.pageContext?.panels?.length
         ? `Stored panel/dialogue plan:\n${buildComicPagePanelSummary(input.pageContext.panels)}`
         : null,
       input.pageContext?.promptPackCopyText
-        ? `Stored page prompt:\n${trimImagePromptContext(input.pageContext.promptPackCopyText, 1800)}`
+        ? `Stored page prompt:\n${trimImagePromptContext(input.pageContext.promptPackCopyText, 900)}`
         : null,
       input.pageContext?.referenceNotesCopyText
-        ? `Stored reference notes:\n${trimImagePromptContext(input.pageContext.referenceNotesCopyText, 1000)}`
+        ? `Stored reference notes:\n${trimImagePromptContext(input.pageContext.referenceNotesCopyText, 500)}`
         : null,
       `Episode: ${input.episodeTitle}`,
       `Page: ${input.pageNumber}`,
@@ -3409,8 +3426,8 @@ export async function reviseComicPagePromptWithAi(
       pageNumber: { type: "integer", minimum: input.pageNumber, maximum: input.pageNumber },
       panelCount: { type: "integer", enum: allowedPanelCounts },
       pagePurpose: { type: "string", minLength: 12, maxLength: 520 },
-      promptPackCopyText: { type: "string", minLength: 180, maxLength: 12000 },
-      referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 8000 },
+      promptPackCopyText: { type: "string", minLength: 180, maxLength: 4200 },
+      referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 2200 },
       panels: {
         type: "array",
         minItems: minPanelCount,
@@ -3422,7 +3439,7 @@ export async function reviseComicPagePromptWithAi(
             panelNumber: { type: "integer", minimum: 1, maximum: 3 },
             panelTitle: { type: "string", minLength: 4, maxLength: 140 },
             storyBeat: { type: "string", minLength: 12, maxLength: 900 },
-            promptText: { type: "string", minLength: 60, maxLength: 1400 },
+            promptText: { type: "string", minLength: 60, maxLength: 720 },
             dialogueLines: {
               type: "array",
               minItems: isCoverPage ? 0 : 1,
@@ -3472,7 +3489,7 @@ export async function reviseComicPagePromptWithAi(
                 "Return only valid JSON matching the schema.",
                 "Revise only this one page. Keep the page number fixed.",
                 "Keep the page production-ready for gpt-image-2.",
-                "Do not shorten, summarize, or truncate the existing page prompt. The revised prompt must stay complete enough to generate the whole page.",
+                "Keep the revised prompt concise and production-ready. Do not repeat long global locks; rely on requiredUploads, attached model sheets, and short high-risk reminders.",
                 "Preserve the existing story continuity unless the suggestion explicitly asks for a composition change.",
                 "Do not remove required character or scene continuity details.",
                 isCoverPage
@@ -3481,8 +3498,8 @@ export async function reviseComicPagePromptWithAi(
                 isCoverPage
                   ? "The revised promptPackCopyText must include the exact serif cover title line and must explicitly say there is no dialogue on the cover."
                   : "The revised promptPackCopyText must include a Dialogue and lettering plan section with every dialogue line exactly as it should appear on the page.",
-                "All revised prompt text must enforce these production locks:",
-                COMIC_VISUAL_PRODUCTION_LOCKS,
+                "All revised prompt text must follow these compact production locks without pasting them repeatedly:",
+                COMIC_IMAGE_PRODUCTION_LOCKS,
                 isCoverPage ? COMIC_COVER_TYPOGRAPHY_LOCKS : COMIC_LETTERING_STYLE_LOCKS,
                 "All characters have small rounded feet or foot nubs in full-body views. Full-body framing must leave the feet visible. Feet must connect naturally to the body without hard separating lines. Sunny Spritz must keep two small rounded feet directly under her soft five-point star body."
               ].join("\n")
@@ -3526,7 +3543,7 @@ export async function reviseComicPagePromptWithAi(
                   ? "- Preserve Episode 1's cover layout template: same logo position/size, same Episode title position, and same lower rectangular frame size/position."
                   : null,
                 "- Improve pagePurpose, promptPackCopyText, referenceNotesCopyText, and panel story beats to reflect the suggestion.",
-                "- Keep the full page content, all panels, all important reference instructions, and the final visual locks. Do not cut off the prompt mid-sentence.",
+                "- Keep the full page content, all panels, all important reference instructions, and the final visual locks, but do not repeat the same character lock in every field.",
                 isCoverPage
                   ? "- Keep the cover dialogue-free. Return dialogueLines as an empty array and do not mention speech balloons, caption boxes, or SFX as visible cover elements."
                   : "- Keep or improve the visible dialogue for every panel. Do not remove all dialogue from the page.",
@@ -3685,8 +3702,8 @@ export async function generateComicPromptPackageWithAi(
             pageNumber: { type: "integer", minimum: 1, maximum: 10 },
             panelCount: { type: "integer", enum: [2, 3] },
             pagePurpose: { type: "string", minLength: 12, maxLength: 320 },
-            promptPackCopyText: { type: "string", minLength: 160, maxLength: 3400 },
-            referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 2400 },
+            promptPackCopyText: { type: "string", minLength: 160, maxLength: 2600 },
+            referenceNotesCopyText: { type: "string", minLength: 120, maxLength: 1600 },
             panels: {
               type: "array",
               minItems: 2,
@@ -3877,7 +3894,7 @@ export async function generateComicPromptPackageWithAi(
                 `Summary: ${trimPromptContext(input.episode.summary, 620)}`,
                 `Outline: ${trimPromptContext(input.episode.outline, 5200)}`,
                 "",
-                "Global visual production locks that must appear in the page prompts and notes:",
+                "Global visual production locks for this package. Follow these rules, but do not paste them verbatim into every page; page prompts should use the attached model sheets plus short high-risk reminders:",
                 COMIC_VISUAL_PRODUCTION_LOCKS,
                 "",
                 "Global lettering locks that must appear in the page prompts and notes:",
@@ -3900,6 +3917,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Create a 10-story-page plan. Do not include the cover in the returned pages array; the application prepends the cover page prompt as pageNumber 0.",
                 "- If a named character needs a first-appearance introduction box, put it on that character's first story page appearance within pages 1-10. Never reserve it for the cover, and never treat the cover as the first appearance.",
                 "- Keep every returned field compact enough for a production dashboard; avoid repeating the same global locks verbatim inside every field.",
+                "- Keep promptPackCopyText concise: rely on requiredUploads and attached model sheets for character consistency, then add only the page-specific action, prop, dialogue, and one-line high-risk identity reminders.",
                 "- Every page should normally contain 3 panels.",
                 "- A page may contain 2 panels only when the beat is visually important enough to justify extra space.",
                 `- Assume the image generation step will use ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
@@ -3909,19 +3927,15 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block must include a Dialogue and lettering plan section listing every panel's exact dialogue lines.",
                 "- Every promptPackCopyText block must tell gpt-image-2 to render all listed dialogue lines and not omit speech balloons.",
                 "- Every promptPackCopyText block must enforce one consistent clean rounded manga lettering style across balloons, captions, and SFX.",
-                "- Every promptPackCopyText block must state clean black-and-white manga only, no color, no gray wash, pure white character bodies.",
-                "- Every promptPackCopyText block must state that characters have no hands or arms, while preserving model-sheet small feet, foot nubs, or lower-body nubs exactly.",
-                "- Every promptPackCopyText block must include a lower-frame foot visibility check for full-body characters.",
-                "- Every promptPackCopyText block must state that feet connect naturally to the body without a hard dividing line, shoe line, seam, or solid separating stroke.",
-                "- Every promptPackCopyText block must include a mouth-state check: non-speaking characters keep closed mouths, and only speaking or explicitly vocal characters may have open mouths.",
+                "- Every promptPackCopyText block must include one compact style/anatomy line: black-and-white manga, pure white mascot bodies, no hands/arms, visible connected feet, and mouth-state continuity.",
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
-                "- Every Muci prompt must explicitly preserve his Muci Model Sheet Exact Lock: broad squat pure-white droplet, round heavy lower half, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, pure white body fill, no brow by default, and two attached small rounded feet.",
+                "- Every Muci prompt must briefly point to the Muci model sheet and mention only the high-risk lock: broad squat droplet, subtle near-center top lean, no brow, two attached feet.",
                 "- Every page where two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia appear together must preserve the fixed character height tiers as invisible production guidance only: Muci and Artrans same shorter height, Padaruna/Padarana/Snacri same standard height, Nia about 1.1x Padaruna, and Padaruna preserving the existing about-1.1x-Muci scale when paired with Muci. Never make the height reference a visible story object.",
                 "- Character intro/name cards must appear only once per character, on the intended first story-page introduction. On later pages, explicitly do not repeat prior intro/name cards.",
-                "- Every page where two or more similar teardrop characters appear together must explicitly preserve their differences: Muci broad squat model-sheet droplet with subtle top asymmetry and no brow, Nia sharp tall vertical point plus one angled brow and about 1.1x Padaruna's height, Snacri fatter left-leaning quiet droplet at Padaruna's height tier, Padaruna very sharp upright centered point plus cute plump/chubby full rounded buoyant lively body with soft wide lower belly, no side nubs or arm-like protrusions, no eyebrows, and about 1.1x Muci's size when paired with Muci, and Padarana upright soft sharp point plus slimmer gentle closed-eye body at Padaruna's height tier.",
-                "- Every Snacri prompt must explicitly preserve her Snacri Model Sheet Exact Face Lock: fully open round black dot eyes with tiny white highlights, restrained tiny smile, no half-lidded eyes, no sleepy droopy eyes, no eyelids, no narrowed side-eye, no angled angry eyes, no brows, and no tired/unimpressed expression lines.",
-                "- Every Padaruna prompt must explicitly preserve her Padaruna Model Sheet Exact Lock: very sharp upright centered pointed head, cute plump/chubby full rounded buoyant body, soft wide lower belly, no side nubs or arm-like protrusions, open lively dot eyes, eager smile, no eyebrows or brow marks, pure white body fill, small connected feet, about 1.1x Muci's overall size when appearing with Muci, and not skinny, narrow, tall-stretched, delicate, Muci's squat soft protagonist droplet, or Snacri's left-leaning head/top.",
+                "- Every page where two or more similar teardrop characters appear together must use short silhouette reminders instead of long repeated paragraphs: Muci broad squat/no brow, Nia tall sharp/one brow, Snacri left-leaning/open round eyes, Padaruna sharp centered point/chubby body/no brows, Padarana slimmer closed-eye.",
+                "- Every Snacri prompt must briefly preserve her model-sheet face: fully open round black dot eyes, tiny highlights, restrained tiny smile, no sleepy or annoyed eyes.",
+                "- Every Padaruna prompt must briefly preserve her model-sheet shape: very sharp upright centered point, cute plump/chubby body, no side nubs, no eyebrows, not Snacri-headed.",
                 "- Every Padarana prompt must explicitly preserve her Padarana Model Sheet Exact Lock: upright soft pointed head, slimmer gentle body, closed smiling eyes, calm reassuring mouth, pure white body fill, small connected feet, and not Snacri's left-leaning head/top.",
                 "- Every Professor Cera Lin prompt must explicitly preserve her Professor Cera Lin Model Sheet Exact Lock: model-sheet rounded six-sided hexagon body with one rounded central top peak, two sloped upper sides, two vertical side walls, rounded lower base, exactly six exterior sides and six rounded corners, controlled academic posture, measured smile, pure white body fill, small connected feet, and never any star shape, five-point star, six-point star, pentagon, flat-topped stop-sign/octagon, Sunny Spritz-style soft star, or generic polygon.",
                 "- Every page where Muci and Nia appear together must include a high-risk Muci/Nia shape note: Muci keeps a short broad soft-sided body, friendly U-smile, no brow, and only the subtle near-center top lean shown in the model sheet, while Nia keeps a taller narrower sharp vertical point and one angled left brow. Muci must not be drawn with Nia's vertical point, angled brow, or an exaggerated hooked/curling top.",
