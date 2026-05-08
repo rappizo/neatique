@@ -774,6 +774,14 @@ export type ComicProductLockRecord = {
   visualNotes: string;
   usageNotes: string;
   referenceNotes: string | null;
+  imageUrl: string | null;
+  imageData: string | null;
+  imageMimeType: string | null;
+  imageStorageKey: string | null;
+  imageByteSize: number | null;
+  imageSha256: string | null;
+  imagePrompt: string | null;
+  imageGeneratedAt: Date | null;
   active: boolean;
   sortOrder: number;
   createdAt: Date;

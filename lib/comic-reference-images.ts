@@ -64,6 +64,7 @@ export type ComicResolvedReferenceImage = {
     | "DETECTED_CHARACTER"
     | "DETECTED_CHAPTER_SCENE"
     | "CAST_COMPARISON"
+    | "PRODUCT_LOCK"
     | "BRAND_LOGO";
   label: string;
   slug: string;
@@ -648,9 +649,10 @@ function sortResolvedReferences(references: ComicResolvedReferenceImage[]) {
     CHARACTER: 1,
     DETECTED_CHARACTER: 2,
     CAST_COMPARISON: 3,
-    CHAPTER_SCENE: 4,
-    DETECTED_CHAPTER_SCENE: 5,
-    SCENE: 6
+    PRODUCT_LOCK: 4,
+    CHAPTER_SCENE: 5,
+    DETECTED_CHAPTER_SCENE: 6,
+    SCENE: 7
   };
 
   return [...references].sort((left, right) => {

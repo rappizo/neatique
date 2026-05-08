@@ -13,6 +13,10 @@ import {
   loadComicReferenceImageFiles,
   resolveComicPageReferenceImages
 } from "@/lib/comic-reference-images";
+import {
+  loadComicProductLockPromptContexts,
+  loadComicProductLockReferenceImages
+} from "@/lib/comic-product-locks";
 
 export type ComicExtraPageTaskStatus =
   | "extra-page-image-generated"
@@ -139,18 +143,35 @@ export async function generateComicExtraPageImageForEpisode(input: {
   }
 
   const { buildComicPageImagePrompt, generateComicPageImageWithAi } = await import("@/lib/openai-comic");
+  const referenceDetectionText = getExtraPageReferenceDetectionText(extraPage);
   const resolvedReferenceImages = await resolveComicPageReferenceImages({
     requiredUploads: extraPage.requiredUploads,
     seasonSlug: episode.chapter.season.slug,
     chapterSlug: episode.chapter.slug,
-    promptText: getExtraPageReferenceDetectionText(extraPage)
+    promptText: referenceDetectionText
   });
-  const referenceImages = await loadComicReferenceImageFiles(resolvedReferenceImages);
-  const characterLocks = await loadComicCharacterIdentityLocks(
-    resolvedReferenceImages
-      .filter((reference) => ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket))
-      .map((reference) => reference.slug)
-  );
+  const [baseReferenceImages, characterLocks, productLocks] = await Promise.all([
+    loadComicReferenceImageFiles(resolvedReferenceImages),
+    loadComicCharacterIdentityLocks(
+      resolvedReferenceImages
+        .filter((reference) => ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket))
+        .map((reference) => reference.slug)
+    ),
+    loadComicProductLockPromptContexts(
+      [
+        extraPage.title,
+        extraPage.pagePurpose,
+        extraPage.promptPackCopyText,
+        extraPage.referenceNotesCopyText,
+        referenceDetectionText
+      ].join("\n"),
+      {
+        fallbackToAll: false
+      }
+    )
+  ]);
+  const productReferenceImages = await loadComicProductLockReferenceImages(productLocks);
+  const referenceImages = [...baseReferenceImages, ...productReferenceImages];
   const imagePageNumber = getExtraPageImagePageNumber(extraPage);
   const imageInput = {
     projectTitle: episode.chapter.season.project.title,
@@ -174,6 +195,7 @@ export async function generateComicExtraPageImageForEpisode(input: {
     requiredUploads: extraPage.requiredUploads,
     referenceImages,
     characterLocks,
+    productLocks,
     generationAttempt: attempt
   };
   const inputPrompt = buildComicPageImagePrompt(imageInput);
@@ -194,6 +216,12 @@ export async function generateComicExtraPageImageForEpisode(input: {
         relativePath: reference.relativePath,
         source: reference.source,
         bucket: reference.bucket
+      })),
+      productLocks: imageInput.productLocks.map((productLock) => ({
+        slug: productLock.slug,
+        displayName: productLock.displayName,
+        shortCode: productLock.shortCode,
+        hasReferenceImage: Boolean(productLock.imageUrl)
       })),
       prompt: inputPrompt
     },

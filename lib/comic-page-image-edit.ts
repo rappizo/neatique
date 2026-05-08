@@ -11,6 +11,10 @@ import {
   loadComicReferenceImageFiles,
   resolveComicPageReferenceImages
 } from "@/lib/comic-reference-images";
+import {
+  loadComicProductLockPromptContexts,
+  loadComicProductLockReferenceImages
+} from "@/lib/comic-product-locks";
 import { prisma } from "@/lib/db";
 import {
   COMIC_PAGE_ASSET_TYPES,
@@ -140,12 +144,29 @@ export async function editComicPageImageForAsset(input: {
         promptText: referenceDetectionText
       })
     : [];
-  const referenceImages = await loadComicReferenceImageFiles(resolvedReferenceImages);
-  const characterLocks = await loadComicCharacterIdentityLocks(
-    resolvedReferenceImages
-      .filter((reference) => ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket))
-      .map((reference) => reference.slug)
-  );
+  const [baseReferenceImages, characterLocks, productLocks] = await Promise.all([
+    loadComicReferenceImageFiles(resolvedReferenceImages),
+    loadComicCharacterIdentityLocks(
+      resolvedReferenceImages
+        .filter((reference) => ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket))
+        .map((reference) => reference.slug)
+    ),
+    loadComicProductLockPromptContexts(
+      page
+        ? [
+            page.pagePurpose,
+            page.promptPackCopyText,
+            page.referenceNotesCopyText,
+            referenceDetectionText
+          ].join("\n")
+        : referenceDetectionText,
+      {
+        fallbackToAll: false
+      }
+    )
+  ]);
+  const productReferenceImages = await loadComicProductLockReferenceImages(productLocks);
+  const referenceImages = [...baseReferenceImages, ...productReferenceImages];
   const inputContext = JSON.stringify(
     {
       episode: asset.episode.title,
@@ -168,6 +189,12 @@ export async function editComicPageImageForAsset(input: {
         chineseName: character.chineseName,
         referenceFiles: character.referenceFiles.map((file) => file.fileName),
         hasProfileMarkdown: Boolean(character.profileMarkdown)
+      })),
+      productLocks: productLocks.map((productLock) => ({
+        slug: productLock.slug,
+        displayName: productLock.displayName,
+        shortCode: productLock.shortCode,
+        hasReferenceImage: Boolean(productLock.imageUrl)
       })),
       currentPage: page
         ? {
@@ -205,6 +232,7 @@ export async function editComicPageImageForAsset(input: {
         : null,
       referenceImages,
       characterLocks,
+      productLocks,
       attempt
     });
     const storedImage = await storeComicImage({

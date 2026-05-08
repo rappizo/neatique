@@ -68,6 +68,7 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
 const COMIC_IMAGE_PRODUCTION_LOCKS = [
   "Core image locks:",
   "- Use the attached reference images as the main visual authority. Character model sheets lock silhouette, face placement, body fill, proportions, highlights, and feet.",
+  "- Product lock reference images are binding prop identity references. When a locked product appears, copy the attached bottle shape and large front code instead of inventing packaging.",
   "- Clean high-contrast black-and-white Japanese manga only. Pure white mascot body fills. No color, gray wash, muddy shading, or heavy body screentone.",
   "- All mascot characters are handless and armless. Show object handling with gentle telekinesis, floating props, and small manga motion cues.",
   "- Full-body droplet characters have exactly two small connected feet/foot nubs. Do not add third feet, shoes, toes, side nubs, arms, or detached appendages.",
@@ -149,6 +150,8 @@ type ComicProductLockContext = {
   visualNotes: string;
   usageNotes: string;
   referenceNotes: string | null;
+  imageUrl?: string | null;
+  imageGeneratedAt?: Date | null;
 };
 
 type ComicReferenceFileContext = {
@@ -1815,6 +1818,11 @@ function buildProductLockSummary(productLocks: ComicProductLockContext[] = []) {
     .map((productLock) =>
       [
         `- ${productLock.displayName} (${productLock.shortCode}, slug: ${productLock.slug})`,
+        `  Reference image: ${
+          productLock.imageUrl
+            ? "generated product lock image is attached when this product is relevant; follow that bottle exactly."
+            : "no generated product lock image is stored yet; use the text lock only as fallback."
+        }`,
         `  Visual lock: ${trimPromptContext(productLock.visualNotes, 620)}`,
         `  Usage lock: ${trimPromptContext(productLock.usageNotes, 520)}`,
         `  Storefront note: ${trimPromptContext(productLock.referenceNotes || "None", 360)}`
@@ -2208,8 +2216,9 @@ function isComicPriorityPropReferenceImage(reference: ComicReferenceImageFile) {
     .toLowerCase();
 
   return (
-    (reference.bucket === "CHAPTER_SCENE" || reference.bucket === "DETECTED_CHAPTER_SCENE") &&
-    (searchable.includes("student handbook") || searchable.includes("old handbook"))
+    reference.bucket === "PRODUCT_LOCK" ||
+    ((reference.bucket === "CHAPTER_SCENE" || reference.bucket === "DETECTED_CHAPTER_SCENE") &&
+      (searchable.includes("student handbook") || searchable.includes("old handbook")))
   );
 }
 
@@ -3247,6 +3256,7 @@ export async function editComicPageImageWithAi(input: {
   pageContext?: ComicPageImageEditPageContext | null;
   referenceImages?: ComicReferenceImageFile[];
   characterLocks?: ComicCharacterIdentityLock[];
+  productLocks?: ComicProductLockContext[];
   attempt?: number;
 }): Promise<GeneratedComicPageImageAsset> {
   const imageApiSettings = getComicImageApiSettings();
@@ -3299,6 +3309,7 @@ export async function editComicPageImageWithAi(input: {
         requiredUploads: [],
         referenceImages,
         characterLocks: input.characterLocks || [],
+        productLocks: input.productLocks || [],
         generationAttempt: attempt
       }),
       "",
@@ -3310,6 +3321,9 @@ export async function editComicPageImageWithAi(input: {
       "",
       "Character separation and anti-blend locks:",
       buildComicPageCharacterSeparationLocks(input.characterLocks || []),
+      "",
+      "Product locks for this edit:",
+      buildProductLockSummary(input.productLocks || []),
       input.pageContext?.pagePurpose
         ? `Stored page purpose: ${trimImagePromptContext(input.pageContext.pagePurpose, 320)}`
         : null,

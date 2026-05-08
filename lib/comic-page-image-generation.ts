@@ -5,7 +5,10 @@ import {
   resolveComicPageReferenceImages
 } from "@/lib/comic-reference-images";
 import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
-import { loadComicProductLockPromptContexts } from "@/lib/comic-product-locks";
+import {
+  loadComicProductLockPromptContexts,
+  loadComicProductLockReferenceImages
+} from "@/lib/comic-product-locks";
 import { isNextRedirectError } from "@/lib/comic-action-errors";
 import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
@@ -114,8 +117,8 @@ export async function generateComicPageImageForEpisode(input: {
     chapterSlug: episode.chapter.slug,
     promptText: referenceDetectionText
   });
-  const referenceImages = await loadComicReferenceImageFiles(resolvedReferenceImages);
-  const [characterLocks, productLocks] = await Promise.all([
+  const [baseReferenceImages, characterLocks, productLocks] = await Promise.all([
+    loadComicReferenceImageFiles(resolvedReferenceImages),
     loadComicCharacterIdentityLocks(
       resolvedReferenceImages
         .filter((reference) =>
@@ -131,10 +134,12 @@ export async function generateComicPageImageForEpisode(input: {
         referenceDetectionText
       ].join("\n"),
       {
-        fallbackToAll: episode.storyType === "EXTRA"
+        fallbackToAll: false
       }
     )
   ]);
+  const productReferenceImages = await loadComicProductLockReferenceImages(productLocks);
+  const referenceImages = [...baseReferenceImages, ...productReferenceImages];
   const imageInput = {
     projectTitle: episode.chapter.season.project.title,
     seasonTitle: episode.chapter.season.title,
@@ -187,7 +192,8 @@ export async function generateComicPageImageForEpisode(input: {
       productLocks: imageInput.productLocks.map((productLock) => ({
         slug: productLock.slug,
         displayName: productLock.displayName,
-        shortCode: productLock.shortCode
+        shortCode: productLock.shortCode,
+        hasReferenceImage: Boolean(productLock.imageUrl)
       })),
       prompt: inputPrompt
     },

@@ -4,6 +4,7 @@ import {
   buildComicPageImagePrompt,
   selectComicPageImageReferenceImages
 } from "../lib/openai-comic";
+import { buildComicProductLockImagePrompt } from "../lib/comic-product-locks";
 import type { ComicReferenceImageFile } from "../lib/comic-reference-images";
 
 function makeLongText(seed: string, count: number) {
@@ -170,6 +171,20 @@ test("comic page image prompt includes product locks for simple coded bottles", 
   assert.match(prompt, /SE96 Serum \(SE96/);
   assert.match(prompt, /Front label shows only SE96/);
   assert.match(prompt, /Do not add small packaging text/);
+});
+
+test("comic product lock image prompt creates a concrete manga bottle reference", () => {
+  const prompt = buildComicProductLockImagePrompt({
+    displayName: "SE96 Serum",
+    shortCode: "SE96",
+    visualNotes: "Compact polished serum bottle with one large readable code.",
+    referenceNotes: "Storefront product context for anti-aging serum."
+  });
+
+  assert.match(prompt, /one single clean skincare bottle/);
+  assert.match(prompt, /Front label: render only the large centered code "SE96"/);
+  assert.match(prompt, /Do not render ingredients, claims/);
+  assert.match(prompt, /Final output: one square product reference sheet/);
 });
 
 test("comic page image prompt separates Coach Ray from Muci and normalizes legacy pentagonal wording", () => {
@@ -932,6 +947,62 @@ test("comic page image reference selection keeps cover logo during retries", () 
     assert.ok(
       selected.some((reference) => reference.bucket === "BRAND_LOGO"),
       "The cover logo should not be dropped in retry reference selection."
+    );
+  } finally {
+    if (previousLimit === undefined) {
+      delete process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+    } else {
+      process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = previousLimit;
+    }
+  }
+});
+
+test("comic page image reference selection keeps product lock references", () => {
+  const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+  process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";
+
+  try {
+    const selected = selectComicPageImageReferenceImages(
+      [
+        referenceImage({
+          label: "Muci Model Sheet",
+          slug: "muci",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/muci/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Nia Model Sheet",
+          slug: "nia",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/nia/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Snacri Model Sheet",
+          slug: "snacri",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/snacri/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "Padaruna Model Sheet",
+          slug: "padaruna",
+          bucket: "CHARACTER",
+          relativePath: "comic/characters/padaruna/refs/model-sheet.jpg"
+        }),
+        referenceImage({
+          label: "SE96 Serum product lock",
+          slug: "se96-serum",
+          bucket: "PRODUCT_LOCK",
+          relativePath: "comic/product-locks/se96-serum",
+          source: "auto-detected"
+        })
+      ],
+      2
+    );
+
+    assert.equal(selected.length, 4);
+    assert.ok(
+      selected.some((reference) => reference.bucket === "PRODUCT_LOCK"),
+      "The locked product reference image should not be dropped during retry selection."
     );
   } finally {
     if (previousLimit === undefined) {

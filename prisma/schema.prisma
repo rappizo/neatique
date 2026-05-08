@@ -294,19 +294,27 @@ model ComicEpisode {
 }
 
 model ComicProductLock {
-  id             String   @id @default(cuid())
-  productId      String   @unique
-  slug           String   @unique
-  displayName    String
-  shortCode      String
-  visualNotes    String
-  usageNotes     String
-  referenceNotes String?
-  active         Boolean  @default(true)
-  sortOrder      Int      @default(0)
-  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String    @id @default(cuid())
+  productId        String    @unique
+  slug             String    @unique
+  displayName      String
+  shortCode        String
+  visualNotes      String
+  usageNotes       String
+  referenceNotes   String?
+  imageUrl         String?
+  imageData        String?
+  imageMimeType    String?
+  imageStorageKey  String?
+  imageByteSize    Int?
+  imageSha256      String?
+  imagePrompt      String?
+  imageGeneratedAt DateTime?
+  active           Boolean   @default(true)
+  sortOrder        Int       @default(0)
+  product          Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([active, sortOrder, createdAt])
 }

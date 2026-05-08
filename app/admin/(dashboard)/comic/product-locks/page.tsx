@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  generateComicProductLockImageAction,
   resetComicProductLockDefaultsAction,
   syncComicProductLocksAction,
   updateComicProductLockAction
@@ -18,6 +19,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   "product-locks-already-current": "Product locks are already current.",
   "product-lock-saved": "Product lock saved.",
   "product-lock-reset": "Product lock reset from the storefront product.",
+  "product-lock-image-generated": "Product lock comic reference image generated.",
+  "product-lock-image-failed": "Product lock comic reference image generation failed.",
   "missing-product-lock": "That product lock could not be found.",
   "missing-product-lock-fields": "Display name, short code, visual notes, and usage notes are required."
 };
@@ -50,9 +53,9 @@ export default async function AdminComicProductLocksPage({
         <p className="eyebrow">Comic / Product Locks</p>
         <h1>Product locks for extra-story comics.</h1>
         <p>
-          Sync active storefront products into short comic-safe product designs. These locks are
-          injected into extra-story prompts so products stay recognizable without copying full
-          storefront packaging text.
+          Sync active storefront products into short comic-safe product designs, then generate a
+          concrete manga reference image for each lock. Relevant product references are attached to
+          extra-story page generation so products stay recognizable without copying storefront copy.
         </p>
       </div>
 
@@ -120,6 +123,45 @@ export default async function AdminComicProductLocksPage({
                 ) : null}
               </div>
 
+              <div className="cards-2">
+                <section className="admin-card">
+                  <p className="eyebrow">Storefront source</p>
+                  {lock.productImageUrl ? (
+                    <Image
+                      src={lock.productImageUrl}
+                      alt={lock.productName || lock.displayName}
+                      width={180}
+                      height={180}
+                      unoptimized
+                    />
+                  ) : (
+                    <p className="form-note">No storefront product image stored.</p>
+                  )}
+                </section>
+                <section className="admin-card">
+                  <p className="eyebrow">Comic reference lock</p>
+                  {lock.imageUrl ? (
+                    <>
+                      <Image
+                        src={lock.imageUrl}
+                        alt={`${lock.displayName} comic product lock`}
+                        width={180}
+                        height={180}
+                        unoptimized
+                      />
+                      <p className="form-note">
+                        Generated {lock.imageGeneratedAt ? formatDate(lock.imageGeneratedAt) : "recently"}.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="form-note">
+                      Generate a concrete manga bottle reference before using this product in an
+                      extra-story page.
+                    </p>
+                  )}
+                </section>
+              </div>
+
               <form action={updateComicProductLockAction} className="admin-comic-copy-grid">
                 <input type="hidden" name="id" value={lock.id} />
                 <div className="field">
@@ -184,9 +226,26 @@ export default async function AdminComicProductLocksPage({
                     defaultValue={lock.referenceNotes || ""}
                   />
                 </div>
+                <div className="field">
+                  <label htmlFor={`imagePrompt-${lock.id}`}>Comic reference image prompt</label>
+                  <textarea
+                    id={`imagePrompt-${lock.id}`}
+                    name="imagePrompt"
+                    rows={6}
+                    defaultValue={lock.imagePrompt || ""}
+                    placeholder="Leave empty to use the default comic product reference prompt."
+                  />
+                </div>
                 <div className="stack-row">
                   <button type="submit" className="button button--primary">
                     Save lock
+                  </button>
+                  <button
+                    type="submit"
+                    formAction={generateComicProductLockImageAction}
+                    className="button button--secondary"
+                  >
+                    Generate comic reference
                   </button>
                   <button
                     type="submit"

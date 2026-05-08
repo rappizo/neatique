@@ -10,6 +10,10 @@ import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { getComicExtraPromptPages } from "@/lib/comic-extra-pages";
 import { resolveComicPageReferenceImages } from "@/lib/comic-reference-images";
 import {
+  loadComicProductLockPromptContexts,
+  resolveComicProductLockReferenceImages
+} from "@/lib/comic-product-locks";
+import {
   COMIC_CHINESE_PAGE_ASSET_TYPE,
   COMIC_EXTRA_PAGE_ASSET_TYPE,
   COMIC_PAGE_ASSET_TYPES,
@@ -23,6 +27,25 @@ import type {
 export const runtime = "nodejs";
 
 type PromptPage = NonNullable<ReturnType<typeof parseComicPromptOutput>>["pages"][number];
+
+async function resolveReferenceImagesForPrompt(input: {
+  requiredUploads: PromptPage["requiredUploads"];
+  seasonSlug: string;
+  chapterSlug: string;
+  promptText: string;
+}) {
+  const [baseReferenceImages, productLocks] = await Promise.all([
+    resolveComicPageReferenceImages(input),
+    loadComicProductLockPromptContexts(input.promptText, {
+      fallbackToAll: false
+    })
+  ]);
+
+  return [
+    ...baseReferenceImages,
+    ...resolveComicProductLockReferenceImages(productLocks)
+  ];
+}
 
 function isComicPageAsset(asset: ComicEpisodeAssetRecord) {
   return COMIC_PAGE_ASSET_TYPES.includes(asset.assetType);
@@ -106,7 +129,7 @@ async function getEpisodePromptPages(episode: ComicPublishCenterEpisodeRecord) {
       const chineseAssets = getChinesePageAssets(episode, pageNumber);
       const promptPage = promptPageMap.get(pageNumber) || null;
       const referenceImages = promptPage
-        ? await resolveComicPageReferenceImages({
+        ? await resolveReferenceImagesForPrompt({
             requiredUploads: promptPage.requiredUploads,
             seasonSlug: episode.seasonSlug,
             chapterSlug: episode.chapterSlug,
@@ -137,7 +160,7 @@ async function getEpisodePromptPages(episode: ComicPublishCenterEpisodeRecord) {
   const extraPages = await Promise.all(
     getComicExtraPromptPages(episode.promptPack).map(async (extraPage) => {
       const assets = getExtraPageAssets(episode, extraPage.anchorPageNumber);
-      const referenceImages = await resolveComicPageReferenceImages({
+      const referenceImages = await resolveReferenceImagesForPrompt({
         requiredUploads: extraPage.requiredUploads,
         seasonSlug: episode.seasonSlug,
         chapterSlug: episode.chapterSlug,
