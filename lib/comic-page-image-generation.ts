@@ -5,6 +5,7 @@ import {
   resolveComicPageReferenceImages
 } from "@/lib/comic-reference-images";
 import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
+import { loadComicProductLockPromptContexts } from "@/lib/comic-product-locks";
 import { isNextRedirectError } from "@/lib/comic-action-errors";
 import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
@@ -114,13 +115,26 @@ export async function generateComicPageImageForEpisode(input: {
     promptText: referenceDetectionText
   });
   const referenceImages = await loadComicReferenceImageFiles(resolvedReferenceImages);
-  const characterLocks = await loadComicCharacterIdentityLocks(
-    resolvedReferenceImages
-      .filter((reference) =>
-        ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket)
-      )
-      .map((reference) => reference.slug)
-  );
+  const [characterLocks, productLocks] = await Promise.all([
+    loadComicCharacterIdentityLocks(
+      resolvedReferenceImages
+        .filter((reference) =>
+          ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket)
+        )
+        .map((reference) => reference.slug)
+    ),
+    loadComicProductLockPromptContexts(
+      [
+        page.pagePurpose,
+        page.promptPackCopyText,
+        page.referenceNotesCopyText,
+        referenceDetectionText
+      ].join("\n"),
+      {
+        fallbackToAll: episode.storyType === "EXTRA"
+      }
+    )
+  ]);
   const imageInput = {
     projectTitle: episode.chapter.season.project.title,
     seasonTitle: episode.chapter.season.title,
@@ -142,6 +156,7 @@ export async function generateComicPageImageForEpisode(input: {
     requiredUploads: page.requiredUploads,
     referenceImages,
     characterLocks,
+    productLocks,
     generationAttempt: attempt
   };
   const inputPrompt = buildComicPageImagePrompt(imageInput);
@@ -168,6 +183,11 @@ export async function generateComicPageImageForEpisode(input: {
         chineseName: character.chineseName,
         referenceFiles: character.referenceFiles.map((file) => file.fileName),
         hasProfileMarkdown: Boolean(character.profileMarkdown)
+      })),
+      productLocks: imageInput.productLocks.map((productLock) => ({
+        slug: productLock.slug,
+        displayName: productLock.displayName,
+        shortCode: productLock.shortCode
       })),
       prompt: inputPrompt
     },

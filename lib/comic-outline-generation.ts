@@ -373,6 +373,9 @@ async function loadSeason(seasonId: string) {
       chapters: {
         include: {
           episodes: {
+            where: {
+              storyType: "MAIN"
+            },
             orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
           }
         },
@@ -552,6 +555,9 @@ async function loadChapter(chapterId: string) {
         }
       },
       episodes: {
+        where: {
+          storyType: "MAIN"
+        },
         orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
       }
     }
@@ -723,6 +729,9 @@ async function loadEpisode(episodeId: string) {
       chapter: {
         include: {
           episodes: {
+            where: {
+              storyType: "MAIN"
+            },
             orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
           },
           season: {

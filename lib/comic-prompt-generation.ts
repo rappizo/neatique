@@ -11,6 +11,7 @@ import {
   getComicSceneReferenceFiles
 } from "@/lib/comic-reference-manifest";
 import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
+import { loadComicProductLockPromptContexts } from "@/lib/comic-product-locks";
 import { formatComicPageLabel, isComicPublishPageNumber } from "@/lib/comic-pages";
 
 export type ComicPromptPackageGenerationStatus =
@@ -106,7 +107,16 @@ export async function generateComicPromptPackageForEpisode(input: {
     throw new ComicPromptGenerationInputError("missing-project", "Comic project is missing.");
   }
 
-  const [characters, scenes] = await Promise.all([
+  const productReferenceText = [
+    episode.chapter.season.project.title,
+    episode.chapter.season.title,
+    episode.chapter.title,
+    episode.chapter.summary,
+    episode.title,
+    episode.summary,
+    episode.outline
+  ].join("\n");
+  const [characters, scenes, productLocks] = await Promise.all([
     prisma.comicCharacter.findMany({
       where: {
         projectId: episode.chapter.season.projectId,
@@ -120,6 +130,9 @@ export async function generateComicPromptPackageForEpisode(input: {
         active: true
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+    }),
+    loadComicProductLockPromptContexts(productReferenceText, {
+      fallbackToAll: episode.storyType === "EXTRA"
     })
   ]);
 
@@ -133,17 +146,7 @@ export async function generateComicPromptPackageForEpisode(input: {
   const characterIdentityLockBySlug = new Map(
     characterIdentityLocks.map((character) => [character.slug, character])
   );
-  const relevanceText = normalizeRelevanceText(
-    [
-      episode.chapter.season.project.title,
-      episode.chapter.season.title,
-      episode.chapter.title,
-      episode.chapter.summary,
-      episode.title,
-      episode.summary,
-      episode.outline
-    ].join("\n")
-  );
+  const relevanceText = normalizeRelevanceText(productReferenceText);
   const relevantCharacters = characters.filter(
     (character) =>
       character.name.toLowerCase() === "muci" ||
@@ -177,6 +180,7 @@ export async function generateComicPromptPackageForEpisode(input: {
       sceneCount: scenes.length,
       promptCharacterCount: promptCharacters.length,
       promptSceneCount: promptScenes.length,
+      productLockCount: productLocks.length,
       chapterSceneReferenceFolder: chapterSceneReferenceState.chapterSceneReferenceFolder,
       chapterSceneReferenceCount: chapterSceneReferenceState.chapterSceneReferences.length,
       chapterSceneReferenceFiles: chapterSceneReferenceState.chapterSceneReferences.map(
@@ -247,6 +251,7 @@ export async function generateComicPromptPackageForEpisode(input: {
           referenceNotes: scene.referenceNotes,
           referenceFiles: getComicSceneReferenceFiles(scene.slug)
         })),
+        productLocks,
         chapterSceneReferences: chapterSceneReferenceState.chapterSceneReferences
       },
       {

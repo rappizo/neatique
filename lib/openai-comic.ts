@@ -142,6 +142,15 @@ type ComicSceneContext = {
   referenceFiles: ComicReferenceFileContext[];
 };
 
+type ComicProductLockContext = {
+  displayName: string;
+  shortCode: string;
+  slug: string;
+  visualNotes: string;
+  usageNotes: string;
+  referenceNotes: string | null;
+};
+
 type ComicReferenceFileContext = {
   label: string;
   fileName: string;
@@ -309,6 +318,7 @@ export type GenerateComicPageImageInput = {
   requiredUploads: GeneratedComicPageUpload[];
   referenceImages?: ComicReferenceImageFile[];
   characterLocks?: ComicCharacterIdentityLock[];
+  productLocks?: ComicProductLockContext[];
   generationAttempt?: number;
 };
 
@@ -352,6 +362,7 @@ type GenerateComicPromptPackageInput = {
   episode: ComicEpisodeContext;
   characters: ComicCharacterContext[];
   scenes: ComicSceneContext[];
+  productLocks?: ComicProductLockContext[];
   chapterSceneReferences: ComicChapterSceneReferenceContext[];
 };
 
@@ -1795,6 +1806,23 @@ function buildSceneSummary(scenes: ComicSceneContext[]) {
     .join("\n\n");
 }
 
+function buildProductLockSummary(productLocks: ComicProductLockContext[] = []) {
+  if (productLocks.length === 0) {
+    return "No product locks are active or relevant for this episode.";
+  }
+
+  return productLocks
+    .map((productLock) =>
+      [
+        `- ${productLock.displayName} (${productLock.shortCode}, slug: ${productLock.slug})`,
+        `  Visual lock: ${trimPromptContext(productLock.visualNotes, 620)}`,
+        `  Usage lock: ${trimPromptContext(productLock.usageNotes, 520)}`,
+        `  Storefront note: ${trimPromptContext(productLock.referenceNotes || "None", 360)}`
+      ].join("\n")
+    )
+    .join("\n\n");
+}
+
 function buildChapterSceneReferenceSummary(sceneReferences: ComicChapterSceneReferenceContext[]) {
   if (sceneReferences.length === 0) {
     return "No chapter-specific scene reference files have been stored yet.";
@@ -2854,6 +2882,9 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "Character separation and anti-blend locks:",
     buildComicPageCharacterSeparationLocks(input.characterLocks),
     "",
+    "Product locks for this page:",
+    buildProductLockSummary(input.productLocks),
+    "",
     "Production prompt already prepared for this page:",
     trimImagePromptContext(input.promptPackCopyText, 2200),
     "",
@@ -3807,6 +3838,7 @@ export async function generateComicPromptPackageWithAi(
                 "If a named prop or object appears on multiple pages, treat it like a continuity asset: use an existing chapter scene reference if one exists, or explicitly flag that a prop/object reference should be created before image generation.",
                 "When a recurring prop reference exists in the chapter scene reference files, include it in requiredUploads on every page where that prop appears.",
                 "When the old student handbook, Student Handbook (old edition), or old handbook appears, use the chapter prop reference named Student Handbook (old edition).jpg if it exists; match its approved Episode 4 Page 10 design exactly, and never substitute the Sunscreen Field Handbook.jpg design.",
+                "When product locks are provided, treat them as binding prop identity locks. Render a simple clean product bottle with only the large locked short code on the front label, no small packaging text or product claims.",
                 "Never invent file names. Only use file names that appear in the provided reference libraries.",
                 "Assume the team wants stable characters, reusable scenes, and a polished comic workflow."
               ].join(" ")
@@ -3854,6 +3886,9 @@ export async function generateComicPromptPackageWithAi(
                 "Locked scene library:",
                 buildSceneSummary(input.scenes),
                 "",
+                "Locked product library for product-use extra stories:",
+                buildProductLockSummary(input.productLocks),
+                "",
                 "Chapter-specific scene reference files:",
                 buildChapterSceneReferenceSummary(input.chapterSceneReferences),
                 "",
@@ -3864,6 +3899,7 @@ export async function generateComicPromptPackageWithAi(
                 "- The episodeScript must include dialogue, not only prose narration.",
                 "- Create a 10-story-page plan. Do not include the cover in the returned pages array; the application prepends the cover page prompt as pageNumber 0.",
                 "- If a named character needs a first-appearance introduction box, put it on that character's first story page appearance within pages 1-10. Never reserve it for the cover, and never treat the cover as the first appearance.",
+                "- If the episode mentions a locked product, use the matching product lock. The product should appear as a clean manga bottle whose front label shows only the large short code, such as SE96, with no small text.",
                 "- Keep every returned field compact enough for a production dashboard; avoid repeating the same global locks verbatim inside every field.",
                 "- Keep promptPackCopyText concise: rely on requiredUploads and attached model sheets for character consistency, then add only the page-specific action, prop, dialogue, and one-line high-risk identity reminders.",
                 "- Every page should normally contain 3 panels.",

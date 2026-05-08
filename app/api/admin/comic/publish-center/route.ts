@@ -68,6 +68,7 @@ function revalidateComicRoutes(slugs?: ComicRouteSlugs) {
   const paths = [
     "/admin/comic",
     "/admin/comic/publish-center",
+    "/admin/comic/extra-story-publish-center",
     "/comic",
     slugs?.seasonSlug ? `/comic/${slugs.seasonSlug}` : null,
     slugs?.seasonSlug && slugs?.chapterSlug

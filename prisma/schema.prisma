@@ -116,6 +116,7 @@ model Product {
   orderItems          OrderItem[]
   reviews             ProductReview[]
   posts               Post[]
+  comicProductLock    ComicProductLock?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -270,11 +271,16 @@ model ComicEpisode {
   requiredReferences String
   coverImageUrl      String?
   coverImageAlt      String?
+  storyType          String              @default("MAIN")
+  extraStoryParentEpisodeId String?
+  extraStoryPlacementOrder  Int          @default(0)
   published          Boolean             @default(false)
   publishedAt        DateTime?
   sortOrder          Int                 @default(0)
   chapterId          String
   chapter            ComicChapter        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  extraStoryParentEpisode ComicEpisode?  @relation("ComicExtraStoryPlacement", fields: [extraStoryParentEpisodeId], references: [id], onDelete: SetNull)
+  extraStories       ComicEpisode[]      @relation("ComicExtraStoryPlacement")
   assets             ComicEpisodeAsset[]
   promptRuns         ComicPromptRun[]
   createdAt          DateTime            @default(now())
@@ -282,7 +288,27 @@ model ComicEpisode {
 
   @@unique([chapterId, slug])
   @@index([chapterId, episodeNumber])
+  @@index([storyType, published, publishedAt])
+  @@index([extraStoryParentEpisodeId, extraStoryPlacementOrder, createdAt])
   @@index([published, publishedAt, sortOrder, createdAt])
+}
+
+model ComicProductLock {
+  id             String   @id @default(cuid())
+  productId      String   @unique
+  slug           String   @unique
+  displayName    String
+  shortCode      String
+  visualNotes    String
+  usageNotes     String
+  referenceNotes String?
+  active         Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([active, sortOrder, createdAt])
 }
 
 model ComicEpisodeAsset {

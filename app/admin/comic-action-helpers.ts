@@ -79,6 +79,9 @@ export function revalidateComicRoutes(slugs?: {
   safeRevalidatePath("/admin/comic/seasons");
   safeRevalidatePath("/admin/comic/outline-studio");
   safeRevalidatePath("/admin/comic/publish-center");
+  safeRevalidatePath("/admin/comic/extra-story-outline");
+  safeRevalidatePath("/admin/comic/extra-story-publish-center");
+  safeRevalidatePath("/admin/comic/product-locks");
   safeRevalidatePath("/comic");
 
   if (slugs?.seasonSlug) {

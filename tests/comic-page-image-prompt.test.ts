@@ -117,6 +117,61 @@ test("comic page image prompt stays under OpenAI length limit while preserving r
   assert.match(prompt, /Muci: "I brought sunscreen\."/);
 });
 
+test("comic page image prompt includes product locks for simple coded bottles", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "SE96 Extra Story",
+    episodeSummary: "Muci learns how to use SE96 without turning the scene into an ad.",
+    pageNumber: 2,
+    panelCount: 2,
+    pagePurpose: "Muci notices the SE96 bottle floating beside a bathroom shelf.",
+    promptPackCopyText:
+      "Draw a clean manga page where the SE96 bottle floats between Muci and Padaruna. The front label shows only SE96 in large readable letters.",
+    referenceNotesCopyText: "Use the product lock for SE96. Do not add small packaging text.",
+    globalGptImage2Notes: null,
+    panels: [
+      {
+        pageNumber: 2,
+        panelNumber: 1,
+        panelTitle: "Bottle reveal",
+        storyBeat: "The SE96 bottle slides into view.",
+        promptText: "Show the product as a simple clean bottle with the SE96 code.",
+        dialogueLines: [{ speaker: "Muci", text: "So this one is SE96?" }]
+      },
+      {
+        pageNumber: 2,
+        panelNumber: 2,
+        panelTitle: "Usage beat",
+        storyBeat: "Padaruna nods while the bottle hovers.",
+        promptText: "Keep Padaruna chubby and make the product label readable.",
+        dialogueLines: [{ speaker: "Padaruna", text: "Only the big code matters." }]
+      }
+    ],
+    requiredUploads: [],
+    referenceImages: [],
+    characterLocks: [],
+    productLocks: [
+      {
+        displayName: "SE96 Serum",
+        shortCode: "SE96",
+        slug: "se96-serum",
+        visualNotes:
+          "Render as a simple clean Neatique skincare bottle. Front label shows only SE96 in large readable letters.",
+        usageNotes: "Use telekinetic movement when characters interact with the bottle.",
+        referenceNotes: "Storefront product context for SE96."
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /Product locks for this page/);
+  assert.match(prompt, /SE96 Serum \(SE96/);
+  assert.match(prompt, /Front label shows only SE96/);
+  assert.match(prompt, /Do not add small packaging text/);
+});
+
 test("comic page image prompt separates Coach Ray from Muci and normalizes legacy pentagonal wording", () => {
   const prompt = buildComicPageImagePrompt({
     projectTitle: "Neatique Skincare College",

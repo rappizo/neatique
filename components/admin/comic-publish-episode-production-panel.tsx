@@ -163,6 +163,8 @@ type ComicPublishEpisodeProductionPanelProps = {
   episodeId: string;
   episodeTitle: string;
   episodePublished: boolean;
+  redirectTo?: string;
+  outlineHref?: string;
 };
 
 const EPISODE_DETAIL_REFRESH_TASK_KINDS = new Set([
@@ -461,12 +463,17 @@ export function ComicPublishEpisodeProductionPanel({
   chapterId,
   episodeId,
   episodeTitle,
-  episodePublished
+  episodePublished,
+  redirectTo: redirectToOverride,
+  outlineHref
 }: ComicPublishEpisodeProductionPanelProps) {
   const { tasks } = useComicImageTaskQueue();
   const [detail, setDetail] = useState<ComicEpisodeProductionDetail | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const redirectTo = useMemo(() => buildRedirectTo(chapterId, episodeId), [chapterId, episodeId]);
+  const redirectTo = useMemo(
+    () => redirectToOverride || buildRedirectTo(chapterId, episodeId),
+    [chapterId, episodeId, redirectToOverride]
+  );
   const episodeDetailRefreshKey = useMemo(
     () =>
       tasks
@@ -572,7 +579,7 @@ export function ComicPublishEpisodeProductionPanel({
       <div className="admin-comic-publish-episode__controls">
         <div className="admin-comic-publish-episode__actions">
           <Link
-            href={`/admin/comic/outline-studio?scope=episode&id=${episodeId}`}
+            href={outlineHref || `/admin/comic/outline-studio?scope=episode&id=${episodeId}`}
             className="button button--secondary"
           >
             Outline studio

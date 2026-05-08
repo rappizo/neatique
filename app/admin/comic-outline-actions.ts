@@ -536,6 +536,9 @@ export async function generateComicChapterOutlineAction(formData: FormData) {
         }
       },
       episodes: {
+        where: {
+          storyType: "MAIN"
+        },
         orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
       }
     }
@@ -622,6 +625,9 @@ export async function generateComicEpisodeOutlineAction(formData: FormData) {
       chapter: {
         include: {
           episodes: {
+            where: {
+              storyType: "MAIN"
+            },
             orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
           },
           season: {
@@ -799,6 +805,9 @@ export async function generateComicChapterOutlinesAction(formData: FormData) {
       chapters: {
         include: {
           episodes: {
+            where: {
+              storyType: "MAIN"
+            },
             orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
           }
         },
@@ -892,6 +901,9 @@ export async function generateComicEpisodeOutlinesAction(formData: FormData) {
     where: { id: chapterId },
     include: {
       episodes: {
+        where: {
+          storyType: "MAIN"
+        },
         orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
       },
       season: {

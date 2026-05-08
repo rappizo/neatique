@@ -6,8 +6,12 @@ import type {
   ComicCharacterRecord,
   ComicEpisodeAssetRecord,
   ComicEpisodeRecord,
+  ComicExtraStoryOutlinePageRecord,
+  ComicExtraStoryPublishCenterRecord,
   ComicOutlineStudioPageRecord,
   ComicPagePromptRevisionRecord,
+  ComicProductLockRecord,
+  ComicProductLocksPageRecord,
   ComicPublishCenterEpisodeRecord,
   ComicPublishCenterRecord,
   ComicProjectRecord,
@@ -33,6 +37,9 @@ import {
   isComicPublishPageNumber
 } from "@/lib/comic-pages";
 
+export const COMIC_MAIN_STORY_TYPE = "MAIN";
+export const COMIC_EXTRA_STORY_TYPE = "EXTRA";
+
 function isMissingComicTableError(error: unknown) {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2021") {
     return false;
@@ -41,7 +48,7 @@ function isMissingComicTableError(error: unknown) {
   const tableName = typeof error.meta?.table === "string" ? error.meta.table : "";
   const message = error.message || "";
   const comicTablePattern =
-    /Comic(Project|Character|Scene|Season|Chapter|Episode|EpisodeAsset|PromptRun)/;
+    /Comic(Project|Character|Scene|Season|Chapter|Episode|EpisodeAsset|PromptRun|ProductLock)/;
 
   return comicTablePattern.test(tableName) || comicTablePattern.test(message);
 }
@@ -133,7 +140,7 @@ function mapComicSeason(season: any): ComicSeasonRecord {
         ? season.episodeCount
         : Array.isArray(season.chapters)
           ? season.chapters.reduce(
-              (sum: number, chapter: any) => sum + (chapter._count?.episodes ?? chapter.episodes?.length ?? 0),
+              (sum: number, chapter: any) => sum + (chapter.episodes?.length ?? chapter._count?.episodes ?? 0),
               0
             )
           : 0,
@@ -166,7 +173,10 @@ function mapComicChapter(chapter: any): ComicChapterRecord {
     published: chapter.published,
     sortOrder: chapter.sortOrder,
     seasonId: chapter.seasonId,
-    episodeCount: chapter._count?.episodes ?? chapter.episodes?.length ?? 0,
+    episodeCount:
+      typeof chapter.episodeCount === "number"
+        ? chapter.episodeCount
+        : chapter.episodes?.length ?? chapter._count?.episodes ?? 0,
     publishedEpisodeCount: Array.isArray(chapter.episodes)
       ? chapter.episodes.filter((episode: any) => episode.published).length
       : 0,
@@ -223,6 +233,9 @@ function mapComicEpisode(episode: any): ComicEpisodeRecord {
     requiredReferences: episode.requiredReferences,
     coverImageUrl: episode.coverImageUrl ?? null,
     coverImageAlt: episode.coverImageAlt ?? null,
+    storyType: episode.storyType === COMIC_EXTRA_STORY_TYPE ? COMIC_EXTRA_STORY_TYPE : COMIC_MAIN_STORY_TYPE,
+    extraStoryParentEpisodeId: episode.extraStoryParentEpisodeId ?? null,
+    extraStoryPlacementOrder: episode.extraStoryPlacementOrder ?? 0,
     published: episode.published,
     publishedAt: episode.publishedAt ? new Date(episode.publishedAt) : null,
     sortOrder: episode.sortOrder,
@@ -235,6 +248,27 @@ function mapComicEpisode(episode: any): ComicEpisodeRecord {
         : null,
     createdAt: new Date(episode.createdAt),
     updatedAt: new Date(episode.updatedAt)
+  };
+}
+
+function mapComicProductLock(lock: any): ComicProductLockRecord {
+  return {
+    id: lock.id,
+    productId: lock.productId,
+    productName: lock.product?.name || "",
+    productSlug: lock.product?.slug || "",
+    productStatus: lock.product?.status || "DRAFT",
+    productImageUrl: lock.product?.imageUrl || "",
+    slug: lock.slug,
+    displayName: lock.displayName,
+    shortCode: lock.shortCode,
+    visualNotes: lock.visualNotes,
+    usageNotes: lock.usageNotes,
+    referenceNotes: lock.referenceNotes ?? null,
+    active: lock.active,
+    sortOrder: lock.sortOrder,
+    createdAt: new Date(lock.createdAt),
+    updatedAt: new Date(lock.updatedAt)
   };
 }
 
@@ -332,13 +366,18 @@ export async function getComicAdminOverview() {
         prisma.comicScene.count(),
         prisma.comicSeason.count(),
         prisma.comicChapter.count(),
-        prisma.comicEpisode.count(),
-        prisma.comicEpisode.count({ where: { published: true } }),
+        prisma.comicEpisode.count({ where: { storyType: COMIC_MAIN_STORY_TYPE } }),
+        prisma.comicEpisode.count({
+          where: { storyType: COMIC_MAIN_STORY_TYPE, published: true }
+        }),
         prisma.comicSeason.findMany({
           include: {
             chapters: {
               include: {
                 episodes: {
+                  where: {
+                    storyType: COMIC_MAIN_STORY_TYPE
+                  },
                   include: {
                     chapter: {
                       include: {
@@ -455,6 +494,9 @@ export async function getComicSeasonsForAdmin() {
           chapters: {
             include: {
               episodes: {
+                where: {
+                  storyType: COMIC_MAIN_STORY_TYPE
+                },
                 select: {
                   id: true,
                   published: true
@@ -495,6 +537,9 @@ export async function getComicSeasonById(id: string) {
                 }
               },
               episodes: {
+                where: {
+                  storyType: COMIC_MAIN_STORY_TYPE
+                },
                 select: {
                   id: true,
                   published: true
@@ -540,6 +585,9 @@ export async function getComicChapterById(id: string) {
             }
           },
           episodes: {
+            where: {
+              storyType: COMIC_MAIN_STORY_TYPE
+            },
             include: {
               _count: {
                 select: {
@@ -587,6 +635,9 @@ export async function getComicOutlineStudioPage() {
             chapters: {
               include: {
                 episodes: {
+                  where: {
+                    storyType: COMIC_MAIN_STORY_TYPE
+                  },
                   include: {
                     _count: {
                       select: {
@@ -753,6 +804,82 @@ function getPublicComicAssetsForLanguage(
   });
 }
 
+function compareComicEpisodesByMainOrder(left: any, right: any) {
+  if (left.episodeNumber !== right.episodeNumber) {
+    return left.episodeNumber - right.episodeNumber;
+  }
+
+  if (left.sortOrder !== right.sortOrder) {
+    return left.sortOrder - right.sortOrder;
+  }
+
+  return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+}
+
+function compareComicExtraStories(left: any, right: any) {
+  if (left.extraStoryPlacementOrder !== right.extraStoryPlacementOrder) {
+    return left.extraStoryPlacementOrder - right.extraStoryPlacementOrder;
+  }
+
+  if (left.episodeNumber !== right.episodeNumber) {
+    return left.episodeNumber - right.episodeNumber;
+  }
+
+  return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+}
+
+function orderPublicComicEpisodes(episodes: any[], language: ComicLanguage) {
+  const visibleEpisodes = episodes.filter((episode) =>
+    hasAllRequiredComicPagesForLanguage(episode.assets || [], language)
+  );
+  const mainEpisodes = visibleEpisodes
+    .filter((episode) => episode.storyType !== COMIC_EXTRA_STORY_TYPE)
+    .sort(compareComicEpisodesByMainOrder);
+  const extraStoriesByParentId = new Map<string, any[]>();
+
+  visibleEpisodes
+    .filter((episode) => episode.storyType === COMIC_EXTRA_STORY_TYPE && episode.extraStoryParentEpisodeId)
+    .forEach((episode) => {
+      const parentId = episode.extraStoryParentEpisodeId;
+      const existing = extraStoriesByParentId.get(parentId) || [];
+      existing.push(episode);
+      extraStoriesByParentId.set(parentId, existing);
+    });
+
+  return mainEpisodes.flatMap((episode) => [
+    episode,
+    ...(extraStoriesByParentId.get(episode.id) || []).sort(compareComicExtraStories)
+  ]);
+}
+
+function mapComicEpisodePlacementOption(episode: any) {
+  return {
+    ...mapComicEpisode(episode),
+    seasonTitle: episode.chapter?.season?.title || "",
+    seasonSlug: episode.chapter?.season?.slug || "",
+    chapterTitle: episode.chapter?.title || "",
+    chapterSlug: episode.chapter?.slug || ""
+  };
+}
+
+async function getMainComicEpisodePlacementOptions() {
+  const episodes = await prisma.comicEpisode.findMany({
+    where: {
+      storyType: COMIC_MAIN_STORY_TYPE
+    },
+    include: {
+      chapter: {
+        include: {
+          season: true
+        }
+      }
+    },
+    orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
+  });
+
+  return episodes.map(mapComicEpisodePlacementOption);
+}
+
 export async function getComicPublishCenter() {
   return withComicFallback<ComicPublishCenterRecord>(
     async () => {
@@ -771,6 +898,9 @@ export async function getComicPublishCenter() {
                 }
               },
               episodes: {
+                where: {
+                  storyType: COMIC_MAIN_STORY_TYPE
+                },
                 include: {
                   _count: {
                     select: {
@@ -882,6 +1012,255 @@ export async function getComicPublishCenter() {
       readyEpisodeCount: 0,
       publishedEpisodeCount: 0,
       draftAssetCount: 0
+    }
+  );
+}
+
+export async function getComicExtraStoryOutlinePage() {
+  return withComicFallback<ComicExtraStoryOutlinePageRecord>(
+    async () => {
+      const [parentEpisodes, extraStories] = await Promise.all([
+        getMainComicEpisodePlacementOptions(),
+        prisma.comicEpisode.findMany({
+          where: {
+            storyType: COMIC_EXTRA_STORY_TYPE
+          },
+          include: {
+            extraStoryParentEpisode: {
+              select: {
+                id: true,
+                episodeNumber: true,
+                title: true
+              }
+            },
+            chapter: {
+              include: {
+                season: true
+              }
+            },
+            _count: {
+              select: {
+                assets: true,
+                promptRuns: true
+              }
+            },
+            promptRuns: {
+              orderBy: [{ createdAt: "desc" }],
+              take: 1
+            }
+          },
+          orderBy: [
+            { extraStoryPlacementOrder: "asc" },
+            { episodeNumber: "asc" },
+            { createdAt: "asc" }
+          ]
+        })
+      ]);
+
+      return {
+        parentEpisodes,
+        extraStories: extraStories
+          .map((episode) => ({
+            ...mapComicEpisodePlacementOption(episode),
+            parentEpisodeTitle: episode.extraStoryParentEpisode?.title ?? null,
+            parentEpisodeNumber: episode.extraStoryParentEpisode?.episodeNumber ?? null
+          }))
+          .sort((left, right) => {
+            const leftParent = left.parentEpisodeNumber ?? Number.MAX_SAFE_INTEGER;
+            const rightParent = right.parentEpisodeNumber ?? Number.MAX_SAFE_INTEGER;
+
+            if (leftParent !== rightParent) {
+              return leftParent - rightParent;
+            }
+
+            if (left.extraStoryPlacementOrder !== right.extraStoryPlacementOrder) {
+              return left.extraStoryPlacementOrder - right.extraStoryPlacementOrder;
+            }
+
+            return left.createdAt.getTime() - right.createdAt.getTime();
+          })
+      };
+    },
+    {
+      parentEpisodes: [],
+      extraStories: []
+    }
+  );
+}
+
+export async function getComicExtraStoryPublishCenter() {
+  return withComicFallback<ComicExtraStoryPublishCenterRecord>(
+    async () => {
+      const [parentEpisodes, extraStories] = await Promise.all([
+        getMainComicEpisodePlacementOptions(),
+        prisma.comicEpisode.findMany({
+          where: {
+            storyType: COMIC_EXTRA_STORY_TYPE
+          },
+          include: {
+            extraStoryParentEpisode: {
+              select: {
+                id: true,
+                episodeNumber: true,
+                title: true
+              }
+            },
+            chapter: {
+              include: {
+                season: true
+              }
+            },
+            _count: {
+              select: {
+                assets: true,
+                promptRuns: true
+              }
+            },
+            promptRuns: {
+              where: {
+                promptType: {
+                  in: ["PAGE_IMAGE_GENERATION", "PAGE_IMAGE_EDIT"]
+                }
+              },
+              orderBy: [{ createdAt: "desc" }],
+              take: 1
+            },
+            assets: {
+              select: {
+                assetType: true,
+                sortOrder: true,
+                published: true
+              }
+            }
+          },
+          orderBy: [
+            { extraStoryPlacementOrder: "asc" },
+            { episodeNumber: "asc" },
+            { createdAt: "asc" }
+          ]
+        })
+      ]);
+
+      let readyEpisodeCount = 0;
+      let publishedEpisodeCount = 0;
+      let draftAssetCount = 0;
+
+      const mappedExtraStories = extraStories
+        .map((episode) => {
+          if (episode.published) {
+            publishedEpisodeCount += 1;
+          }
+
+          const pageAssets = episode.assets.filter(isComicPageAsset);
+          const chinesePageAssets = episode.assets.filter(isChineseComicPageAsset);
+          const draftPages = pageAssets.filter((asset) => !asset.published);
+          const approvedPageCount = getApprovedRequiredPageCount(pageAssets);
+          const approvedChinesePageCount = getApprovedRequiredChinesePageCount(chinesePageAssets);
+          const draftPageCount = draftPages.length;
+          const canPublish = approvedPageCount === COMIC_REQUIRED_PAGE_COUNT;
+          const canPublishChinese = approvedChinesePageCount === COMIC_REQUIRED_PAGE_COUNT;
+          const promptRuns = episode.promptRuns.map(mapComicPromptRun);
+          const latestImageGenerationRun =
+            promptRuns.find((run) =>
+              ["PAGE_IMAGE_GENERATION", "PAGE_IMAGE_EDIT"].includes(run.promptType)
+            ) || null;
+
+          if (canPublish && !episode.published) {
+            readyEpisodeCount += 1;
+          }
+
+          draftAssetCount += draftPageCount;
+
+          return {
+            ...mapComicEpisodePlacementOption(episode),
+            parentEpisodeTitle: episode.extraStoryParentEpisode?.title ?? null,
+            parentEpisodeNumber: episode.extraStoryParentEpisode?.episodeNumber ?? null,
+            approvedPageCount,
+            approvedChinesePageCount,
+            draftPageCount,
+            requiredPageCount: COMIC_REQUIRED_PAGE_COUNT,
+            canPublish,
+            canPublishChinese,
+            latestImageGenerationAt: latestImageGenerationRun?.createdAt
+              ? new Date(latestImageGenerationRun.createdAt)
+              : null,
+            latestImageGenerationStatus: latestImageGenerationRun?.status ?? null,
+            latestImageGenerationSummary: latestImageGenerationRun?.outputSummary ?? null,
+            latestImageGenerationError: latestImageGenerationRun?.errorMessage ?? null,
+            promptRevisionHistory: [],
+            assets: []
+          };
+        })
+        .sort((left, right) => {
+          const leftParent = left.parentEpisodeNumber ?? Number.MAX_SAFE_INTEGER;
+          const rightParent = right.parentEpisodeNumber ?? Number.MAX_SAFE_INTEGER;
+
+          if (leftParent !== rightParent) {
+            return leftParent - rightParent;
+          }
+
+          if (left.extraStoryPlacementOrder !== right.extraStoryPlacementOrder) {
+            return left.extraStoryPlacementOrder - right.extraStoryPlacementOrder;
+          }
+
+          return left.createdAt.getTime() - right.createdAt.getTime();
+        });
+
+      return {
+        parentEpisodes,
+        extraStories: mappedExtraStories,
+        episodeCount: mappedExtraStories.length,
+        readyEpisodeCount,
+        publishedEpisodeCount,
+        draftAssetCount
+      };
+    },
+    {
+      parentEpisodes: [],
+      extraStories: [],
+      episodeCount: 0,
+      readyEpisodeCount: 0,
+      publishedEpisodeCount: 0,
+      draftAssetCount: 0
+    }
+  );
+}
+
+export async function getComicProductLocksPage() {
+  return withComicFallback<ComicProductLocksPageRecord>(
+    async () => {
+      const [locks, activeProducts] = await Promise.all([
+        prisma.comicProductLock.findMany({
+          include: {
+            product: true
+          },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+        }),
+        prisma.product.findMany({
+          where: {
+            status: "ACTIVE"
+          },
+          select: {
+            id: true,
+            productCode: true,
+            productShortName: true,
+            name: true,
+            slug: true,
+            status: true,
+            imageUrl: true
+          },
+          orderBy: [{ featured: "desc" }, { createdAt: "asc" }]
+        })
+      ]);
+
+      return {
+        locks: locks.map(mapComicProductLock),
+        activeProducts
+      };
+    },
+    {
+      locks: [],
+      activeProducts: []
     }
   );
 }
@@ -1053,8 +1432,7 @@ export async function getPublishedComicLibrary(language: ComicLanguage = "en") {
         .map((season) => {
           const chapters = season.chapters
             .map((chapter): ComicPublicChapterRecord => {
-              const episodes = chapter.episodes
-                .filter((episode) => hasAllRequiredComicPagesForLanguage(episode.assets, language))
+              const episodes = orderPublicComicEpisodes(chapter.episodes, language)
                 .map((episode): ComicPublicEpisodeRecord => ({
                   ...mapComicEpisode(episode),
                   assets: getPublicComicAssetsForLanguage(
@@ -1192,8 +1570,7 @@ export async function getPublishedComicEpisodePageBySlugs(
         },
         orderBy: [{ episodeNumber: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
       });
-      const navRecords = navEpisodes
-        .filter((episode) => hasAllRequiredComicPagesForLanguage(episode.assets, language))
+      const navRecords = orderPublicComicEpisodes(navEpisodes, language)
         .map((episode): ComicPublicEpisodeRecord => ({
           ...mapComicEpisode(episode),
           assets: [],

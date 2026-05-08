@@ -11,6 +11,7 @@ export type EmailAudienceType = "NEWSLETTER" | "CUSTOMERS" | "LEADS" | "ALL_MARK
 export type FollowEmailProcessKey = "OMB" | "RYO";
 export type FollowEmailStageKey = "WAITING_STEP_2" | "WAITING_LAST_STEP" | "COMPLETED";
 export type ComicPromptRunStatus = "DRAFT" | "READY" | "FAILED" | "APPROVED";
+export type ComicStoryType = "MAIN" | "EXTRA";
 
 export type PostExternalLinkRecord = {
   label: string;
@@ -746,6 +747,9 @@ export type ComicEpisodeRecord = {
   requiredReferences: string;
   coverImageUrl: string | null;
   coverImageAlt: string | null;
+  storyType: ComicStoryType;
+  extraStoryParentEpisodeId: string | null;
+  extraStoryPlacementOrder: number;
   published: boolean;
   publishedAt: Date | null;
   sortOrder: number;
@@ -755,6 +759,38 @@ export type ComicEpisodeRecord = {
   latestPromptRunAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type ComicProductLockRecord = {
+  id: string;
+  productId: string;
+  productName: string;
+  productSlug: string;
+  productStatus: ProductStatus;
+  productImageUrl: string;
+  slug: string;
+  displayName: string;
+  shortCode: string;
+  visualNotes: string;
+  usageNotes: string;
+  referenceNotes: string | null;
+  active: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ComicProductLocksPageRecord = {
+  locks: ComicProductLockRecord[];
+  activeProducts: Array<{
+    id: string;
+    productCode: string | null;
+    productShortName: string | null;
+    name: string;
+    slug: string;
+    status: ProductStatus;
+    imageUrl: string;
+  }>;
 };
 
 export type ComicChapterRecord = {
@@ -835,6 +871,27 @@ export type ComicOutlineStudioPageRecord = {
   >;
 };
 
+export type ComicExtraStoryOutlinePageRecord = {
+  parentEpisodes: Array<
+    ComicEpisodeRecord & {
+      seasonTitle: string;
+      seasonSlug: string;
+      chapterTitle: string;
+      chapterSlug: string;
+    }
+  >;
+  extraStories: Array<
+    ComicEpisodeRecord & {
+      seasonTitle: string;
+      seasonSlug: string;
+      chapterTitle: string;
+      chapterSlug: string;
+      parentEpisodeTitle: string | null;
+      parentEpisodeNumber: number | null;
+    }
+  >;
+};
+
 export type ComicPublishCenterEpisodeRecord = ComicEpisodeRecord & {
   seasonTitle: string;
   seasonSlug: string;
@@ -866,6 +923,27 @@ export type ComicPublishCenterSeasonRecord = ComicSeasonRecord & {
 
 export type ComicPublishCenterRecord = {
   seasons: ComicPublishCenterSeasonRecord[];
+  episodeCount: number;
+  readyEpisodeCount: number;
+  publishedEpisodeCount: number;
+  draftAssetCount: number;
+};
+
+export type ComicExtraStoryPublishCenterRecord = {
+  parentEpisodes: Array<
+    ComicEpisodeRecord & {
+      seasonTitle: string;
+      seasonSlug: string;
+      chapterTitle: string;
+      chapterSlug: string;
+    }
+  >;
+  extraStories: Array<
+    ComicPublishCenterEpisodeRecord & {
+      parentEpisodeTitle: string | null;
+      parentEpisodeNumber: number | null;
+    }
+  >;
   episodeCount: number;
   readyEpisodeCount: number;
   publishedEpisodeCount: number;
