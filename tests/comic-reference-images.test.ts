@@ -18,6 +18,20 @@ function characterUpload(slug: string, label: string) {
   };
 }
 
+function chapterSceneUpload(slug: string, label: string, fileName: string) {
+  return {
+    bucket: "CHAPTER_SCENE" as const,
+    label,
+    slug,
+    whyThisMatters: `${label} is required for this page.`,
+    contentSummary: `${label} exact chapter reference.`,
+    uploadImageNames: [fileName],
+    relativePaths: [
+      `comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/${fileName}`
+    ]
+  };
+}
+
 test("comic reference resolver attaches similar teardrop comparison when similar characters share a page", async () => {
   const references = await resolveComicPageReferenceImages({
     seasonSlug: "season-01",
@@ -132,5 +146,44 @@ test("comic reference resolver auto-attaches old student handbook prop", async (
         "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Student Handbook (old edition).jpg"
     ),
     "Expected the old student handbook reference to be attached when the old handbook is mentioned."
+  );
+});
+
+test("comic reference resolver keeps required old student handbook when cast references are crowded", async () => {
+  const references = await resolveComicPageReferenceImages({
+    seasonSlug: "season-01",
+    chapterSlug: "chapter-01-orientation-week-is-a-scam",
+    promptText:
+      "Muci, Nia, Snacri, Padaruna, and Sunny Spritz gather at Barrier Sciences Hall while Muci's old Student Handbook (Old Edition) floats nearby.",
+    requiredUploads: [
+      chapterSceneUpload(
+        "season-01-chapter-01-orientation-week-is-a-scam-barrier-sciences-hall",
+        "Barrier Sciences Hall",
+        "Barrier Sciences Hall.jpg"
+      ),
+      characterUpload("muci", "Muci Model Sheet"),
+      characterUpload("nia", "Nia Model Sheet"),
+      characterUpload("padaruna", "Padaruna Model Sheet"),
+      characterUpload("snacri", "Snacri Model Sheet"),
+      characterUpload("sunny-spritz", "Sunny Spritz Model Sheet"),
+      chapterSceneUpload(
+        "student-handbook-old-edition",
+        "Student Handbook (Old Edition)",
+        "Student Handbook (old edition).jpg"
+      )
+    ]
+  });
+
+  assert.ok(
+    references.some(
+      (reference) =>
+        reference.relativePath ===
+        "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Student Handbook (old edition).jpg"
+    ),
+    "Expected the required old student handbook reference to survive the reference limit."
+  );
+  assert.equal(
+    references.some((reference) => reference.relativePath.endsWith("Sunscreen Field Handbook.jpg")),
+    false
   );
 });

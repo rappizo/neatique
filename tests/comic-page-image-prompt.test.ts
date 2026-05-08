@@ -356,7 +356,7 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   assert.match(prompt, /subtle near-center lean toward reader-left\/Muci's right/);
   assert.match(prompt, /not a sharp Nia point, exaggerated hook, sideways curl, or flopped-over cap/);
   assert.match(prompt, /Muci: exact Muci model-sheet droplet/);
-  assert.match(prompt, /Nia: taller and sharper pointed teardrop/);
+  assert.match(prompt, /Nia: taller, narrower, controlled teardrop/);
   assert.match(prompt, /Snacri: fatter quiet droplet/);
   assert.match(prompt, /Snacri eye expression lock/);
   assert.match(prompt, /fully open round black dot eyes with tiny white highlights/);
@@ -433,7 +433,7 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
   assert.match(prompt, /Padaruna\/Padarana anti-Snacri head lock/);
   assert.match(prompt, /Snacri is the only droplet here with a left-leaning quiet top\/head silhouette/);
   assert.match(prompt, /Padaruna keeps her own very sharp upright centered pointed head/);
-  assert.match(prompt, /cute plump\/chubby full rounded buoyant body/);
+  assert.match(prompt, /cute plump\/chubby full rounded buoyant pear-bottom body/);
   assert.match(prompt, /soft wide lower belly/);
   assert.match(prompt, /no side nubs or arm-like protrusions/);
   assert.match(prompt, /skinny, narrow, tall-stretched, or delicate/);
@@ -441,6 +441,68 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
   assert.match(prompt, /never Snacri's left-leaning quiet head\/top/);
   assert.match(prompt, /Snacri's eyes must match the Snacri model sheet/);
   assert.match(prompt, /Do not draw Snacri with half-lidded eyes, sleepy droopy eyes/);
+});
+
+test("comic page image prompt protects Padaruna from becoming Nia-shaped", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "The Stamp Hunt That Got Weird",
+    episodeSummary: "Padaruna and Nia debate route efficiency.",
+    pageNumber: 7,
+    panelCount: 2,
+    pagePurpose: "Keep Padaruna lower-heavy while Nia stays tall and narrow.",
+    promptPackCopyText: "Padaruna and Nia stand together on the same path.",
+    referenceNotesCopyText: "Use Padaruna and Nia model sheets exactly.",
+    globalGptImage2Notes: null,
+    panels: [
+      {
+        pageNumber: 7,
+        panelNumber: 1,
+        panelTitle: "Route Argument",
+        storyBeat: "Nia calmly points out route efficiency while Padaruna objects.",
+        promptText:
+          "Nia is tall, narrow, sharp, and controlled; Padaruna has a sharp centered head but stays chubby and lower-heavy.",
+        dialogueLines: [{ speaker: "Padaruna", text: "Efficient is not the same as fun." }]
+      }
+    ],
+    requiredUploads: [],
+    referenceImages: [],
+    characterLocks: [
+      {
+        slug: "nia",
+        name: "Nia",
+        role: "Top student.",
+        appearance: "Tall sharp narrow teardrop with one angled left brow.",
+        personality: "Precise.",
+        speechGuide: "Concise.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Nia",
+        referenceFiles: []
+      },
+      {
+        slug: "padaruna",
+        name: "Padaruna",
+        role: "Trend magnet.",
+        appearance:
+          "Very sharp upright centered pointed head plus cute plump chubby full rounded pear-bottom body.",
+        personality: "Energetic.",
+        speechGuide: "Fast.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Padaruna",
+        referenceFiles: []
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /Padaruna\/Nia high-risk body-shape separation/);
+  assert.match(prompt, /Nia stays taller, narrower, more vertical/);
+  assert.match(prompt, /Padaruna keeps a very sharp upright centered head/);
+  assert.match(prompt, /wide rounded lower belly, pear-bottom mass, soft broad base/);
+  assert.match(prompt, /not a tall narrow Nia-shaped droplet/);
+  assert.match(prompt, /If Padaruna's sides become straight/);
 });
 
 test("comic page image prompt locks Artrans to Muci height tier", () => {

@@ -8,9 +8,11 @@ import {
 
 const COMIC_AI_TASK_TYPES = new Set<ComicAiTaskType>([
   "generate",
+  "extra-page-generation",
   "edit",
   "prompt-package",
   "prompt-revision",
+  "extra-page-prompt-revision",
   "outline",
   "character-lock-revision",
   "scene-lock-revision",

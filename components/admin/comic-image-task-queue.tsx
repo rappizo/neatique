@@ -17,9 +17,11 @@ import { useRouter } from "next/navigation";
 type ComicImageTaskStatus = "queued" | "running" | "success" | "failed" | "cancelled";
 type ComicImageTaskKind =
   | "generate"
+  | "extra-page-generation"
   | "edit"
   | "prompt-package"
   | "prompt-revision"
+  | "extra-page-prompt-revision"
   | "outline"
   | "character-lock-revision"
   | "scene-lock-revision"
@@ -55,6 +57,7 @@ type ComicImageTask = {
   referenceImageName?: string;
   referenceCount?: number;
   imageCreationId?: string;
+  extraPageKey?: string;
 };
 
 type ComicImageCreationReferencePayload = {
@@ -104,6 +107,12 @@ type ComicImageTaskQueueContextValue = {
   maxConcurrent: number;
   tasks: ComicImageTask[];
   enqueue: (input: { episodeId: string; pageNumber: number; label?: string }) => string;
+  enqueueExtraPage: (input: {
+    episodeId: string;
+    extraPageKey: string;
+    anchorPageNumber: number;
+    label?: string;
+  }) => string;
   enqueueEdit: (input: {
     sourceAssetId: string;
     episodeId: string;
@@ -115,6 +124,13 @@ type ComicImageTaskQueueContextValue = {
   enqueuePromptRevision: (input: {
     episodeId: string;
     pageNumber: number;
+    promptSuggestion: string;
+    label?: string;
+  }) => string;
+  enqueueExtraPagePromptRevision: (input: {
+    episodeId: string;
+    extraPageKey: string;
+    anchorPageNumber: number;
     promptSuggestion: string;
     label?: string;
   }) => string;
@@ -162,9 +178,11 @@ const COMIC_IMAGE_CREATION_QUALITY_VALUES = ["high", "medium", "low"] as const;
 const COMIC_IMAGE_CREATION_REFERENCE_LIMIT = 5;
 const COMIC_ROUTE_REFRESH_TASK_KINDS = new Set<ComicImageTaskKind>([
   "generate",
+  "extra-page-generation",
   "edit",
   "prompt-package",
   "prompt-revision",
+  "extra-page-prompt-revision",
   "outline",
   "character-lock-revision",
   "scene-lock-revision",
@@ -481,6 +499,37 @@ export function ComicImageTaskQueueProvider({
     [enqueueServerTask]
   );
 
+  const enqueueExtraPage = useCallback(
+    (input: {
+      episodeId: string;
+      extraPageKey: string;
+      anchorPageNumber: number;
+      label?: string;
+    }) => {
+      const label = input.label || "Extra page insert";
+      return enqueueServerTask({
+        kind: "extra-page-generation",
+        episodeId: input.episodeId,
+        pageNumber: input.anchorPageNumber,
+        label,
+        payload: {
+          episodeId: input.episodeId,
+          extraPageKey: input.extraPageKey,
+          anchorPageNumber: input.anchorPageNumber
+        },
+        optimisticFields: {
+          targetId: input.extraPageKey,
+          extraPageKey: input.extraPageKey
+        },
+        duplicateMatch: (task) =>
+          task.kind === "extra-page-generation" &&
+          task.episodeId === input.episodeId &&
+          (task.extraPageKey || task.targetId) === input.extraPageKey
+      });
+    },
+    [enqueueServerTask]
+  );
+
   const enqueueEdit = useCallback(
     (input: {
       sourceAssetId: string;
@@ -557,6 +606,42 @@ export function ComicImageTaskQueueProvider({
           task.kind === "prompt-revision" &&
           task.episodeId === input.episodeId &&
           task.pageNumber === input.pageNumber &&
+          task.promptSuggestion === promptSuggestion
+      });
+    },
+    [enqueueServerTask]
+  );
+
+  const enqueueExtraPagePromptRevision = useCallback(
+    (input: {
+      episodeId: string;
+      extraPageKey: string;
+      anchorPageNumber: number;
+      promptSuggestion: string;
+      label?: string;
+    }) => {
+      const promptSuggestion = input.promptSuggestion.trim();
+      const label = input.label || "Revise extra page prompt";
+      return enqueueServerTask({
+        kind: "extra-page-prompt-revision",
+        episodeId: input.episodeId,
+        pageNumber: input.anchorPageNumber,
+        label,
+        payload: {
+          episodeId: input.episodeId,
+          extraPageKey: input.extraPageKey,
+          anchorPageNumber: input.anchorPageNumber,
+          promptSuggestion
+        },
+        optimisticFields: {
+          targetId: input.extraPageKey,
+          extraPageKey: input.extraPageKey,
+          promptSuggestion
+        },
+        duplicateMatch: (task) =>
+          task.kind === "extra-page-prompt-revision" &&
+          task.episodeId === input.episodeId &&
+          (task.extraPageKey || task.targetId) === input.extraPageKey &&
           task.promptSuggestion === promptSuggestion
       });
     },
@@ -848,9 +933,11 @@ export function ComicImageTaskQueueProvider({
       maxConcurrent,
       tasks,
       enqueue,
+      enqueueExtraPage,
       enqueueEdit,
       enqueuePromptPackage,
       enqueuePromptRevision,
+      enqueueExtraPagePromptRevision,
       enqueueOutlineTask,
       enqueueCharacterLockRevision,
       enqueueSceneLockRevision,
@@ -865,9 +952,11 @@ export function ComicImageTaskQueueProvider({
       maxConcurrent,
       tasks,
       enqueue,
+      enqueueExtraPage,
       enqueueEdit,
       enqueuePromptPackage,
       enqueuePromptRevision,
+      enqueueExtraPagePromptRevision,
       enqueueOutlineTask,
       enqueueCharacterLockRevision,
       enqueueSceneLockRevision,
@@ -938,6 +1027,61 @@ export function ComicGenerateImageQueueButton({
       disabled={isActive}
       aria-busy={task?.status === "running"}
       onClick={() => enqueue({ episodeId, pageNumber, label: formatPageLabel(pageNumber) })}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function ComicGenerateExtraPageQueueButton({
+  episodeId,
+  extraPageKey,
+  anchorPageNumber,
+  className = "button button--secondary",
+  idleLabel = "Generate insert draft"
+}: {
+  episodeId: string;
+  extraPageKey: string;
+  anchorPageNumber: number;
+  className?: string;
+  idleLabel?: string;
+}) {
+  const { enqueueExtraPage, tasks } = useComicImageTaskQueue();
+  const task =
+    [...tasks]
+      .filter(
+        (candidate) =>
+          candidate.kind === "extra-page-generation" &&
+          candidate.episodeId === episodeId &&
+          (candidate.extraPageKey || candidate.targetId) === extraPageKey
+      )
+      .sort((left, right) => getTaskSortTime(right) - getTaskSortTime(left))[0] || null;
+  const isActive = task?.status === "queued" || task?.status === "running";
+  const label =
+    task?.status === "queued"
+      ? "Queued..."
+      : task?.status === "running"
+        ? "Creating..."
+        : task?.status === "success"
+          ? "Create another draft"
+          : task?.status === "failed"
+            ? "Retry insert image"
+            : idleLabel;
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={isActive}
+      aria-busy={task?.status === "running"}
+      onClick={() =>
+        enqueueExtraPage({
+          episodeId,
+          extraPageKey,
+          anchorPageNumber,
+          label: "Cast guide insert"
+        })
+      }
     >
       {label}
     </button>
@@ -1250,6 +1394,75 @@ export function ComicRevisePromptQueueForm({
       </div>
       <button type="submit" className="button button--ghost" disabled={!trimmedSuggestion}>
         {activeRevisionCount > 0 ? "Queue another prompt update" : "Update page prompt"}
+      </button>
+      {notice ? <span className="form-note">{notice}</span> : null}
+    </form>
+  );
+}
+
+export function ComicReviseExtraPagePromptQueueForm({
+  episodeId,
+  extraPageKey,
+  anchorPageNumber
+}: {
+  episodeId: string;
+  extraPageKey: string;
+  anchorPageNumber: number;
+}) {
+  const { enqueueExtraPagePromptRevision, tasks } = useComicImageTaskQueue();
+  const [promptSuggestion, setPromptSuggestion] = useState("");
+  const [notice, setNotice] = useState("");
+  const activeRevisionCount = tasks.filter(
+    (task) =>
+      task.kind === "extra-page-prompt-revision" &&
+      task.episodeId === episodeId &&
+      (task.extraPageKey || task.targetId) === extraPageKey &&
+      (task.status === "queued" || task.status === "running")
+  ).length;
+  const trimmedSuggestion = promptSuggestion.trim();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!trimmedSuggestion) {
+      setNotice("Enter a prompt suggestion first.");
+      return;
+    }
+
+    enqueueExtraPagePromptRevision({
+      episodeId,
+      extraPageKey,
+      anchorPageNumber,
+      promptSuggestion: trimmedSuggestion,
+      label: "Revise insert prompt"
+    });
+    setPromptSuggestion("");
+    setNotice("Added to Comic tasks.");
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="admin-comic-prompt-suggestion-form">
+      <div className="field">
+        <label htmlFor={`extra-prompt-suggestion-${episodeId}-${extraPageKey}`}>
+          Insert prompt suggestion
+        </label>
+        <textarea
+          id={`extra-prompt-suggestion-${episodeId}-${extraPageKey}`}
+          name="promptSuggestion"
+          rows={3}
+          placeholder="Describe what should change in Chinese or English..."
+          value={promptSuggestion}
+          onChange={(event) => {
+            setPromptSuggestion(event.target.value);
+            if (notice) {
+              setNotice("");
+            }
+          }}
+          required
+        />
+      </div>
+      <button type="submit" className="button button--ghost" disabled={!trimmedSuggestion}>
+        {activeRevisionCount > 0 ? "Queue another prompt update" : "Update insert prompt"}
       </button>
       {notice ? <span className="form-note">{notice}</span> : null}
     </form>

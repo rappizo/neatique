@@ -26,6 +26,7 @@ import type { ComicLanguage } from "@/lib/comic-language";
 import { resolveComicCharacterChineseName } from "@/lib/comic-character-chinese-names";
 import {
   COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_EXTRA_PAGE_ASSET_TYPE,
   COMIC_PAGE_ASSET_TYPES,
   COMIC_REQUIRED_PAGE_COUNT,
   COMIC_STORY_PAGES_PER_EPISODE,
@@ -640,7 +641,11 @@ export async function getComicOutlineStudioPage() {
   );
 }
 
-const COMIC_PUBLIC_PAGE_ASSET_TYPES = [...COMIC_PAGE_ASSET_TYPES, COMIC_CHINESE_PAGE_ASSET_TYPE];
+const COMIC_PUBLIC_PAGE_ASSET_TYPES = [
+  ...COMIC_PAGE_ASSET_TYPES,
+  COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_EXTRA_PAGE_ASSET_TYPE
+];
 
 type ComicPageApprovalCandidate = Pick<
   ComicEpisodeAssetRecord,
@@ -653,6 +658,10 @@ function isComicPageAsset(asset: ComicPageApprovalCandidate) {
 
 function isChineseComicPageAsset(asset: ComicPageApprovalCandidate) {
   return asset.assetType === COMIC_CHINESE_PAGE_ASSET_TYPE;
+}
+
+function isComicExtraPageAsset(asset: ComicPageApprovalCandidate) {
+  return asset.assetType === COMIC_EXTRA_PAGE_ASSET_TYPE;
 }
 
 function isRequiredComicPageNumber(pageNumber: number) {
@@ -698,7 +707,7 @@ function getPublicComicAssetsForLanguage(
   assets: ComicEpisodeAssetRecord[],
   language: ComicLanguage
 ) {
-  const matchingAssets = assets
+  const matchingRequiredAssets = assets
     .filter(
       (asset) =>
         (language === "zh" ? isChineseComicPageAsset(asset) : isComicPageAsset(asset)) &&
@@ -715,13 +724,33 @@ function getPublicComicAssetsForLanguage(
 
   const assetByPage = new Map<number, ComicEpisodeAssetRecord>();
 
-  matchingAssets.forEach((asset) => {
+  matchingRequiredAssets.forEach((asset) => {
     if (!assetByPage.has(asset.sortOrder)) {
       assetByPage.set(asset.sortOrder, asset);
     }
   });
 
-  return Array.from(assetByPage.values());
+  const extraAssets =
+    language === "en"
+      ? assets.filter(
+          (asset) =>
+            isComicExtraPageAsset(asset) &&
+            asset.published &&
+            isRequiredComicPageNumber(asset.sortOrder)
+        )
+      : [];
+
+  return [...Array.from(assetByPage.values()), ...extraAssets].sort((left, right) => {
+    if (left.sortOrder !== right.sortOrder) {
+      return left.sortOrder - right.sortOrder;
+    }
+
+    if (isComicExtraPageAsset(left) !== isComicExtraPageAsset(right)) {
+      return isComicExtraPageAsset(left) ? 1 : -1;
+    }
+
+    return left.createdAt.getTime() - right.createdAt.getTime();
+  });
 }
 
 export async function getComicPublishCenter() {

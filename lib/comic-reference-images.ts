@@ -680,6 +680,10 @@ function isChapterSceneReference(reference: ComicResolvedReferenceImage) {
   return reference.bucket === "CHAPTER_SCENE" || reference.bucket === "DETECTED_CHAPTER_SCENE";
 }
 
+function isRequiredChapterSceneReference(reference: ComicResolvedReferenceImage) {
+  return reference.bucket === "CHAPTER_SCENE" && reference.source === "prompt-required-upload";
+}
+
 function isCastComparisonReference(reference: ComicResolvedReferenceImage) {
   return reference.bucket === "CAST_COMPARISON";
 }
@@ -722,6 +726,10 @@ function selectResolvedReferences(references: ComicResolvedReferenceImage[]) {
       maxCharacterReferences,
       Math.max(0, maxReferences - selected.size - reservedCastReferenceCount)
     )
+  );
+  addWhere(
+    isRequiredChapterSceneReference,
+    Math.max(0, Math.min(2, maxReferences - selected.size))
   );
   addWhere(isCastComparisonReference, Math.max(0, Math.min(2, maxReferences - selected.size)));
   addWhere(isChapterSceneReference, Math.max(1, Math.min(2, maxReferences - selected.size)));

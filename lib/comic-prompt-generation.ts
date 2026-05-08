@@ -2,6 +2,10 @@ import { buildComicRedirect, revalidateComicRoutes } from "@/app/admin/comic-act
 import { prisma } from "@/lib/db";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import {
+  getComicExtraPromptPages,
+  getComicExtraReferencePages
+} from "@/lib/comic-extra-pages";
+import {
   getComicCharacterReferenceFiles,
   getComicChapterSceneReferenceState,
   getComicSceneReferenceFiles
@@ -274,7 +278,8 @@ export async function generateComicPromptPackageForEpisode(input: {
             {
               episodeLogline: result.episodeLogline,
               episodeSynopsis: result.episodeSynopsis,
-              pages: result.pages
+              pages: result.pages,
+              extraPages: getComicExtraPromptPages(episode.promptPack)
             },
             null,
             2
@@ -287,7 +292,8 @@ export async function generateComicPromptPackageForEpisode(input: {
                 panelCount: page.panelCount,
                 referenceNotesCopyText: page.referenceNotesCopyText,
                 requiredUploads: page.requiredUploads
-              }))
+              })),
+              extraPages: getComicExtraReferencePages(episode.requiredReferences)
             },
             null,
             2
@@ -484,7 +490,8 @@ export async function reviseComicPagePromptForEpisode(input: {
                 panels: nextPage.panels,
                 referenceNotesCopyText: nextPage.referenceNotesCopyText,
                 requiredUploads: nextPage.requiredUploads
-              }))
+              })),
+              extraPages: getComicExtraPromptPages(episode.promptPack)
             },
             null,
             2
@@ -497,7 +504,8 @@ export async function reviseComicPagePromptForEpisode(input: {
                 panelCount: nextPage.panelCount,
                 referenceNotesCopyText: nextPage.referenceNotesCopyText,
                 requiredUploads: nextPage.requiredUploads
-              }))
+              })),
+              extraPages: getComicExtraReferencePages(episode.requiredReferences)
             },
             null,
             2

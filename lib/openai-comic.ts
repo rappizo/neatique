@@ -61,6 +61,7 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Do not paste long identity paragraphs into each page prompt. Use requiredUploads/model-sheet files plus one short active-character risk reminder only when needed.",
   MUCI_MODEL_SHEET_EXACT_LOCK,
   "- When similar droplet characters appear together, requiredUploads must include their model sheets and the comparison reference; prompts should separate them with short silhouette reminders.",
+  "- Padaruna active-character reminder: sharp centered head plus lower-heavy chubby pear-bottom body with a visibly wide soft lower belly; never Nia's tall narrow controlled droplet.",
   "- Height tiers are off-canvas production guidance only: Muci/Artrans shorter, Padaruna/Padarana/Snacri standard, Nia about 1.1x Padaruna. Never draw a chart or lineup as story content.",
   "- Visible text must be limited to the page dialogue, captions, SFX, signs, prop labels, or labels explicitly whitelisted for that page."
 ].join("\n");
@@ -222,6 +223,7 @@ export type ReviseComicPagePromptInput = {
   episodeTitle: string;
   episodeSummary: string;
   pageNumber: number;
+  pageLabel?: string;
   pagePurpose: string;
   panelCount: number;
   promptPackCopyText: string;
@@ -297,6 +299,7 @@ export type GenerateComicPageImageInput = {
   episodeTitle: string;
   episodeSummary: string;
   pageNumber: number;
+  pageLabel?: string;
   panelCount: number;
   pagePurpose: string;
   promptPackCopyText: string;
@@ -2758,11 +2761,15 @@ function buildComicPageVisibleTextWhitelist(
   ].join("\n");
 }
 
+function getComicImagePageLabel(input: Pick<GenerateComicPageImageInput, "pageNumber" | "pageLabel">) {
+  return input.pageLabel?.trim() || formatComicPageLabel(input.pageNumber);
+}
+
 function buildComicPageCriticalContent(
   input: GenerateComicPageImageInput,
   options: { coverPage?: boolean } = {}
 ) {
-  const pageLabel = formatComicPageLabel(input.pageNumber);
+  const pageLabel = getComicImagePageLabel(input);
 
   return [
     "CURRENT PAGE CONTENT - HIGHEST PRIORITY:",
@@ -2785,6 +2792,7 @@ function buildComicPageCriticalContent(
 
 export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
   const isCoverPage = isComicCoverPageNumber(input.pageNumber);
+  const pageLabel = getComicImagePageLabel(input);
   const currentPageCriticalContent = buildComicPageCriticalContent(input, {
     coverPage: isCoverPage
   });
@@ -2832,7 +2840,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     isCoverPage
       ? `Episode summary for continuity only, not visible page text: ${trimImagePromptContext(input.episodeSummary, 420)}`
       : "Episode summary for continuity only: omitted for story-page image generation so other-page intro cards or events cannot leak into this page. Follow the current page purpose, visible-text whitelist, and panel plan only.",
-    `${formatComicPageLabel(input.pageNumber)} purpose: ${trimImagePromptContext(input.pagePurpose, 360)}`,
+    `${pageLabel} purpose: ${trimImagePromptContext(input.pagePurpose, 360)}`,
     "",
     "Required references for visual continuity:",
     buildComicPageUploadSummary(input.requiredUploads),
@@ -3435,6 +3443,9 @@ export async function reviseComicPagePromptWithAi(
                 "Use the user's prompt suggestion, which may be in Chinese or English, as the requested creative direction.",
                 "Return only valid JSON matching the schema.",
                 "Revise only this one page. Keep the page number fixed.",
+                input.pageLabel
+                  ? `Treat the visible/admin page label as "${input.pageLabel}". The numeric pageNumber is only an internal schema value.`
+                  : null,
                 "Keep the page production-ready for gpt-image-2.",
                 "Keep the revised prompt concise and production-ready. Do not repeat long global locks; rely on requiredUploads, attached model sheets, and short high-risk reminders.",
                 "Preserve the existing story continuity unless the suggestion explicitly asks for a composition change.",
@@ -3467,6 +3478,7 @@ export async function reviseComicPagePromptWithAi(
                 JSON.stringify(
                   {
                     pageNumber: input.pageNumber,
+                    pageLabel: input.pageLabel || formatComicPageLabel(input.pageNumber),
                     panelCount: input.panelCount,
                     pagePurpose: input.pagePurpose,
                     promptPackCopyText: input.promptPackCopyText,
@@ -3867,7 +3879,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Character consistency should be driven by requiredUploads and attached model sheets first. Do not paste long global identity locks into every page.",
-                "- Add only compact active-character high-risk reminders when relevant: Muci broad squat/no brow/subtle top lean; Nia sharp/one brow; Snacri left-leaning/open round eyes; Padaruna sharp centered point/chubby body/no brows; Padarana upright soft point/closed eyes; Professor Cera Lin rounded six-sided hexagon; Coach Ray shield-shaped.",
+                "- Add only compact active-character high-risk reminders when relevant: Muci broad squat/no brow/subtle top lean; Nia sharp/one brow/tall narrow controlled body; Snacri left-leaning/open round eyes; Padaruna sharp centered point plus lower-heavy chubby pear-bottom body/no brows/not Nia-shaped; Padarana upright soft point/closed eyes; Professor Cera Lin rounded six-sided hexagon; Coach Ray shield-shaped.",
                 "- Pages with two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia must keep fixed height tiers as invisible production guidance only: Muci/Artrans shorter, Padaruna/Padarana/Snacri standard, Nia about 1.1x Padaruna. Never make the height reference a visible story object.",
                 "- Character intro/name cards must appear only once per character, on the intended first story-page introduction. On later pages, explicitly do not repeat prior intro/name cards.",
                 "- Pages with two or more similar teardrop characters must use one short silhouette separation sentence and rely on the comparison/model-sheet references, not long repeated paragraphs.",

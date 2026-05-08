@@ -3,6 +3,10 @@ import { createChineseComicPageVersion } from "@/lib/comic-chinese-page-version"
 import { reviseComicCharacterLock, reviseComicSceneLock } from "@/lib/comic-lock-revision";
 import { runComicOutlineTask, type ComicOutlineTaskType } from "@/lib/comic-outline-generation";
 import { editComicPageImageForAsset } from "@/lib/comic-page-image-edit";
+import {
+  generateComicExtraPageImageForEpisode,
+  reviseComicExtraPagePromptForEpisode
+} from "@/lib/comic-extra-page-generation";
 import { generateComicImageCreation } from "@/lib/comic-image-creation";
 import { generateComicPageImageForEpisode } from "@/lib/comic-page-image-generation";
 import {
@@ -13,9 +17,11 @@ import { isComicPublishPageNumber } from "@/lib/comic-pages";
 
 export type ComicAiTaskType =
   | "generate"
+  | "extra-page-generation"
   | "edit"
   | "prompt-package"
   | "prompt-revision"
+  | "extra-page-prompt-revision"
   | "outline"
   | "character-lock-revision"
   | "scene-lock-revision"
@@ -62,6 +68,7 @@ export type ComicAiTaskClientRecord = {
   referenceImageName?: string;
   referenceCount?: number;
   imageCreationId?: string;
+  extraPageKey?: string;
 };
 
 type ComicAiTaskModelRecord = {
@@ -105,6 +112,7 @@ const RETRYABLE_TASK_STATUSES: ComicAiTaskStatus[] = ["FAILED", "CANCELLED"];
 const DEFAULT_STALE_RUNNING_TASK_MS = 1000 * 60 * 8;
 const IMAGE_HEAVY_TASK_TYPES = new Set<ComicAiTaskType>([
   "generate",
+  "extra-page-generation",
   "edit",
   "chinese-page-version",
   "image-creation"
@@ -496,6 +504,13 @@ function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayl
         targetId: null,
         sourceAssetId: null
       };
+    case "extra-page-generation":
+      return {
+        episodeId: toStringValue(payload.episodeId) || null,
+        pageNumber: toNullableComicPageNumber(payload.anchorPageNumber),
+        targetId: toStringValue(payload.extraPageKey) || null,
+        sourceAssetId: null
+      };
     case "edit":
       return {
         episodeId: toStringValue(payload.episodeId) || null,
@@ -515,6 +530,13 @@ function getTaskLookupFields(taskType: ComicAiTaskType, payload: ComicAiTaskPayl
         episodeId: toStringValue(payload.episodeId) || null,
         pageNumber: toNullableComicPageNumber(payload.pageNumber),
         targetId: null,
+        sourceAssetId: null
+      };
+    case "extra-page-prompt-revision":
+      return {
+        episodeId: toStringValue(payload.episodeId) || null,
+        pageNumber: toNullableComicPageNumber(payload.anchorPageNumber),
+        targetId: toStringValue(payload.extraPageKey) || null,
         sourceAssetId: null
       };
     case "outline":
@@ -567,6 +589,12 @@ async function executeComicAiTask(
         pageNumber: toNumberValue(payload.pageNumber),
         attempt: context.attempt
       });
+    case "extra-page-generation":
+      return generateComicExtraPageImageForEpisode({
+        episodeId: toStringValue(payload.episodeId),
+        extraPageKey: toStringValue(payload.extraPageKey),
+        attempt: context.attempt
+      });
     case "edit":
       return editComicPageImageForAsset({
         assetId: toStringValue(payload.assetId || payload.sourceAssetId),
@@ -582,6 +610,12 @@ async function executeComicAiTask(
       return reviseComicPagePromptForEpisode({
         episodeId: toStringValue(payload.episodeId),
         pageNumber: toNumberValue(payload.pageNumber),
+        promptSuggestion: toStringValue(payload.promptSuggestion)
+      });
+    case "extra-page-prompt-revision":
+      return reviseComicExtraPagePromptForEpisode({
+        episodeId: toStringValue(payload.episodeId),
+        extraPageKey: toStringValue(payload.extraPageKey),
         promptSuggestion: toStringValue(payload.promptSuggestion)
       });
     case "outline":
@@ -646,6 +680,7 @@ export function toClientComicAiTask(task: ComicAiTaskModelRecord): ComicAiTaskCl
     promptSuggestion: toOptionalStringValue(payload.promptSuggestion),
     outlineTaskType: toOptionalStringValue(payload.taskType || payload.outlineTaskType),
     targetId: task.targetId || toOptionalStringValue(payload.targetId),
+    extraPageKey: toOptionalStringValue(payload.extraPageKey),
     revisionNotes: toOptionalStringValue(payload.revisionNotes),
     characterId:
       task.taskType === "character-lock-revision"

@@ -25,6 +25,7 @@ import {
 import {
   COMIC_APPROVAL_ASSET_TYPES,
   COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_EXTRA_PAGE_ASSET_TYPE,
   COMIC_PAGE_ASSET_TYPES,
   getComicRequiredPageNumbers,
   isComicPublishPageNumber
@@ -884,8 +885,113 @@ function isComicApprovalAssetType(assetType: string) {
   return COMIC_APPROVAL_ASSET_TYPES.includes(assetType);
 }
 
+function isComicExtraPageAssetType(assetType: string) {
+  return assetType === COMIC_EXTRA_PAGE_ASSET_TYPE;
+}
+
 function getComicPublishRedirect(formData: FormData, fallback = "/admin/comic/publish-center") {
   return toPlainString(formData.get("redirectTo")) || fallback;
+}
+
+export async function approveComicExtraPageAssetAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = getComicPublishRedirect(formData);
+
+  if (!id) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  const asset = await prisma.comicEpisodeAsset.findUnique({
+    where: { id },
+    include: {
+      episode: {
+        include: {
+          chapter: {
+            include: {
+              season: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!asset || !isComicExtraPageAssetType(asset.assetType)) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  await prisma.$transaction([
+    prisma.comicEpisodeAsset.updateMany({
+      where: {
+        episodeId: asset.episodeId,
+        assetType: COMIC_EXTRA_PAGE_ASSET_TYPE,
+        sortOrder: asset.sortOrder,
+        title: asset.title
+      },
+      data: {
+        published: false
+      }
+    }),
+    prisma.comicEpisodeAsset.update({
+      where: { id },
+      data: {
+        published: true
+      }
+    })
+  ]);
+
+  revalidateComicRoutes({
+    seasonSlug: asset.episode.chapter.season.slug,
+    chapterSlug: asset.episode.chapter.slug,
+    episodeSlug: asset.episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "page-approved"));
+}
+
+export async function unapproveComicExtraPageAssetAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = toPlainString(formData.get("id"));
+  const redirectTo = getComicPublishRedirect(formData);
+
+  if (!id) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  const asset = await prisma.comicEpisodeAsset.findUnique({
+    where: { id },
+    include: {
+      episode: {
+        include: {
+          chapter: {
+            include: {
+              season: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!asset || !isComicExtraPageAssetType(asset.assetType)) {
+    redirect(buildComicRedirect(redirectTo, "missing-asset"));
+  }
+
+  await prisma.comicEpisodeAsset.update({
+    where: { id },
+    data: {
+      published: false
+    }
+  });
+
+  revalidateComicRoutes({
+    seasonSlug: asset.episode.chapter.season.slug,
+    chapterSlug: asset.episode.chapter.slug,
+    episodeSlug: asset.episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "page-unapproved"));
 }
 
 export async function approveComicEpisodeAssetAction(formData: FormData) {

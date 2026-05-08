@@ -8,8 +8,10 @@ import {
   ComicEditImageQueueForm,
   ComicGenerateAllChinesePagesQueueButton,
   ComicGenerateAllImagesQueueButton,
+  ComicGenerateExtraPageQueueButton,
   ComicGenerateImageQueueButton,
   ComicGeneratePromptPackageQueueButton,
+  ComicReviseExtraPagePromptQueueForm,
   ComicRevisePromptQueueForm,
   useComicImageTaskQueue
 } from "@/components/admin/comic-image-task-queue";
@@ -24,7 +26,11 @@ import {
 } from "@/components/admin/comic-publish-approval-controls";
 import { ComicPageUploadForm } from "@/components/admin/comic-publish-page-upload-form";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
-import { deleteComicEpisodeAssetAction } from "@/app/admin/comic-editor-actions";
+import {
+  approveComicExtraPageAssetAction,
+  deleteComicEpisodeAssetAction,
+  unapproveComicExtraPageAssetAction
+} from "@/app/admin/comic-editor-actions";
 import {
   neglectComicPromptQaFindingAction,
   restoreComicPagePromptRevisionAction
@@ -124,6 +130,16 @@ type ComicEpisodeProductionPage = {
   approvedChineseAsset: SerializedComicEpisodeAsset | null;
 };
 
+type ComicEpisodeProductionExtraPage = {
+  extraPageKey: string;
+  title: string;
+  anchorPageNumber: number;
+  promptPage: SerializedPromptPage;
+  referenceImages: SerializedComicReferenceImage[];
+  assets: SerializedComicEpisodeAsset[];
+  approvedAsset: SerializedComicEpisodeAsset | null;
+};
+
 type ComicEpisodeProductionDetail = {
   ok: true;
   episodeId: string;
@@ -138,6 +154,7 @@ type ComicEpisodeProductionDetail = {
     pageNumber: number;
     finding: SerializedPromptFinding;
   }>;
+  extraPages: ComicEpisodeProductionExtraPage[];
   pages: ComicEpisodeProductionPage[];
 };
 
@@ -150,9 +167,11 @@ type ComicPublishEpisodeProductionPanelProps = {
 
 const EPISODE_DETAIL_REFRESH_TASK_KINDS = new Set([
   "generate",
+  "extra-page-generation",
   "edit",
   "prompt-package",
   "prompt-revision",
+  "extra-page-prompt-revision",
   "chinese-page-version"
 ]);
 
@@ -235,6 +254,206 @@ function PromptHealthFindingList({
         </div>
       ))}
     </div>
+  );
+}
+
+function ComicExtraPageProductionSlot({
+  episodeId,
+  extraPage,
+  redirectTo
+}: {
+  episodeId: string;
+  extraPage: ComicEpisodeProductionExtraPage;
+  redirectTo: string;
+}) {
+  const uploadNames = getUploadNames(extraPage.promptPage);
+
+  return (
+    <article
+      className={
+        extraPage.approvedAsset
+          ? "admin-comic-publish-page is-approved"
+          : "admin-comic-publish-page"
+      }
+    >
+      <div className="admin-comic-publish-page__header">
+        <div>
+          <p className="eyebrow">Reader insert after {formatComicPageLabel(extraPage.anchorPageNumber)}</p>
+          <h3>{extraPage.title}</h3>
+          <p className="form-note">{extraPage.promptPage.pagePurpose}</p>
+        </div>
+        <span
+          className={
+            extraPage.approvedAsset
+              ? "admin-table__status-badge admin-table__status-badge--success"
+              : "admin-table__status-badge admin-table__status-badge--warning"
+          }
+        >
+          {extraPage.approvedAsset ? "Approved insert" : "Needs approval"}
+        </span>
+      </div>
+
+      <div className="stack-row">
+        <span className="pill">{extraPage.promptPage.panelCount} panels</span>
+        <span className="pill">{extraPage.assets.length} image candidates</span>
+        <span className="pill">{extraPage.referenceImages.length} direct refs</span>
+        <span className="pill">Does not count as Page 01</span>
+      </div>
+
+      <div className="admin-comic-reference-preview">
+        <div className="admin-comic-reference-preview__header">
+          <strong>Reference images sent to image API</strong>
+          <span className="form-note">
+            {extraPage.referenceImages.length > 0
+              ? `${extraPage.referenceImages.length} image${extraPage.referenceImages.length === 1 ? "" : "s"}`
+              : "No direct image references resolved"}
+          </span>
+        </div>
+        {extraPage.referenceImages.length > 0 ? (
+          <div className="admin-comic-reference-grid">
+            {extraPage.referenceImages.map((reference) => (
+              <a
+                key={`${episodeId}-${extraPage.extraPageKey}-${reference.relativePath}`}
+                href={reference.imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="admin-comic-reference-card"
+              >
+                <Image
+                  src={reference.imageUrl}
+                  alt={reference.label}
+                  width={120}
+                  height={120}
+                  unoptimized
+                />
+                <span>{reference.label}</span>
+                <small>{reference.fileName}</small>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p className="form-note">
+            This insert will fall back to text-only generation unless the prompt mentions a known
+            character or required upload path.
+          </p>
+        )}
+      </div>
+
+      <details className="admin-comic-publish-details">
+        <summary className="admin-details-summary">Open insert prompt</summary>
+        <div className="admin-comic-publish-prompt">
+          <div className="stack-row">
+            <CopyTextButton
+              text={extraPage.promptPage.promptPackCopyText}
+              label="Copy prompt"
+              copiedLabel="Prompt copied"
+            />
+            {extraPage.promptPage.referenceNotesCopyText ? (
+              <CopyTextButton
+                text={extraPage.promptPage.referenceNotesCopyText}
+                label="Copy refs"
+                copiedLabel="Refs copied"
+              />
+            ) : null}
+          </div>
+          <div className="admin-comic-copy-grid">
+            <div className="field">
+              <label>Image prompt</label>
+              <textarea rows={10} value={extraPage.promptPage.promptPackCopyText} readOnly />
+            </div>
+            <div className="field">
+              <label>Reference notes</label>
+              <textarea
+                rows={10}
+                value={extraPage.promptPage.referenceNotesCopyText || "No reference notes listed."}
+                readOnly
+              />
+            </div>
+          </div>
+          {uploadNames.length > 0 ? (
+            <div className="stack-row">
+              {uploadNames.map((uploadName) => (
+                <span key={`${episodeId}-${extraPage.extraPageKey}-${uploadName}`} className="pill">
+                  {uploadName}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </details>
+
+      <div className="admin-comic-publish-assets">
+        {extraPage.assets.length > 0 ? (
+          extraPage.assets.map((asset) => (
+            <div key={asset.id} className="admin-comic-publish-asset">
+              <a
+                href={asset.imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="admin-comic-publish-asset__image"
+              >
+                <Image
+                  src={asset.imageUrl}
+                  alt={asset.altText || asset.title}
+                  width={240}
+                  height={360}
+                  unoptimized
+                />
+              </a>
+              <div className="admin-comic-publish-asset__body">
+                <div className="admin-table__cell-stack">
+                  <strong>{asset.title}</strong>
+                  <span className="form-note">
+                    {asset.assetType} / {formatSerializedDate(asset.createdAt)}
+                  </span>
+                </div>
+                <div className="stack-row">
+                  {asset.published ? (
+                    <form action={unapproveComicExtraPageAssetAction}>
+                      <input type="hidden" name="id" value={asset.id} />
+                      <input type="hidden" name="redirectTo" value={redirectTo} />
+                      <button type="submit" className="button button--ghost">
+                        Unapprove insert
+                      </button>
+                    </form>
+                  ) : (
+                    <form action={approveComicExtraPageAssetAction}>
+                      <input type="hidden" name="id" value={asset.id} />
+                      <input type="hidden" name="redirectTo" value={redirectTo} />
+                      <button type="submit" className="button button--secondary">
+                        Approve insert
+                      </button>
+                    </form>
+                  )}
+                  <form action={deleteComicEpisodeAssetAction}>
+                    <input type="hidden" name="id" value={asset.id} />
+                    <input type="hidden" name="redirectTo" value={redirectTo} />
+                    <button type="submit" className="button button--ghost">
+                      Reject insert
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="form-note">No insert page image candidates yet. Generate one here.</p>
+        )}
+      </div>
+
+      <div className="admin-comic-publish-page__actions">
+        <ComicGenerateExtraPageQueueButton
+          episodeId={episodeId}
+          extraPageKey={extraPage.extraPageKey}
+          anchorPageNumber={extraPage.anchorPageNumber}
+        />
+        <ComicReviseExtraPagePromptQueueForm
+          episodeId={episodeId}
+          extraPageKey={extraPage.extraPageKey}
+          anchorPageNumber={extraPage.anchorPageNumber}
+        />
+      </div>
+    </article>
   );
 }
 
@@ -400,10 +619,13 @@ export function ComicPublishEpisodeProductionPanel({
         {detail.pages.map((page) => {
           const uploadNames = getUploadNames(page.promptPage);
           const pageHealth = page.promptHealth;
+          const anchoredExtraPages = detail.extraPages.filter(
+            (extraPage) => extraPage.anchorPageNumber === page.pageNumber
+          );
 
           return (
+            <div key={`${episodeId}-${page.pageNumber}`} className="admin-comic-page-section">
             <ComicPublishPageArticle
-              key={`${episodeId}-${page.pageNumber}`}
               episodeId={episodeId}
               pageNumber={page.pageNumber}
               initiallyApproved={Boolean(page.approvedAsset)}
@@ -769,6 +991,15 @@ export function ComicPublishEpisodeProductionPanel({
                 ) : null}
               </div>
             </ComicPublishPageArticle>
+            {anchoredExtraPages.map((extraPage) => (
+              <ComicExtraPageProductionSlot
+                key={`${episodeId}-${extraPage.extraPageKey}`}
+                episodeId={episodeId}
+                extraPage={extraPage}
+                redirectTo={redirectTo}
+              />
+            ))}
+            </div>
           );
         })}
       </div>

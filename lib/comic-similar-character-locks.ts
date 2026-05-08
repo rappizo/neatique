@@ -46,7 +46,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   nia: {
     name: "Nia",
     identity:
-      "taller and sharper pointed teardrop with a vertical point, one angled left brow, confident controlled smile; about 1.1x Padaruna's height; never Muci's broad squat protagonist face"
+      "taller, narrower, controlled teardrop with a sharp vertical point, one angled left brow, and confident controlled smile; about 1.1x Padaruna's height, but not a stretched giant; never Padaruna's wide lower belly, chubby base mass, or eager browless open face"
   },
   snacri: {
     name: "Snacri",
@@ -56,7 +56,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   padaruna: {
     name: "Padaruna",
     identity:
-      "very sharp upright centered point, cute plump/chubby rounded body, soft wide lower belly, no side nubs, no brows, lively open eyes; standard Padaruna tier; about 1.1x Muci's size when paired; never skinny/tall-stretched or Snacri-headed"
+      "very sharp upright centered point above a cute plump/chubby pear-bottom body: the lower half is visibly wider, rounder, heavier, and softer than the upper body, with a soft wide lower belly and buoyant base mass; no side nubs, no brows, lively open eyes; standard Padaruna tier; about 1.1x Muci's size when paired; never skinny, narrow, tall-stretched, Nia-shaped, or Snacri-headed"
   },
   padarana: {
     name: "Padarana",
@@ -156,6 +156,8 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
   const hasMuciAndNia = similarSlugs.includes("muci") && similarSlugs.includes("nia");
   const hasMuciAndPadaruna =
     similarSlugs.includes("muci") && similarSlugs.includes("padaruna");
+  const hasNiaAndPadaruna =
+    similarSlugs.includes("nia") && similarSlugs.includes("padaruna");
   const hasSnacriAndPadarunaOrPadarana =
     similarSlugs.includes("snacri") &&
     (similarSlugs.includes("padaruna") || similarSlugs.includes("padarana"));
@@ -173,13 +175,21 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
     hasMuciAndPadaruna
       ? [
           "- Padaruna anti-Muci identity lock / Muci/Padaruna high-risk size separation: Padaruna reads about 1.1x Muci's overall size and visual mass while Muci remains the smaller broad squat protagonist droplet.",
-          "- Padaruna uses her model sheet: very sharp upright centered pointed head, plump/chubby full rounded body, no side nubs or arm-like protrusions, no eyebrows or brow marks; not Muci's squat soft protagonist droplet and not skinny, narrow, tall-stretched, or delicate."
+          "- Padaruna uses her model sheet: very sharp upright centered pointed head, plump/chubby full rounded pear-bottom body, visibly wider soft lower belly and heavier rounded base, no side nubs or arm-like protrusions, no eyebrows or brow marks; not Muci's squat soft protagonist droplet and not skinny, narrow, tall-stretched, or delicate."
+        ].join("\n")
+      : null,
+    hasNiaAndPadaruna
+      ? [
+          "- Padaruna/Nia high-risk body-shape separation: draw Nia and Padaruna as two different model-sheet silhouettes before adding acting.",
+          "- Nia stays taller, narrower, more vertical, controlled, and marked by one angled left brow. Nia's body tapers cleanly and does not have Padaruna's chubby lower-heavy base.",
+          "- Padaruna keeps a very sharp upright centered head, but the body under it must stay cute and lower-heavy: wide rounded lower belly, pear-bottom mass, soft broad base, and two small connected feet. Padaruna is not a tall narrow Nia-shaped droplet.",
+          "- If Padaruna's sides become straight, her lower half becomes slim, or her body stretches upward like Nia, redraw Padaruna shorter-rounder in the lower half while preserving the sharp centered point."
         ].join("\n")
       : null,
     hasSnacriAndPadarunaOrPadarana
       ? [
           "- Padaruna/Padarana anti-Snacri head lock: Snacri is the only droplet here with a left-leaning quiet top/head silhouette. Never copy that left-leaning Snacri head onto Padaruna or Padarana.",
-          "- Padaruna keeps her own very sharp upright centered pointed head, cute plump/chubby full rounded buoyant body, soft wide lower belly, open lively eyes, no eyebrows, no side nubs or arm-like protrusions; never Snacri's left-leaning quiet head/top.",
+          "- Padaruna keeps her own very sharp upright centered pointed head, cute plump/chubby full rounded buoyant pear-bottom body, soft wide lower belly, heavier rounded lower half, open lively eyes, no eyebrows, no side nubs or arm-like protrusions; never Snacri's left-leaning quiet head/top.",
           "- Padarana keeps her own upright soft pointed head above a slimmer gentle body with closed smiling eyes; never Snacri's left-leaning quiet head/top.",
           "- If Padaruna looks skinny, narrow, tall-stretched, or delicate, redraw her wider and chubbier under the sharp apex."
         ].join("\n")

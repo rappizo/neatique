@@ -7,9 +7,11 @@ import {
 } from "@/lib/comic-prompt-health";
 import { getNeglectedComicPromptQaFindingKeys } from "@/lib/comic-prompt-health-neglect";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
+import { getComicExtraPromptPages } from "@/lib/comic-extra-pages";
 import { resolveComicPageReferenceImages } from "@/lib/comic-reference-images";
 import {
   COMIC_CHINESE_PAGE_ASSET_TYPE,
+  COMIC_EXTRA_PAGE_ASSET_TYPE,
   COMIC_PAGE_ASSET_TYPES,
   getComicRequiredPageNumbers
 } from "@/lib/comic-pages";
@@ -24,6 +26,10 @@ type PromptPage = NonNullable<ReturnType<typeof parseComicPromptOutput>>["pages"
 
 function isComicPageAsset(asset: ComicEpisodeAssetRecord) {
   return COMIC_PAGE_ASSET_TYPES.includes(asset.assetType);
+}
+
+function isComicExtraPageAsset(asset: ComicEpisodeAssetRecord) {
+  return asset.assetType === COMIC_EXTRA_PAGE_ASSET_TYPE;
 }
 
 function getPageAssets(episode: ComicPublishCenterEpisodeRecord, pageNumber: number) {
@@ -44,6 +50,24 @@ function getChinesePageAssets(episode: ComicPublishCenterEpisodeRecord, pageNumb
       (asset) =>
         asset.assetType === COMIC_CHINESE_PAGE_ASSET_TYPE &&
         asset.sortOrder === pageNumber
+    )
+    .sort((left, right) => {
+      if (left.published !== right.published) {
+        return left.published ? -1 : 1;
+      }
+
+      return right.createdAt.getTime() - left.createdAt.getTime();
+    });
+}
+
+function getExtraPageAssets(
+  episode: ComicPublishCenterEpisodeRecord,
+  anchorPageNumber: number
+) {
+  return episode.assets
+    .filter(
+      (asset) =>
+        isComicExtraPageAsset(asset) && asset.sortOrder === anchorPageNumber
     )
     .sort((left, right) => {
       if (left.published !== right.published) {
@@ -110,6 +134,33 @@ async function getEpisodePromptPages(episode: ComicPublishCenterEpisodeRecord) {
       };
     })
   );
+  const extraPages = await Promise.all(
+    getComicExtraPromptPages(episode.promptPack).map(async (extraPage) => {
+      const assets = getExtraPageAssets(episode, extraPage.anchorPageNumber);
+      const referenceImages = await resolveComicPageReferenceImages({
+        requiredUploads: extraPage.requiredUploads,
+        seasonSlug: episode.seasonSlug,
+        chapterSlug: episode.chapterSlug,
+        promptText: [
+          extraPage.title,
+          extraPage.pagePurpose,
+          extraPage.promptPackCopyText,
+          extraPage.referenceNotesCopyText,
+          extraPage.panels.map((panel) => panel.storyBeat).join("\n")
+        ].join("\n\n")
+      });
+
+      return {
+        extraPageKey: extraPage.extraPageKey,
+        title: extraPage.title,
+        anchorPageNumber: extraPage.anchorPageNumber,
+        promptPage: extraPage,
+        referenceImages,
+        assets,
+        approvedAsset: assets.find((asset) => asset.published) || null
+      };
+    })
+  );
 
   return {
     parsedPromptOutput,
@@ -120,6 +171,7 @@ async function getEpisodePromptPages(episode: ComicPublishCenterEpisodeRecord) {
       warningCount: promptHealth.warningCount
     },
     promptHealthFindings: getPromptHealthFindings(promptHealth.pages),
+    extraPages,
     pages
   };
 }
