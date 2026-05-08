@@ -285,6 +285,20 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
         whyThisMatters: "Similar teardrop characters appear together.",
         contentSummary: "Difference map for similar droplet characters.",
         data: Buffer.from("fake")
+      },
+      {
+        label: "Comic Character Height Comparison Chart",
+        fileName: "character-height-comparison.jpg",
+        relativePath: "comic/scenes/character-height-comparison/refs/character-height-comparison.jpg",
+        bucket: "CAST_COMPARISON",
+        slug: "comic-character-height-comparison",
+        source: "auto-detected",
+        mimeType: "image/jpeg",
+        imageUrl: "/comic/scenes/character-height-comparison/refs/character-height-comparison.jpg",
+        sizeBytes: 4,
+        whyThisMatters: "Similar characters appear together.",
+        contentSummary: "Height scale chart for Muci, Nia, Snacri, Padaruna, Padarana, and Artrans.",
+        data: Buffer.from("fake")
       }
     ],
     characterLocks: [
@@ -327,6 +341,10 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   });
 
   assert.match(prompt, /Similar teardrop cast separation lock/);
+  assert.match(prompt, /Character height comparison chart lock/);
+  assert.match(prompt, /Muci and Artrans share the shorter tier/);
+  assert.match(prompt, /Nia: about 1\.10x Padaruna/);
+  assert.match(prompt, /Snacri: same as Padaruna/);
   assert.match(prompt, /Muci Model Sheet Exact Lock/);
   assert.match(prompt, /Muci\/Nia high-risk model-sheet guardrail/);
   assert.match(prompt, /subtle near-center lean toward reader-left\/Muci's right/);
@@ -335,6 +353,65 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   assert.match(prompt, /Nia: taller and sharper pointed teardrop/);
   assert.match(prompt, /Snacri: fatter quiet droplet/);
   assert.match(prompt, /Similar Teardrop Character Comparison/);
+  assert.match(prompt, /Comic Character Height Comparison Chart/);
+});
+
+test("comic page image prompt locks Artrans to Muci height tier", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "Height Check",
+    episodeSummary: "Artrans and Padaruna compare a lab chart.",
+    pageNumber: 2,
+    panelCount: 1,
+    pagePurpose: "Keep character heights stable in a two-character panel.",
+    promptPackCopyText: "Artrans stands beside Padaruna on the same ground plane.",
+    referenceNotesCopyText: "Use model sheets and the height chart.",
+    globalGptImage2Notes: "Keep heights stable.",
+    panels: [
+      {
+        pageNumber: 2,
+        panelNumber: 1,
+        panelTitle: "Scale Check",
+        storyBeat: "Artrans and Padaruna stand side by side.",
+        promptText: "Draw Artrans and Padaruna standing on the same floor line.",
+        dialogueLines: [{ speaker: "Artrans", text: "Scale matters." }]
+      }
+    ],
+    requiredUploads: [],
+    referenceImages: [],
+    characterLocks: [
+      {
+        slug: "artrans",
+        name: "Artrans",
+        role: "Skincare student.",
+        appearance: "Muci-height mascot.",
+        personality: "Careful.",
+        speechGuide: "Concise.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Artrans",
+        referenceFiles: []
+      },
+      {
+        slug: "padaruna",
+        name: "Padaruna",
+        role: "Trend magnet.",
+        appearance: "Sharp pointed head, fuller rounder buoyant body.",
+        personality: "Energetic.",
+        speechGuide: "Fast.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Padaruna",
+        referenceFiles: []
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /Character height comparison chart lock/);
+  assert.match(prompt, /Artrans: same as Muci/);
+  assert.match(prompt, /Padaruna: 1\.00x Padaruna baseline/);
+  assert.match(prompt, /Padaruna keeps the existing about-1\.1x-Muci relationship/);
 });
 
 test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes", () => {
@@ -570,6 +647,13 @@ test("comic page image reference selection keeps similar teardrop comparison dur
           bucket: "CAST_COMPARISON",
           relativePath: "comic/scenes/similar-character-comparison/refs/similar-character-comparison.jpg",
           source: "auto-detected"
+        }),
+        referenceImage({
+          label: "Comic Character Height Comparison Chart",
+          slug: "comic-character-height-comparison",
+          bucket: "CAST_COMPARISON",
+          relativePath: "comic/scenes/character-height-comparison/refs/character-height-comparison.jpg",
+          source: "auto-detected"
         })
       ],
       2
@@ -581,6 +665,10 @@ test("comic page image reference selection keeps similar teardrop comparison dur
     assert.ok(
       selected.some((reference) => reference.slug === "similar-teardrop-character-comparison"),
       "The comparison sheet should not be dropped when retry mode prioritizes identity references."
+    );
+    assert.ok(
+      selected.some((reference) => reference.slug === "comic-character-height-comparison"),
+      "The height chart should not be dropped when retry mode prioritizes identity references."
     );
   } finally {
     if (previousLimit === undefined) {

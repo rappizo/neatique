@@ -8,7 +8,7 @@ type ComicReferenceManifest = {
 };
 
 const comicReferenceManifest = {
-  "generatedAt": "2026-05-06T11:48:40.272Z",
+  "generatedAt": "2026-05-08T04:04:51.745Z",
   "characters": {
     "artrans": [
       {
@@ -108,6 +108,14 @@ const comicReferenceManifest = {
     ]
   },
   "scenes": {
+    "character-height-comparison": [
+      {
+        "label": "Character Height Comparison",
+        "fileName": "character-height-comparison.jpg",
+        "relativePath": "comic/scenes/character-height-comparison/refs/character-height-comparison.jpg",
+        "extension": "jpg"
+      }
+    ],
     "season-01-chapter-01-orientation-week-is-a-scam-barrier-sciences-hall": [
       {
         "label": "Barrier Sciences Hall",

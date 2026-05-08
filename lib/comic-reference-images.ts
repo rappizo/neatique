@@ -13,8 +13,11 @@ import {
   getComicSceneReferenceFolder
 } from "@/lib/comic-paths";
 import {
+  COMIC_CHARACTER_HEIGHT_CHART_REFERENCE,
   SIMILAR_TEARDROP_COMPARISON_REFERENCE,
+  getComicCharacterHeightChartSlugs,
   getSimilarTeardropCharacterSlugs,
+  shouldUseComicCharacterHeightChart,
   shouldUseSimilarTeardropComparison
 } from "@/lib/comic-similar-character-locks";
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
@@ -579,7 +582,38 @@ function addSimilarTeardropComparisonReference(byPath: Map<string, ComicResolved
         .map((slug) => slug.replace(/-/g, " "))
         .join(", ")} appear together; this comparison sheet prevents similar black-and-white droplet characters from blending.`,
       contentSummary:
-        "Side-by-side identity comparison for Muci, Nia, Snacri, Padaruna, and Padarana: silhouette, body width, head direction, eyes/brow, and default expression."
+        "Side-by-side identity comparison for Muci, Nia, Snacri, Padaruna, and Padarana: silhouette, body width, head direction, eyes/brow, default expression, and broad size separation."
+    },
+    byPath
+  );
+}
+
+function addComicCharacterHeightChartReference(byPath: Map<string, ComicResolvedReferenceImage>) {
+  const characterSlugs = Array.from(
+    new Set(
+      Array.from(byPath.values())
+        .filter(isCharacterReference)
+        .map((reference) => reference.slug)
+    )
+  );
+  const heightSlugs = getComicCharacterHeightChartSlugs(characterSlugs);
+
+  if (!shouldUseComicCharacterHeightChart(heightSlugs)) {
+    return;
+  }
+
+  addReferenceImage(
+    "CAST_COMPARISON",
+    "comic-character-height-comparison",
+    "auto-detected",
+    COMIC_CHARACTER_HEIGHT_CHART_REFERENCE,
+    {
+      label: COMIC_CHARACTER_HEIGHT_CHART_REFERENCE.label,
+      whyThisMatters: `${heightSlugs
+        .map((slug) => slug.replace(/-/g, " "))
+        .join(", ")} appear together; this chart locks their relative heights before composition.`,
+      contentSummary:
+        "Height scale chart: Muci and Artrans share the shorter tier; Padaruna, Padarana, and Snacri share the standard tier; Nia is about 1.1x Padaruna."
     },
     byPath
   );
@@ -654,8 +688,19 @@ function selectResolvedReferences(references: ComicResolvedReferenceImage[]) {
   }
 
   addWhere(isBrandLogoReference, Math.min(1, maxReferences));
-  addWhere(isCharacterReference, maxCharacterReferences);
-  addWhere(isCastComparisonReference, Math.max(0, Math.min(1, maxReferences - selected.size)));
+  const castComparisonCount = sorted.filter(isCastComparisonReference).length;
+  const reservedCastReferenceCount = Math.min(
+    castComparisonCount,
+    Math.max(0, Math.min(2, maxReferences - selected.size - 1))
+  );
+  addWhere(
+    isCharacterReference,
+    Math.min(
+      maxCharacterReferences,
+      Math.max(0, maxReferences - selected.size - reservedCastReferenceCount)
+    )
+  );
+  addWhere(isCastComparisonReference, Math.max(0, Math.min(2, maxReferences - selected.size)));
   addWhere(isChapterSceneReference, Math.max(1, Math.min(2, maxReferences - selected.size)));
   addWhere((reference) => reference.bucket === "SCENE", Math.max(0, maxReferences - selected.size));
   addWhere(() => true, maxReferences - selected.size);
@@ -672,6 +717,7 @@ export async function resolveComicPageReferenceImages(
   addDetectedCharacterReferences(input, byPath);
   addDetectedChapterSceneReferences(input, byPath);
   addSimilarTeardropComparisonReference(byPath);
+  addComicCharacterHeightChartReference(byPath);
 
   return selectResolvedReferences(Array.from(byPath.values()));
 }

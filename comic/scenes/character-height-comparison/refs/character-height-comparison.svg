@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
+  <rect width="1400" height="900" fill="#ffffff"/>
+  <text x="700" y="62" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="700" fill="#111111">Comic Character Height Comparison Chart</text>
+  <text x="700" y="102" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#111111">Use this as a scale lock whenever these characters appear together on the same ground plane.</text>
+  <rect x="300" y="138" width="800" height="126" rx="18" fill="#ffffff" stroke="#111111" stroke-width="3"/>
+  <text x="700" y="176" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#111111">Locked height tiers</text>
+  <text x="700" y="209" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#111111">Muci = Artrans shorter tier, preserving the current Muci / Padaruna ratio.</text>
+  <text x="700" y="236" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#111111">Padaruna = Padarana = Snacri standard tier. Nia = about 1.10x Padaruna.</text>
+  <line x1="70" y1="720" x2="1330" y2="720" stroke="#111111" stroke-width="4"/>
+  <line x1="70" y1="380" x2="1330" y2="380" stroke="#111111" stroke-width="2" stroke-dasharray="10 12"/>
+  <line x1="70" y1="346" x2="1330" y2="346" stroke="#111111" stroke-width="2" stroke-dasharray="10 12"/>
+  <line x1="70" y1="411" x2="1330" y2="411" stroke="#111111" stroke-width="2" stroke-dasharray="10 12"/>
+
+  <g transform="translate(170 720)">
+    <path d="M0 -309 C-70 -258 -105 -150 -76 -70 C-57 -24 -34 0 0 0 C34 0 57 -24 76 -70 C105 -150 70 -258 0 -309 Z" fill="#ffffff" stroke="#111111" stroke-width="4" stroke-linejoin="round"/>
+    <ellipse cx="-34" cy="9" rx="18" ry="24" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <ellipse cx="34" cy="9" rx="18" ry="24" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <circle cx="-30" cy="-116" r="11" fill="#111111"/>
+    <circle cx="30" cy="-116" r="11" fill="#111111"/>
+    <path d="M-14 -92 Q0 -80 14 -92" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="round"/>
+    <ellipse cx="-38" cy="-172" rx="8" ry="22" transform="rotate(28 -38 -172)" fill="none" stroke="#111111" stroke-width="3"/>
+    <circle cx="-58" cy="-142" r="4" fill="none" stroke="#111111" stroke-width="3"/>
+    <text x="0" y="82" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#111111">Muci</text>
+    <text x="0" y="113" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#111111">short tier</text>
+    <text x="0" y="139" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#111111">about 0.91x Padaruna</text>
+  </g>
+
+  <g transform="translate(390 720)">
+    <path d="M0 -309 C-70 -258 -105 -150 -76 -70 C-57 -24 -34 0 0 0 C34 0 57 -24 76 -70 C105 -150 70 -258 0 -309 Z" fill="#ffffff" stroke="#111111" stroke-width="4" stroke-linejoin="round"/>
+    <ellipse cx="-34" cy="9" rx="18" ry="24" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <ellipse cx="34" cy="9" rx="18" ry="24" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <circle cx="-30" cy="-116" r="11" fill="#111111"/>
+    <circle cx="30" cy="-116" r="11" fill="#111111"/>
+    <path d="M-13 -91 Q0 -82 13 -91" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="round"/>
+    <text x="0" y="82" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#111111">Artrans</text>
+    <text x="0" y="113" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#111111">same as Muci</text>
+  </g>
+
+  <g transform="translate(610 720)">
+    <path d="M0 -340 C-58 -274 -94 -177 -76 -88 C-63 -26 -37 0 0 0 C37 0 63 -26 76 -88 C94 -177 58 -274 0 -340 Z" fill="#ffffff" stroke="#111111" stroke-width="4" stroke-linejoin="round"/>
+    <ellipse cx="-32" cy="9" rx="18" ry="24" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <ellipse cx="32" cy="9" rx="18" ry="24" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <circle cx="-30" cy="-119" r="10" fill="#111111"/>
+    <circle cx="30" cy="-119" r="10" fill="#111111"/>
+    <path d="M-14 -96 Q0 -84 14 -96" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="round"/>
+    <text x="0" y="82" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#111111">Padaruna</text>
+    <text x="0" y="113" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#111111">standard 1.00x</text>
+  </g>
+
+  <g transform="translate(830 720)">
+    <path d="M0 -340 C-52 -274 -88 -177 -72 -88 C-59 -26 -34 0 0 0 C34 0 59 -26 72 -88 C88 -177 52 -274 0 -340 Z" fill="#ffffff" stroke="#111111" stroke-width="4" stroke-linejoin="round"/>
+    <ellipse cx="-30" cy="9" rx="17" ry="23" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <ellipse cx="30" cy="9" rx="17" ry="23" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <path d="M-44 -113 Q-32 -130 -19 -113" fill="none" stroke="#111111" stroke-width="5" stroke-linecap="round"/>
+    <path d="M19 -113 Q32 -130 44 -113" fill="none" stroke="#111111" stroke-width="5" stroke-linecap="round"/>
+    <path d="M-13 -87 Q0 -76 13 -87" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="round"/>
+    <text x="0" y="82" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#111111">Padarana</text>
+    <text x="0" y="113" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#111111">same as Padaruna</text>
+  </g>
+
+  <g transform="translate(1050 720)">
+    <path d="M0 -340 C-80 -314 -112 -190 -82 -82 C-66 -25 -38 0 0 0 C38 0 66 -25 82 -82 C112 -190 80 -314 0 -340 Z" fill="#ffffff" stroke="#111111" stroke-width="4" stroke-linejoin="round"/>
+    <ellipse cx="-34" cy="9" rx="18" ry="24" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <ellipse cx="34" cy="9" rx="18" ry="24" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <circle cx="-32" cy="-118" r="9" fill="#111111"/>
+    <circle cx="32" cy="-118" r="9" fill="#111111"/>
+    <path d="M-10 -96 Q0 -89 10 -96" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="round"/>
+    <text x="0" y="82" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#111111">Snacri</text>
+    <text x="0" y="113" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#111111">same as Padaruna</text>
+  </g>
+
+  <g transform="translate(1260 720)">
+    <path d="M0 -374 C-44 -287 -84 -216 -74 -96 C-68 -29 -39 0 0 0 C39 0 68 -29 74 -96 C84 -216 44 -287 0 -374 Z" fill="#ffffff" stroke="#111111" stroke-width="4" stroke-linejoin="round"/>
+    <ellipse cx="-30" cy="9" rx="17" ry="23" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <ellipse cx="30" cy="9" rx="17" ry="23" fill="#ffffff" stroke="#111111" stroke-width="4"/>
+    <circle cx="-30" cy="-124" r="9" fill="#111111"/>
+    <circle cx="30" cy="-124" r="9" fill="#111111"/>
+    <path d="M18 -150 L43 -159" fill="none" stroke="#111111" stroke-width="5" stroke-linecap="round"/>
+    <path d="M-12 -101 Q0 -92 12 -101" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="round"/>
+    <text x="0" y="82" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#111111">Nia</text>
+    <text x="0" y="113" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#111111">1.10x Padaruna</text>
+  </g>
+</svg>

@@ -8,10 +8,26 @@ export const SIMILAR_TEARDROP_CHARACTER_SLUGS = [
   "padarana"
 ] as const;
 
+export const COMIC_CHARACTER_HEIGHT_CHART_SLUGS = [
+  "muci",
+  "artrans",
+  "padaruna",
+  "padarana",
+  "snacri",
+  "nia"
+] as const;
+
 export const SIMILAR_TEARDROP_COMPARISON_REFERENCE: ComicChapterSceneReferenceRecord = {
   label: "Similar Teardrop Character Comparison",
   fileName: "similar-character-comparison.jpg",
   relativePath: "comic/scenes/similar-character-comparison/refs/similar-character-comparison.jpg",
+  extension: "jpg"
+};
+
+export const COMIC_CHARACTER_HEIGHT_CHART_REFERENCE: ComicChapterSceneReferenceRecord = {
+  label: "Comic Character Height Comparison Chart",
+  fileName: "character-height-comparison.jpg",
+  relativePath: "comic/scenes/character-height-comparison/refs/character-height-comparison.jpg",
   extension: "jpg"
 };
 
@@ -25,27 +41,68 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   muci: {
     name: "Muci",
     identity:
-      "exact Muci model-sheet droplet: broad squat pure-white body, round heavy lower half, soft bulging sides, curved rounded base, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, two attached small rounded feet, large black dot eyes with catchlights, small friendly U-smile, oval-plus-dot highlight on upper reader-left, no brow by default; never Nia's tall narrow vertical point, angled brow, or an exaggerated hooked/curling top"
+      "exact Muci model-sheet droplet: broad squat pure-white body, round heavy lower half, soft bulging sides, curved rounded base, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, two attached small rounded feet, large black dot eyes with catchlights, small friendly U-smile, oval-plus-dot highlight on upper reader-left, no brow by default; shorter height tier than Padaruna while preserving the existing Muci/Padaruna ratio; never Nia's tall narrow vertical point, angled brow, or an exaggerated hooked/curling top"
   },
   nia: {
     name: "Nia",
     identity:
-      "taller and sharper pointed teardrop, controlled narrow body tension, sharpest vertical point, one angled brow above the left eye, confident composed smile, analytical expression; never Muci's broad squat soft protagonist face"
+      "taller and sharper pointed teardrop, controlled narrow body tension, sharpest vertical point, one angled brow above the left eye, confident composed smile, analytical expression; about 1.1x Padaruna's height on the same ground plane; never Muci's broad squat soft protagonist face"
   },
   snacri: {
     name: "Snacri",
     identity:
-      "fatter quiet droplet with the top leaning left, understated asymmetry, minimal dot eyes, tiny restrained smile, low-drama observer expression"
+      "fatter quiet droplet with the top leaning left, understated asymmetry, minimal dot eyes, tiny restrained smile, low-drama observer expression; same height tier as Padaruna and Padarana"
   },
   padaruna: {
     name: "Padaruna",
     identity:
-      "sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; about 1.1x Muci's overall size when she appears with Muci; not Muci's squat soft protagonist droplet"
+      "sharp pointed head with a noticeably rounder fuller buoyant body, no eyebrows or brow marks, open lively dot eyes, eager smile, most socially expressive and energetic droplet; standard height tier shared with Padarana and Snacri; about 1.1x Muci's overall size when she appears with Muci; not Muci's squat soft protagonist droplet"
   },
   padarana: {
     name: "Padarana",
     identity:
-      "sharp pointed head with a slimmer softer body than Padaruna, closed smiling eyes, calm reassuring mouth, gentle emotional-anchor expression"
+      "sharp pointed head with a slimmer softer body than Padaruna, closed smiling eyes, calm reassuring mouth, gentle emotional-anchor expression; same height tier as Padaruna and Snacri"
+  }
+};
+
+export const COMIC_CHARACTER_HEIGHT_LOCKS: Record<
+  (typeof COMIC_CHARACTER_HEIGHT_CHART_SLUGS)[number],
+  {
+    name: string;
+    relativeHeight: string;
+    note: string;
+  }
+> = {
+  muci: {
+    name: "Muci",
+    relativeHeight: "about 0.91x Padaruna",
+    note:
+      "shorter broad protagonist height tier; preserve the current Muci/Padaruna scale, so Padaruna stays about 1.1x Muci"
+  },
+  artrans: {
+    name: "Artrans",
+    relativeHeight: "same as Muci",
+    note: "same shorter height tier as Muci"
+  },
+  padaruna: {
+    name: "Padaruna",
+    relativeHeight: "1.00x Padaruna baseline",
+    note: "standard height tier"
+  },
+  padarana: {
+    name: "Padarana",
+    relativeHeight: "same as Padaruna",
+    note: "standard height tier, matching Padaruna"
+  },
+  snacri: {
+    name: "Snacri",
+    relativeHeight: "same as Padaruna",
+    note: "standard height tier, matching Padaruna"
+  },
+  nia: {
+    name: "Nia",
+    relativeHeight: "about 1.10x Padaruna",
+    note: "only slightly taller than the Padaruna tier, not giant or stretched"
   }
 };
 
@@ -57,6 +114,37 @@ export function getSimilarTeardropCharacterSlugs(slugs: string[]) {
 
 export function shouldUseSimilarTeardropComparison(slugs: string[]) {
   return getSimilarTeardropCharacterSlugs(slugs).length >= 2;
+}
+
+export function getComicCharacterHeightChartSlugs(slugs: string[]) {
+  const slugSet = new Set(slugs);
+
+  return COMIC_CHARACTER_HEIGHT_CHART_SLUGS.filter((slug) => slugSet.has(slug));
+}
+
+export function shouldUseComicCharacterHeightChart(slugs: string[]) {
+  return getComicCharacterHeightChartSlugs(slugs).length >= 2;
+}
+
+export function buildComicCharacterHeightChartLock(slugs: string[]) {
+  const heightSlugs = getComicCharacterHeightChartSlugs(slugs);
+
+  if (heightSlugs.length < 2) {
+    return "";
+  }
+
+  return [
+    "Character height comparison chart lock:",
+    "- The attached Comic Character Height Comparison Chart is a binding scale map whenever two or more listed characters appear together.",
+    "- Put same-panel characters on the same ground baseline before sizing them. Measure apparent body height from the bottom of the connected feet to the top/apex of the body; ignore motion lines, props, perspective, and speech balloons.",
+    "- Locked height tiers: Muci and Artrans share the shorter tier, preserving the current Muci/Padaruna ratio; Padaruna, Padarana, and Snacri share the standard Padaruna tier; Nia is only slightly taller at about 1.1x Padaruna.",
+    "- Do not randomly swap heights between pages or panels. When characters stand on the same plane, keep these ratios even if they emote, tilt, run, or lean.",
+    ...heightSlugs.map((slug) => {
+      const lock = COMIC_CHARACTER_HEIGHT_LOCKS[slug];
+      return `- ${lock.name}: ${lock.relativeHeight}; ${lock.note}.`;
+    }),
+    "- If the drawing makes Padarana, Snacri, or Padaruna noticeably taller/shorter than each other, or makes Nia much taller than 1.1x Padaruna, rescale before final line art."
+  ].join("\n");
 }
 
 export function buildSimilarTeardropSeparationLock(slugs: string[]) {
