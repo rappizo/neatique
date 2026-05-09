@@ -41,7 +41,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   muci: {
     name: "Muci",
     identity:
-      "exact Muci model-sheet droplet: broad squat pure-white body, round heavy lower half, subtle near-center reader-left top lean, two attached feet, friendly U-smile, no brow; shorter tier than Padaruna; never Nia's sharp vertical point or hooked/curling top"
+      "exact Muci model-sheet droplet: broad squat pure-white body, round heavy lower half, consistent reader-left/page-left top lean, two attached feet, friendly U-smile, no brow; shorter tier than Padaruna; never Nia's sharp vertical point, Snacri's right lean, or hooked/curling top"
   },
   nia: {
     name: "Nia",
@@ -51,7 +51,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   snacri: {
     name: "Snacri",
     identity:
-      "fatter quiet droplet with the top leaning left, fully open round black dot eyes with tiny highlights, tiny restrained smile; never sleepy/angry/browed eyes; same height tier as Padaruna and Padarana; exactly two connected feet"
+      "fatter quiet droplet with the head/top leaning right toward reader-right/page-right, fully open round black dot eyes with tiny highlights, tiny restrained smile; never sleepy/angry/browed eyes; never Muci's left lean; same height tier as Padaruna and Padarana; exactly two connected feet"
   },
   padaruna: {
     name: "Padaruna",
@@ -61,7 +61,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   padarana: {
     name: "Padarana",
     identity:
-      "upright soft pointed head, slimmer gentler body than Padaruna, closed smiling eyes, calm mouth; same height tier as Padaruna and Snacri; never Snacri's left-leaning head"
+      "upright soft pointed head, slimmer gentler body than Padaruna, closed smiling eyes, calm mouth; same height tier as Padaruna and Snacri; never Snacri's right-leaning head"
   }
 };
 
@@ -168,7 +168,7 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
     "- Do not average these white droplet mascots into one generic body. Match each character to their own model sheet.",
     hasMuciAndNia
       ? [
-          "- Muci/Nia high-risk model-sheet guardrail: draw Muci from the Muci Model Sheet Exact Lock, not from generic teardrop memory. Muci's top is a rounded teardrop point with only a subtle near-center lean toward reader-left/Muci's right; it is not a sharp Nia point, exaggerated hook, sideways curl, or flopped-over cap.",
+          "- Muci/Nia high-risk model-sheet guardrail: draw Muci from the Muci Model Sheet Exact Lock, not from generic teardrop memory. Muci's top is a rounded teardrop point with a consistent lean toward reader-left/Muci's right; it is not a sharp Nia point, Snacri's right-leaning top, exaggerated hook, sideways curl, or flopped-over cap.",
           "- Muci stays short, broad, squat, friendly, and browless; Nia stays taller, sharper, and marked by one angled left brow."
         ].join("\n")
       : null,
@@ -188,9 +188,9 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
       : null,
     hasSnacriAndPadarunaOrPadarana
       ? [
-          "- Padaruna/Padarana anti-Snacri head lock: Snacri is the only droplet here with a left-leaning quiet top/head silhouette. Never copy that left-leaning Snacri head onto Padaruna or Padarana.",
-          "- Padaruna keeps her own very sharp upright centered pointed head, cute plump/chubby full rounded buoyant pear-bottom body, soft wide lower belly, heavier rounded lower half, open lively eyes, no eyebrows, no side nubs or arm-like protrusions; never Snacri's left-leaning quiet head/top.",
-          "- Padarana keeps her own upright soft pointed head above a slimmer gentle body with closed smiling eyes; never Snacri's left-leaning quiet head/top.",
+          "- Padaruna/Padarana anti-Snacri head lock: Snacri is the only droplet here with a right-leaning quiet top/head silhouette. Never copy that right-leaning Snacri head onto Padaruna or Padarana.",
+          "- Padaruna keeps her own very sharp upright centered pointed head, cute plump/chubby full rounded buoyant pear-bottom body, soft wide lower belly, heavier rounded lower half, open lively eyes, no eyebrows, no side nubs or arm-like protrusions; never Snacri's right-leaning quiet head/top.",
+          "- Padarana keeps her own upright soft pointed head above a slimmer gentle body with closed smiling eyes; never Snacri's right-leaning quiet head/top.",
           "- If Padaruna looks skinny, narrow, tall-stretched, or delicate, redraw her wider and chubbier under the sharp apex."
         ].join("\n")
       : null,

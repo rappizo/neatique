@@ -61,7 +61,7 @@ Add one standalone reader-guide insert immediately after the cover before Page 0
 - Nia: slightly taller than Padaruna, sharp vertical point, one angled brow, precise controlled expression.
 - Padaruna: same height tier as Padarana and Snacri, very sharp centered head point, visibly lower-heavy plump/chubby pear-bottom body with a wide soft lower belly, open lively eyes, energetic, no eyebrows, never Nia's tall narrow controlled silhouette.
 - Padarana: same height tier as Padaruna and Snacri, upright soft pointed silhouette, slimmer and gentler than Padaruna, closed smiling eyes, calm reassuring energy.
-- Snacri: same height tier as Padaruna and Padarana, fatter compact body, left-leaning top, fully open round black dot eyes with tiny highlights, restrained tiny smile, exactly two feet.
+- Snacri: same height tier as Padaruna and Padarana, fatter compact body, right-leaning top, fully open round black dot eyes with tiny highlights, restrained tiny smile, exactly two feet.
 
 The page should use the characters' own front-facing model sheets as the visual comparison basis. Do not draw a weird height-chart prop inside the comic panel. Do not turn the guide into first-appearance bio boxes; make it feel like the cast is teasing each other while helping the reader recognize them.
 

@@ -14,7 +14,7 @@ Top student, rational rival-ally, and the cast member most tempted by systems an
 - One angled brow above the left eye is a primary identity mark and should remain visible whenever her face is readable
 - Small confident smile rather than an openly soft expression
 - Clean, controlled line language with slightly more tension than Muci
-- Similar-character lock: Nia is taller, sharper, and more controlled than Muci, Snacri, Padaruna, and Padarana. Do not give her Muci's soft open protagonist face, Padarana's closed smiling eyes, or Snacri's left-leaning top.
+- Similar-character lock: Nia is taller, sharper, and more controlled than Muci, Snacri, Padaruna, and Padarana. Do not give her Muci's soft open protagonist face, Padarana's closed smiling eyes, or Snacri's right-leaning top.
 
 ## Personality lock
 - Sharp

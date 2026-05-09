@@ -198,7 +198,7 @@ test("comic page image prompt separates Coach Ray from Muci and normalizes legac
     panelCount: 3,
     pagePurpose: "Coach Ray and Muci compare panic with planning.",
     promptPackCopyText:
-      "Use exact uploaded model sheets. Coach Ray must stay broad pentagonal and planted. Muci stays the broad squat model-sheet droplet with a subtle near-center reader-left top lean.",
+      "Use exact uploaded model sheets. Coach Ray must stay broad pentagonal and planted. Muci stays the broad squat model-sheet droplet with a consistent reader-left top lean.",
     referenceNotesCopyText:
       "Upload Muci and Coach Ray. Keep Coach Ray's pentagonal authority and Muci's broad squat soft droplet.",
     globalGptImage2Notes:
@@ -292,12 +292,12 @@ test("comic page image prompt separates Coach Ray from Muci and normalizes legac
         name: "Muci",
         role: "Audience surrogate.",
         appearance:
-          "Broad squat model-sheet droplet with a natural rounded top point and subtle near-center reader-left lean.",
+          "Broad squat model-sheet droplet with a natural rounded top point and consistent reader-left lean.",
         personality: "Curious.",
         speechGuide: "Plainspoken.",
         referenceNotes: "Use refs/model-sheet.jpg.",
         profileMarkdown:
-          "# Muci\n\n## Appearance lock\nMuci Model Sheet Exact Lock: broad squat pure-white droplet with a natural rounded top point and subtle near-center reader-left lean.",
+          "# Muci\n\n## Appearance lock\nMuci Model Sheet Exact Lock: broad squat pure-white droplet with a natural rounded top point and consistent reader-left lean.",
         referenceFiles: [
           {
             label: "Model Sheet",
@@ -338,7 +338,7 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
         panelNumber: 1,
         panelTitle: "Lineup",
         storyBeat: "Muci, Nia, and Snacri share a panel.",
-        promptText: "Muci is compact, Nia has one angled brow, Snacri leans left.",
+        promptText: "Muci is compact and leans left, Nia has one angled brow, Snacri leans right.",
         dialogueLines: [{ speaker: "Muci", text: "We look different, right?" }]
       }
     ],
@@ -379,7 +379,7 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
         name: "Muci",
         role: "Audience surrogate.",
         appearance:
-          "Broad squat model-sheet droplet with a natural rounded top point and subtle near-center reader-left lean.",
+          "Broad squat model-sheet droplet with a natural rounded top point and consistent reader-left lean.",
         personality: "Curious.",
         speechGuide: "Plainspoken.",
         referenceNotes: "Use refs/model-sheet.jpg.",
@@ -401,7 +401,7 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
         slug: "snacri",
         name: "Snacri",
         role: "Quiet observer.",
-        appearance: "Fatter left-leaning droplet.",
+        appearance: "Fatter right-leaning droplet.",
         personality: "Minimal.",
         speechGuide: "Sparse.",
         referenceNotes: "Use refs/model-sheet.jpg.",
@@ -423,8 +423,8 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   assert.match(prompt, /Snacri: same as Padaruna/);
   assert.match(prompt, /Muci Model Sheet Exact Lock/);
   assert.match(prompt, /Muci\/Nia high-risk model-sheet guardrail/);
-  assert.match(prompt, /subtle near-center lean toward reader-left\/Muci's right/);
-  assert.match(prompt, /not a sharp Nia point, exaggerated hook, sideways curl, or flopped-over cap/);
+  assert.match(prompt, /consistent lean toward reader-left\/Muci's right/);
+  assert.match(prompt, /not a sharp Nia point, Snacri's right-leaning top, exaggerated hook, sideways curl, or flopped-over cap/);
   assert.match(prompt, /Muci: exact Muci model-sheet droplet/);
   assert.match(prompt, /Nia: taller, narrower, controlled teardrop/);
   assert.match(prompt, /Snacri: fatter quiet droplet/);
@@ -444,7 +444,7 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
     episodeSummary: "Snacri joins Padaruna and Padarana in the dorm.",
     pageNumber: 5,
     panelCount: 1,
-    pagePurpose: "Keep Padaruna and Padarana pointed while Snacri stays left-leaning.",
+    pagePurpose: "Keep Padaruna and Padarana pointed while Snacri stays right-leaning.",
     promptPackCopyText: "Padaruna, Padarana, and Snacri stand together.",
     referenceNotesCopyText: "Use model sheets exactly and do not blend head shapes.",
     globalGptImage2Notes: "Keep silhouettes distinct.",
@@ -455,7 +455,7 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
         panelTitle: "Group Check",
         storyBeat: "Padaruna and Padarana react while Snacri stays quiet.",
         promptText:
-          "Padaruna keeps a very sharp upright point and plump chubby round body, Padarana keeps an upright soft point, and Snacri alone leans left.",
+          "Padaruna keeps a very sharp upright point and plump chubby round body, Padarana keeps an upright soft point, and Snacri alone leans right.",
         dialogueLines: [{ speaker: "Padaruna", text: "We still look like ourselves." }]
       }
     ],
@@ -489,7 +489,7 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
         slug: "snacri",
         name: "Snacri",
         role: "Quiet observer.",
-        appearance: "Fatter left-leaning quiet droplet.",
+        appearance: "Fatter right-leaning quiet droplet.",
         personality: "Minimal.",
         speechGuide: "Sparse.",
         referenceNotes: "Use refs/model-sheet.jpg.",
@@ -501,14 +501,14 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
   });
 
   assert.match(prompt, /Padaruna\/Padarana anti-Snacri head lock/);
-  assert.match(prompt, /Snacri is the only droplet here with a left-leaning quiet top\/head silhouette/);
+  assert.match(prompt, /Snacri is the only droplet here with a right-leaning quiet top\/head silhouette/);
   assert.match(prompt, /Padaruna keeps her own very sharp upright centered pointed head/);
   assert.match(prompt, /cute plump\/chubby full rounded buoyant pear-bottom body/);
   assert.match(prompt, /soft wide lower belly/);
   assert.match(prompt, /no side nubs or arm-like protrusions/);
   assert.match(prompt, /skinny, narrow, tall-stretched, or delicate/);
   assert.match(prompt, /Padarana keeps her own upright soft pointed head/);
-  assert.match(prompt, /never Snacri's left-leaning quiet head\/top/);
+  assert.match(prompt, /never Snacri's right-leaning quiet head\/top/);
   assert.match(prompt, /Snacri's eyes must match the Snacri model sheet/);
   assert.match(prompt, /Do not draw Snacri with half-lidded eyes, sleepy droopy eyes/);
 });

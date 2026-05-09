@@ -49,8 +49,8 @@ const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL ||
 const OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH = 30000;
 const MUCI_MODEL_SHEET_EXACT_LOCK = [
   "Muci Model Sheet Exact Lock:",
-  "- Use comic/characters/muci/refs/model-sheet.jpg as the visual source: broad squat white droplet, round heavy lower half, subtle near-center reader-left top lean, two attached feet, friendly U-smile, no brow, upper-left highlights.",
-  "- If Muci starts reading as Nia, a hooked/curling top, a tall raindrop, or a generic teardrop, redraw him shorter, wider, rounder, browless, and closer to the model sheet."
+  "- Use comic/characters/muci/refs/model-sheet.jpg as the visual source: broad squat white droplet, round heavy lower half, consistent reader-left/page-left top lean, two attached feet, friendly U-smile, no brow, upper-left highlights.",
+  "- Muci must always read as the left-leaning droplet in primary front/3/4 reader-facing views. If Muci starts reading as Nia, Snacri's right-leaning top, a hooked/curling top, a tall raindrop, or a generic teardrop, redraw him shorter, wider, rounder, browless, left-leaning, and closer to the model sheet."
 ].join("\n");
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Compact visual production guidance:",
@@ -2023,7 +2023,7 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
       [
         "Snacri eye expression lock:",
         "- Snacri's eyes must match the Snacri model sheet: two fully open round black dot eyes with tiny white highlights.",
-        "- Never draw Snacri with half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired marks. Do not draw Snacri with half-lidded eyes, sleepy droopy eyes. Her calm read comes from the left-leaning silhouette and tiny smile."
+        "- Never draw Snacri with half-lidded eyes, sleepy droopy eyes, eyelids, narrowed side-eye, angled angry eyes, brows, or tired marks. Do not draw Snacri with half-lidded eyes, sleepy droopy eyes. Her calm read comes from the right-leaning silhouette and tiny smile; never mirror her into Muci's left lean."
       ].join("\n")
     );
   }
@@ -2054,7 +2054,7 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
     locks.push(
       [
         "Muci vs Coach Ray separation:",
-        "- Muci keeps the Muci model-sheet droplet exactly: broad squat body, round heavy lower half, natural rounded top point with only a subtle near-center reader-left lean, upper reader-left highlights, two attached feet, and a soft open protagonist expression.",
+        "- Muci keeps the Muci model-sheet droplet exactly: broad squat body, round heavy lower half, natural rounded top point with a consistent reader-left/page-left lean, upper reader-left highlights, two attached feet, and a soft open protagonist expression. Never flip Muci into a right-leaning silhouette.",
         "- Coach Ray keeps the broad squat shield-shaped model-sheet silhouette with planted drill-instructor authority.",
         "- Do not average, merge, swap, or cross-contaminate their outlines, face placement, highlight marks, feet, or expressions."
       ].join("\n")
@@ -3289,7 +3289,7 @@ export async function editComicPageImageWithAi(input: {
       "Keep the same panel layout, page size, camera angles, composition, gutters, character identities, character proportions, facial expressions, clean black-and-white manga linework, pure white mascot body fills, and readable page rhythm.",
       "Do not regenerate the page from scratch. Do not add new panels, extra characters, random props, watermarks, signatures, logos, or unrelated text.",
       "Keep all characters handless and armless. Preserve visible small rounded feet or foot nubs in any full-body character view. Do not crop, flatten, hide, remove, or separate the feet from the body with hard dividing lines while editing.",
-      "When Muci is visible, correct him to the Muci model sheet: broad squat pure-white droplet, round heavy lower half, natural rounded top point with only a subtle near-center lean toward reader-left/Muci's right, no brow, upper reader-left highlights, and two attached small feet. Do not let him become tall, vertical-pointed, sharp, Nia-like, or over-leaned into a hook/curl.",
+      "When Muci is visible, correct him to the Muci model sheet: broad squat pure-white droplet, round heavy lower half, natural rounded top point with a consistent lean toward reader-left/Muci's right, no brow, upper reader-left highlights, and two attached small feet. Do not let him become tall, vertical-pointed, sharp, Nia-like, Snacri-right-leaning, or over-leaned into a hook/curl.",
       "If the edit request affects text, keep the wording short and fitted to the original balloon/sign space.",
       "If the edit request conflicts with the locked comic style or character model consistency, make the closest safe edit while preserving the original character/page identity.",
       "",
@@ -3837,7 +3837,7 @@ export async function generateComicPromptPackageWithAi(
                 "Every visual prompt must enforce one consistent lettering style for all dialogue balloons, captions, and SFX.",
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
                 "For character consistency, rely first on each required model-sheet file. In page prompts, add only compact high-risk reminders for active characters instead of repeating full identity paragraphs.",
-                "Use these short reminders only when relevant: Muci broad squat/no brow/subtle near-center top lean; Nia taller sharp/one angled brow; Snacri left-leaning with fully open round eyes and tiny smile; Padaruna sharp centered point and chubby body/no side nubs/no brows; Padarana upright soft point/closed eyes; Professor Cera Lin rounded six-sided hexagon; Coach Ray broad shield-shaped mascot.",
+                "Use these short reminders only when relevant: Muci broad squat/no brow/consistent left lean; Nia taller sharp/one angled brow; Snacri right-leaning with fully open round eyes and tiny smile; Padaruna sharp centered point and chubby body/no side nubs/no brows; Padarana upright soft point/closed eyes; Professor Cera Lin rounded six-sided hexagon; Coach Ray broad shield-shaped mascot.",
                 "When similar droplet characters share a page, include one compact separation note plus the comparison reference. When height-locked characters share a page, mention height tiers only as invisible production guidance and never as a visible chart, lineup, label set, diagram, or story action.",
                 "Character introduction boxes are one-time story devices. Include an intro/name card only on the page where the story deliberately introduces that character, then explicitly avoid repeating that intro/name card on later pages.",
                 "Never invent arms, hands, fingers, gloves, sleeves, humanoid bodies, animal paws, or redesigned mascot silhouettes.",
@@ -3929,7 +3929,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Character consistency should be driven by requiredUploads and attached model sheets first. Do not paste long global identity locks into every page.",
-                "- Add only compact active-character high-risk reminders when relevant: Muci broad squat/no brow/subtle top lean; Nia sharp/one brow/tall narrow controlled body; Snacri left-leaning/open round eyes; Padaruna sharp centered point plus lower-heavy chubby pear-bottom body/no brows/not Nia-shaped; Padarana upright soft point/closed eyes; Professor Cera Lin rounded six-sided hexagon; Coach Ray shield-shaped.",
+                "- Add only compact active-character high-risk reminders when relevant: Muci broad squat/no brow/consistent left lean; Nia sharp/one brow/tall narrow controlled body; Snacri right-leaning/open round eyes; Padaruna sharp centered point plus lower-heavy chubby pear-bottom body/no brows/not Nia-shaped; Padarana upright soft point/closed eyes; Professor Cera Lin rounded six-sided hexagon; Coach Ray shield-shaped.",
                 "- Pages with two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia must keep fixed height tiers as invisible production guidance only: Muci/Artrans shorter, Padaruna/Padarana/Snacri standard, Nia about 1.1x Padaruna. Never make the height reference a visible story object.",
                 "- Character intro/name cards must appear only once per character, on the intended first story-page introduction. On later pages, explicitly do not repeat prior intro/name cards.",
                 "- Pages with two or more similar teardrop characters must use one short silhouette separation sentence and rely on the comparison/model-sheet references, not long repeated paragraphs.",
