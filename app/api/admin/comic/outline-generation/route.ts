@@ -7,7 +7,7 @@ import {
 } from "@/lib/comic-outline-generation";
 
 export const runtime = "nodejs";
-export const maxDuration = 1200;
+export const maxDuration = 800;
 
 const OUTLINE_TASK_TYPES = new Set<ComicOutlineTaskType>([
   "project-generate",

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { runComicAiTaskQueue } from "@/lib/comic-ai-task-queue";
 
 export const runtime = "nodejs";
-export const maxDuration = 1200;
+export const maxDuration = 800;
 
 function isAuthorized(request: Request) {
   const secret = (process.env.CRON_SECRET || "").trim();

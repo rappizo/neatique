@@ -3,7 +3,7 @@ import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { runComicAiTaskQueue } from "@/lib/comic-ai-task-queue";
 
 export const runtime = "nodejs";
-export const maxDuration = 1200;
+export const maxDuration = 800;
 
 export async function POST(request: Request) {
   const authenticated = await isAdminAuthenticated();
