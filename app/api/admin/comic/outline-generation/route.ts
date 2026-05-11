@@ -6,6 +6,9 @@ import {
   type ComicOutlineTaskType
 } from "@/lib/comic-outline-generation";
 
+export const runtime = "nodejs";
+export const maxDuration = 1200;
+
 const OUTLINE_TASK_TYPES = new Set<ComicOutlineTaskType>([
   "project-generate",
   "project-translate",
