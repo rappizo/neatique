@@ -100,6 +100,7 @@ export const siteConfig = {
   footerLinks: {
     shop: [
       { href: "/shop", label: "All Products" },
+      { href: "/shop/kit9-niacinamide-turmeric-kojic-acid-serum", label: "KIT9+ Serum" },
       { href: "/shop/at13-arbutin-tranexamic-cream", label: "AT13 Cream" },
       { href: "/shop/pdrn-cream", label: "PDRN Cream" },
       { href: "/shop/snail-mucin-serum", label: "Snail Mucin Serum" }

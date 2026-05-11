@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   },
   keywords: [
     "Neatique shop",
+    "buy KIT9 serum",
     "buy PDRN cream",
     "buy PDRN serum",
     "buy snail mucin cream",
@@ -43,8 +44,8 @@ export default async function ShopPage() {
           <p className="eyebrow">Shop Neatique</p>
           <h1>Skincare made to feel soft, elegant, and easy to love every day.</h1>
           <p>
-            Explore the Neatique collection of PDRN and Snail Mucin essentials, created for smooth
-            texture, comfortable hydration, and a healthy-looking glow.
+            Explore the Neatique collection of tone serums, PDRN, and Snail Mucin essentials,
+            created for smooth texture, comfortable hydration, and a healthy-looking glow.
           </p>
           <div className="page-hero__stats">
             <span className="pill">{products.length} products</span>

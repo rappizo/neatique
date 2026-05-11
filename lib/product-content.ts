@@ -12,6 +12,62 @@ type ProductStory = {
 };
 
 export const productStories: Record<string, ProductStory> = {
+  "kit9-niacinamide-turmeric-kojic-acid-serum": {
+    gallery: getLocalProductGallery("kit9-niacinamide-turmeric-kojic-acid-serum"),
+    heroLabel: "HH074 KIT9+ Serum",
+    sections: [
+      {
+        title: "1. What It Is",
+        body:
+          "Neatique KIT9+ Niacinamide + Turmeric + Kojic Acid Serum is a lightweight daily serum made for routines focused on refined-looking texture, a more even-looking tone, and a polished golden glow."
+      },
+      {
+        title: "2. Texture",
+        body:
+          "The serum feels fluid, silky, and fast to absorb. It layers smoothly under moisturizer and sunscreen without leaving a sticky finish or making the routine feel crowded."
+      },
+      {
+        title: "3. Formula Focus",
+        body:
+          "KIT9+ centers on 6% niacinamide, 1.5% turmeric, and 1.5% kojic acid. The blend gives the serum a clear tone-and-texture identity while keeping the formula approachable for everyday use."
+      },
+      {
+        title: "4. Texture Support",
+        body:
+          "Niacinamide helps the formula fit routines that want a smoother-looking skin surface and a cleaner daily finish. It is a useful anchor when the complexion looks uneven, rough, or tired."
+      },
+      {
+        title: "5. Turmeric Conditioning",
+        body:
+          "Turmeric gives the serum its golden antioxidant and conditioning story. It supports the look of calm, healthy-looking skin while making the product feel distinctive on the shelf."
+      },
+      {
+        title: "6. Kojic Acid Direction",
+        body:
+          "Kojic acid supports the serum's more uniform-looking tone direction. It is a strong fit for shoppers who want their routine to look brighter and more consistent over time."
+      },
+      {
+        title: "7. When To Use It",
+        body:
+          "Apply after cleansing and before moisturizer, morning or night. In the daytime, follow with sunscreen so the tone-focused routine stays complete and well protected."
+      },
+      {
+        title: "8. Who It Is For",
+        body:
+          "KIT9+ is a strong choice for shoppers who want a niacinamide serum, turmeric serum, or kojic acid serum in one simple daily layer. It fits especially well for dullness, uneven-looking tone, and texture care."
+      },
+      {
+        title: "9. Routine Pairing",
+        body:
+          "Pair it with a light moisturizer when you want a clean daytime finish, or layer it before a richer cream at night when the skin wants extra comfort."
+      },
+      {
+        title: "10. Packaging Details",
+        body:
+          "The golden dropper bottle makes the formula direction easy to recognize, while the 30 mL size keeps the serum practical for steady morning and evening use."
+      }
+    ]
+  },
   "bee-venom-body-cream": {
     gallery: getLocalProductGallery("bee-venom-body-cream"),
     heroLabel: "HH049 Bee Venom Body Cream",

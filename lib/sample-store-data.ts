@@ -88,6 +88,37 @@ function prioritizeGalleryImage(images: string[], priorityImage: string) {
 
 const baseProducts: BaseProduct[] = [
   {
+    id: "prod_kit9_serum",
+    productCode: "0010",
+    productShortName: "KIT9+",
+    amazonAsin: null,
+    name: "KIT9+ Niacinamide + Turmeric + Kojic Acid Serum",
+    slug: "kit9-niacinamide-turmeric-kojic-acid-serum",
+    tagline:
+      "A lightweight tone-and-texture serum with niacinamide, turmeric, and kojic acid for a more uniform-looking glow.",
+    category: "Tone Serum",
+    shortDescription:
+      "A fast-absorbing serum with 6% niacinamide, 1.5% turmeric, and 1.5% kojic acid for refined-looking texture and tone.",
+    description:
+      "Neatique KIT9+ Niacinamide + Turmeric + Kojic Acid Serum is a daily tone-and-texture serum designed to help skin look smoother, more consistent, and quietly radiant. The formula combines 6% niacinamide with 1.5% turmeric and 1.5% kojic acid in a lightweight texture that layers cleanly without stickiness.",
+    details:
+      "Made with 6% niacinamide, 1.5% turmeric, and 1.5% kojic acid for texture support, antioxidant conditioning, and a more even-looking tone.\nLightweight, fast-absorbing texture designed to layer smoothly without stickiness or pilling.\nApply after cleansing and before moisturizer, morning or night. Use SPF in the morning.",
+    imageUrl:
+      getDefaultProductImageUrl("kit9-niacinamide-turmeric-kojic-acid-serum") ??
+      buildProductMediaUrl("HH074 KIT9+ Optimized", "0.webp"),
+    galleryImages: getLocalProductGallery("kit9-niacinamide-turmeric-kojic-acid-serum"),
+    featured: false,
+    status: "ACTIVE",
+    inventory: 124,
+    priceCents: 1899,
+    compareAtPriceCents: 2999,
+    currency: "USD",
+    pointsReward: 19,
+    stripePriceId: null,
+    createdAt: new Date("2026-05-11T04:00:00.000Z"),
+    updatedAt: new Date("2026-05-11T04:00:00.000Z")
+  },
+  {
     id: "prod_bee_venom_body_cream",
     productCode: "0009",
     productShortName: "Bee Venom Cream",
