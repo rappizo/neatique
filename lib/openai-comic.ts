@@ -808,6 +808,8 @@ function buildChineseOutlineSystemPrompt() {
     "Use locked Simplified Chinese character names in Chinese fields when provided, and keep English character names in English companion fields.",
     "Use existing English season, chapter, and episode titles as stable labels unless the user explicitly asks to change them.",
     "Use the parent outline as binding canon. Child outlines must inherit and refine the parent, not contradict it.",
+    "Use the current Chapter 1 outline as the quality benchmark for pacing: concrete campus events, clear cause-and-effect, readable mystery escalation, and focused character beats.",
+    "For higher comic quality, avoid crowded cast action. Most events should involve only 2-3 active characters, with other cast members absent or briefly referenced unless the story truly needs them.",
     "Keep the output production-ready, concrete, and useful for later English image-prompt generation.",
     "Return only valid JSON matching the schema."
   ].join(" ");
@@ -856,6 +858,9 @@ function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) 
     "- outlineEn must be English Markdown with the same headings, beats, sequence, stakes, and continuity as outline.",
     "- Include concrete story beats, role movement, stakes, reveal timing, and continuity notes.",
     getChineseOutlineLengthGuide(input.level),
+    "- Follow the Chapter 1 outline style as the pacing benchmark: each event should feel specific, visually playable, and easy to turn into panels.",
+    "- Keep active casts small. Each event, scene, or conversation should normally use 2-3 active characters; avoid gathering too many characters into the same beat or dialogue exchange.",
+    "- If the larger cast matters, rotate focus across separate beats instead of making everyone talk at once.",
     "- In Chinese summary and outline, use locked Chinese character names when provided; otherwise keep the English character name.",
     "- In summaryEn and outlineEn, keep English character names exactly.",
     "- Keep the Chinese and English versions synchronized. Do not add plot in one language that is missing from the other."
@@ -1172,6 +1177,8 @@ function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOut
     "- In summaryEn and outlineEn, keep English character names exactly.",
     "- Make siblings distinct, sequential, and compatible with the parent outline.",
     getChineseOutlineLengthGuide(input.childLevel),
+    "- Match the current Chapter 1 outline quality bar: focused events, clean mystery/comedy causality, and production-ready beats.",
+    "- Keep active casts small. Each event, scene, or conversation should normally use 2-3 active characters; rotate focus across beats instead of writing large group dialogue.",
     "- Do not write final image prompts here; Episode prompts are generated later in English."
   ]
     .filter(Boolean)
@@ -3836,6 +3843,7 @@ export async function generateComicPromptPackageWithAi(
                 "Every page and every panel must include usable dialogueLines. Do not produce dialogue-free comic pages.",
                 "Every promptPackCopyText block must include the exact dialogue text to render on the page, organized by panel.",
                 "Every visual prompt must enforce one consistent lettering style for all dialogue balloons, captions, and SFX.",
+                "For comic quality and image clarity, keep most story beats focused on 2-3 active characters. Avoid crowding many characters into the same event, panel sequence, or dialogue exchange.",
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
                 "For character consistency, rely first on each required model-sheet file. In page prompts, add only compact high-risk reminders for active characters instead of repeating full identity paragraphs.",
                 "Use these short reminders only when relevant: Muci broad squat/no brow/consistent left lean; Nia taller sharp/one angled brow; Snacri right-leaning with fully open round eyes and tiny smile; Padaruna sharp centered point and chubby body/no side nubs/no brows; Padarana upright soft point/closed eyes; Professor Cera Lin rounded six-sided hexagon; Coach Ray broad shield-shaped mascot.",
@@ -3912,6 +3920,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Keep every character name in English exactly as provided.",
                 "- Expand the episode into a readable production script.",
                 "- The episodeScript must include dialogue, not only prose narration.",
+                "- Keep most events, page beats, and conversations focused on 2-3 active characters. If more characters are present in the episode, rotate them across different beats instead of staging large group dialogue.",
                 "- Create a 10-story-page plan. Do not include the cover in the returned pages array; the application prepends the cover page prompt as pageNumber 0.",
                 "- If a named character needs a first-appearance introduction box, put it on that character's first story page appearance within pages 1-10. Never reserve it for the cover, and never treat the cover as the first appearance.",
                 "- If the episode mentions a locked product, use the matching product lock. The product should appear as a clean manga bottle whose front label shows only the large short code, such as SE96, with no small text.",
@@ -3922,6 +3931,7 @@ export async function generateComicPromptPackageWithAi(
                 `- Assume the image generation step will use ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
                 "- Every panel must include 1 to 4 dialogueLines with exact visible text. Use a character name as speaker for speech, or Caption/SFX only when a panel truly needs non-spoken text.",
                 "- Each dialogue line should be short, natural, and renderable inside a speech balloon or caption box.",
+                "- Avoid panels where more than 2-3 characters are actively speaking or reacting unless the story beat absolutely requires a crowd moment.",
                 "- Every panel promptText must describe the speech balloon/caption/SFX placement and identify which character is speaking.",
                 "- Every promptPackCopyText block must include a Dialogue and lettering plan section listing every panel's exact dialogue lines.",
                 "- Every promptPackCopyText block must tell gpt-image-2 to render all listed dialogue lines and not omit speech balloons.",

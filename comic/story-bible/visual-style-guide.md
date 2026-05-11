@@ -45,6 +45,9 @@
 - Comedy scenes can use slightly exaggerated campus framing, reaction panels, and rhythm-based cutaways.
 - Mystery scenes should feel more composed: deeper hallways, archive framing, side glances, rule boards, and hidden details.
 - Group scenes should preserve silhouette readability and not let one character block the iconic profile of another.
+- Use the current Chapter 1 outline as the pacing and clarity benchmark: concrete campus events, readable mystery escalation, and focused character beats.
+- For higher page quality, most events, panel sequences, and conversations should feature only 2-3 active characters. Rotate the cast across beats instead of making everyone appear or talk at once.
+- Large group scenes should be rare and should still choose a clear 2-3 character focal interaction, with the rest treated as background presence or omitted.
 
 ## Color and lighting logic
 - Final comic pages are black-and-white manga pages, so lighting is expressed through line weight, screentone density, hatching, white space, and shadow shape.
