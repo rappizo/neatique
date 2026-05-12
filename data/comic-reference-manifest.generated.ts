@@ -8,7 +8,7 @@ type ComicReferenceManifest = {
 };
 
 const comicReferenceManifest = {
-  "generatedAt": "2026-05-08T07:08:55.132Z",
+  "generatedAt": "2026-05-12T02:37:32.365Z",
   "characters": {
     "artrans": [
       {
@@ -164,6 +164,14 @@ const comicReferenceManifest = {
         "extension": "jpg"
       }
     ],
+    "season-01-chapter-01-orientation-week-is-a-scam-scratched-ring-mark": [
+      {
+        "label": "Scratched Ring Mark",
+        "fileName": "Scratched Ring Mark.jpg",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Scratched Ring Mark.jpg",
+        "extension": "jpg"
+      }
+    ],
     "season-01-chapter-01-orientation-week-is-a-scam-student-handbook-old-edition": [
       {
         "label": "Student Handbook (Old Edition)",
@@ -251,6 +259,12 @@ const comicReferenceManifest = {
           "label": "Residence Hall",
           "fileName": "Residence hall.jpg",
           "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Residence hall.jpg",
+          "extension": "jpg"
+        },
+        {
+          "label": "Scratched Ring Mark",
+          "fileName": "Scratched Ring Mark.jpg",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Scratched Ring Mark.jpg",
           "extension": "jpg"
         },
         {

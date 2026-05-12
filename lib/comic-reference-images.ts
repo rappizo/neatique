@@ -544,6 +544,23 @@ function getChapterSceneReferenceAliases(record: ComicChapterSceneReferenceRecor
     return ["sunscreen field handbook", "field handbook"];
   }
 
+  if (comparable.includes("scratched ring mark") || comparable.includes("ring mark")) {
+    return [
+      "ring mark",
+      "ring symbol",
+      "ring insignia",
+      "scratched mark",
+      "scratched-out ring mark",
+      "removed mark",
+      "old plaque mark",
+      "Luster Circle clue",
+      "Luster Circle mark",
+      "\u73af\u5f62\u5370\u8bb0",
+      "\u73af\u5f62\u7b26\u53f7",
+      "\u88ab\u522e\u6389\u7684\u73af\u5f62\u5370\u8bb0"
+    ];
+  }
+
   return [];
 }
 

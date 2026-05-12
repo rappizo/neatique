@@ -39,6 +39,9 @@ Use them as chapter-level references when building prompts for `gpt-image-2`. On
 - `Student Handbook (old edition).jpg`
   Recurring old student handbook prop locked from the approved Episode 4 Page 10 image: white slightly tilted book/manual, thick black cover outline, stacked title text "STUDENT HANDBOOK (Old Edition)", shield emblem with a small droplet centered below the title, ornamental corner flourishes, visible page stack on the right and bottom edge, floating through telekinesis. Do not use the Episode 2 `Sunscreen Field Handbook.jpg` sun-emblem field-handbook design for this prop.
 
+- `Scratched Ring Mark.jpg`
+  Recurring mystery prop locked from the approved Episode 5 Page 10 plaque: a battered square old plaque with four corner screws, chipped edges, gray manga screentone surface, and a hand-scratched/removal scar forming an uneven ring. This is the source reference for the scratched-out ring mark, ring symbol, removed mark, and early Luster Circle clue in later chapters.
+
 ## Prompt use notes
 
 - Keep the chapter line-art style light, clean, and readable.
@@ -47,3 +50,4 @@ Use them as chapter-level references when building prompts for `gpt-image-2`. On
 - If a panel only needs a partial background, crop from the correct scene instead of mixing scene logic from different locations.
 - If a named prop appears on multiple pages, create or reuse a dedicated reference like `Sunscreen Field Handbook.jpg` before generating images, then list that prop reference in the page prompt's upload checklist.
 - If the old student handbook appears, use `Student Handbook (old edition).jpg` and match the approved Episode 4 Page 10 cover design exactly.
+- If the scratched ring mark, ring symbol, removed mark, old plaque mark, or early Luster Circle clue appears, use `Scratched Ring Mark.jpg` and preserve the uneven hand-scratched circular scar from the approved Episode 5 Page 10 plaque.

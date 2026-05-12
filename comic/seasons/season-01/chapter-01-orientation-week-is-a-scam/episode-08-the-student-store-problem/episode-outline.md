@@ -72,6 +72,7 @@ Muci connects the ring symbol on the bookmark edge to the scratched mark from th
 
 ### Continuity Locks
 - If the old bookmark, ring symbol, or Student Store display returns later, unify those prop references before image generation.
+- The ring symbol must match `Scratched Ring Mark.jpg`, the fixed Episode 5 Page 10 reference for the scratched-out ring mark / early Luster Circle clue.
 - Do not repeat first-appearance intro boxes.
 
 ### American Humor Beats

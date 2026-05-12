@@ -40,6 +40,7 @@ Original location used during import:
 
 ### Episode-approved prop references
 - `Student Handbook (old edition).jpg` (cropped from approved Episode 4 Page 10 as the recurring old student handbook prop reference)
+- `Scratched Ring Mark.jpg` (cropped from approved Episode 5 Page 10 as the recurring scratched-out ring mark / early Luster Circle clue reference)
 
 ## Imported on 2026-04-24
 

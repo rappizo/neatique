@@ -149,6 +149,25 @@ test("comic reference resolver auto-attaches old student handbook prop", async (
   );
 });
 
+test("comic reference resolver auto-attaches scratched ring mark prop", async () => {
+  const references = await resolveComicPageReferenceImages({
+    seasonSlug: "season-01",
+    chapterSlug: "chapter-01-orientation-week-is-a-scam",
+    promptText:
+      "Snacri compares the ring symbol with the removed mark from the old plaque.",
+    requiredUploads: []
+  });
+
+  assert.ok(
+    references.some(
+      (reference) =>
+        reference.relativePath ===
+        "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Scratched Ring Mark.jpg"
+    ),
+    "Expected the scratched ring mark reference to be attached when the ring symbol is mentioned."
+  );
+});
+
 test("comic reference resolver keeps required old student handbook when cast references are crowded", async () => {
   const references = await resolveComicPageReferenceImages({
     seasonSlug: "season-01",

@@ -1,4 +1,4 @@
-import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/db";
 import {
@@ -20,7 +20,7 @@ import {
   formatComicBilingualSummary,
   parseComicBilingualText
 } from "@/lib/comic-bilingual-outline";
-import { selectComicWorkspaceTextForSync } from "@/lib/comic-workspace-sync-preserve";
+import { selectComicWorkspaceTextForSyncResult } from "@/lib/comic-workspace-sync-preserve";
 import { slugify } from "@/lib/utils";
 import type { ComicChapterSceneReferenceRecord } from "@/lib/types";
 
@@ -72,6 +72,22 @@ async function readTextIfExists(targetPath: string) {
   }
 
   return normalizeText(await readFile(targetPath, "utf8"));
+}
+
+async function readWorkspaceTextIfExists(targetPath: string) {
+  if (!(await pathExists(targetPath))) {
+    return {
+      text: "",
+      updatedAt: null as Date | null
+    };
+  }
+
+  const [text, stats] = await Promise.all([readFile(targetPath, "utf8"), stat(targetPath)]);
+
+  return {
+    text: normalizeText(text),
+    updatedAt: stats.mtime
+  };
 }
 
 function extractHeading(markdown: string) {
@@ -286,18 +302,19 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
   const seasonsRoot = path.join(comicRoot, "seasons");
 
   const [
-    seriesOverview,
+    seriesOverviewFile,
     worldRules,
     visualStyleGuide,
     sourceMaterialIndex,
     characterCast
   ] = await Promise.all([
-    readTextIfExists(path.join(storyBibleRoot, "series-overview.md")),
+    readWorkspaceTextIfExists(path.join(storyBibleRoot, "series-overview.md")),
     readTextIfExists(path.join(storyBibleRoot, "world-rules.md")),
     readTextIfExists(path.join(storyBibleRoot, "visual-style-guide.md")),
     readTextIfExists(path.join(storyBibleRoot, "source-material-index.md")),
     readTextIfExists(path.join(storyBibleRoot, "character-cast.md"))
   ]);
+  const seriesOverview = seriesOverviewFile.text;
 
   const projectTitle = extractHeading(seriesOverview) || "Neatique Comic Universe";
   const shortDescription =
@@ -307,8 +324,24 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
     where: { slug: "main" },
     select: {
       shortDescription: true,
-      storyOutline: true
+      storyOutline: true,
+      updatedAt: true
     }
+  });
+  const projectSummarySelection = selectComicWorkspaceTextForSyncResult({
+    existingText: existingProject?.shortDescription,
+    workspaceText: shortDescription,
+    fallbackText:
+      "A multi-season comic project built around stable characters, scene packs, and prompt-ready story production.",
+    existingUpdatedAt: existingProject?.updatedAt,
+    workspaceUpdatedAt: seriesOverviewFile.updatedAt
+  });
+  const projectOutlineSelection = selectComicWorkspaceTextForSyncResult({
+    existingText: existingProject?.storyOutline,
+    workspaceText: seriesOverview,
+    fallbackText: "Add the full multi-season story outline here.",
+    existingUpdatedAt: existingProject?.updatedAt,
+    workspaceUpdatedAt: seriesOverviewFile.updatedAt
   });
 
   const project = await prisma.comicProject.upsert({
@@ -325,17 +358,8 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
     },
     update: {
       title: projectTitle,
-      shortDescription: selectComicWorkspaceTextForSync({
-        existingText: existingProject?.shortDescription,
-        workspaceText: shortDescription,
-        fallbackText:
-          "A multi-season comic project built around stable characters, scene packs, and prompt-ready story production."
-      }),
-      storyOutline: selectComicWorkspaceTextForSync({
-        existingText: existingProject?.storyOutline,
-        workspaceText: seriesOverview,
-        fallbackText: "Add the full multi-season story outline here."
-      }),
+      shortDescription: projectSummarySelection.text,
+      storyOutline: projectOutlineSelection.text,
       worldRules: worldRules || "Add the rules, logic, and canon constraints for the comic world here.",
       visualStyleGuide:
         visualStyleGuide || "Define the line quality, panel rhythm, and continuity rules here.",
@@ -422,7 +446,10 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
   for (const seasonEntry of seasonEntries) {
     const seasonSlug = seasonEntry.name;
     const seasonRoot = path.join(seasonsRoot, seasonSlug);
-    const seasonOutline = await readTextIfExists(path.join(seasonRoot, "season-outline.md"));
+    const seasonOutlineFile = await readWorkspaceTextIfExists(
+      path.join(seasonRoot, "season-outline.md")
+    );
+    const seasonOutline = seasonOutlineFile.text;
     const seasonNumber = parseSeasonNumberFromSlug(seasonSlug);
     const seasonTitle = extractHeading(seasonOutline) || `Season ${seasonNumber}`;
     const seasonSummary = extractSummaryFromBilingualOutline(seasonOutline, {
@@ -439,9 +466,25 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
         }
       },
       select: {
+        title: true,
         summary: true,
-        outline: true
+        outline: true,
+        updatedAt: true
       }
+    });
+    const seasonSummarySelection = selectComicWorkspaceTextForSyncResult({
+      existingText: existingSeason?.summary,
+      workspaceText: seasonSummary,
+      fallbackText: "Add the season summary here.",
+      existingUpdatedAt: existingSeason?.updatedAt,
+      workspaceUpdatedAt: seasonOutlineFile.updatedAt
+    });
+    const seasonOutlineSelection = selectComicWorkspaceTextForSyncResult({
+      existingText: existingSeason?.outline,
+      workspaceText: seasonOutline,
+      fallbackText: "Add the season outline here.",
+      existingUpdatedAt: existingSeason?.updatedAt,
+      workspaceUpdatedAt: seasonOutlineFile.updatedAt
     });
 
     const season = await prisma.comicSeason.upsert({
@@ -463,17 +506,12 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
       },
       update: {
         seasonNumber,
-        title: seasonTitle,
-        summary: selectComicWorkspaceTextForSync({
-          existingText: existingSeason?.summary,
-          workspaceText: seasonSummary,
-          fallbackText: "Add the season summary here."
-        }),
-        outline: selectComicWorkspaceTextForSync({
-          existingText: existingSeason?.outline,
-          workspaceText: seasonOutline,
-          fallbackText: "Add the season outline here."
-        }),
+        title:
+          seasonOutlineSelection.source === "existing" && existingSeason?.title
+            ? existingSeason.title
+            : seasonTitle,
+        summary: seasonSummarySelection.text,
+        outline: seasonOutlineSelection.text,
         sortOrder: seasonNumber
       }
     });
@@ -486,7 +524,10 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
     for (const chapterEntry of chapterEntries) {
       const chapterSlug = chapterEntry.name;
       const chapterRoot = path.join(seasonRoot, chapterSlug);
-      const chapterOutline = await readTextIfExists(path.join(chapterRoot, "chapter-outline.md"));
+      const chapterOutlineFile = await readWorkspaceTextIfExists(
+        path.join(chapterRoot, "chapter-outline.md")
+      );
+      const chapterOutline = chapterOutlineFile.text;
       const chapterNumber = parseChapterNumberFromSlug(chapterSlug);
       const chapterTitle = extractHeading(chapterOutline) || `Chapter ${chapterNumber}`;
       const chapterSummary = extractSummaryFromBilingualOutline(chapterOutline, {
@@ -503,9 +544,25 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
           }
         },
         select: {
+          title: true,
           summary: true,
-          outline: true
+          outline: true,
+          updatedAt: true
         }
+      });
+      const chapterSummarySelection = selectComicWorkspaceTextForSyncResult({
+        existingText: existingChapter?.summary,
+        workspaceText: chapterSummary,
+        fallbackText: "Add the chapter summary here.",
+        existingUpdatedAt: existingChapter?.updatedAt,
+        workspaceUpdatedAt: chapterOutlineFile.updatedAt
+      });
+      const chapterOutlineSelection = selectComicWorkspaceTextForSyncResult({
+        existingText: existingChapter?.outline,
+        workspaceText: chapterOutline,
+        fallbackText: "Add the chapter outline here.",
+        existingUpdatedAt: existingChapter?.updatedAt,
+        workspaceUpdatedAt: chapterOutlineFile.updatedAt
       });
 
       const chapter = await prisma.comicChapter.upsert({
@@ -527,17 +584,12 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
         },
         update: {
           chapterNumber,
-          title: chapterTitle,
-          summary: selectComicWorkspaceTextForSync({
-            existingText: existingChapter?.summary,
-            workspaceText: chapterSummary,
-            fallbackText: "Add the chapter summary here."
-          }),
-          outline: selectComicWorkspaceTextForSync({
-            existingText: existingChapter?.outline,
-            workspaceText: chapterOutline,
-            fallbackText: "Add the chapter outline here."
-          }),
+          title:
+            chapterOutlineSelection.source === "existing" && existingChapter?.title
+              ? existingChapter.title
+              : chapterTitle,
+          summary: chapterSummarySelection.text,
+          outline: chapterOutlineSelection.text,
           sortOrder: chapterNumber
         }
       });
@@ -606,7 +658,10 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
       for (const episodeEntry of episodeEntries) {
         const episodeSlug = episodeEntry.name;
         const episodeRoot = path.join(chapterRoot, episodeSlug);
-        const episodeOutline = await readTextIfExists(path.join(episodeRoot, "episode-outline.md"));
+        const episodeOutlineFile = await readWorkspaceTextIfExists(
+          path.join(episodeRoot, "episode-outline.md")
+        );
+        const episodeOutline = episodeOutlineFile.text;
         const localEpisodeNumber = parseEpisodeNumberFromSlug(episodeSlug);
         globalEpisodeNumber += 1;
         const episodeNumber = globalEpisodeNumber;
@@ -629,9 +684,25 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
             }
           },
           select: {
+            title: true,
             summary: true,
-            outline: true
+            outline: true,
+            updatedAt: true
           }
+        });
+        const episodeSummarySelection = selectComicWorkspaceTextForSyncResult({
+          existingText: existingEpisode?.summary,
+          workspaceText: episodeSummary,
+          fallbackText: "Add the episode promise here.",
+          existingUpdatedAt: existingEpisode?.updatedAt,
+          workspaceUpdatedAt: episodeOutlineFile.updatedAt
+        });
+        const episodeOutlineSelection = selectComicWorkspaceTextForSyncResult({
+          existingText: existingEpisode?.outline,
+          workspaceText: episodeOutline,
+          fallbackText: "Add the episode outline here.",
+          existingUpdatedAt: existingEpisode?.updatedAt,
+          workspaceUpdatedAt: episodeOutlineFile.updatedAt
         });
 
         await prisma.comicEpisode.upsert({
@@ -657,17 +728,12 @@ export async function syncComicWorkspaceToDatabase(): Promise<ComicWorkspaceSync
           },
           update: {
             episodeNumber,
-            title: episodeTitle,
-            summary: selectComicWorkspaceTextForSync({
-              existingText: existingEpisode?.summary,
-              workspaceText: episodeSummary,
-              fallbackText: "Add the episode promise here."
-            }),
-            outline: selectComicWorkspaceTextForSync({
-              existingText: existingEpisode?.outline,
-              workspaceText: episodeOutline,
-              fallbackText: "Add the episode outline here."
-            }),
+            title:
+              episodeOutlineSelection.source === "existing" && existingEpisode?.title
+                ? existingEpisode.title
+                : episodeTitle,
+            summary: episodeSummarySelection.text,
+            outline: episodeOutlineSelection.text,
             sortOrder: episodeNumber
           }
         });

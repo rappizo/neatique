@@ -387,6 +387,7 @@ type ComicOutlineChildContext = {
 };
 
 export type GeneratedChineseComicOutline = {
+  title?: string;
   summary: string;
   summaryEn: string;
   outline: string;
@@ -806,7 +807,7 @@ function buildChineseOutlineSystemPrompt() {
     "You are Neatique's bilingual comic story architect.",
     "Write synchronized story outlines in Simplified Chinese and English.",
     "Use locked Simplified Chinese character names in Chinese fields when provided, and keep English character names in English companion fields.",
-    "Use existing English season, chapter, and episode titles as stable labels unless the user explicitly asks to change them.",
+    "Treat existing English season, chapter, and episode titles as working labels, not hard canon. Keep them when they still fit, but allow a clearer EPISODE title when a regenerated outline changes the story focus.",
     "Use the parent outline as binding canon. Child outlines must inherit and refine the parent, not contradict it.",
     "Use the current Chapter 1 outline as the quality benchmark for pacing: concrete campus events, clear cause-and-effect, readable mystery escalation, and focused character beats.",
     "For higher comic quality, avoid crowded cast action. Most events should involve only 2-3 active characters, with other cast members absent or briefly referenced unless the story truly needs them.",
@@ -852,6 +853,9 @@ function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) 
     getChineseOutlineSectionGuide(input.level),
     "",
     "Output requirements:",
+    "- title must be a concise English display title without the Season, Chapter, or Episode number prefix.",
+    "- For EPISODE generation, update title when the new outline focus makes the old title misleading; otherwise keep the existing title.",
+    "- Never change numeric labels, ids, or ordering.",
     "- summary must be Simplified Chinese, concise, and suitable for a list view.",
     "- summaryEn must be a concise English companion summary with the same canon.",
     "- outline must be Markdown in Simplified Chinese.",
@@ -869,19 +873,31 @@ function buildChineseOutlineUserPrompt(input: GenerateChineseComicOutlineInput) 
     .join("\n");
 }
 
-function getSingleChineseOutlineSchema(level: ComicOutlineLevel) {
+function getSingleChineseOutlineSchema(
+  level: ComicOutlineLevel,
+  input: {
+    includeTitle?: boolean;
+  } = {}
+) {
   const limits = getChineseOutlineLengthLimits(level);
+  const properties: Record<string, unknown> = {
+    summary: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
+    summaryEn: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
+    outline: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength },
+    outlineEn: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength }
+  };
+  const required = ["summary", "summaryEn", "outline", "outlineEn"];
+
+  if (input.includeTitle) {
+    properties.title = { type: "string", minLength: 2, maxLength: 120 };
+    required.unshift("title");
+  }
 
   return {
     type: "object",
     additionalProperties: false,
-    properties: {
-      summary: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
-      summaryEn: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
-      outline: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength },
-      outlineEn: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength }
-    },
-    required: ["summary", "summaryEn", "outline", "outlineEn"]
+    properties,
+    required
   };
 }
 
@@ -1027,12 +1043,13 @@ function getChildChineseOutlineSchema(childLevel: Exclude<ComicOutlineLevel, "PR
           additionalProperties: false,
           properties: {
             id: { type: "string", minLength: 1, maxLength: 160 },
+            title: { type: "string", minLength: 2, maxLength: 120 },
             summary: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
             summaryEn: { type: "string", minLength: 20, maxLength: limits.summaryMaxLength },
             outline: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength },
             outlineEn: { type: "string", minLength: 200, maxLength: limits.outlineMaxLength }
           },
-          required: ["id", "summary", "summaryEn", "outline", "outlineEn"]
+          required: ["id", "title", "summary", "summaryEn", "outline", "outlineEn"]
         }
       }
     },
@@ -1077,7 +1094,7 @@ async function requestChineseComicOutline(input: GenerateChineseComicOutlineInpu
         type: "json_schema",
         name: "chinese_comic_outline",
         strict: true,
-        schema: getSingleChineseOutlineSchema(input.level)
+        schema: getSingleChineseOutlineSchema(input.level, { includeTitle: true })
       }
     }
   });
@@ -1101,10 +1118,12 @@ async function requestChineseComicOutline(input: GenerateChineseComicOutlineInpu
 
   if (
     !record ||
+    typeof record.title !== "string" ||
     typeof record.summary !== "string" ||
     typeof record.summaryEn !== "string" ||
     typeof record.outline !== "string" ||
     typeof record.outlineEn !== "string" ||
+    !record.title.trim() ||
     !record.summary.trim() ||
     !record.summaryEn.trim() ||
     !record.outline.trim() ||
@@ -1114,6 +1133,7 @@ async function requestChineseComicOutline(input: GenerateChineseComicOutlineInpu
   }
 
   return {
+    title: record.title.trim(),
     summary: record.summary.trim(),
     summaryEn: record.summaryEn.trim(),
     outline: record.outline.trim(),
@@ -1171,6 +1191,9 @@ function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOut
     "",
     "Output requirements:",
     "- Return exactly the ids given above, with no missing or invented ids.",
+    "- title must be a concise English display title without the Season, Chapter, or Episode number prefix.",
+    "- For EPISODE children, update title when the parent outline creates a better story focus than the old title; otherwise keep the existing title.",
+    "- Never change numeric labels, ids, or ordering.",
     "- summary and outline must be Simplified Chinese.",
     "- summaryEn and outlineEn must be faithful English companion versions of the same canon.",
     "- In Chinese summary and outline, use locked Chinese character names when provided; otherwise keep the English character name.",
@@ -1255,6 +1278,7 @@ async function requestChineseComicChildOutlines(input: GenerateChineseComicChild
 
       return {
         id: typeof item?.id === "string" ? item.id.trim() : "",
+        title: typeof item?.title === "string" ? item.title.trim() : "",
         summary: typeof item?.summary === "string" ? item.summary.trim() : "",
         summaryEn: typeof item?.summaryEn === "string" ? item.summaryEn.trim() : "",
         outline: typeof item?.outline === "string" ? item.outline.trim() : "",
@@ -1264,6 +1288,7 @@ async function requestChineseComicChildOutlines(input: GenerateChineseComicChild
     .filter(
       (outline) =>
         expectedIds.has(outline.id) &&
+        outline.title &&
         outline.summary &&
         outline.summaryEn &&
         outline.outline &&
@@ -3861,6 +3886,7 @@ export async function generateComicPromptPackageWithAi(
                 "If a named prop or object appears on multiple pages, treat it like a continuity asset: use an existing chapter scene reference if one exists, or explicitly flag that a prop/object reference should be created before image generation.",
                 "When a recurring prop reference exists in the chapter scene reference files, include it in requiredUploads on every page where that prop appears.",
                 "When the old student handbook, Student Handbook (old edition), or old handbook appears, use the chapter prop reference named Student Handbook (old edition).jpg if it exists; match its approved Episode 4 Page 10 design exactly, and never substitute the Sunscreen Field Handbook.jpg design.",
+                "When the ring mark, ring symbol, ring insignia, scratched mark, removed mark, old plaque mark, or Luster Circle clue appears, use the reference named Scratched Ring Mark.jpg if it exists; match the approved Episode 5 Page 10 battered plaque and uneven hand-scratched circular scar.",
                 "When product locks are provided, treat them as binding prop identity locks. Render a simple clean product bottle with only the large locked short code on the front label, no small packaging text or product claims.",
                 "Never invent file names. Only use file names that appear in the provided reference libraries.",
                 "Assume the team wants stable characters, reusable scenes, and a polished comic workflow."
@@ -3949,6 +3975,7 @@ export async function generateComicPromptPackageWithAi(
                 "- For every page, return a referenceNotesCopyText block that can also be pasted directly into the image-generation tool or production notes.",
                 "- For every panel, tell the team which visual beat is happening and what needs to stay stable.",
                 "- Prefer the chapter-specific scene reference files whenever the page happens in a known chapter scene location.",
+                "- If a page uses the ring mark, ring symbol, ring insignia, scratched mark, removed mark, old plaque mark, or Luster Circle clue, include Scratched Ring Mark.jpg in requiredUploads when available.",
                 "- Required uploads must be organized per page, and each item must include real upload image file names plus the matching relative paths.",
                 "- Use CHARACTER for character model sheets, SCENE for reusable master location refs, and CHAPTER_SCENE for chapter-only location sheets.",
                 "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, reference reuse, clean high-contrast black-and-white manga style, pure white character fills, model-sheet exactness, mouth-state continuity, handless telekinetic action, exact dialogue rendering, and consistent lettering style across all 10 story pages plus the generated cover.",

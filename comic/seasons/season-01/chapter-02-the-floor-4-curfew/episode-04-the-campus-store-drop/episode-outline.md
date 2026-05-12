@@ -18,7 +18,7 @@ The Student Store launches a limited collection branded around the promise “Th
 
 Vela Sheen enters the scene with warmth, elegance, and just enough persuasive language to make the campaign feel almost reasonable. She suggests that first-years sometimes need structured guidance. The statement is not obviously wrong, which is exactly what makes it unnerving.
 
-Later, Snacri notices that the campaign material carries the same small ring mark seen in older objects.
+Later, Snacri notices that the campaign material carries the same small ring mark seen in older objects. Use `Scratched Ring Mark.jpg` as the fixed reference for this symbol, even when it appears printed on newer promotional material.
 
 ## Skincare knowledge
 - Limited drops and trend framing can create false urgency.
@@ -32,6 +32,7 @@ Later, Snacri notices that the campaign material carries the same small ring mar
 ## Foreshadowing
 - The “three day” promise previews later fast-results ideology.
 - The ring insignia now appears in contemporary promotional material.
+- The ring mark must stay visually tied to the approved Episode 5 Page 10 scratched plaque reference, `Scratched Ring Mark.jpg`.
 
 ## Ending hook
 Snacri finds the ring mark printed on the store campaign material.

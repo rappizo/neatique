@@ -82,4 +82,4 @@ Inside the greenhouse, an old plaque reads “Glow begins with observation.” T
 - The contrast between old and new slogans begins surfacing the theme of The Glow Thesis.
 
 ### Ending Hook
-Muci finds a scratched-out ring mark on the back of the old plaque.
+Muci finds a scratched-out ring mark on the back of the old plaque. This exact object is locked as `Scratched Ring Mark.jpg` from the approved Episode 5 Page 10 image: battered square plaque, four corner screws, chipped gray screentone surface, and an uneven hand-scratched circular scar. Future chapters should use this reference whenever the ring mark, ring symbol, removed mark, old plaque mark, or early Luster Circle clue appears.

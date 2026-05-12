@@ -70,12 +70,35 @@ function normalizeRelevanceText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, " ");
 }
 
-function isReferencedInText(searchText: string, name: string, slug: string) {
-  const candidates = [name, slug]
+function isReferencedInText(searchText: string, name: string, slug: string, aliases: string[] = []) {
+  const candidates = [name, slug, ...aliases]
     .map((value) => normalizeRelevanceText(value).trim())
     .filter(Boolean);
 
   return candidates.some((candidate) => searchText.includes(candidate));
+}
+
+function getComicSceneReferenceAliases(name: string, slug: string) {
+  const comparable = normalizeRelevanceText(`${name} ${slug}`);
+
+  if (comparable.includes("scratched ring mark") || comparable.includes("ring mark")) {
+    return [
+      "ring mark",
+      "ring symbol",
+      "ring insignia",
+      "scratched mark",
+      "scratched-out ring mark",
+      "removed mark",
+      "old plaque mark",
+      "Luster Circle clue",
+      "Luster Circle mark",
+      "环形印记",
+      "环形符号",
+      "被刮掉的环形印记"
+    ];
+  }
+
+  return [];
 }
 
 export async function generateComicPromptPackageForEpisode(input: {
@@ -153,7 +176,12 @@ export async function generateComicPromptPackageForEpisode(input: {
       isReferencedInText(relevanceText, character.name, character.slug)
   );
   const relevantScenes = scenes.filter((scene) =>
-    isReferencedInText(relevanceText, scene.name, scene.slug)
+    isReferencedInText(
+      relevanceText,
+      scene.name,
+      scene.slug,
+      getComicSceneReferenceAliases(scene.name, scene.slug)
+    )
   );
   const promptCharacters = (relevantCharacters.length > 0 ? relevantCharacters : characters).slice(0, 8);
   const promptScenes = (relevantScenes.length > 0 ? relevantScenes : scenes).slice(0, 6);
