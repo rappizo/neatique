@@ -1,96 +1,87 @@
-# Episode 7 - The Stamp Hunt That Got Weird
+# Episode 7 - The Store List Does Not Match
 
 ## 中文
 
 ### 类型
-校园探索 / 喜剧冒险 / 主线推进开始
+校园商店喜剧 / 活动准备 / 主线推进开始
 
 ### 主要角色
 - Muci
-- Padaruna
 - Nia
-- Snacri
-- Sunny Spritz
+- Padarana
 
-### Episode 承诺
-从本话开始，Chapter 1 正式进入剧情推进。看似普通的新生 Campus Stamp Hunt 变成小组第一次主动调查：他们用旧 handbook 里的地图和学校官方路线对照，发现校园建筑本身也被改写过。
+### 本集承诺
+从本话开始，Chapter 1 的主线由 Muci、Nia 和 Padarana 三人推进。三人被分配到同一个白天+夜晚校园探查活动小组，第一步是去 Student Store 采购活动用品。看似轻松的采购过程让他们发现：学校商品、旧书签、货架说明和最新学生手册之间存在明显差异。
 
 ### 核心剧情
-Sunny Spritz 宣布 Campus Stamp Hunt，目的是帮助新生熟悉标志地点。对 Muci 小组来说，这刚好是检查旧地图的机会。他们经过 Founder Walk、Ingredient Library、Student Store、Repair Clinic 和 Barrier Sciences Hall 外侧。
+活动说明要求每个小组准备白天路线卡、夜间反光贴、记录笔和学院指定的“标准观察表”。Muci 只是想照单购买，Nia 立刻把清单当成合规检查，Padarana 则负责让两个人不要在货架前紧张到失去呼吸节奏。
 
-Padaruna 把活动当成 speedrun，Nia 把路线优化成严肃任务，Snacri 只在关键地点提醒他们“看被替换的地方”，Muci 则负责把旧地图和现实空间对齐。到了 Founder Walk，他们发现一块新铭牌的边缘下面露出旧字痕：Glow Thesis。
+Student Store 看起来像被抛光过的童话精品店：每个商品都漂亮、整齐、过度热情。三人很快发现奇怪之处：某些旧款书签写着 “Glow begins with observation.”，但最新 handbook 把相同位置改成 “Glow begins with discipline.”；活动记录表要求学生填“标准答案”，而旧版店内小卡还写着“individual variation”。Nia 对库存和文案不一致感到无法忍受，Muci 注意到旧书签边缘有和旧铭牌残痕相似的环形印记，Padarana提醒他们先把证据收好，不要在公共商店讨论太大声。
 
-这个发现让谜团从文件差异升级成校园空间被改造的证据。
+这一话的重点不是立刻解谜，而是让读者看见“学校改变历史”的方式已经进入日常消费系统。三人决定把采购到的旧物件、最新 handbook 和 Muci 之前拿到的 old edition handbook 一起用于白天探查。
 
 ### 护肤知识
-- 成分识读比追逐流行词更重要。
-- 本话知识点保持轻量，放在校园地点和 stamp 任务里。
+- 包装和宣传语不等于真实需求。
+- “标准答案”不一定适合每个人，长期观察更可靠。
+- 购买前先看自己需要什么，而不是被限定款和焦虑话术牵着走。
 
-### 连续性锁定
-- 角色介绍框不再重复出现。
-- Founder Walk、旧铭牌、stamp card 和旧地图如果反复出现，需要在 prompt 阶段统一参考。
+### 连续性注意事项
+- 主动角色只用 Muci、Nia、Padarana。
+- Student Store 的货架、旧书签、活动清单和最新 handbook 必须和后续白天探查连接。
+- 旧书签边缘的环形印记必须匹配 `Scratched Ring Mark.jpg` 的固定物件参考。
 
 ### 美式喜剧点
-- Nia 把寻章活动讲成物流项目。
-- Padaruna 对“高效但没有快乐”的路线深感冒犯。
-- Snacri 明明没怎么参与，却总能指出唯一重要的地方。
+- Nia 把采购清单念得像审计报告。
+- Muci 想快点买完，结果每拿起一件商品都像打开一个小阴谋。
+- Padarana 用温柔语气阻止他们在收银台前说出“历史篡改”四个字。
 
 ### 伏笔
-- Founder Walk 被物理替换过，不只是文件被修改。
-- Glow Thesis 第一次作为校园历史词汇出现。
+- 新版手册和旧物件不是简单版本差异，而是理念冲突。
+- “observation / individual variation” 被替换成 “discipline / standard answer”。
+- 环形印记开始从旧铭牌扩展到旧物件。
 
 ### 结尾钩子
-Muci 在旧铭牌残痕里第一次看见 “Glow Thesis” 这两个词。
+Nia 把旧书签、最新 handbook 和活动路线卡摊在一起，发现白天路线会经过一个旧地图上名字不同的地点。
 
 ## English
 
 ### Type
-Campus exploration / comedy adventure / plot escalation begins
+Campus store comedy / activity preparation / plot escalation begins
 
 ### Main Characters
 - Muci
-- Padaruna
 - Nia
-- Snacri
-- Sunny Spritz
-
-### Post-cover reader guide insert
-Add one standalone reader-guide insert immediately after the cover before Page 01. This insert is not Page 01 and must not replace, renumber, or rewrite the original 10 story pages. It is a lively cast-recognition comic page, not a static model chart. It introduces how readers can tell apart Muci, Nia, Padaruna, Padarana, and Snacri through playful interaction, expressions, and simple readable labels/dialogue.
-
-- Muci: shorter, broader, rounder, soft off-center top, no brow, friendly protagonist face.
-- Nia: slightly taller than Padaruna, sharp vertical point, one angled brow, precise controlled expression.
-- Padaruna: same height tier as Padarana and Snacri, very sharp centered head point, visibly lower-heavy plump/chubby pear-bottom body with a wide soft lower belly, open lively eyes, energetic, no eyebrows, never Nia's tall narrow controlled silhouette.
-- Padarana: same height tier as Padaruna and Snacri, upright soft pointed silhouette, slimmer and gentler than Padaruna, closed smiling eyes, calm reassuring energy.
-- Snacri: same height tier as Padaruna and Padarana, fatter compact body, right-leaning top, fully open round black dot eyes with tiny highlights, restrained tiny smile, exactly two feet.
-
-The page should use the characters' own front-facing model sheets as the visual comparison basis. Do not draw a weird height-chart prop inside the comic panel. Do not turn the guide into first-appearance bio boxes; make it feel like the cast is teasing each other while helping the reader recognize them.
+- Padarana
 
 ### Episode Promise
-This episode begins the chapter's direct plot push. A normal freshman Campus Stamp Hunt becomes the group's first active investigation as they compare the old handbook map against the official route and discover that the campus itself has been edited.
+From this episode onward, Chapter 1's main plot is driven by Muci, Nia, and Padarana. The three are assigned to the same day-and-night campus investigation group, and their first step is buying supplies at the Student Store. What looks like a light shopping trip reveals clear contradictions between school merchandise, old bookmarks, shelf language, and the latest student handbook.
 
 ### Core Plot
-Sunny Spritz announces the Campus Stamp Hunt as a way for first-years to learn landmark locations. For Muci's group, it becomes the perfect excuse to test the old map. They pass Founder Walk, Ingredient Library, Student Store, Repair Clinic, and the outside of Barrier Sciences Hall.
+The activity instructions tell each group to prepare a daytime route card, night reflective stickers, recording pens, and the academy's official “standard observation form.” Muci only wants to buy what the list says, Nia immediately treats the list as a compliance audit, and Padarana quietly keeps both of them from losing their breathing rhythm in front of the shelves.
 
-Padaruna treats the event like a speedrun, Nia turns route optimization into a serious task, Snacri only speaks when there is something removed to notice, and Muci tries to align the old map with the real campus. At Founder Walk, they find old lettering peeking from beneath the edge of a new plaque: Glow Thesis.
+The Student Store looks like a polished fairytale boutique: every item is beautiful, tidy, and aggressively cheerful. The three quickly notice the problem. Some old bookmarks read “Glow begins with observation,” but the latest handbook uses “Glow begins with discipline” in the same context. The activity form asks students to record “standard answers,” while an older in-store card still mentions “individual variation.” Nia is personally offended by the inventory and wording mismatch. Muci notices that the edge of an old bookmark carries a ring mark similar to the old plaque trace. Padarana tells them to collect the evidence first and not say “historical revision” too loudly in a public store.
 
-The mystery upgrades from document mismatch to physical evidence that campus space has been altered.
+The point of this episode is not to solve the mystery immediately, but to show that the school's rewritten history has entered everyday campus commerce. The three decide to use the old items, the latest handbook, and Muci's old edition handbook during the daytime investigation.
 
 ### Skincare Knowledge
-- Ingredient literacy matters more than chasing fashionable buzzwords.
-- Keep the knowledge light and embedded in the campus stamp activity.
+- Packaging and slogans are not the same as real need.
+- A “standard answer” does not fit everyone; long-term observation is more reliable.
+- Buy for actual use, not limited-edition pressure or anxiety language.
 
-### Continuity Locks
-- Do not repeat first-appearance intro boxes.
-- Founder Walk, the old plaque, stamp card, and old map should be unified as recurring references if they keep appearing in prompts.
+### Continuity Notes
+- Active characters are only Muci, Nia, and Padarana.
+- Student Store shelves, the old bookmark, the activity supply list, and the latest handbook must connect into the daytime investigation.
+- The ring mark on the old bookmark must match the fixed prop reference `Scratched Ring Mark.jpg`.
 
 ### American Humor Beats
-- Nia describes a scavenger hunt like a logistics project.
-- Padaruna is deeply offended by routes that are efficient but joyless.
-- Snacri barely participates and still identifies the only important thing.
+- Nia reads the shopping list like an audit report.
+- Muci wants to finish buying supplies quickly, but every item he picks up opens a tiny conspiracy.
+- Padarana gently prevents them from saying “historical revision” at the checkout counter.
 
 ### Foreshadowing
-- Founder Walk has been physically replaced, not merely rewritten in documents.
-- Glow Thesis appears for the first time as a campus-history phrase.
+- The latest handbook and old objects show an ideological conflict, not a simple version mismatch.
+- “Observation / individual variation” has been replaced by “discipline / standard answer.”
+- The ring mark expands from old plaques to old objects.
 
 ### Ending Hook
-Muci sees the words “Glow Thesis” in the old plaque traces for the first time.
+Nia spreads out the old bookmark, the latest handbook, and the activity route card, then realizes the daytime route passes a place with a different name on the old map.
