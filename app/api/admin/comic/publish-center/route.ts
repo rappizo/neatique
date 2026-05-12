@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import {
+  COMIC_APPROVAL_ASSET_TYPES,
   COMIC_CHINESE_PAGE_ASSET_TYPE,
   COMIC_PAGE_ASSET_TYPES,
   COMIC_REQUIRED_PAGE_COUNT,
@@ -17,6 +18,7 @@ type PublishCenterIntent =
   | "unapprove-asset"
   | "approve-chinese-asset"
   | "unapprove-chinese-asset"
+  | "delete-asset"
   | "publish-episode"
   | "unpublish-episode";
 
@@ -44,6 +46,10 @@ function isComicPageAssetType(assetType: string) {
 
 function isChineseComicPageAssetType(assetType: string) {
   return assetType === COMIC_CHINESE_PAGE_ASSET_TYPE;
+}
+
+function isComicApprovalAssetType(assetType: string) {
+  return COMIC_APPROVAL_ASSET_TYPES.includes(assetType);
 }
 
 function countApprovedRequiredPages(
@@ -374,6 +380,106 @@ async function unapproveChineseAsset(assetId: string) {
   };
 }
 
+async function getApprovedPageAssetIds(episodeId: string, pageNumber: number) {
+  const assets = await prisma.comicEpisodeAsset.findMany({
+    where: {
+      episodeId,
+      sortOrder: pageNumber,
+      published: true,
+      assetType: {
+        in: COMIC_APPROVAL_ASSET_TYPES
+      }
+    },
+    select: {
+      id: true,
+      assetType: true
+    }
+  });
+
+  return {
+    approvedAssetId: assets.find((asset) => isComicPageAssetType(asset.assetType))?.id || null,
+    approvedChineseAssetId:
+      assets.find((asset) => isChineseComicPageAssetType(asset.assetType))?.id || null
+  };
+}
+
+async function deleteAsset(assetId: string) {
+  const asset = await prisma.comicEpisodeAsset.findUnique({
+    where: { id: assetId },
+    include: {
+      episode: {
+        include: {
+          chapter: {
+            include: {
+              season: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!asset) {
+    throw new ComicPublishCenterError("missing-asset", "That comic page asset could not be found.");
+  }
+
+  const isPublishPage = isComicPublishPageNumber(asset.sortOrder);
+  const isApprovalAsset = isComicApprovalAssetType(asset.assetType) && isPublishPage;
+
+  if (asset.episode.published && asset.published && isApprovalAsset) {
+    throw new ComicPublishCenterError(
+      "unpublish-before-approval-change",
+      "Unpublish this episode before changing approved comic pages.",
+      409
+    );
+  }
+
+  await prisma.$transaction([
+    ...(asset.published && isComicPageAssetType(asset.assetType) && isPublishPage
+      ? [
+          prisma.comicEpisodeAsset.updateMany({
+            where: {
+              episodeId: asset.episodeId,
+              sortOrder: asset.sortOrder,
+              assetType: COMIC_CHINESE_PAGE_ASSET_TYPE
+            },
+            data: { published: false }
+          })
+        ]
+      : []),
+    prisma.comicEpisodeAsset.delete({
+      where: { id: asset.id }
+    })
+  ]);
+
+  const status = await getEpisodeStatus(asset.episodeId);
+  revalidateComicRoutes(status.slugs);
+
+  const approvedPageAssetIds = isPublishPage
+    ? await getApprovedPageAssetIds(asset.episodeId, asset.sortOrder)
+    : {
+        approvedAssetId: null,
+        approvedChineseAssetId: null
+      };
+
+  return {
+    ...status,
+    ...approvedPageAssetIds,
+    ok: true,
+    status: "page-rejected",
+    language: isPublishPage
+      ? isChineseComicPageAssetType(asset.assetType)
+        ? "zh"
+        : isComicPageAssetType(asset.assetType)
+          ? "en"
+          : undefined
+      : undefined,
+    pageNumber: isPublishPage ? asset.sortOrder : undefined,
+    assetId: asset.id,
+    deletedAssetId: asset.id
+  };
+}
+
 async function publishEpisode(episodeId: string) {
   if (!episodeId) {
     throw new ComicPublishCenterError("missing-episode", "Comic episode is required.");
@@ -503,6 +609,7 @@ function isPublishCenterIntent(value: string): value is PublishCenterIntent {
     "unapprove-asset",
     "approve-chinese-asset",
     "unapprove-chinese-asset",
+    "delete-asset",
     "publish-episode",
     "unpublish-episode"
   ].includes(value);
@@ -561,9 +668,11 @@ export async function POST(request: Request) {
             ? await approveChineseAsset(extractString(payload, "assetId"))
             : intent === "unapprove-chinese-asset"
               ? await unapproveChineseAsset(extractString(payload, "assetId"))
-              : intent === "publish-episode"
-                ? await publishEpisode(extractString(payload, "episodeId"))
-                : await unpublishEpisode(extractString(payload, "episodeId"));
+              : intent === "delete-asset"
+                ? await deleteAsset(extractString(payload, "assetId"))
+                : intent === "publish-episode"
+                  ? await publishEpisode(extractString(payload, "episodeId"))
+                  : await unpublishEpisode(extractString(payload, "episodeId"));
 
     return NextResponse.json(result);
   } catch (error) {

@@ -26,6 +26,7 @@ export type ComicPublishCenterMutationResult = {
   language?: ComicPublishLanguage;
   pageNumber?: number;
   assetId?: string;
+  deletedAssetId?: string;
   approvedAssetId?: string | null;
   approvedChineseAssetId?: string | null;
 };

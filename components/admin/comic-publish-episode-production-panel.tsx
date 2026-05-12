@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   ComicChinesePageVersionQueueButton,
   ComicEditImageQueueForm,
@@ -22,13 +22,17 @@ import {
   ComicEpisodeDownloadMenu,
   ComicEpisodePublishControls,
   ComicPublishPageArticle,
-  ComicPublishPageHeaderStatus
+  ComicPublishPageHeaderStatus,
+  dispatchApprovalChange
 } from "@/components/admin/comic-publish-approval-controls";
+import {
+  useComicPublishEpisodeStatus,
+  type ComicPublishCenterMutationResult
+} from "@/components/admin/comic-publish-episode-details";
 import { ComicPageUploadForm } from "@/components/admin/comic-publish-page-upload-form";
 import { CopyTextButton } from "@/components/admin/copy-text-button";
 import {
   approveComicExtraPageAssetAction,
-  deleteComicEpisodeAssetAction,
   unapproveComicExtraPageAssetAction
 } from "@/app/admin/comic-editor-actions";
 import {
@@ -158,6 +162,10 @@ type ComicEpisodeProductionDetail = {
   pages: ComicEpisodeProductionPage[];
 };
 
+type ComicRejectAssetMutationResult = ComicPublishCenterMutationResult & {
+  deletedAssetId?: string;
+};
+
 type ComicPublishEpisodeProductionPanelProps = {
   chapterId: string;
   episodeId: string;
@@ -205,6 +213,147 @@ function getUploadNames(page: SerializedPromptPage | null) {
 
   return Array.from(
     new Set(page.requiredUploads.flatMap((upload) => upload.uploadImageNames).filter(Boolean))
+  );
+}
+
+async function runRejectAssetMutation(assetId: string) {
+  const response = await fetch("/api/admin/comic/publish-center", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      intent: "delete-asset",
+      assetId
+    })
+  });
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    throw new Error(extractErrorMessage(payload, "Comic image rejection failed."));
+  }
+
+  return payload as ComicRejectAssetMutationResult;
+}
+
+function restoreScrollPosition(scrollX: number, scrollY: number) {
+  requestAnimationFrame(() => {
+    window.scrollTo(scrollX, scrollY);
+    requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
+  });
+}
+
+function applyApprovedAssetState<TAsset extends SerializedComicEpisodeAsset>(
+  assets: TAsset[],
+  approvedAssetId?: string | null
+) {
+  return assets.map((asset) => ({
+    ...asset,
+    published: approvedAssetId ? asset.id === approvedAssetId : false
+  }));
+}
+
+function applyRejectedAssetResult(
+  detail: ComicEpisodeProductionDetail,
+  result: ComicRejectAssetMutationResult
+) {
+  const deletedAssetId = result.deletedAssetId || result.assetId;
+
+  if (!deletedAssetId) {
+    return detail;
+  }
+
+  const pages = detail.pages.map((page) => {
+    const pageAssets = page.assets.filter((asset) => asset.id !== deletedAssetId);
+    const chineseAssets = page.chineseAssets.filter((asset) => asset.id !== deletedAssetId);
+    const nextPage = {
+      ...page,
+      assets: pageAssets,
+      approvedAsset: page.approvedAsset?.id === deletedAssetId ? null : page.approvedAsset,
+      chineseAssets,
+      approvedChineseAsset:
+        page.approvedChineseAsset?.id === deletedAssetId ? null : page.approvedChineseAsset
+    };
+
+    if (result.pageNumber !== page.pageNumber || !result.language) {
+      return nextPage;
+    }
+
+    const nextEnglishAssets = applyApprovedAssetState(pageAssets, result.approvedAssetId);
+    const nextChineseAssets = applyApprovedAssetState(
+      chineseAssets,
+      result.approvedChineseAssetId
+    );
+
+    return {
+      ...nextPage,
+      assets: nextEnglishAssets,
+      approvedAsset:
+        result.approvedAssetId
+          ? nextEnglishAssets.find((asset) => asset.id === result.approvedAssetId) || null
+          : null,
+      chineseAssets: nextChineseAssets,
+      approvedChineseAsset:
+        result.approvedChineseAssetId
+          ? nextChineseAssets.find((asset) => asset.id === result.approvedChineseAssetId) || null
+          : null
+    };
+  });
+  const extraPages = detail.extraPages.map((extraPage) => ({
+    ...extraPage,
+    assets: extraPage.assets.filter((asset) => asset.id !== deletedAssetId),
+    approvedAsset:
+      extraPage.approvedAsset?.id === deletedAssetId ? null : extraPage.approvedAsset
+  }));
+
+  return {
+    ...detail,
+    pages,
+    extraPages
+  };
+}
+
+function ComicRejectAssetButton({
+  assetId,
+  label,
+  onRejectAsset
+}: {
+  assetId: string;
+  label: string;
+  onRejectAsset: (assetId: string) => Promise<void>;
+}) {
+  const [message, setMessage] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleReject() {
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    startTransition(async () => {
+      setMessage(null);
+
+      try {
+        await onRejectAsset(assetId);
+        restoreScrollPosition(scrollX, scrollY);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Comic image rejection failed.");
+      }
+    });
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="button button--ghost"
+        onClick={handleReject}
+        disabled={isPending}
+        aria-busy={isPending}
+      >
+        {isPending ? "Rejecting..." : label}
+      </button>
+      {message ? <span className="form-note">{message}</span> : null}
+    </>
   );
 }
 
@@ -262,11 +411,13 @@ function PromptHealthFindingList({
 function ComicExtraPageProductionSlot({
   episodeId,
   extraPage,
-  redirectTo
+  redirectTo,
+  onRejectAsset
 }: {
   episodeId: string;
   extraPage: ComicEpisodeProductionExtraPage;
   redirectTo: string;
+  onRejectAsset: (assetId: string) => Promise<void>;
 }) {
   const uploadNames = getUploadNames(extraPage.promptPage);
 
@@ -427,13 +578,11 @@ function ComicExtraPageProductionSlot({
                       </button>
                     </form>
                   )}
-                  <form action={deleteComicEpisodeAssetAction}>
-                    <input type="hidden" name="id" value={asset.id} />
-                    <input type="hidden" name="redirectTo" value={redirectTo} />
-                    <button type="submit" className="button button--ghost">
-                      Reject insert
-                    </button>
-                  </form>
+                  <ComicRejectAssetButton
+                    assetId={asset.id}
+                    label="Reject insert"
+                    onRejectAsset={onRejectAsset}
+                  />
                 </div>
               </div>
             </div>
@@ -468,6 +617,7 @@ export function ComicPublishEpisodeProductionPanel({
   outlineHref
 }: ComicPublishEpisodeProductionPanelProps) {
   const { tasks } = useComicImageTaskQueue();
+  const episodeStatus = useComicPublishEpisodeStatus();
   const [detail, setDetail] = useState<ComicEpisodeProductionDetail | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const redirectTo = useMemo(
@@ -546,6 +696,24 @@ export function ComicPublishEpisodeProductionPanel({
       abortController.abort();
     };
   }, [episodeId, episodeDetailRefreshKey]);
+
+  async function handleRejectAsset(assetId: string) {
+    const result = await runRejectAssetMutation(assetId);
+
+    episodeStatus.applyMutationResult(result);
+
+    if (result.language && typeof result.pageNumber === "number") {
+      dispatchApprovalChange({
+        ...result,
+        language: result.language,
+        pageNumber: result.pageNumber
+      });
+    }
+
+    setDetail((currentDetail) =>
+      currentDetail ? applyRejectedAssetResult(currentDetail, result) : currentDetail
+    );
+  }
 
   if (errorMessage) {
     return (
@@ -892,13 +1060,11 @@ export function ComicPublishEpisodeProductionPanel({
                           episodeId={episodeId}
                           pageNumber={page.pageNumber}
                         />
-                        <form action={deleteComicEpisodeAssetAction}>
-                          <input type="hidden" name="id" value={asset.id} />
-                          <input type="hidden" name="redirectTo" value={redirectTo} />
-                          <button type="submit" className="button button--ghost">
-                            Reject image
-                          </button>
-                        </form>
+                        <ComicRejectAssetButton
+                          assetId={asset.id}
+                          label="Reject image"
+                          onRejectAsset={handleRejectAsset}
+                        />
                       </div>
                     </div>
                   ))
@@ -959,13 +1125,11 @@ export function ComicPublishEpisodeProductionPanel({
                           >
                             View Chinese Version
                           </a>
-                          <form action={deleteComicEpisodeAssetAction}>
-                            <input type="hidden" name="id" value={asset.id} />
-                            <input type="hidden" name="redirectTo" value={redirectTo} />
-                            <button type="submit" className="button button--ghost">
-                              Reject Chinese image
-                            </button>
-                          </form>
+                          <ComicRejectAssetButton
+                            assetId={asset.id}
+                            label="Reject Chinese image"
+                            onRejectAsset={handleRejectAsset}
+                          />
                         </div>
                       </div>
                     ))}
@@ -1004,6 +1168,7 @@ export function ComicPublishEpisodeProductionPanel({
                 episodeId={episodeId}
                 extraPage={extraPage}
                 redirectTo={redirectTo}
+                onRejectAsset={handleRejectAsset}
               />
             ))}
             </div>
