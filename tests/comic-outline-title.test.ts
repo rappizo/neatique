@@ -53,6 +53,20 @@ test("chapter outline episode title can be extracted as the parent title", () =>
   );
 });
 
+test("chapter outline episode title can be extracted from markdown headings", () => {
+  assert.equal(
+    extractEpisodeTitleFromChapterOutline({
+      episodeNumber: 8,
+      chapterOutline: [
+        "### Episode 07 - The Student Store Problem",
+        "### Episode 08 - The Day Route Disagrees",
+        "### Episode 09 - The Handbook Goes Through the Wall"
+      ].join("\n")
+    }),
+    "The Day Route Disagrees"
+  );
+});
+
 test("parent chapter title wins when the model repeats the old episode title", () => {
   assert.equal(
     resolveGeneratedEpisodeTitle({

@@ -31,13 +31,35 @@ export function extractEpisodeTitleFromChapterOutline(input: {
   }
 
   const episodePattern = new RegExp(
-    String.raw`(?:^|\n)\s*(?:[-*]\s*)?(?:\*\*)?Episode\s*0?${input.episodeNumber}\s*[-:：–—]\s*([^:\n：]+?)(?:\*\*)?(?=\s*(?:[:：]|\n|$))`,
+    String.raw`^Episode\s*0?${input.episodeNumber}\s*[-:\uFF1A\u2013\u2014]\s*(.+?)\s*$`,
     "i"
   );
-  const match = outline.match(episodePattern);
-  const title = match?.[1]?.trim();
 
-  return title || null;
+  for (const rawLine of outline.split(/\r?\n/)) {
+    const line = rawLine
+      .trim()
+      .replace(/^#{1,6}\s+/, "")
+      .replace(/^[-*]\s+/, "")
+      .replace(/^\*\*/, "")
+      .replace(/\*\*$/, "")
+      .trim();
+    const match = line.match(episodePattern);
+
+    if (!match?.[1]) {
+      continue;
+    }
+
+    const title = match[1]
+      .replace(/\*\*/g, "")
+      .split(/[:\uFF1A]/)[0]
+      .trim();
+
+    if (title) {
+      return title;
+    }
+  }
+
+  return null;
 }
 
 export function resolveGeneratedEpisodeTitle(input: {
