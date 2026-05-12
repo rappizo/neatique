@@ -43,9 +43,8 @@ const OPENAI_COMIC_PROMPT_REASONING_EFFORT =
 const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 60 * 10;
 const MAX_OPENAI_COMIC_OUTLINE_TIMEOUT_SECONDS = 60 * 13;
 const DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS = 1000 * 55;
-const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 120;
-const DEFAULT_OPENAI_COMIC_IMAGE_HIGH_TIMEOUT_MS = 1000 * 240;
-const DEFAULT_OPENAI_COMIC_IMAGE_LOW_TIMEOUT_MS = 1000 * 75;
+const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 60 * 12;
+const MAX_OPENAI_COMIC_IMAGE_TIMEOUT_SECONDS = 60 * 12;
 const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
 const OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH = 30000;
 const MUCI_MODEL_SHEET_EXACT_LOCK = [
@@ -470,16 +469,8 @@ function getOpenAiComicPromptTimeoutMs() {
   return Math.min(Math.max(configuredSeconds, 15), 55) * 1000;
 }
 
-function getDefaultOpenAiComicImageTimeoutMs(quality?: string | null) {
-  switch (normalizeStandaloneComicImageQuality(quality)) {
-    case "high":
-      return DEFAULT_OPENAI_COMIC_IMAGE_HIGH_TIMEOUT_MS;
-    case "low":
-      return DEFAULT_OPENAI_COMIC_IMAGE_LOW_TIMEOUT_MS;
-    case "medium":
-    default:
-      return DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS;
-  }
+function getDefaultOpenAiComicImageTimeoutMs(_quality?: string | null) {
+  return DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS;
 }
 
 function getOpenAiComicImageTimeoutMs(quality?: string | null) {
@@ -489,7 +480,7 @@ function getOpenAiComicImageTimeoutMs(quality?: string | null) {
     return getDefaultOpenAiComicImageTimeoutMs(quality);
   }
 
-  return Math.min(Math.max(configuredSeconds, 20), 260) * 1000;
+  return Math.min(Math.max(configuredSeconds, 20), MAX_OPENAI_COMIC_IMAGE_TIMEOUT_SECONDS) * 1000;
 }
 
 function getOpenAiComicOutlineAbortSignal() {

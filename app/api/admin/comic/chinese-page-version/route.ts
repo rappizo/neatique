@@ -5,6 +5,9 @@ import {
   createChineseComicPageVersion
 } from "@/lib/comic-chinese-page-version";
 
+export const runtime = "nodejs";
+export const maxDuration = 800;
+
 export async function POST(request: Request) {
   const authenticated = await isAdminAuthenticated();
 
