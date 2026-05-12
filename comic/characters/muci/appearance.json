@@ -1,5 +1,5 @@
 {
-  "silhouette": "Muci Model Sheet Exact Lock: broad squat pure-white droplet mascot with a round heavy lower half, soft bulging sides, curved rounded base, and a rounded teardrop point with a consistent controlled lean toward reader-left/page-left, which is Muci's right side. Muci must always read as the left-leaning droplet in primary front/3/4 reader-facing views. The apex stays above the upper body and close to center like the model sheet. It must never become a vertical needle, sharp Nia point, right-leaning Snacri-like top, exaggerated hook, sideways curl, or flopped-over cap.",
+  "silhouette": "Muci Model Sheet Exact Lock: broad squat pure-white droplet mascot with a round heavy lower half, soft bulging sides, curved rounded base, and a rounded teardrop point with a consistent controlled lean toward reader-left/page-left, which is Muci's right side. Muci must always read as the left-leaning droplet in primary front/3/4 reader-facing views. The apex stays above the upper body and close to center like the model sheet. It must stay rounded and must not become sharp, tall, right/side-leaning, hooked, curled, or flopped over.",
   "face": "Large black dot eyes with tiny white catchlights, placed low on the round body with model-sheet spacing. Small simple friendly U-smile by default. No brow by default.",
   "highlights": "One tilted oval glossy highlight plus one smaller dot highlight on the upper reader-left side. Keep this placement consistent in black-and-white pages.",
   "body_fill": "Pure white interior fill with clean black outline, matching the model sheet. No gray body fill, gradient shading, smoky shadows, heavy screentone, or charcoal texture on the character.",
@@ -7,7 +7,7 @@
   "feet": "Two small rounded foot nubs attached at the lower left and lower right, exactly like the front and 3/4 front model-sheet views. Feet remain visible in every full-body view.",
   "body_language": "Approachable, beginner-friendly, soft and balanced. No arms, hands, fingers, paws, gloves, sleeves, wrists, elbows, shoes, or humanoid upper limbs.",
   "object_interaction": "Muci moves nearby objects through gentle telekinesis shown with floating props, motion lines, or subtle manga emphasis marks.",
-  "acceptance_check": "Before finalizing any Muci drawing, compare it to refs/model-sheet.jpg. If the top is sharper or taller than the model sheet, looks like Nia's vertical point, or leans so far that it reads as a hook, sideways curl, or floppy cap, redraw Muci broader, shorter, rounder, friendlier, and closer to the model sheet before adding acting or background detail.",
+  "acceptance_check": "Before finalizing any Muci drawing, compare it to refs/model-sheet.jpg. If the top is sharper, taller, right/side-leaning, hooked, curled, floppy, or more tilted than the model sheet, redraw Muci broader, shorter, rounder, friendlier, and closer to the model sheet before adding acting or background detail.",
   "do_not_change": [
     "Keep the natural rounded teardrop point with the reader-left/page-left lean shown in the model sheet.",
     "Keep the oval-plus-dot highlight marks on the upper reader-left side.",
@@ -18,7 +18,7 @@
     "Do not stretch Muci into a tall narrow droplet, long pear shape, or sharp vertical raindrop.",
     "Do not fill Muci with gray, gradients, screentone, smoky shadows, or charcoal texture.",
     "Do not redesign Muci away from the model-sheet droplet.",
-    "Do not borrow Nia's angled brow, Snacri's right-leaning top, Padaruna's fuller high-energy body, or Padarana's closed smiling eyes.",
+    "Use Muci's own model sheet and avoid long cross-character negative comparisons.",
     "When Muci appears with Nia, do not give Muci Nia's tall narrow vertical point, controlled narrow body, angled brow, or analytical expression. Keep Muci wider, shorter, rounder at the base, friendlier, browless, and subtly model-sheet-asymmetric at the top without over-leaning."
   ]
 }

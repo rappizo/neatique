@@ -314,9 +314,10 @@ test("comic page image prompt separates Coach Ray from Muci and normalizes legac
   assert.doesNotMatch(prompt, /Coach Ray[^.\n]*pentagonal/i);
   assert.doesNotMatch(prompt, /broad pentagonal/i);
   assert.doesNotMatch(prompt, /pentagonal authority/i);
-  assert.match(prompt, /Coach Ray anti-drift lock/);
-  assert.match(prompt, /Muci vs Coach Ray separation/);
-  assert.match(prompt, /Coach Ray keeps the broad squat shield-shaped/);
+  assert.match(prompt, /Active character model-sheet reminders/);
+  assert.match(prompt, /Coach Ray: match the Coach Ray model sheet/);
+  assert.match(prompt, /Muci: match the Muci model sheet/);
+  assert.doesNotMatch(prompt, /anti-drift lock|Muci vs Coach Ray separation/);
 });
 
 test("comic page image prompt includes similar teardrop separation locks", () => {
@@ -412,25 +413,19 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
     generationAttempt: 1
   });
 
-  assert.match(prompt, /Similar teardrop cast separation lock/);
+  assert.match(prompt, /Active teardrop reference reminder/);
   assert.match(prompt, /Character height reference lock/);
-  assert.match(prompt, /off-canvas production reference only/);
+  assert.match(prompt, /off-canvas production guide/);
   assert.match(prompt, /Do not draw the chart, scale marks, labels, lineup/);
   assert.match(prompt, /Story intro-card rule/);
   assert.match(prompt, /Never infer intro cards/);
   assert.match(prompt, /Muci is in the shorter tier/);
   assert.match(prompt, /Nia: about 1\.10x Padaruna/);
   assert.match(prompt, /Snacri: same as Padaruna/);
-  assert.match(prompt, /Muci Model Sheet Exact Lock/);
-  assert.match(prompt, /Muci\/Nia high-risk model-sheet guardrail/);
-  assert.match(prompt, /consistent lean toward reader-left\/Muci's right/);
-  assert.match(prompt, /not a sharp Nia point, Snacri's right-leaning top, exaggerated hook, sideways curl, or flopped-over cap/);
-  assert.match(prompt, /Muci: exact Muci model-sheet droplet/);
-  assert.match(prompt, /Nia: taller, narrower, controlled teardrop/);
-  assert.match(prompt, /Snacri: fatter quiet droplet/);
-  assert.match(prompt, /Snacri eye expression lock/);
-  assert.match(prompt, /fully open round black dot eyes with tiny white highlights/);
-  assert.match(prompt, /Never draw Snacri with half-lidded eyes/);
+  assert.match(prompt, /Muci: match the Muci model sheet/);
+  assert.match(prompt, /Nia: match the Nia model sheet/);
+  assert.match(prompt, /Snacri: match the Snacri model sheet/);
+  assert.doesNotMatch(prompt, /high-risk|guardrail|Snacri eye expression lock|Never draw Snacri/);
   assert.match(prompt, /Similar Teardrop Character Comparison/);
   assert.match(prompt, /Front-View Character Height Reference/);
 });
@@ -500,17 +495,11 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
     generationAttempt: 1
   });
 
-  assert.match(prompt, /Padaruna\/Padarana anti-Snacri head lock/);
-  assert.match(prompt, /Snacri is the only droplet here with a right-leaning quiet top\/head silhouette/);
-  assert.match(prompt, /Padaruna keeps her own very sharp upright centered pointed head/);
-  assert.match(prompt, /cute plump\/chubby full rounded buoyant pear-bottom body/);
-  assert.match(prompt, /soft wide lower belly/);
-  assert.match(prompt, /no side nubs or arm-like protrusions/);
-  assert.match(prompt, /skinny, narrow, tall-stretched, or delicate/);
-  assert.match(prompt, /Padarana keeps her own upright soft pointed head/);
-  assert.match(prompt, /never Snacri's right-leaning quiet head\/top/);
-  assert.match(prompt, /Snacri's eyes must match the Snacri model sheet/);
-  assert.match(prompt, /Do not draw Snacri with half-lidded eyes, sleepy droopy eyes/);
+  assert.match(prompt, /Active teardrop reference reminder/);
+  assert.match(prompt, /Padaruna: match the Padaruna model sheet/);
+  assert.match(prompt, /Padarana: match the Padarana model sheet/);
+  assert.match(prompt, /Snacri: match the Snacri model sheet/);
+  assert.doesNotMatch(prompt, /anti-Snacri|Never copy|never Snacri/);
 });
 
 test("comic page image prompt keeps absent Snacri out of Padarana pages", () => {
@@ -604,7 +593,148 @@ test("comic page image prompt keeps absent Snacri out of Padarana pages", () => 
   });
 
   assert.match(prompt, /context text only: do not draw that character/);
-  assert.match(prompt, /Padarana: upright soft pointed head/);
+  assert.match(prompt, /Padarana: match the Padarana model sheet/);
+  assert.doesNotMatch(prompt, /Snacri/);
+});
+
+test("comic page image prompt strips legacy comparison noise from EP6-style pages", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "The Wrong Handbook",
+    episodeSummary: "Muci, Nia, Padaruna, and Padarana resolve a handbook conflict.",
+    pageNumber: 6,
+    panelCount: 3,
+    pagePurpose: "Let the organizing conflict peak, then bring in Padarana as the calming observer.",
+    promptPackCopyText:
+      "Muci watches the old handbook float between Nia and Padaruna. Keep Padarana upright soft pointed and closed-eye, not Snacri-like right lean. Muci must stay broad and rounded.",
+    referenceNotesCopyText:
+      "Use Muci, Nia, Padaruna, and Padarana model sheets. Do not borrow Snacri-like head drift for any active character.",
+    globalGptImage2Notes:
+      "Muci stays rounded and broad. Avoid Snacri-like drift when several teardrop characters share a page.",
+    panels: [
+      {
+        pageNumber: 6,
+        panelNumber: 1,
+        panelTitle: "Handbook Conflict",
+        storyBeat: "Nia and Padaruna disagree while Muci studies the floating handbook.",
+        promptText:
+          "Muci stays short, broad, rounded, browless, and reader-left leaning while Nia remains tall and sharp.",
+        dialogueLines: [{ speaker: "Muci", text: "The handbook is making this worse." }]
+      },
+      {
+        pageNumber: 6,
+        panelNumber: 2,
+        panelTitle: "Route Tension",
+        storyBeat: "Padaruna reacts as the old handbook opens by telekinesis.",
+        promptText:
+          "Padaruna keeps a sharp upright centered head and chubby lower body; Muci stays rounded.",
+        dialogueLines: [{ speaker: "Padaruna", text: "Then why does it feel so bossy?" }]
+      },
+      {
+        pageNumber: 6,
+        panelNumber: 3,
+        panelTitle: "Calming Observer",
+        storyBeat: "Padarana enters as a calm observer while Muci looks relieved.",
+        promptText: "Padarana keeps an upright soft pointed head and closed smiling eyes.",
+        dialogueLines: [{ speaker: "Padarana", text: "Maybe it was written for fear." }]
+      }
+    ],
+    requiredUploads: [],
+    referenceImages: [
+      referenceImage({
+        label: "Muci Model Sheet",
+        slug: "muci",
+        bucket: "CHARACTER",
+        relativePath: "comic/characters/muci/refs/model-sheet.jpg"
+      }),
+      referenceImage({
+        label: "Nia Model Sheet",
+        slug: "nia",
+        bucket: "CHARACTER",
+        relativePath: "comic/characters/nia/refs/model-sheet.jpg"
+      }),
+      referenceImage({
+        label: "Padaruna Model Sheet",
+        slug: "padaruna",
+        bucket: "CHARACTER",
+        relativePath: "comic/characters/padaruna/refs/model-sheet.jpg"
+      }),
+      referenceImage({
+        label: "Padarana Model Sheet",
+        slug: "padarana",
+        bucket: "CHARACTER",
+        relativePath: "comic/characters/padarana/refs/model-sheet.jpg"
+      }),
+      referenceImage({
+        label: "Active Teardrop Character Comparison",
+        slug: "active-teardrop-character-comparison",
+        bucket: "CAST_COMPARISON",
+        relativePath:
+          "comic/scenes/similar-character-comparison-active-cast/refs/active-teardrop-character-comparison.jpg",
+        source: "auto-detected"
+      })
+    ],
+    characterLocks: [
+      {
+        slug: "muci",
+        name: "Muci",
+        role: "Audience surrogate.",
+        appearance:
+          "Broad squat model-sheet droplet with a natural rounded top point. Never become a sharp Nia point or Snacri-like right lean.",
+        personality: "Curious.",
+        speechGuide: "Plainspoken.",
+        referenceNotes:
+          "Use refs/model-sheet.jpg. If Muci reads pointed or tall, redraw him shorter and rounder.",
+        profileMarkdown: "# Muci",
+        referenceFiles: []
+      },
+      {
+        slug: "nia",
+        name: "Nia",
+        role: "Top student.",
+        appearance: "Tall sharp pointed teardrop with one angled left brow.",
+        personality: "Precise.",
+        speechGuide: "Concise.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Nia",
+        referenceFiles: []
+      },
+      {
+        slug: "padaruna",
+        name: "Padaruna",
+        role: "Trend magnet.",
+        appearance:
+          "Very sharp upright centered point above a cute plump chubby pear-bottom body.",
+        personality: "Energetic.",
+        speechGuide: "Fast.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Padaruna",
+        referenceFiles: []
+      },
+      {
+        slug: "padarana",
+        name: "Padarana",
+        role: "Emotional anchor.",
+        appearance: "Upright soft pointed head, slimmer gentle body, closed smiling eyes.",
+        personality: "Gentle.",
+        speechGuide: "Warm.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Padarana",
+        referenceFiles: []
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /Active character model-sheet reminders/);
+  assert.match(prompt, /Muci: match the Muci model sheet/);
+  assert.match(prompt, /Nia: match the Nia model sheet/);
+  assert.match(prompt, /Padaruna: match the Padaruna model sheet/);
+  assert.match(prompt, /Padarana: match the Padarana model sheet/);
+  assert.match(prompt, /Active teardrop reference reminder/);
+  assert.doesNotMatch(prompt, /Snacri-like|high-risk|anti-sharp|Padaruna-style pointed head|Padarana-style pointed head/);
   assert.doesNotMatch(prompt, /Snacri/);
 });
 
@@ -662,12 +792,11 @@ test("comic page image prompt protects Padaruna from becoming Nia-shaped", () =>
     generationAttempt: 1
   });
 
-  assert.match(prompt, /Padaruna\/Nia high-risk body-shape separation/);
-  assert.match(prompt, /Nia stays taller, narrower, more vertical/);
-  assert.match(prompt, /Padaruna keeps a very sharp upright centered head/);
-  assert.match(prompt, /wide rounded lower belly, pear-bottom mass, soft broad base/);
-  assert.match(prompt, /not a tall narrow Nia-shaped droplet/);
-  assert.match(prompt, /If Padaruna's sides become straight/);
+  assert.match(prompt, /Active character model-sheet reminders/);
+  assert.match(prompt, /Nia: match the Nia model sheet/);
+  assert.match(prompt, /Padaruna: match the Padaruna model sheet/);
+  assert.match(prompt, /Active teardrop reference reminder/);
+  assert.doesNotMatch(prompt, /high-risk|Nia-shaped|If Padaruna/);
 });
 
 test("comic page image prompt locks Artrans to Muci height tier", () => {
@@ -843,18 +972,12 @@ test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes"
     generationAttempt: 1
   });
 
-  assert.match(prompt, /Padaruna anti-Muci identity lock/);
-  assert.match(prompt, /Muci\/Padaruna high-risk size separation/);
-  assert.match(prompt, /very sharp upright centered pointed head/);
-  assert.match(prompt, /plump\/chubby full rounded/);
-  assert.match(prompt, /no side nubs or arm-like protrusions/);
-  assert.match(prompt, /no eyebrows or brow marks/);
-  assert.match(prompt, /about 1\.1x Muci's overall size/);
-  assert.match(prompt, /not skinny, narrow, tall-stretched, or delicate/);
-  assert.match(prompt, /Muci's squat soft protagonist droplet/);
-  assert.match(prompt, /Professor Cera Lin six-sided hexagon shape lock/);
-  assert.match(prompt, /exactly six exterior sides and six rounded corners/);
-  assert.match(prompt, /not any star shape/);
+  assert.match(prompt, /Active character model-sheet reminders/);
+  assert.match(prompt, /Muci: match the Muci model sheet/);
+  assert.match(prompt, /Padaruna: match the Padaruna model sheet/);
+  assert.match(prompt, /Professor Cera Lin: match the Professor Cera Lin model sheet/);
+  assert.match(prompt, /Character height reference lock/);
+  assert.doesNotMatch(prompt, /anti-Muci|high-risk|six-sided hexagon shape lock|not any star shape/);
 });
 
 test("comic page image prompt normalizes legacy Professor Cera Lin pentagonal wording", () => {
@@ -925,8 +1048,8 @@ test("comic page image prompt normalizes legacy Professor Cera Lin pentagonal wo
   assert.doesNotMatch(prompt, /pointed pentagonal silhouette/i);
   assert.doesNotMatch(prompt, /precise pentagonal professor silhouette/i);
   assert.match(prompt, /Professor Cera Lin rounded six-sided hexagon/);
-  assert.match(prompt, /one rounded central top peak/);
-  assert.match(prompt, /flat-topped stop-sign\/octagon/);
+  assert.match(prompt, /Professor Cera Lin: match the Professor Cera Lin model sheet/);
+  assert.doesNotMatch(prompt, /flat-topped stop-sign\/octagon/);
 });
 
 test("comic page image reference selection keeps similar teardrop comparison during retries", () => {
