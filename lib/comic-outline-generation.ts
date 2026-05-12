@@ -15,6 +15,7 @@ import {
   type ComicGeneratedOutlineSnapshot,
   type ComicOutlineSnapshotLevel
 } from "@/lib/comic-outline-snapshots";
+import { normalizeGeneratedOutlineTitle } from "@/lib/comic-outline-title";
 import { prisma } from "@/lib/db";
 
 export type ComicOutlineTaskType =
@@ -118,22 +119,6 @@ function toGeneratedOutlineSnapshot(input: {
     storedSummary: toStoredBilingualSummary(input.result),
     storedOutline: toStoredBilingualOutline(input.result)
   });
-}
-
-function normalizeGeneratedOutlineTitle(input: {
-  generatedTitle?: string | null;
-  fallbackTitle: string;
-  numberLabel?: string | null;
-}) {
-  const generatedTitle = (input.generatedTitle || "").trim();
-  const fallbackTitle = input.fallbackTitle.trim();
-  const numberLabel = (input.numberLabel || "").trim();
-  const withoutNumberLabel =
-    numberLabel && generatedTitle
-      ? generatedTitle.replace(new RegExp(`^${numberLabel}\\s*[-:]\\s*`, "i"), "").trim()
-      : generatedTitle;
-
-  return withoutNumberLabel || fallbackTitle;
 }
 
 function toChildContext(input: {

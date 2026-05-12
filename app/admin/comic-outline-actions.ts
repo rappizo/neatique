@@ -8,6 +8,7 @@ import {
 } from "@/lib/comic-bilingual-outline";
 import { prisma } from "@/lib/db";
 import { toComicCharacterChineseNameLocks } from "@/lib/comic-character-chinese-names";
+import { normalizeGeneratedOutlineTitle } from "@/lib/comic-outline-title";
 import { toPlainString } from "@/lib/utils";
 import {
   buildComicRedirect,
@@ -680,9 +681,16 @@ export async function generateComicEpisodeOutlineAction(formData: FormData) {
       visualStyleGuide: episode.chapter.season.project.visualStyleGuide
     });
 
+    const nextTitle = normalizeGeneratedOutlineTitle({
+      generatedTitle: result.title,
+      fallbackTitle: episode.title,
+      numberLabel: toNumberLabel("Episode", episode.episodeNumber)
+    });
+
     await prisma.comicEpisode.update({
       where: { id: episode.id },
       data: {
+        title: nextTitle,
         summary: toStoredBilingualSummary(result),
         outline: toStoredBilingualOutline(result)
       }
@@ -961,16 +969,28 @@ export async function generateComicEpisodeOutlinesAction(formData: FormData) {
       visualStyleGuide: chapter.season.project.visualStyleGuide
     });
 
+    const episodeById = new Map(chapter.episodes.map((episode) => [episode.id, episode]));
+
     await prisma.$transaction(
-      outlines.map((outline) =>
-        prisma.comicEpisode.update({
+      outlines.map((outline) => {
+        const episode = episodeById.get(outline.id);
+        const nextTitle = episode
+          ? normalizeGeneratedOutlineTitle({
+              generatedTitle: outline.title,
+              fallbackTitle: episode.title,
+              numberLabel: toNumberLabel("Episode", episode.episodeNumber)
+            })
+          : outline.title || "";
+
+        return prisma.comicEpisode.update({
           where: { id: outline.id },
           data: {
+            title: nextTitle,
             summary: toStoredBilingualSummary(outline),
             outline: toStoredBilingualOutline(outline)
           }
-        })
-      )
+        });
+      })
     );
   } catch {
     status = "outline-failed";
