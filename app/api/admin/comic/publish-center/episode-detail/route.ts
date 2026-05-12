@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
-import { getComicPublishEpisodeDetail } from "@/lib/comic-queries";
+import {
+  getComicCharacters,
+  getComicPublishEpisodeDetail,
+  getComicScenes
+} from "@/lib/comic-queries";
 import {
   getComicPromptHealthSummary,
   type ComicPromptPageHealth
@@ -8,7 +12,16 @@ import {
 import { getNeglectedComicPromptQaFindingKeys } from "@/lib/comic-prompt-health-neglect";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { getComicExtraPromptPages } from "@/lib/comic-extra-pages";
-import { resolveComicPageReferenceImages } from "@/lib/comic-reference-images";
+import {
+  createComicResolvedReferenceImage,
+  resolveComicPageReferenceImages
+} from "@/lib/comic-reference-images";
+import {
+  getComicCharacterReferenceFiles,
+  getComicReferenceChapterEntries,
+  getComicReferenceSceneSlugs,
+  getComicSceneReferenceFiles
+} from "@/lib/comic-reference-manifest";
 import {
   loadComicProductLockPromptContexts,
   resolveComicProductLockReferenceImages
@@ -27,6 +40,139 @@ import type {
 export const runtime = "nodejs";
 
 type PromptPage = NonNullable<ReturnType<typeof parseComicPromptOutput>>["pages"][number];
+type ReferenceLibraryGroup = "characters" | "scenes" | "extraReferences" | "productLocks";
+
+function isDefined<T>(value: T | null | undefined): value is T {
+  return Boolean(value);
+}
+
+function attachLibraryMetadata<T extends object>(
+  reference: T,
+  group: ReferenceLibraryGroup,
+  ownerLabel: string
+) {
+  return {
+    ...reference,
+    libraryGroup: group,
+    ownerLabel
+  };
+}
+
+function getExtraReferenceBucket(slug: string): "CAST_COMPARISON" | "CHAPTER_SCENE" {
+  return /comparison|height|active-cast/i.test(slug) ? "CAST_COMPARISON" : "CHAPTER_SCENE";
+}
+
+function uniqueReferenceOptions<T extends { relativePath: string; imageUrl: string }>(
+  references: T[]
+) {
+  const byKey = new Map<string, T>();
+
+  for (const reference of references) {
+    const key = reference.relativePath || reference.imageUrl;
+    if (!byKey.has(key)) {
+      byKey.set(key, reference);
+    }
+  }
+
+  return Array.from(byKey.values());
+}
+
+async function getReferenceLibrary() {
+  const [characters, scenes, productLocks] = await Promise.all([
+    getComicCharacters(),
+    getComicScenes(),
+    loadComicProductLockPromptContexts("", { fallbackToAll: true })
+  ]);
+  const sceneSlugs = new Set(scenes.map((scene) => scene.slug));
+  const charactersOptions = characters
+    .filter((character) => character.active)
+    .flatMap((character) =>
+      getComicCharacterReferenceFiles(character.slug)
+        .map((record) =>
+          createComicResolvedReferenceImage({
+            bucket: "CHARACTER",
+            slug: character.slug,
+            record,
+            label:
+              record.label.toLowerCase() === "model sheet"
+                ? `${character.name} model sheet`
+                : `${character.name} - ${record.label}`,
+            whyThisMatters: `${character.name} was manually selected as a direct character reference.`,
+            contentSummary: `${character.name} ${record.label} reference.`
+          })
+        )
+        .filter(isDefined)
+        .map((reference) =>
+          attachLibraryMetadata(reference, "characters", character.name)
+        )
+    );
+  const sceneOptions = scenes
+    .filter((scene) => scene.active)
+    .flatMap((scene) =>
+      getComicSceneReferenceFiles(scene.slug)
+        .map((record) =>
+          createComicResolvedReferenceImage({
+            bucket: "SCENE",
+            slug: scene.slug,
+            record,
+            label: `${scene.name} - ${record.label}`,
+            whyThisMatters: `${scene.name} was manually selected as a direct scene reference.`,
+            contentSummary: `${scene.name} ${record.label} reference.`
+          })
+        )
+        .filter(isDefined)
+        .map((reference) => attachLibraryMetadata(reference, "scenes", scene.name))
+    );
+  const extraSceneOptions = getComicReferenceSceneSlugs()
+    .filter((slug) => !sceneSlugs.has(slug))
+    .flatMap((slug) =>
+      getComicSceneReferenceFiles(slug)
+        .map((record) =>
+          createComicResolvedReferenceImage({
+            bucket: getExtraReferenceBucket(slug),
+            slug,
+            record,
+            label: record.label,
+            whyThisMatters: `${record.label} was manually selected as a production reference.`,
+            contentSummary: `${record.label} extra production reference.`
+          })
+        )
+        .filter(isDefined)
+        .map((reference) => attachLibraryMetadata(reference, "extraReferences", "Extra References"))
+    );
+  const chapterExtraOptions = getComicReferenceChapterEntries().flatMap((entry) =>
+    entry.references
+      .map((record) =>
+        createComicResolvedReferenceImage({
+          bucket: "CHAPTER_SCENE",
+          slug:
+            record.fileName
+              .replace(/\.[a-z0-9]+$/i, "")
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, "") || entry.key.replace(/[^a-z0-9]+/gi, "-"),
+          record,
+          label: record.label,
+          whyThisMatters: `${record.label} was manually selected as a chapter reference.`,
+          contentSummary: `${record.label} chapter reference.`
+        })
+      )
+      .filter(isDefined)
+      .map((reference) =>
+        attachLibraryMetadata(reference, "extraReferences", entry.key)
+      )
+  );
+  const productLockOptions = resolveComicProductLockReferenceImages(productLocks).map((reference) =>
+    attachLibraryMetadata(reference, "productLocks", "Product Locks")
+  );
+
+  return {
+    characters: charactersOptions,
+    scenes: sceneOptions,
+    extraReferences: uniqueReferenceOptions([...extraSceneOptions, ...chapterExtraOptions]),
+    productLocks: productLockOptions
+  };
+}
 
 async function resolveReferenceImagesForPrompt(input: {
   requiredUploads: PromptPage["requiredUploads"];
@@ -238,12 +384,16 @@ export async function GET(request: Request) {
     );
   }
 
-  const detail = await getEpisodePromptPages(episode);
+  const [detail, referenceLibrary] = await Promise.all([
+    getEpisodePromptPages(episode),
+    getReferenceLibrary()
+  ]);
 
   return NextResponse.json({
     ok: true,
     episodeId: episode.id,
     latestImageGenerationError: episode.latestImageGenerationError,
+    referenceLibrary,
     ...detail
   });
 }

@@ -283,6 +283,10 @@ export async function generateComicPageImageAction(formData: FormData) {
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const pageNumber = toInt(formData.get("pageNumber"), 0);
+  const referenceImagesValue = toPlainString(formData.get("referenceImages"));
+  const referenceImages = referenceImagesValue
+    ? safeParseArray(referenceImagesValue)
+    : undefined;
   const redirectTo =
     toPlainString(formData.get("redirectTo")) || "/admin/comic/publish-center";
 
@@ -297,7 +301,11 @@ export async function generateComicPageImageAction(formData: FormData) {
   let nextStatus = "page-image-generated";
 
   try {
-    const result = await generateComicPageImageForEpisode({ episodeId, pageNumber });
+    const result = await generateComicPageImageForEpisode({
+      episodeId,
+      pageNumber,
+      referenceImages
+    });
     nextStatus = result.status;
   } catch (error) {
     if (error instanceof ComicPageImageGenerationInputError) {
@@ -308,6 +316,16 @@ export async function generateComicPageImageAction(formData: FormData) {
   }
 
   redirect(buildComicRedirect(redirectTo, nextStatus));
+}
+
+function safeParseArray(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+
+    return Array.isArray(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function safeParseRecord(value: string) {

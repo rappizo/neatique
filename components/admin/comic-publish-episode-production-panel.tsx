@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import {
   ComicChinesePageVersionQueueButton,
   ComicEditImageQueueForm,
@@ -82,6 +82,15 @@ type SerializedComicReferenceImage = {
   whyThisMatters: string;
   contentSummary: string;
   source: string;
+  libraryGroup?: string;
+  ownerLabel?: string;
+};
+
+type SerializedComicReferenceLibrary = {
+  characters: SerializedComicReferenceImage[];
+  scenes: SerializedComicReferenceImage[];
+  extraReferences: SerializedComicReferenceImage[];
+  productLocks: SerializedComicReferenceImage[];
 };
 
 type SerializedPromptPage = {
@@ -147,6 +156,7 @@ type ComicEpisodeProductionExtraPage = {
 type ComicEpisodeProductionDetail = {
   ok: true;
   episodeId: string;
+  referenceLibrary: SerializedComicReferenceLibrary;
   parsedPromptOutput: unknown | null;
   promptHealth: {
     totalPages: number;
@@ -214,6 +224,87 @@ function getUploadNames(page: SerializedPromptPage | null) {
   return Array.from(
     new Set(page.requiredUploads.flatMap((upload) => upload.uploadImageNames).filter(Boolean))
   );
+}
+
+const REFERENCE_LIBRARY_GROUPS: Array<{
+  key: keyof SerializedComicReferenceLibrary;
+  label: string;
+}> = [
+  { key: "characters", label: "Characters" },
+  { key: "scenes", label: "Scenes" },
+  { key: "extraReferences", label: "Scenes / Extra References" },
+  { key: "productLocks", label: "Product Locks" }
+];
+
+function getPageReferenceSlotKey(pageNumber: number) {
+  return `page:${pageNumber}`;
+}
+
+function getExtraPageReferenceSlotKey(extraPageKey: string) {
+  return `extra:${extraPageKey}`;
+}
+
+function getReferenceSelectionStorageKey(episodeId: string, slotKey: string) {
+  return `neatique:comic-reference-selection:${episodeId}:${slotKey}`;
+}
+
+function getReferenceIdentity(reference: SerializedComicReferenceImage) {
+  return [
+    reference.bucket,
+    reference.slug,
+    reference.relativePath || reference.imageUrl,
+    reference.fileName
+  ].join(":");
+}
+
+function isSerializedReferenceImage(value: unknown): value is SerializedComicReferenceImage {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const reference = value as Partial<SerializedComicReferenceImage>;
+  return (
+    typeof reference.bucket === "string" &&
+    typeof reference.label === "string" &&
+    typeof reference.slug === "string" &&
+    typeof reference.fileName === "string" &&
+    typeof reference.relativePath === "string" &&
+    typeof reference.imageUrl === "string"
+  );
+}
+
+function readStoredReferenceSelection(episodeId: string, slotKey: string) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(getReferenceSelectionStorageKey(episodeId, slotKey));
+    const parsed = stored ? JSON.parse(stored) : null;
+
+    return Array.isArray(parsed) ? parsed.filter(isSerializedReferenceImage) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredReferenceSelection(
+  episodeId: string,
+  slotKey: string,
+  referenceImages: SerializedComicReferenceImage[] | null
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const storageKey = getReferenceSelectionStorageKey(episodeId, slotKey);
+
+  if (referenceImages === null) {
+    window.localStorage.removeItem(storageKey);
+    return;
+  }
+
+  window.localStorage.setItem(storageKey, JSON.stringify(referenceImages));
 }
 
 async function runRejectAssetMutation(assetId: string) {
@@ -408,15 +499,225 @@ function PromptHealthFindingList({
   );
 }
 
+function ComicReferenceImageSelector({
+  referenceImages,
+  autoReferenceImages,
+  referenceLibrary,
+  isOverridden,
+  emptyMessage,
+  onChange,
+  onReset
+}: {
+  referenceImages: SerializedComicReferenceImage[];
+  autoReferenceImages: SerializedComicReferenceImage[];
+  referenceLibrary: SerializedComicReferenceLibrary;
+  isOverridden: boolean;
+  emptyMessage: string;
+  onChange: (referenceImages: SerializedComicReferenceImage[]) => void;
+  onReset: () => void;
+}) {
+  const availableGroups = useMemo(
+    () => REFERENCE_LIBRARY_GROUPS.filter((group) => referenceLibrary[group.key]?.length > 0),
+    [referenceLibrary]
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<keyof SerializedComicReferenceLibrary>(
+    availableGroups[0]?.key || "characters"
+  );
+  const selectedKeys = useMemo(
+    () => new Set(referenceImages.map(getReferenceIdentity)),
+    [referenceImages]
+  );
+  const activeOptions = referenceLibrary[activeGroup] || [];
+  const activeGroupLabel =
+    REFERENCE_LIBRARY_GROUPS.find((group) => group.key === activeGroup)?.label || "References";
+
+  useEffect(() => {
+    if (availableGroups.length === 0) {
+      return;
+    }
+
+    if (!availableGroups.some((group) => group.key === activeGroup)) {
+      setActiveGroup(availableGroups[0].key);
+    }
+  }, [activeGroup, availableGroups]);
+
+  function removeReference(reference: SerializedComicReferenceImage) {
+    const removeKey = getReferenceIdentity(reference);
+    onChange(referenceImages.filter((candidate) => getReferenceIdentity(candidate) !== removeKey));
+  }
+
+  function addReference(reference: SerializedComicReferenceImage) {
+    const addKey = getReferenceIdentity(reference);
+
+    if (selectedKeys.has(addKey)) {
+      return;
+    }
+
+    onChange([
+      ...referenceImages,
+      {
+        ...reference,
+        source: "manual-selection"
+      }
+    ]);
+  }
+
+  return (
+    <div className="admin-comic-reference-preview">
+      <div className="admin-comic-reference-preview__header">
+        <div>
+          <strong>Reference images sent to image API</strong>
+          {isOverridden ? <span className="pill">Manual</span> : null}
+        </div>
+        <div className="stack-row">
+          <span className="form-note">
+            {referenceImages.length > 0
+              ? `${referenceImages.length} image${referenceImages.length === 1 ? "" : "s"}`
+              : "No direct image references selected"}
+          </span>
+          {isOverridden ? (
+            <button type="button" className="button button--ghost button--compact" onClick={onReset}>
+              Reset auto
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="admin-comic-reference-grid">
+        {referenceImages.map((reference) => (
+          <div
+            key={getReferenceIdentity(reference)}
+            className="admin-comic-reference-card-wrap"
+          >
+            <a
+              href={reference.imageUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="admin-comic-reference-card"
+            >
+              <Image
+                src={reference.imageUrl}
+                alt={reference.label}
+                width={120}
+                height={120}
+                unoptimized
+              />
+              <span>{reference.label}</span>
+              <small>{reference.fileName}</small>
+            </a>
+            <button
+              type="button"
+              className="admin-comic-reference-remove"
+              aria-label={`Remove ${reference.label}`}
+              onClick={() => removeReference(reference)}
+            >
+              -
+            </button>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          className="admin-comic-reference-add-card"
+          onClick={() => setPickerOpen((open) => !open)}
+          aria-expanded={pickerOpen}
+        >
+          <span>+</span>
+          <small>Add reference</small>
+        </button>
+      </div>
+
+      {referenceImages.length === 0 ? <p className="form-note">{emptyMessage}</p> : null}
+
+      {pickerOpen ? (
+        <div className="admin-comic-reference-picker">
+          <div className="admin-comic-reference-picker__header">
+            <strong>Add reference image</strong>
+            <button
+              type="button"
+              className="button button--ghost button--compact"
+              onClick={() => setPickerOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+          <div className="admin-comic-reference-picker__tabs">
+            {availableGroups.map((group) => (
+              <button
+                key={group.key}
+                type="button"
+                className={
+                  group.key === activeGroup
+                    ? "admin-comic-reference-picker__tab is-active"
+                    : "admin-comic-reference-picker__tab"
+                }
+                onClick={() => setActiveGroup(group.key)}
+              >
+                {group.label}
+              </button>
+            ))}
+          </div>
+          <div className="admin-comic-reference-picker__list" aria-label={activeGroupLabel}>
+            {activeOptions.map((reference) => {
+              const referenceKey = getReferenceIdentity(reference);
+              const selected = selectedKeys.has(referenceKey);
+
+              return (
+                <button
+                  key={referenceKey}
+                  type="button"
+                  className="admin-comic-reference-option"
+                  disabled={selected}
+                  onClick={() => addReference(reference)}
+                >
+                  <Image
+                    src={reference.imageUrl}
+                    alt={reference.label}
+                    width={72}
+                    height={72}
+                    unoptimized
+                  />
+                  <span>
+                    <strong>{reference.label}</strong>
+                    <small>{reference.ownerLabel || reference.fileName}</small>
+                  </span>
+                  <em>{selected ? "Added" : "+"}</em>
+                </button>
+              );
+            })}
+          </div>
+          {autoReferenceImages.length > 0 ? (
+            <p className="form-note">
+              Auto originally resolved {autoReferenceImages.length} reference
+              {autoReferenceImages.length === 1 ? "" : "s"} for this page.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ComicExtraPageProductionSlot({
   episodeId,
   extraPage,
   redirectTo,
+  referenceImages,
+  referenceLibrary,
+  isReferenceOverridden,
+  onReferenceChange,
+  onReferenceReset,
   onRejectAsset
 }: {
   episodeId: string;
   extraPage: ComicEpisodeProductionExtraPage;
   redirectTo: string;
+  referenceImages: SerializedComicReferenceImage[];
+  referenceLibrary: SerializedComicReferenceLibrary;
+  isReferenceOverridden: boolean;
+  onReferenceChange: (referenceImages: SerializedComicReferenceImage[]) => void;
+  onReferenceReset: () => void;
   onRejectAsset: (assetId: string) => Promise<void>;
 }) {
   const uploadNames = getUploadNames(extraPage.promptPage);
@@ -449,48 +750,19 @@ function ComicExtraPageProductionSlot({
       <div className="stack-row">
         <span className="pill">{extraPage.promptPage.panelCount} panels</span>
         <span className="pill">{extraPage.assets.length} image candidates</span>
-        <span className="pill">{extraPage.referenceImages.length} direct refs</span>
+        <span className="pill">{referenceImages.length} direct refs</span>
         <span className="pill">Does not count as Page 01</span>
       </div>
 
-      <div className="admin-comic-reference-preview">
-        <div className="admin-comic-reference-preview__header">
-          <strong>Reference images sent to image API</strong>
-          <span className="form-note">
-            {extraPage.referenceImages.length > 0
-              ? `${extraPage.referenceImages.length} image${extraPage.referenceImages.length === 1 ? "" : "s"}`
-              : "No direct image references resolved"}
-          </span>
-        </div>
-        {extraPage.referenceImages.length > 0 ? (
-          <div className="admin-comic-reference-grid">
-            {extraPage.referenceImages.map((reference) => (
-              <a
-                key={`${episodeId}-${extraPage.extraPageKey}-${reference.relativePath}`}
-                href={reference.imageUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="admin-comic-reference-card"
-              >
-                <Image
-                  src={reference.imageUrl}
-                  alt={reference.label}
-                  width={120}
-                  height={120}
-                  unoptimized
-                />
-                <span>{reference.label}</span>
-                <small>{reference.fileName}</small>
-              </a>
-            ))}
-          </div>
-        ) : (
-          <p className="form-note">
-            This insert will fall back to text-only generation unless the prompt mentions a known
-            character or required upload path.
-          </p>
-        )}
-      </div>
+      <ComicReferenceImageSelector
+        referenceImages={referenceImages}
+        autoReferenceImages={extraPage.referenceImages}
+        referenceLibrary={referenceLibrary}
+        isOverridden={isReferenceOverridden}
+        emptyMessage="This insert will fall back to text-only generation unless you add a reference image."
+        onChange={onReferenceChange}
+        onReset={onReferenceReset}
+      />
 
       <details className="admin-comic-publish-details">
         <summary className="admin-details-summary">Open insert prompt</summary>
@@ -597,6 +869,7 @@ function ComicExtraPageProductionSlot({
           episodeId={episodeId}
           extraPageKey={extraPage.extraPageKey}
           anchorPageNumber={extraPage.anchorPageNumber}
+          referenceImages={referenceImages}
         />
         <ComicReviseExtraPagePromptQueueForm
           episodeId={episodeId}
@@ -620,6 +893,9 @@ export function ComicPublishEpisodeProductionPanel({
   const episodeStatus = useComicPublishEpisodeStatus();
   const [detail, setDetail] = useState<ComicEpisodeProductionDetail | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [referenceSelectionOverrides, setReferenceSelectionOverrides] = useState<
+    Record<string, SerializedComicReferenceImage[]>
+  >({});
   const redirectTo = useMemo(
     () => redirectToOverride || buildRedirectTo(chapterId, episodeId),
     [chapterId, episodeId, redirectToOverride]
@@ -697,6 +973,61 @@ export function ComicPublishEpisodeProductionPanel({
     };
   }, [episodeId, episodeDetailRefreshKey]);
 
+  useEffect(() => {
+    if (!detail) {
+      return;
+    }
+
+    setReferenceSelectionOverrides((currentOverrides) => {
+      const nextOverrides = { ...currentOverrides };
+      let changed = false;
+      const slotKeys = [
+        ...detail.pages.map((page) => getPageReferenceSlotKey(page.pageNumber)),
+        ...detail.extraPages.map((extraPage) =>
+          getExtraPageReferenceSlotKey(extraPage.extraPageKey)
+        )
+      ];
+
+      for (const slotKey of slotKeys) {
+        if (Object.prototype.hasOwnProperty.call(nextOverrides, slotKey)) {
+          continue;
+        }
+
+        const storedReferences = readStoredReferenceSelection(episodeId, slotKey);
+
+        if (storedReferences) {
+          nextOverrides[slotKey] = storedReferences;
+          changed = true;
+        }
+      }
+
+      return changed ? nextOverrides : currentOverrides;
+    });
+  }, [detail, episodeId]);
+
+  const updateReferenceSelection = useCallback(
+    (slotKey: string, referenceImages: SerializedComicReferenceImage[]) => {
+      setReferenceSelectionOverrides((currentOverrides) => ({
+        ...currentOverrides,
+        [slotKey]: referenceImages
+      }));
+      writeStoredReferenceSelection(episodeId, slotKey, referenceImages);
+    },
+    [episodeId]
+  );
+
+  const resetReferenceSelection = useCallback(
+    (slotKey: string) => {
+      setReferenceSelectionOverrides((currentOverrides) => {
+        const nextOverrides = { ...currentOverrides };
+        delete nextOverrides[slotKey];
+        return nextOverrides;
+      });
+      writeStoredReferenceSelection(episodeId, slotKey, null);
+    },
+    [episodeId]
+  );
+
   async function handleRejectAsset(assetId: string) {
     const result = await runRejectAssetMutation(assetId);
 
@@ -741,6 +1072,13 @@ export function ComicPublishEpisodeProductionPanel({
       pageNumber: page.pageNumber
     }))
     .filter((page) => page.sourceAssetId);
+  const selectedReferenceImagesByPageNumber: Record<number, SerializedComicReferenceImage[]> = {};
+
+  for (const page of detail.pages) {
+    const slotKey = getPageReferenceSlotKey(page.pageNumber);
+    selectedReferenceImagesByPageNumber[page.pageNumber] =
+      referenceSelectionOverrides[slotKey] ?? page.referenceImages;
+  }
 
   return (
     <>
@@ -764,6 +1102,7 @@ export function ComicPublishEpisodeProductionPanel({
               pageNumbers={detail.pages
                 .filter((page) => page.promptPage)
                 .map((page) => page.pageNumber)}
+              referenceImagesByPage={selectedReferenceImagesByPageNumber}
               idleLabel="Generate all page drafts"
             />
           ) : null}
@@ -797,6 +1136,13 @@ export function ComicPublishEpisodeProductionPanel({
           const anchoredExtraPages = detail.extraPages.filter(
             (extraPage) => extraPage.anchorPageNumber === page.pageNumber
           );
+          const referenceSlotKey = getPageReferenceSlotKey(page.pageNumber);
+          const isReferenceOverridden = Object.prototype.hasOwnProperty.call(
+            referenceSelectionOverrides,
+            referenceSlotKey
+          );
+          const selectedReferenceImages =
+            referenceSelectionOverrides[referenceSlotKey] ?? page.referenceImages;
 
           return (
             <div key={`${episodeId}-${page.pageNumber}`} className="admin-comic-page-section">
@@ -821,7 +1167,7 @@ export function ComicPublishEpisodeProductionPanel({
               <div className="stack-row">
                 <span className="pill">{page.promptPage?.panelCount || 0} panels</span>
                 <span className="pill">{page.assets.length} image candidates</span>
-                <span className="pill">{page.referenceImages.length} direct refs</span>
+                <span className="pill">{selectedReferenceImages.length} direct refs</span>
                 {pageHealth ? (
                   <span
                     className={
@@ -858,44 +1204,17 @@ export function ComicPublishEpisodeProductionPanel({
               ) : null}
 
               {page.promptPage ? (
-                <div className="admin-comic-reference-preview">
-                  <div className="admin-comic-reference-preview__header">
-                    <strong>Reference images sent to image API</strong>
-                    <span className="form-note">
-                      {page.referenceImages.length > 0
-                        ? `${page.referenceImages.length} image${page.referenceImages.length === 1 ? "" : "s"}`
-                        : "No direct image references resolved"}
-                    </span>
-                  </div>
-                  {page.referenceImages.length > 0 ? (
-                    <div className="admin-comic-reference-grid">
-                      {page.referenceImages.map((reference) => (
-                        <a
-                          key={`${episodeId}-${page.pageNumber}-${reference.relativePath}`}
-                          href={reference.imageUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="admin-comic-reference-card"
-                        >
-                          <Image
-                            src={reference.imageUrl}
-                            alt={reference.label}
-                            width={120}
-                            height={120}
-                            unoptimized
-                          />
-                          <span>{reference.label}</span>
-                          <small>{reference.fileName}</small>
-                        </a>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="form-note">
-                      This page will fall back to text-only generation unless the prompt mentions a
-                      known character or required upload path.
-                    </p>
-                  )}
-                </div>
+                <ComicReferenceImageSelector
+                  referenceImages={selectedReferenceImages}
+                  autoReferenceImages={page.referenceImages}
+                  referenceLibrary={detail.referenceLibrary}
+                  isOverridden={isReferenceOverridden}
+                  emptyMessage="This page will fall back to text-only generation unless you add a reference image."
+                  onChange={(nextReferenceImages) =>
+                    updateReferenceSelection(referenceSlotKey, nextReferenceImages)
+                  }
+                  onReset={() => resetReferenceSelection(referenceSlotKey)}
+                />
               ) : null}
 
               {page.promptPage ? (
@@ -1143,6 +1462,7 @@ export function ComicPublishEpisodeProductionPanel({
                     episodeId={episodeId}
                     pageNumber={page.pageNumber}
                     className="button button--secondary"
+                    referenceImages={selectedReferenceImages}
                   />
                 ) : null}
 
@@ -1162,15 +1482,32 @@ export function ComicPublishEpisodeProductionPanel({
                 ) : null}
               </div>
             </ComicPublishPageArticle>
-            {anchoredExtraPages.map((extraPage) => (
-              <ComicExtraPageProductionSlot
-                key={`${episodeId}-${extraPage.extraPageKey}`}
-                episodeId={episodeId}
-                extraPage={extraPage}
-                redirectTo={redirectTo}
-                onRejectAsset={handleRejectAsset}
-              />
-            ))}
+            {anchoredExtraPages.map((extraPage) => {
+              const extraReferenceSlotKey = getExtraPageReferenceSlotKey(extraPage.extraPageKey);
+              const isExtraReferenceOverridden = Object.prototype.hasOwnProperty.call(
+                referenceSelectionOverrides,
+                extraReferenceSlotKey
+              );
+              const selectedExtraReferenceImages =
+                referenceSelectionOverrides[extraReferenceSlotKey] ?? extraPage.referenceImages;
+
+              return (
+                <ComicExtraPageProductionSlot
+                  key={`${episodeId}-${extraPage.extraPageKey}`}
+                  episodeId={episodeId}
+                  extraPage={extraPage}
+                  redirectTo={redirectTo}
+                  referenceImages={selectedExtraReferenceImages}
+                  referenceLibrary={detail.referenceLibrary}
+                  isReferenceOverridden={isExtraReferenceOverridden}
+                  onReferenceChange={(nextReferenceImages) =>
+                    updateReferenceSelection(extraReferenceSlotKey, nextReferenceImages)
+                  }
+                  onReferenceReset={() => resetReferenceSelection(extraReferenceSlotKey)}
+                  onRejectAsset={handleRejectAsset}
+                />
+              );
+            })}
             </div>
           );
         })}

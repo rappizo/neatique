@@ -1,14 +1,6 @@
 import { prisma } from "@/lib/db";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
-import {
-  loadComicReferenceImageFiles,
-  resolveComicPageReferenceImages
-} from "@/lib/comic-reference-images";
-import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
-import {
-  loadComicProductLockPromptContexts,
-  loadComicProductLockReferenceImages
-} from "@/lib/comic-product-locks";
+import { resolveComicGenerationReferenceSelection } from "@/lib/comic-generation-reference-selection";
 import { isNextRedirectError } from "@/lib/comic-action-errors";
 import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
 import { createComicTaskTimer, type ComicTaskTiming } from "@/lib/comic-task-timing";
@@ -53,6 +45,7 @@ export async function generateComicPageImageForEpisode(input: {
   episodeId: string;
   pageNumber: number;
   attempt?: number;
+  referenceImages?: unknown;
 }): Promise<ComicPageImageGenerationResult> {
   const { episodeId, pageNumber } = input;
   const attempt = Math.max(input.attempt || 1, 1);
@@ -116,43 +109,21 @@ export async function generateComicPageImageForEpisode(input: {
       .map((upload) => [upload.label, upload.slug, upload.contentSummary].join(" "))
       .join("\n")
   ].join("\n\n");
-  const resolvedReferenceImages = await timer.time("resolveReferences", () =>
-    resolveComicPageReferenceImages({
+  const referenceSelection = await timer.time("loadReferenceContexts", () =>
+    resolveComicGenerationReferenceSelection({
       requiredUploads: page.requiredUploads,
       seasonSlug: episode.chapter.season.slug,
       chapterSlug: episode.chapter.slug,
-      promptText: referenceDetectionText
+      referenceDetectionText,
+      productDetectionText: [
+        page.pagePurpose,
+        page.promptPackCopyText,
+        page.referenceNotesCopyText,
+        referenceDetectionText
+      ].join("\n"),
+      referenceImageOverrides: input.referenceImages
     })
   );
-  const [baseReferenceImages, characterLocks, productLocks] = await timer.time(
-    "loadReferenceContexts",
-    () =>
-      Promise.all([
-        loadComicReferenceImageFiles(resolvedReferenceImages),
-        loadComicCharacterIdentityLocks(
-          resolvedReferenceImages
-            .filter((reference) =>
-              ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket)
-            )
-            .map((reference) => reference.slug)
-        ),
-        loadComicProductLockPromptContexts(
-          [
-            page.pagePurpose,
-            page.promptPackCopyText,
-            page.referenceNotesCopyText,
-            referenceDetectionText
-          ].join("\n"),
-          {
-            fallbackToAll: false
-          }
-        )
-      ])
-  );
-  const productReferenceImages = await timer.time("loadProductReferences", () =>
-    loadComicProductLockReferenceImages(productLocks)
-  );
-  const referenceImages = [...baseReferenceImages, ...productReferenceImages];
   const imageInput = {
     projectTitle: episode.chapter.season.project.title,
     seasonTitle: episode.chapter.season.title,
@@ -172,9 +143,9 @@ export async function generateComicPageImageForEpisode(input: {
       dialogueLines: panel.dialogueLines || []
     })),
     requiredUploads: page.requiredUploads,
-    referenceImages,
-    characterLocks,
-    productLocks,
+    referenceImages: referenceSelection.referenceImages,
+    characterLocks: referenceSelection.characterLocks,
+    productLocks: referenceSelection.productLocks,
     generationAttempt: attempt
   };
   const inputPrompt = timer.timeSync("buildPrompt", () => buildComicPageImagePrompt(imageInput));
@@ -188,6 +159,7 @@ export async function generateComicPageImageForEpisode(input: {
       panelCount: page.panelCount,
       pagePurpose: page.pagePurpose,
       uploadImages: page.requiredUploads.flatMap((upload) => upload.uploadImageNames),
+      referenceSelectionMode: referenceSelection.mode,
       referenceImages: imageInput.referenceImages.map((reference) => ({
         label: reference.label,
         fileName: reference.fileName,

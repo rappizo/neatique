@@ -1,6 +1,5 @@
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 import { isNextRedirectError } from "@/lib/comic-action-errors";
-import { loadComicCharacterIdentityLocks } from "@/lib/comic-character-identity";
 import {
   getComicExtraPromptPage,
   upsertComicExtraPromptPage,
@@ -10,14 +9,7 @@ import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-s
 import { COMIC_EXTRA_PAGE_ASSET_TYPE, formatComicPageLabel } from "@/lib/comic-pages";
 import { createComicTaskTimer, type ComicTaskTiming } from "@/lib/comic-task-timing";
 import { prisma } from "@/lib/db";
-import {
-  loadComicReferenceImageFiles,
-  resolveComicPageReferenceImages
-} from "@/lib/comic-reference-images";
-import {
-  loadComicProductLockPromptContexts,
-  loadComicProductLockReferenceImages
-} from "@/lib/comic-product-locks";
+import { resolveComicGenerationReferenceSelection } from "@/lib/comic-generation-reference-selection";
 
 export type ComicExtraPageTaskStatus =
   | "extra-page-image-generated"
@@ -113,6 +105,7 @@ export async function generateComicExtraPageImageForEpisode(input: {
   episodeId: string;
   extraPageKey: string;
   attempt?: number;
+  referenceImages?: unknown;
 }): Promise<ComicExtraPageTaskResult> {
   const episodeId = input.episodeId.trim();
   const extraPageKey = input.extraPageKey.trim();
@@ -147,42 +140,22 @@ export async function generateComicExtraPageImageForEpisode(input: {
 
   const { buildComicPageImagePrompt, generateComicPageImageWithAi } = await import("@/lib/openai-comic");
   const referenceDetectionText = getExtraPageReferenceDetectionText(extraPage);
-  const resolvedReferenceImages = await timer.time("resolveReferences", () =>
-    resolveComicPageReferenceImages({
+  const referenceSelection = await timer.time("loadReferenceContexts", () =>
+    resolveComicGenerationReferenceSelection({
       requiredUploads: extraPage.requiredUploads,
       seasonSlug: episode.chapter.season.slug,
       chapterSlug: episode.chapter.slug,
-      promptText: referenceDetectionText
+      referenceDetectionText,
+      productDetectionText: [
+        extraPage.title,
+        extraPage.pagePurpose,
+        extraPage.promptPackCopyText,
+        extraPage.referenceNotesCopyText,
+        referenceDetectionText
+      ].join("\n"),
+      referenceImageOverrides: input.referenceImages
     })
   );
-  const [baseReferenceImages, characterLocks, productLocks] = await timer.time(
-    "loadReferenceContexts",
-    () =>
-      Promise.all([
-        loadComicReferenceImageFiles(resolvedReferenceImages),
-        loadComicCharacterIdentityLocks(
-          resolvedReferenceImages
-            .filter((reference) => ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket))
-            .map((reference) => reference.slug)
-        ),
-        loadComicProductLockPromptContexts(
-          [
-            extraPage.title,
-            extraPage.pagePurpose,
-            extraPage.promptPackCopyText,
-            extraPage.referenceNotesCopyText,
-            referenceDetectionText
-          ].join("\n"),
-          {
-            fallbackToAll: false
-          }
-        )
-      ])
-  );
-  const productReferenceImages = await timer.time("loadProductReferences", () =>
-    loadComicProductLockReferenceImages(productLocks)
-  );
-  const referenceImages = [...baseReferenceImages, ...productReferenceImages];
   const imagePageNumber = getExtraPageImagePageNumber(extraPage);
   const imageInput = {
     projectTitle: episode.chapter.season.project.title,
@@ -204,9 +177,9 @@ export async function generateComicExtraPageImageForEpisode(input: {
       dialogueLines: panel.dialogueLines || []
     })),
     requiredUploads: extraPage.requiredUploads,
-    referenceImages,
-    characterLocks,
-    productLocks,
+    referenceImages: referenceSelection.referenceImages,
+    characterLocks: referenceSelection.characterLocks,
+    productLocks: referenceSelection.productLocks,
     generationAttempt: attempt
   };
   const inputPrompt = timer.timeSync("buildPrompt", () => buildComicPageImagePrompt(imageInput));
@@ -221,6 +194,7 @@ export async function generateComicExtraPageImageForEpisode(input: {
       anchorPageNumber: extraPage.anchorPageNumber,
       panelCount: extraPage.panelCount,
       pagePurpose: extraPage.pagePurpose,
+      referenceSelectionMode: referenceSelection.mode,
       referenceImages: imageInput.referenceImages.map((reference) => ({
         label: reference.label,
         fileName: reference.fileName,

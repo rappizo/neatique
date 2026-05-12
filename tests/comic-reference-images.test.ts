@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveComicPageReferenceImages } from "../lib/comic-reference-images";
+import {
+  normalizeComicReferenceImageOverrides,
+  resolveComicPageReferenceImages
+} from "../lib/comic-reference-images";
 import {
   ACTIVE_CHARACTER_HEIGHT_CHART_REFERENCE,
   ACTIVE_TEARDROP_COMPARISON_REFERENCE,
@@ -254,4 +257,35 @@ test("comic reference resolver keeps required old student handbook when cast ref
     references.some((reference) => reference.relativePath.endsWith("Sunscreen Field Handbook.jpg")),
     false
   );
+});
+
+test("manual comic reference overrides preserve an intentionally empty selection", () => {
+  const references = normalizeComicReferenceImageOverrides([]);
+
+  assert.deepEqual(references, []);
+});
+
+test("manual comic reference overrides reject unsafe reference paths", () => {
+  const references = normalizeComicReferenceImageOverrides([
+    {
+      bucket: "CHARACTER",
+      slug: "muci",
+      label: "Unsafe",
+      fileName: "secret.jpg",
+      relativePath: "../secret.jpg",
+      imageUrl: "/secret.jpg"
+    },
+    {
+      bucket: "CHARACTER",
+      slug: "muci",
+      label: "Muci model sheet",
+      fileName: "model-sheet.jpg",
+      relativePath: "comic/characters/muci/refs/model-sheet.jpg",
+      imageUrl: "/comic-reference/comic/characters/muci/refs/model-sheet.jpg"
+    }
+  ]);
+
+  assert.equal(references?.length, 1);
+  assert.equal(references?.[0]?.relativePath, "comic/characters/muci/refs/model-sheet.jpg");
+  assert.equal(references?.[0]?.source, "manual-selection");
 });

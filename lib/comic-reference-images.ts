@@ -75,12 +75,29 @@ export type ComicResolvedReferenceImage = {
   sizeBytes: number;
   whyThisMatters: string;
   contentSummary: string;
-  source: "prompt-required-upload" | "auto-detected";
+  source: "prompt-required-upload" | "auto-detected" | "manual-selection";
 };
 
 export type ComicReferenceImageFile = ComicResolvedReferenceImage & {
   data: Uint8Array;
 };
+
+export type ComicReferenceImageOverrideInput = Partial<
+  Pick<
+    ComicResolvedReferenceImage,
+    | "bucket"
+    | "label"
+    | "slug"
+    | "fileName"
+    | "relativePath"
+    | "imageUrl"
+    | "mimeType"
+    | "sizeBytes"
+    | "whyThisMatters"
+    | "contentSummary"
+    | "source"
+  >
+>;
 
 type ResolveComicPageReferenceImagesInput = {
   requiredUploads: StoredPromptUpload[];
@@ -166,7 +183,131 @@ export function toComicReferenceMediaUrl(relativePath: string) {
   return `/comic-reference/${normalized
     .split("/")
     .map((part) => encodeURIComponent(part))
-    .join("/")}`;
+      .join("/")}`;
+}
+
+function toManualReferenceString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeManualReferenceBucket(value: unknown): ComicResolvedReferenceImage["bucket"] | null {
+  const normalized = toManualReferenceString(value).toUpperCase();
+  const buckets: ComicResolvedReferenceImage["bucket"][] = [
+    "CHARACTER",
+    "SCENE",
+    "CHAPTER_SCENE",
+    "BRAND_LOGO",
+    "DETECTED_CHARACTER",
+    "DETECTED_CHAPTER_SCENE",
+    "CAST_COMPARISON",
+    "PRODUCT_LOCK"
+  ];
+
+  return buckets.includes(normalized as ComicResolvedReferenceImage["bucket"])
+    ? (normalized as ComicResolvedReferenceImage["bucket"])
+    : null;
+}
+
+function normalizeManualReferenceSource(
+  value: unknown
+): ComicResolvedReferenceImage["source"] {
+  const normalized = toManualReferenceString(value);
+
+  return normalized === "prompt-required-upload" || normalized === "auto-detected"
+    ? normalized
+    : "manual-selection";
+}
+
+function isComicLogoReferencePath(value: string) {
+  const normalized = normalizeSlashes(value.trim());
+  return normalized === COMIC_LOGO_PUBLIC_PATH || normalized === "images/comiclogo.png";
+}
+
+function normalizeManualReferenceImage(
+  value: unknown
+): ComicResolvedReferenceImage | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const input = value as ComicReferenceImageOverrideInput;
+  const bucket = normalizeManualReferenceBucket(input.bucket);
+
+  if (!bucket) {
+    return null;
+  }
+
+  const slug = toManualReferenceString(input.slug);
+  const inputRelativePath = toManualReferenceString(input.relativePath);
+  const productLockReference = bucket === "PRODUCT_LOCK";
+  const brandLogoReference = bucket === "BRAND_LOGO" || isComicLogoReferencePath(inputRelativePath);
+  const relativePath = productLockReference
+    ? inputRelativePath || (slug ? `comic/product-locks/${slug}` : "")
+    : brandLogoReference
+      ? COMIC_LOGO_PUBLIC_PATH
+      : normalizeComicReferencePath(inputRelativePath) || "";
+
+  if (!relativePath || (!productLockReference && !brandLogoReference && !normalizeComicReferencePath(relativePath))) {
+    return null;
+  }
+
+  if (productLockReference && !slug) {
+    return null;
+  }
+
+  const fileName =
+    toManualReferenceString(input.fileName) ||
+    (productLockReference ? `${slug}.png` : getFileNameFromPath(relativePath));
+  const imageUrl = productLockReference
+    ? toManualReferenceString(input.imageUrl)
+    : brandLogoReference
+      ? COMIC_LOGO_PUBLIC_PATH
+      : toComicReferenceMediaUrl(relativePath);
+  const label = toManualReferenceString(input.label) || toDisplayLabel(fileName);
+
+  const sizeBytes =
+    typeof input.sizeBytes === "number" && Number.isFinite(input.sizeBytes)
+      ? input.sizeBytes
+      : 0;
+
+  return {
+    bucket,
+    slug,
+    label,
+    fileName,
+    relativePath,
+    imageUrl,
+    mimeType: toManualReferenceString(input.mimeType) || getMimeType(fileName),
+    sizeBytes,
+    whyThisMatters:
+      toManualReferenceString(input.whyThisMatters) ||
+      "Manually selected as a direct image reference for this page.",
+    contentSummary: toManualReferenceString(input.contentSummary) || label,
+    source: normalizeManualReferenceSource(input.source)
+  };
+}
+
+export function normalizeComicReferenceImageOverrides(value: unknown) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const byKey = new Map<string, ComicResolvedReferenceImage>();
+
+  for (const item of value.slice(0, 16)) {
+    const reference = normalizeManualReferenceImage(item);
+
+    if (!reference) {
+      continue;
+    }
+
+    const key = `${reference.bucket}:${reference.slug}:${reference.relativePath || reference.imageUrl}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, reference);
+    }
+  }
+
+  return Array.from(byKey.values());
 }
 
 function getComicReferenceBaseUrl() {
@@ -312,6 +453,36 @@ function toRecordFromPath(relativePath: string, label?: string): ComicChapterSce
     fileName,
     relativePath: normalized,
     extension: getExtension(fileName).replace(/^\./, "")
+  };
+}
+
+export function createComicResolvedReferenceImage(input: {
+  bucket: ComicResolvedReferenceImage["bucket"];
+  slug: string;
+  source?: ComicResolvedReferenceImage["source"];
+  record: ComicChapterSceneReferenceRecord;
+  label?: string;
+  whyThisMatters?: string;
+  contentSummary?: string;
+}): ComicResolvedReferenceImage | null {
+  const normalized = normalizeComicReferencePath(input.record.relativePath);
+
+  if (!normalized) {
+    return null;
+  }
+
+  return {
+    bucket: input.bucket,
+    slug: input.slug,
+    label: input.label || input.record.label,
+    fileName: input.record.fileName,
+    relativePath: normalized,
+    imageUrl: toComicReferenceMediaUrl(normalized),
+    mimeType: getMimeType(input.record.fileName),
+    sizeBytes: 0,
+    whyThisMatters: input.whyThisMatters || "Used as a direct image reference for this page.",
+    contentSummary: input.contentSummary || input.record.label,
+    source: input.source || "manual-selection"
   };
 }
 

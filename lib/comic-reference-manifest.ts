@@ -70,6 +70,22 @@ export function getComicReferenceCharacterSlugs() {
   return Object.keys(getManifest().characters).sort((left, right) => left.localeCompare(right));
 }
 
+export function getComicReferenceSceneSlugs() {
+  return Object.keys(getManifest().scenes).sort((left, right) => left.localeCompare(right));
+}
+
+export function getComicReferenceChapterEntries() {
+  const manifest = getManifest();
+
+  return Object.entries(manifest.chapters)
+    .map(([key, entry]) => ({
+      key,
+      folder: entry.folder,
+      references: sortReferenceRecords(entry.references || [])
+    }))
+    .sort((left, right) => left.key.localeCompare(right.key));
+}
+
 export function getComicChapterSceneReferenceState(seasonSlug: string, chapterSlug: string) {
   const manifest = getManifest();
   const fallbackFolder = getComicChapterSceneReferenceFolder(seasonSlug, chapterSlug);

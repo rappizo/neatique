@@ -255,6 +255,16 @@ function getReferenceImageNamesPayload(payload: ComicAiTaskPayload) {
     .join(", ");
 }
 
+function getPageReferenceImagesPayload(payload: ComicAiTaskPayload) {
+  if (!Array.isArray(payload.referenceImages)) {
+    return undefined;
+  }
+
+  return payload.referenceImages.filter(
+    (reference) => reference && typeof reference === "object" && !Array.isArray(reference)
+  );
+}
+
 function toNumberValue(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -602,13 +612,15 @@ async function executeComicAiTask(
       return generateComicPageImageForEpisode({
         episodeId: toStringValue(payload.episodeId),
         pageNumber: toNumberValue(payload.pageNumber),
-        attempt: context.attempt
+        attempt: context.attempt,
+        referenceImages: getPageReferenceImagesPayload(payload)
       });
     case "extra-page-generation":
       return generateComicExtraPageImageForEpisode({
         episodeId: toStringValue(payload.episodeId),
         extraPageKey: toStringValue(payload.extraPageKey),
-        attempt: context.attempt
+        attempt: context.attempt,
+        referenceImages: getPageReferenceImagesPayload(payload)
       });
     case "edit":
       return editComicPageImageForAsset({

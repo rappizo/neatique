@@ -72,6 +72,20 @@ type ComicImageCreationReferencePayload = {
   fileName: string;
 };
 
+type ComicReferenceImageTaskPayload = {
+  bucket: string;
+  label: string;
+  slug: string;
+  fileName: string;
+  relativePath: string;
+  imageUrl: string;
+  mimeType: string;
+  sizeBytes: number;
+  whyThisMatters: string;
+  contentSummary: string;
+  source: string;
+};
+
 type ComicImageCreationReferenceTaskInput =
   | {
       type: "creation";
@@ -112,12 +126,18 @@ export type ComicImageCreationReferenceOption = {
 type ComicImageTaskQueueContextValue = {
   maxConcurrent: number;
   tasks: ComicImageTask[];
-  enqueue: (input: { episodeId: string; pageNumber: number; label?: string }) => string;
+  enqueue: (input: {
+    episodeId: string;
+    pageNumber: number;
+    label?: string;
+    referenceImages?: ComicReferenceImageTaskPayload[];
+  }) => string;
   enqueueExtraPage: (input: {
     episodeId: string;
     extraPageKey: string;
     anchorPageNumber: number;
     label?: string;
+    referenceImages?: ComicReferenceImageTaskPayload[];
   }) => string;
   enqueueEdit: (input: {
     sourceAssetId: string;
@@ -536,7 +556,12 @@ export function ComicImageTaskQueueProvider({
   );
 
   const enqueue = useCallback(
-    (input: { episodeId: string; pageNumber: number; label?: string }) => {
+    (input: {
+      episodeId: string;
+      pageNumber: number;
+      label?: string;
+      referenceImages?: ComicReferenceImageTaskPayload[];
+    }) => {
       const label = input.label || formatPageLabel(input.pageNumber);
       return enqueueServerTask({
         kind: "generate",
@@ -545,7 +570,8 @@ export function ComicImageTaskQueueProvider({
         label,
         payload: {
           episodeId: input.episodeId,
-          pageNumber: input.pageNumber
+          pageNumber: input.pageNumber,
+          referenceImages: input.referenceImages
         },
         duplicateMatch: (task) =>
           task.kind === "generate" &&
@@ -562,6 +588,7 @@ export function ComicImageTaskQueueProvider({
       extraPageKey: string;
       anchorPageNumber: number;
       label?: string;
+      referenceImages?: ComicReferenceImageTaskPayload[];
     }) => {
       const label = input.label || "Extra page insert";
       return enqueueServerTask({
@@ -572,7 +599,8 @@ export function ComicImageTaskQueueProvider({
         payload: {
           episodeId: input.episodeId,
           extraPageKey: input.extraPageKey,
-          anchorPageNumber: input.anchorPageNumber
+          anchorPageNumber: input.anchorPageNumber,
+          referenceImages: input.referenceImages
         },
         optimisticFields: {
           targetId: input.extraPageKey,
@@ -1048,12 +1076,14 @@ export function ComicGenerateImageQueueButton({
   episodeId,
   pageNumber,
   className = "button button--secondary",
-  idleLabel = "Generate draft image"
+  idleLabel = "Generate draft image",
+  referenceImages
 }: {
   episodeId: string;
   pageNumber: number;
   className?: string;
   idleLabel?: string;
+  referenceImages?: ComicReferenceImageTaskPayload[];
 }) {
   const { enqueue, tasks } = useComicImageTaskQueue();
   const task =
@@ -1083,7 +1113,9 @@ export function ComicGenerateImageQueueButton({
       className={className}
       disabled={isActive}
       aria-busy={task?.status === "running"}
-      onClick={() => enqueue({ episodeId, pageNumber, label: formatPageLabel(pageNumber) })}
+      onClick={() =>
+        enqueue({ episodeId, pageNumber, label: formatPageLabel(pageNumber), referenceImages })
+      }
     >
       {label}
     </button>
@@ -1095,13 +1127,15 @@ export function ComicGenerateExtraPageQueueButton({
   extraPageKey,
   anchorPageNumber,
   className = "button button--secondary",
-  idleLabel = "Generate insert draft"
+  idleLabel = "Generate insert draft",
+  referenceImages
 }: {
   episodeId: string;
   extraPageKey: string;
   anchorPageNumber: number;
   className?: string;
   idleLabel?: string;
+  referenceImages?: ComicReferenceImageTaskPayload[];
 }) {
   const { enqueueExtraPage, tasks } = useComicImageTaskQueue();
   const task =
@@ -1136,7 +1170,8 @@ export function ComicGenerateExtraPageQueueButton({
           episodeId,
           extraPageKey,
           anchorPageNumber,
-          label: "Cast guide insert"
+          label: "Cast guide insert",
+          referenceImages
         })
       }
     >
@@ -1149,12 +1184,14 @@ export function ComicGenerateAllImagesQueueButton({
   episodeId,
   pageNumbers,
   className = "button button--secondary",
-  idleLabel = "Generate all draft images"
+  idleLabel = "Generate all draft images",
+  referenceImagesByPage
 }: {
   episodeId: string;
   pageNumbers: number[];
   className?: string;
   idleLabel?: string;
+  referenceImagesByPage?: Record<number, ComicReferenceImageTaskPayload[]>;
 }) {
   const { enqueue, tasks } = useComicImageTaskQueue();
   const uniquePageNumbers = Array.from(new Set(pageNumbers)).filter((pageNumber) => pageNumber >= 0);
@@ -1173,7 +1210,12 @@ export function ComicGenerateAllImagesQueueButton({
       disabled={uniquePageNumbers.length === 0}
       onClick={() => {
         uniquePageNumbers.forEach((pageNumber) =>
-          enqueue({ episodeId, pageNumber, label: formatPageLabel(pageNumber) })
+          enqueue({
+            episodeId,
+            pageNumber,
+            label: formatPageLabel(pageNumber),
+            referenceImages: referenceImagesByPage?.[pageNumber]
+          })
         );
       }}
     >

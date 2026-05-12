@@ -47,7 +47,10 @@ export async function POST(request: Request) {
   try {
     const result = await generateComicPageImageForEpisode({
       episodeId,
-      pageNumber: Number.isFinite(pageNumber) ? pageNumber : 0
+      pageNumber: Number.isFinite(pageNumber) ? pageNumber : 0,
+      referenceImages: Array.isArray(payload.referenceImages)
+        ? payload.referenceImages
+        : undefined
     });
 
     return NextResponse.json(result, { status: result.ok ? 200 : 500 });
