@@ -13,9 +13,9 @@ import {
   getComicSceneReferenceFolder
 } from "@/lib/comic-paths";
 import {
-  COMIC_CHARACTER_HEIGHT_CHART_REFERENCE,
-  SIMILAR_TEARDROP_COMPARISON_REFERENCE,
+  getComicCharacterHeightChartReference,
   getComicCharacterHeightChartSlugs,
+  getSimilarTeardropComparisonReference,
   getSimilarTeardropCharacterSlugs,
   shouldUseComicCharacterHeightChart,
   shouldUseSimilarTeardropComparison
@@ -216,6 +216,82 @@ function isTextMentioned(text: string, value: string) {
   }
 
   return comparableText.includes(comparableValue);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getAliasMentionWindows(text: string, alias: string) {
+  const comparableAlias = normalizeComparable(alias);
+
+  if (!comparableAlias) {
+    return [];
+  }
+
+  const aliasPattern = comparableAlias
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(escapeRegExp)
+    .join("[\\s_-]+");
+  const regex = new RegExp(`(^|[^a-z0-9])(${aliasPattern})(?=$|[^a-z0-9])`, "gi");
+  const windows: string[] = [];
+
+  for (const match of text.matchAll(regex)) {
+    const aliasStart = (match.index || 0) + (match[1]?.length || 0);
+    const windowStart = Math.max(0, aliasStart - 90);
+    const windowEnd = Math.min(text.length, aliasStart + match[2].length + 90);
+    windows.push(text.slice(windowStart, windowEnd));
+  }
+
+  return windows;
+}
+
+function isInactiveCharacterMentionWindow(window: string, alias: string) {
+  const comparableAlias = normalizeComparable(alias);
+  const comparableWindow = normalizeComparable(window);
+
+  if (!comparableAlias || !comparableWindow.includes(comparableAlias)) {
+    return false;
+  }
+
+  const aliasPattern = escapeRegExp(comparableAlias).replace(/\\ /g, "\\s+");
+  const negativeMentionPatterns = [
+    new RegExp(`\\b(?:not|never|no|without|exclude|avoid)\\s+${aliasPattern}\\b`, "i"),
+    new RegExp(`\\bdo\\s+not\\s+(?:draw|add|include|use|copy|borrow|import)\\s+${aliasPattern}\\b`, "i"),
+    new RegExp(`\\b${aliasPattern}\\s+(?:must\\s+not|should\\s+not|does\\s+not)\\s+appear\\b`, "i"),
+    new RegExp(`\\b${aliasPattern}\\s+is\\s+(?:absent|not\\s+present|not\\s+visible)\\b`, "i")
+  ];
+  const noteOnlyPatterns = [
+    new RegExp(
+      `\\b${aliasPattern}(?:\\s+s)?\\s+(?:old\\s+|past\\s+|prior\\s+|earlier\\s+|warning\\s+)*(?:note|message|slip|memo|clue|reminder|annotation)\\b`,
+      "i"
+    ),
+    new RegExp(
+      `\\b(?:note|message|slip|memo|clue|reminder|annotation)\\s+from\\s+${aliasPattern}\\b`,
+      "i"
+    )
+  ];
+
+  return [...negativeMentionPatterns, ...noteOnlyPatterns].some((pattern) =>
+    pattern.test(comparableWindow)
+  );
+}
+
+function isActiveCharacterMention(text: string, aliases: string[]) {
+  for (const alias of aliases) {
+    const windows = getAliasMentionWindows(text, alias);
+
+    if (windows.length === 0) {
+      continue;
+    }
+
+    if (windows.some((window) => !isInactiveCharacterMentionWindow(window, alias))) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function getFileNameFromPath(value: string) {
@@ -498,7 +574,7 @@ function addDetectedCharacterReferences(
 
     const aliases = [slug, displayName, ...(CHARACTER_REFERENCE_ALIASES[slug] || [])];
 
-    if (!aliases.some((alias) => isTextMentioned(input.promptText, alias))) {
+    if (!isActiveCharacterMention(input.promptText, aliases)) {
       continue;
     }
 
@@ -612,18 +688,22 @@ function addSimilarTeardropComparisonReference(byPath: Map<string, ComicResolved
     return;
   }
 
+  const reference = getSimilarTeardropComparisonReference(similarSlugs);
+
   addReferenceImage(
     "CAST_COMPARISON",
-    "similar-teardrop-character-comparison",
+    similarSlugs.includes("snacri")
+      ? "similar-teardrop-character-comparison"
+      : "active-teardrop-character-comparison",
     "auto-detected",
-    SIMILAR_TEARDROP_COMPARISON_REFERENCE,
+    reference,
     {
-      label: SIMILAR_TEARDROP_COMPARISON_REFERENCE.label,
+      label: reference.label,
       whyThisMatters: `${similarSlugs
         .map((slug) => slug.replace(/-/g, " "))
-        .join(", ")} appear together; this comparison sheet prevents similar black-and-white droplet characters from blending.`,
+        .join(", ")} appear together; this active-cast comparison sheet prevents similar black-and-white droplet characters from blending.`,
       contentSummary:
-        "Side-by-side identity comparison for Muci, Nia, Snacri, Padaruna, and Padarana: silhouette, body width, head direction, eyes/brow, default expression, and broad size separation."
+        "Side-by-side identity comparison for the active similar droplet characters: silhouette, body width, head direction, eyes/brow, default expression, and broad size separation."
     },
     byPath
   );
@@ -643,18 +723,22 @@ function addComicCharacterHeightChartReference(byPath: Map<string, ComicResolved
     return;
   }
 
+  const reference = getComicCharacterHeightChartReference(heightSlugs);
+
   addReferenceImage(
     "CAST_COMPARISON",
-    "comic-character-height-comparison",
+    heightSlugs.includes("snacri")
+      ? "comic-character-height-comparison"
+      : "active-character-height-comparison",
     "auto-detected",
-    COMIC_CHARACTER_HEIGHT_CHART_REFERENCE,
+    reference,
     {
-      label: COMIC_CHARACTER_HEIGHT_CHART_REFERENCE.label,
+      label: reference.label,
       whyThisMatters: `${heightSlugs
         .map((slug) => slug.replace(/-/g, " "))
-        .join(", ")} appear together; this front-view reference locks their relative heights before composition.`,
+        .join(", ")} appear together; this active-cast front-view reference locks their relative heights before composition.`,
       contentSummary:
-        "Front-view character height reference using model-sheet crops: Muci and Artrans share the shorter tier; Padaruna, Padarana, and Snacri share the standard tier; Nia is about 1.1x Padaruna. Reference-only, never visible in the comic panel."
+        "Front-view character height reference using active model-sheet crops. Reference-only, never visible in the comic panel."
     },
     byPath
   );

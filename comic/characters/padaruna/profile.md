@@ -11,13 +11,13 @@ Chaos engine, trend magnet, and lovable instigator who carries the social-pressu
 
 ## Appearance lock
 - Bright teardrop silhouette with a very sharp upright centered pointed head and a noticeably plumper, chubbier, fuller rounded body than Padarana
-- The sharp head must stay upright, tall, clean, centered above her face, and visibly pointed from the Padaruna model sheet; never soften, round off, shorten, lean right, or replace it with Snacri's right-leaning quiet head/top shape.
+- The sharp head must stay upright, tall, clean, centered above her face, and visibly pointed from the Padaruna model sheet; never soften, round off, shorten, lean right, or drift into a quiet side-leaning head/top shape.
 - Her body reads especially round, chubby, and buoyant under the sharp head; the lower half is visibly wider, rounder, heavier, and softer than the upper body, with a soft wide lower belly and pear-bottom mass. Keep the base broad and cute, not narrow, slim, tall, stretched, generic, or given side nubs/arm-like protrusions.
 - Open, lively dot eyes and an eager smile
 - No eyebrows or brow marks; her expression comes from eyes, mouth, tilt, and body energy
-- Softer than Nia, more animated than Snacri
+- Softer than Nia, more animated than the quiet restrained droplets
 - Should feel like the most socially expressive of the droplet-shaped cast
-- Similar-character lock: Padaruna is the energetic full-bodied pointed droplet. Do not slim her into Padarana, stretch her into Nia, quiet her into Snacri, copy Snacri's right-leaning top/head silhouette, or soften her into Muci's protagonist baseline. Nia is taller, narrower, controlled, and browed; Padaruna is browless, lively, and lower-heavy with a chubby pear-bottom body under the sharp centered point. Do not copy Muci's squat soft protagonist body, face spacing, or baseline expression; Padaruna keeps the very sharp upright head, visibly wide lower belly, cute plump chubby round body, browless open eyes, and eager social smile from her model sheet. When Padaruna and Muci appear together, Padaruna's overall body scale should read about 1.1x Muci's size so the two silhouettes separate clearly without making Padaruna oversized.
+- Similar-character lock: Padaruna is the energetic full-bodied pointed droplet. Do not slim her into Padarana, stretch her into Nia, quiet her into a restrained side-leaning droplet, copy a right-leaning top/head silhouette, or soften her into Muci's protagonist baseline. Nia is taller, narrower, controlled, and browed; Padaruna is browless, lively, and lower-heavy with a chubby pear-bottom body under the sharp centered point. Do not copy Muci's squat soft protagonist body, face spacing, or baseline expression; Padaruna keeps the very sharp upright head, visibly wide lower belly, cute plump chubby round body, browless open eyes, and eager social smile from her model sheet. When Padaruna and Muci appear together, Padaruna's overall body scale should read about 1.1x Muci's size so the two silhouettes separate clearly without making Padaruna oversized.
 
 ## Personality lock
 - Energetic
@@ -40,10 +40,10 @@ Padaruna should sound fast, enthusiastic, and emotionally immediate. Her lines s
 - Keep her very sharp upright centered pointed head, cute plump chubby full round body, open dot eyes, eager smile, no eyebrows, no side protrusions, and energetic face language
 - The body must look visibly chubby and lower-heavy: rounded sides, soft wide lower belly, pear-bottom mass, and buoyant weight under the pointed head. Do not draw her as skinny, narrow, tall, stretched, or delicate.
 - In group scenes with Nia, Padaruna must not inherit Nia's tall narrow silhouette, straight sides, controlled browed face, or stretched vertical body. Padaruna stays browless, lively, sharp-headed, and visibly wider in the lower half.
-- In group scenes with Snacri, Padaruna must not borrow Snacri's right-leaning quiet head/top shape; Snacri is the only right-leaning quiet droplet.
+- If she shares a page with a right-leaning quiet droplet, Padaruna still keeps her very sharp upright centered head and lower-heavy lively body.
 - Avoid flattening her into a neutral background droplet in group scenes
 - In group scenes with Padarana, Padaruna must read as the fuller and more lively one; Padarana must stay slimmer and gentler.
 - In group scenes with Muci, Padaruna must not become Muci. Muci stays short, broad, squat, soft-sided, and protagonist-friendly; Padaruna stays about 1.1x larger than Muci overall, sharper at the head, plumper and rounder in the body, browless, open-eyed, and socially explosive.
 
 ## Reusable prompt notes
-When prompting Padaruna, emphasize "very sharp upright centered pointed head plus cute plump chubby full rounded pear-bottom body, visibly wide soft lower belly and heavier rounded lower half under the sharp head, no side nubs or arm-like protrusions, no eyebrows, lively open dot eyes, eager smile, expressive and trend-sensitive, fast-talking social spark, cute chaos energy, about 1.1x Muci's overall size when they appear together, not skinny, not narrow, not tall-stretched, not Nia's tall narrow controlled droplet, not Muci's squat soft protagonist droplet, not Padarana, not Snacri, never Snacri's right-leaning head."
+When prompting Padaruna, emphasize "very sharp upright centered pointed head plus cute plump chubby full rounded pear-bottom body, visibly wide soft lower belly and heavier rounded lower half under the sharp head, no side nubs or arm-like protrusions, no eyebrows, lively open dot eyes, eager smile, expressive and trend-sensitive, fast-talking social spark, cute chaos energy, about 1.1x Muci's overall size when they appear together, not skinny, not narrow, not tall-stretched, not Nia's tall narrow controlled droplet, not Muci's squat soft protagonist droplet, not Padarana, never a right-drifting or side-leaning head."

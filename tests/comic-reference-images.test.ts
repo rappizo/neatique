@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveComicPageReferenceImages } from "../lib/comic-reference-images";
 import {
+  ACTIVE_CHARACTER_HEIGHT_CHART_REFERENCE,
+  ACTIVE_TEARDROP_COMPARISON_REFERENCE,
   COMIC_CHARACTER_HEIGHT_CHART_REFERENCE,
   SIMILAR_TEARDROP_COMPARISON_REFERENCE
 } from "../lib/comic-similar-character-locks";
@@ -71,9 +73,56 @@ test("comic reference resolver attaches front-view height reference when height-
     references.some(
       (reference) =>
         reference.bucket === "CAST_COMPARISON" &&
-        reference.relativePath === COMIC_CHARACTER_HEIGHT_CHART_REFERENCE.relativePath
+        reference.relativePath === ACTIVE_CHARACTER_HEIGHT_CHART_REFERENCE.relativePath
     ),
     "Expected front-view character height reference to be attached."
+  );
+});
+
+test("comic reference resolver avoids Snacri model and full-cast refs for note-only mentions", async () => {
+  const references = await resolveComicPageReferenceImages({
+    seasonSlug: "season-01",
+    chapterSlug: "chapter-01-orientation-week-is-a-scam",
+    promptText:
+      "Muci, Nia, and Padarana study Snacri's warning note while Padarana keeps her upright soft point and closed smiling eyes.",
+    requiredUploads: [
+      characterUpload("muci", "Muci Model Sheet"),
+      characterUpload("nia", "Nia Model Sheet"),
+      characterUpload("padarana", "Padarana Model Sheet")
+    ]
+  });
+
+  assert.equal(
+    references.some(
+      (reference) =>
+        reference.slug === "snacri" ||
+        reference.relativePath === "comic/characters/snacri/refs/model-sheet.jpg"
+    ),
+    false
+  );
+  assert.ok(
+    references.some(
+      (reference) => reference.relativePath === ACTIVE_TEARDROP_COMPARISON_REFERENCE.relativePath
+    ),
+    "Expected active teardrop comparison without the absent character."
+  );
+  assert.ok(
+    references.some(
+      (reference) => reference.relativePath === ACTIVE_CHARACTER_HEIGHT_CHART_REFERENCE.relativePath
+    ),
+    "Expected active height chart without the absent character."
+  );
+  assert.equal(
+    references.some(
+      (reference) => reference.relativePath === SIMILAR_TEARDROP_COMPARISON_REFERENCE.relativePath
+    ),
+    false
+  );
+  assert.equal(
+    references.some(
+      (reference) => reference.relativePath === COMIC_CHARACTER_HEIGHT_CHART_REFERENCE.relativePath
+    ),
+    false
   );
 });
 

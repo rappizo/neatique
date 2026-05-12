@@ -8,6 +8,7 @@ import {
 import {
   buildComicCharacterHeightChartLock,
   buildSimilarTeardropSeparationLock,
+  ACTIVE_TEARDROP_COMPARISON_REFERENCE,
   SIMILAR_TEARDROP_COMPARISON_REFERENCE
 } from "@/lib/comic-similar-character-locks";
 import {
@@ -50,7 +51,7 @@ const OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH = 30000;
 const MUCI_MODEL_SHEET_EXACT_LOCK = [
   "Muci Model Sheet Exact Lock:",
   "- Use comic/characters/muci/refs/model-sheet.jpg as the visual source: broad squat white droplet, round heavy lower half, consistent reader-left/page-left top lean, two attached feet, friendly U-smile, no brow, upper-left highlights.",
-  "- Muci must always read as the left-leaning droplet in primary front/3/4 reader-facing views. If Muci starts reading as Nia, Snacri's right-leaning top, a hooked/curling top, a tall raindrop, or a generic teardrop, redraw him shorter, wider, rounder, browless, left-leaning, and closer to the model sheet."
+  "- Muci must always read as the left-leaning droplet in primary front/3/4 reader-facing views. If Muci starts reading as Nia, a wrong right-leaning top, a hooked/curling top, a tall raindrop, or a generic teardrop, redraw him shorter, wider, rounder, browless, left-leaning, and closer to the model sheet."
 ].join("\n");
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Compact visual production guidance:",
@@ -60,9 +61,9 @@ const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "- Full-body mascots keep the small connected feet shown in their model sheets. Never crop, hide, separate, or add extra feet/legs.",
   "- Do not paste long identity paragraphs into each page prompt. Use requiredUploads/model-sheet files plus one short active-character risk reminder only when needed.",
   MUCI_MODEL_SHEET_EXACT_LOCK,
-  "- When similar droplet characters appear together, requiredUploads must include their model sheets and the comparison reference; prompts should separate them with short silhouette reminders.",
+  "- When similar droplet characters appear together, requiredUploads must include their model sheets and the active-cast comparison reference; never introduce a model sheet for a character who is not visible on that page.",
   "- Padaruna active-character reminder: sharp centered head plus lower-heavy chubby pear-bottom body with a visibly wide soft lower belly; never Nia's tall narrow controlled droplet.",
-  "- Height tiers are off-canvas production guidance only: Muci/Artrans shorter, Padaruna/Padarana/Snacri standard, Nia about 1.1x Padaruna. Never draw a chart or lineup as story content.",
+  "- Height tiers are off-canvas production guidance only: Muci/Artrans shorter, active Padaruna/Padarana/Snacri standard, Nia about 1.1x Padaruna. Never draw a chart or lineup as story content.",
   "- Visible text must be limited to the page dialogue, captions, SFX, signs, prop labels, or labels explicitly whitelisted for that page."
 ].join("\n");
 const COMIC_IMAGE_PRODUCTION_LOCKS = [
@@ -2008,12 +2009,29 @@ function buildComicPageReferenceImageSummary(referenceImages: ComicReferenceImag
     .join("\n\n");
 }
 
+function sanitizeInactiveCharacterComparisonText(text: string, activeSlugs: Set<string>) {
+  if (activeSlugs.has("snacri")) {
+    return text;
+  }
+
+  return text
+    .replace(/Snacri's right-leaning quiet head\/top shape/gi, "a wrong side-leaning quiet head/top shape")
+    .replace(/Snacri's right-leaning head\/top silhouette/gi, "a wrong side-leaning head/top silhouette")
+    .replace(/Snacri's right-leaning quiet head\/top/gi, "a wrong side-leaning quiet head/top")
+    .replace(/Snacri's right-leaning top/gi, "a wrong right-leaning top")
+    .replace(/Snacri's right lean/gi, "a wrong right lean")
+    .replace(/Snacri-headed/gi, "side-leaning-headed")
+    .replace(/\bSnacri\b/gi, "a non-active comparison character");
+}
+
 function buildComicPageCharacterIdentityLockSummary(
   characterLocks: ComicCharacterIdentityLock[] = []
 ) {
   if (characterLocks.length === 0) {
     return "No character profile MD locks were loaded for this page.";
   }
+
+  const activeSlugs = new Set(characterLocks.map((character) => character.slug));
 
   return [
     "Profile MD source of truth loaded from database. Use these as concise identity notes; the uploaded model-sheet images are the primary visual authority.",
@@ -2022,7 +2040,10 @@ function buildComicPageCharacterIdentityLockSummary(
         `- ${character.name} (${character.slug}) Reference image files: ${
           character.referenceFiles.map((file) => file.fileName).join(", ") || "None"
         }.`,
-        `  Short profile note: ${trimImagePromptContext(character.appearance, 95)}`
+        `  Short profile note: ${trimImagePromptContext(
+          sanitizeInactiveCharacterComparisonText(character.appearance, activeSlugs),
+          95
+        )}`
       ].join("\n")
     )
   ].join("\n");
@@ -2226,6 +2247,8 @@ function isComicCastComparisonReferenceImage(reference: ComicReferenceImageFile)
   return (
     reference.bucket === "CAST_COMPARISON" ||
     reference.slug === "similar-teardrop-character-comparison" ||
+    reference.slug === "active-teardrop-character-comparison" ||
+    reference.relativePath === ACTIVE_TEARDROP_COMPARISON_REFERENCE.relativePath ||
     reference.relativePath === SIMILAR_TEARDROP_COMPARISON_REFERENCE.relativePath
   );
 }
@@ -2869,6 +2892,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     "- Attached reference images are binding visual references; copy model-sheet silhouettes, proportions, face placement, body fill, and feet.",
     isCoverPage ? COMIC_COVER_EPISODE_ONE_LAYOUT_LOCKS : null,
     "- Only draw the characters named in the panel plan or dialogue for this page. Do not add background mascots just because their references are available.",
+    "- If a character name appears only as a past note, clue, memo, absence, or negative comparison and that character's model sheet is not attached, treat it as context text only: do not draw that character or import their visual traits.",
     "- Do not blend silhouettes, faces, highlights, feet, expressions, or body proportions across characters.",
     "- Foot check: full-body characters show connected small feet with clear lower-frame space; no cropped feet or hard shoe/seam lines.",
     "- Sunny Spritz check: if Sunny appears full-body, show two small rounded feet directly under the soft five-point star body.",
@@ -3958,6 +3982,8 @@ export async function generateComicPromptPackageWithAi(
                 "- Every promptPackCopyText block must translate hand actions into telekinetic object movement.",
                 "- Character consistency should be driven by requiredUploads and attached model sheets first. Do not paste long global identity locks into every page.",
                 "- Add only compact active-character high-risk reminders when relevant: Muci broad squat/no brow/consistent left lean; Nia sharp/one brow/tall narrow controlled body; Snacri right-leaning/open round eyes; Padaruna sharp centered point plus lower-heavy chubby pear-bottom body/no brows/not Nia-shaped; Padarana upright soft point/closed eyes; Professor Cera Lin rounded six-sided hexagon; Coach Ray shield-shaped.",
+                "- Do not include a character model sheet in requiredUploads just because that character is mentioned as a past note, clue, memo, warning, absence, or negative comparison. RequiredUploads should contain visible page actors and visible props only.",
+                "- Do not use absent characters as negative visual comparisons in page prompts. If a character is not visible on the page, avoid naming that character in the prompt text and describe the active character positively instead.",
                 "- Pages with two or more of Muci, Artrans, Padaruna, Padarana, Snacri, and Nia must keep fixed height tiers as invisible production guidance only: Muci/Artrans shorter, Padaruna/Padarana/Snacri standard, Nia about 1.1x Padaruna. Never make the height reference a visible story object.",
                 "- Character intro/name cards must appear only once per character, on the intended first story-page introduction. On later pages, explicitly do not repeat prior intro/name cards.",
                 "- Pages with two or more similar teardrop characters must use one short silhouette separation sentence and rely on the comparison/model-sheet references, not long repeated paragraphs.",

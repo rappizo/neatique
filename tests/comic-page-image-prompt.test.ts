@@ -418,7 +418,7 @@ test("comic page image prompt includes similar teardrop separation locks", () =>
   assert.match(prompt, /Do not draw the chart, scale marks, labels, lineup/);
   assert.match(prompt, /Story intro-card rule/);
   assert.match(prompt, /Never infer intro cards/);
-  assert.match(prompt, /Muci and Artrans share the shorter tier/);
+  assert.match(prompt, /Muci is in the shorter tier/);
   assert.match(prompt, /Nia: about 1\.10x Padaruna/);
   assert.match(prompt, /Snacri: same as Padaruna/);
   assert.match(prompt, /Muci Model Sheet Exact Lock/);
@@ -511,6 +511,101 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
   assert.match(prompt, /never Snacri's right-leaning quiet head\/top/);
   assert.match(prompt, /Snacri's eyes must match the Snacri model sheet/);
   assert.match(prompt, /Do not draw Snacri with half-lidded eyes, sleepy droopy eyes/);
+});
+
+test("comic page image prompt keeps absent Snacri out of Padarana pages", () => {
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 1",
+    episodeTitle: "The Student Store Problem",
+    episodeSummary: "Muci, Nia, and Padarana investigate store clues.",
+    pageNumber: 3,
+    panelCount: 2,
+    pagePurpose: "Padarana reads a clue while keeping her upright soft point.",
+    promptPackCopyText: "Muci, Nia, and Padarana compare a bookmark and an old handbook.",
+    referenceNotesCopyText: "Use the active character model sheets exactly.",
+    globalGptImage2Notes: null,
+    panels: [
+      {
+        pageNumber: 3,
+        panelNumber: 1,
+        panelTitle: "Quiet Clue",
+        storyBeat: "Padarana notices the emotional tone of the clue while Muci and Nia compare objects.",
+        promptText:
+          "Padarana keeps an upright soft pointed head, closed smiling eyes, and a slim gentle body while Muci and Nia stay distinct.",
+        dialogueLines: [{ speaker: "Padarana", text: "This feels careful, not strict." }]
+      },
+      {
+        pageNumber: 3,
+        panelNumber: 2,
+        panelTitle: "Route Check",
+        storyBeat: "Nia organizes the next route while Muci watches the floating handbook.",
+        promptText:
+          "Nia stays tall and sharp with one angled brow; Muci stays short, broad, and left-leaning.",
+        dialogueLines: [{ speaker: "Nia", text: "Then we verify the route." }]
+      }
+    ],
+    requiredUploads: [],
+    referenceImages: [
+      {
+        label: "Active Teardrop Character Comparison",
+        fileName: "active-teardrop-character-comparison.jpg",
+        relativePath:
+          "comic/scenes/similar-character-comparison-active-cast/refs/active-teardrop-character-comparison.jpg",
+        bucket: "CAST_COMPARISON",
+        slug: "active-teardrop-character-comparison",
+        source: "auto-detected",
+        mimeType: "image/jpeg",
+        imageUrl: "/comic/scenes/similar-character-comparison-active-cast/refs/active-teardrop-character-comparison.jpg",
+        sizeBytes: 4,
+        whyThisMatters: "Active similar teardrop characters appear together.",
+        contentSummary: "Difference map for active droplet characters.",
+        data: Buffer.from("fake")
+      }
+    ],
+    characterLocks: [
+      {
+        slug: "muci",
+        name: "Muci",
+        role: "Audience surrogate.",
+        appearance: "Broad squat model-sheet droplet with a natural rounded top point.",
+        personality: "Curious.",
+        speechGuide: "Plainspoken.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Muci",
+        referenceFiles: []
+      },
+      {
+        slug: "nia",
+        name: "Nia",
+        role: "Top student.",
+        appearance: "Tall sharp pointed teardrop with one angled left brow.",
+        personality: "Precise.",
+        speechGuide: "Concise.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Nia",
+        referenceFiles: []
+      },
+      {
+        slug: "padarana",
+        name: "Padarana",
+        role: "Emotional anchor.",
+        appearance:
+          "Upright soft pointed head, slimmer gentle body, closed smiling eyes, never Snacri's right-leaning head/top silhouette.",
+        personality: "Gentle.",
+        speechGuide: "Warm.",
+        referenceNotes: "Use refs/model-sheet.jpg.",
+        profileMarkdown: "# Padarana",
+        referenceFiles: []
+      }
+    ],
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /context text only: do not draw that character/);
+  assert.match(prompt, /Padarana: upright soft pointed head/);
+  assert.doesNotMatch(prompt, /Snacri/);
 });
 
 test("comic page image prompt protects Padaruna from becoming Nia-shaped", () => {
@@ -628,9 +723,10 @@ test("comic page image prompt locks Artrans to Muci height tier", () => {
   });
 
   assert.match(prompt, /Character height reference lock/);
+  assert.match(prompt, /Artrans is in the shorter tier/);
+  assert.match(prompt, /Padaruna is in the standard Padaruna tier/);
   assert.match(prompt, /Artrans: same as Muci/);
   assert.match(prompt, /Padaruna: 1\.00x Padaruna baseline/);
-  assert.match(prompt, /Padaruna keeps the existing about-1\.1x-Muci relationship/);
 });
 
 test("comic page image prompt reinforces Padaruna and Professor Cera Lin shapes", () => {

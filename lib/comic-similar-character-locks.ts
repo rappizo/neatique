@@ -24,10 +24,26 @@ export const SIMILAR_TEARDROP_COMPARISON_REFERENCE: ComicChapterSceneReferenceRe
   extension: "jpg"
 };
 
+export const ACTIVE_TEARDROP_COMPARISON_REFERENCE: ComicChapterSceneReferenceRecord = {
+  label: "Active Teardrop Character Comparison",
+  fileName: "active-teardrop-character-comparison.jpg",
+  relativePath:
+    "comic/scenes/similar-character-comparison-active-cast/refs/active-teardrop-character-comparison.jpg",
+  extension: "jpg"
+};
+
 export const COMIC_CHARACTER_HEIGHT_CHART_REFERENCE: ComicChapterSceneReferenceRecord = {
   label: "Front-View Character Height Reference",
   fileName: "character-height-comparison.jpg",
   relativePath: "comic/scenes/character-height-comparison/refs/character-height-comparison.jpg",
+  extension: "jpg"
+};
+
+export const ACTIVE_CHARACTER_HEIGHT_CHART_REFERENCE: ComicChapterSceneReferenceRecord = {
+  label: "Active Character Height Reference",
+  fileName: "active-character-height-comparison.jpg",
+  relativePath:
+    "comic/scenes/character-height-comparison-active-cast/refs/active-character-height-comparison.jpg",
   extension: "jpg"
 };
 
@@ -41,7 +57,7 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   muci: {
     name: "Muci",
     identity:
-      "exact Muci model-sheet droplet: broad squat pure-white body, round heavy lower half, consistent reader-left/page-left top lean, two attached feet, friendly U-smile, no brow; shorter tier than Padaruna; never Nia's sharp vertical point, Snacri's right lean, or hooked/curling top"
+      "exact Muci model-sheet droplet: broad squat pure-white body, round heavy lower half, consistent reader-left/page-left top lean, two attached feet, friendly U-smile, no brow; shorter tier than Padaruna; never Nia's sharp vertical point, a wrong right-leaning top, or hooked/curling top"
   },
   nia: {
     name: "Nia",
@@ -56,12 +72,12 @@ export const SIMILAR_TEARDROP_CHARACTER_LOCKS: Record<
   padaruna: {
     name: "Padaruna",
     identity:
-      "very sharp upright centered point above a cute plump/chubby pear-bottom body: the lower half is visibly wider, rounder, heavier, and softer than the upper body, with a soft wide lower belly and buoyant base mass; no side nubs, no brows, lively open eyes; standard Padaruna tier; about 1.1x Muci's size when paired; never skinny, narrow, tall-stretched, Nia-shaped, or Snacri-headed"
+      "very sharp upright centered point above a cute plump/chubby pear-bottom body: the lower half is visibly wider, rounder, heavier, and softer than the upper body, with a soft wide lower belly and buoyant base mass; no side nubs, no brows, lively open eyes; standard Padaruna tier; about 1.1x Muci's size when paired; never skinny, narrow, tall-stretched, Nia-shaped, side-leaning, or head-drifting"
   },
   padarana: {
     name: "Padarana",
     identity:
-      "upright soft pointed head, slimmer gentler body than Padaruna, closed smiling eyes, calm mouth; same height tier as Padaruna and Snacri; never Snacri's right-leaning head"
+      "upright soft pointed head, slimmer gentler body than Padaruna, closed smiling eyes, calm mouth; same height tier as Padaruna; never a right-drifting, side-leaning, or rounded-off head"
   }
 };
 
@@ -126,6 +142,30 @@ export function shouldUseComicCharacterHeightChart(slugs: string[]) {
   return getComicCharacterHeightChartSlugs(slugs).length >= 2;
 }
 
+export function getSimilarTeardropComparisonReference(slugs: string[]) {
+  return getSimilarTeardropCharacterSlugs(slugs).includes("snacri")
+    ? SIMILAR_TEARDROP_COMPARISON_REFERENCE
+    : ACTIVE_TEARDROP_COMPARISON_REFERENCE;
+}
+
+export function getComicCharacterHeightChartReference(slugs: string[]) {
+  return getComicCharacterHeightChartSlugs(slugs).includes("snacri")
+    ? COMIC_CHARACTER_HEIGHT_CHART_REFERENCE
+    : ACTIVE_CHARACTER_HEIGHT_CHART_REFERENCE;
+}
+
+function formatHeightLockNames(names: string[]) {
+  if (names.length <= 1) {
+    return names[0] || "";
+  }
+
+  if (names.length === 2) {
+    return `${names[0]} and ${names[1]}`;
+  }
+
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
 export function buildComicCharacterHeightChartLock(slugs: string[]) {
   const heightSlugs = getComicCharacterHeightChartSlugs(slugs);
 
@@ -133,17 +173,53 @@ export function buildComicCharacterHeightChartLock(slugs: string[]) {
     return "";
   }
 
+  const heightSlugSet = new Set(heightSlugs);
+  const shorterTierNames = ["muci", "artrans"]
+    .filter((slug) => heightSlugSet.has(slug as (typeof COMIC_CHARACTER_HEIGHT_CHART_SLUGS)[number]))
+    .map((slug) => COMIC_CHARACTER_HEIGHT_LOCKS[slug as (typeof COMIC_CHARACTER_HEIGHT_CHART_SLUGS)[number]].name);
+  const standardTierNames = ["padaruna", "padarana", "snacri"]
+    .filter((slug) => heightSlugSet.has(slug as (typeof COMIC_CHARACTER_HEIGHT_CHART_SLUGS)[number]))
+    .map((slug) => COMIC_CHARACTER_HEIGHT_LOCKS[slug as (typeof COMIC_CHARACTER_HEIGHT_CHART_SLUGS)[number]].name);
+  const issueCheckNames = ["padarana", "snacri", "padaruna", "nia"]
+    .filter((slug) => heightSlugSet.has(slug as (typeof COMIC_CHARACTER_HEIGHT_CHART_SLUGS)[number]))
+    .map((slug) => COMIC_CHARACTER_HEIGHT_LOCKS[slug as (typeof COMIC_CHARACTER_HEIGHT_CHART_SLUGS)[number]].name);
+  const tierRules = [
+    shorterTierNames.length > 0
+      ? shorterTierNames.length === 1
+        ? `${shorterTierNames[0]} is in the shorter tier`
+        : `${formatHeightLockNames(shorterTierNames)} share the shorter tier`
+      : null,
+    standardTierNames.length > 0
+      ? standardTierNames.length === 1
+        ? `${standardTierNames[0]} is in the standard Padaruna tier`
+        : `${formatHeightLockNames(standardTierNames)} share the standard Padaruna tier`
+      : null,
+    heightSlugSet.has("nia") ? "Nia is only slightly taller at about 1.1x Padaruna" : null,
+    heightSlugSet.has("padaruna") && heightSlugSet.has("muci")
+      ? "Padaruna keeps the existing about-1.1x-Muci relationship"
+      : null
+  ].filter(Boolean);
+  const niaIssueCheck = heightSlugSet.has("nia")
+    ? ", or makes Nia much taller than 1.1x Padaruna"
+    : "";
+
   return [
     "Character height reference lock:",
-    "- The attached Front-View Character Height Reference is an off-canvas production reference only. Do not draw the chart, scale marks, labels, lineup, or height-comparison diagram inside the comic panel.",
-    "- Locked height tiers: Muci and Artrans share the shorter tier; Padaruna, Padarana, and Snacri share the standard Padaruna tier; Nia is only slightly taller at about 1.1x Padaruna; Padaruna keeps the existing about-1.1x-Muci relationship.",
+    "- The attached character height reference is an off-canvas production reference only. Do not draw the chart, scale marks, labels, lineup, or height-comparison diagram inside the comic panel.",
+    `- Locked height tiers for active characters only: ${tierRules.join("; ")}.`,
     "- Put same-panel characters on the same floor plane, but do not stretch bodies vertically. Keep droplets round, cute, and model-sheet proportioned.",
     ...heightSlugs.map((slug) => {
       const lock = COMIC_CHARACTER_HEIGHT_LOCKS[slug];
       return `- ${lock.name}: ${lock.relativeHeight}; ${lock.note}.`;
     }),
-    "- If the drawing makes Padarana, Snacri, or Padaruna noticeably taller/shorter than each other, or makes Nia much taller than 1.1x Padaruna, rescale before final line art."
-  ].join("\n");
+    issueCheckNames.length > 0
+      ? `- If the drawing makes ${issueCheckNames.join(
+          ", "
+        )} noticeably off-tier${niaIssueCheck}, rescale before final line art.`
+      : null
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function buildSimilarTeardropSeparationLock(slugs: string[]) {
@@ -158,9 +234,9 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
     similarSlugs.includes("muci") && similarSlugs.includes("padaruna");
   const hasNiaAndPadaruna =
     similarSlugs.includes("nia") && similarSlugs.includes("padaruna");
+  const hasSnacri = similarSlugs.includes("snacri");
   const hasSnacriAndPadarunaOrPadarana =
-    similarSlugs.includes("snacri") &&
-    (similarSlugs.includes("padaruna") || similarSlugs.includes("padarana"));
+    hasSnacri && (similarSlugs.includes("padaruna") || similarSlugs.includes("padarana"));
 
   return [
     "Similar teardrop cast separation lock:",
@@ -168,7 +244,9 @@ export function buildSimilarTeardropSeparationLock(slugs: string[]) {
     "- Do not average these white droplet mascots into one generic body. Match each character to their own model sheet.",
     hasMuciAndNia
       ? [
-          "- Muci/Nia high-risk model-sheet guardrail: draw Muci from the Muci Model Sheet Exact Lock, not from generic teardrop memory. Muci's top is a rounded teardrop point with a consistent lean toward reader-left/Muci's right; it is not a sharp Nia point, Snacri's right-leaning top, exaggerated hook, sideways curl, or flopped-over cap.",
+          `- Muci/Nia high-risk model-sheet guardrail: draw Muci from the Muci Model Sheet Exact Lock, not from generic teardrop memory. Muci's top is a rounded teardrop point with a consistent lean toward reader-left/Muci's right; it is not a sharp Nia point, ${
+            hasSnacri ? "Snacri's right-leaning top, " : "a wrong right-leaning top, "
+          }exaggerated hook, sideways curl, or flopped-over cap.`,
           "- Muci stays short, broad, squat, friendly, and browless; Nia stays taller, sharper, and marked by one angled left brow."
         ].join("\n")
       : null,

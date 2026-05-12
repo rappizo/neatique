@@ -8,7 +8,7 @@ type ComicReferenceManifest = {
 };
 
 const comicReferenceManifest = {
-  "generatedAt": "2026-05-12T02:37:32.365Z",
+  "generatedAt": "2026-05-12T13:21:52.427Z",
   "characters": {
     "artrans": [
       {
@@ -116,6 +116,14 @@ const comicReferenceManifest = {
         "extension": "jpg"
       }
     ],
+    "character-height-comparison-active-cast": [
+      {
+        "label": "Active Character Height Comparison",
+        "fileName": "active-character-height-comparison.jpg",
+        "relativePath": "comic/scenes/character-height-comparison-active-cast/refs/active-character-height-comparison.jpg",
+        "extension": "jpg"
+      }
+    ],
     "season-01-chapter-01-orientation-week-is-a-scam-barrier-sciences-hall": [
       {
         "label": "Barrier Sciences Hall",
@@ -217,6 +225,14 @@ const comicReferenceManifest = {
         "label": "Similar Character Comparison",
         "fileName": "similar-character-comparison.jpg",
         "relativePath": "comic/scenes/similar-character-comparison/refs/similar-character-comparison.jpg",
+        "extension": "jpg"
+      }
+    ],
+    "similar-character-comparison-active-cast": [
+      {
+        "label": "Active Teardrop Character Comparison",
+        "fileName": "active-teardrop-character-comparison.jpg",
+        "relativePath": "comic/scenes/similar-character-comparison-active-cast/refs/active-teardrop-character-comparison.jpg",
         "extension": "jpg"
       }
     ]
