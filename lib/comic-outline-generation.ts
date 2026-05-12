@@ -9,6 +9,12 @@ import {
   writeGeneratedEpisodeOutlineToWorkspace,
   writeGeneratedSeasonOutlineToWorkspace
 } from "@/lib/comic-outline-workspace";
+import {
+  createComicGeneratedOutlineSnapshot,
+  type ComicGeneratedOutlineContent,
+  type ComicGeneratedOutlineSnapshot,
+  type ComicOutlineSnapshotLevel
+} from "@/lib/comic-outline-snapshots";
 import { prisma } from "@/lib/db";
 
 export type ComicOutlineTaskType =
@@ -51,6 +57,7 @@ export type ComicOutlineTaskResult = {
   targetId?: string;
   message: string;
   errorMessage?: string;
+  generatedOutlines?: ComicGeneratedOutlineSnapshot[];
 };
 
 export class ComicOutlineTaskInputError extends Error {
@@ -95,6 +102,22 @@ function toStoredBilingualSummary(input: { summary: string; summaryEn?: string |
 
 function toNumberLabel(label: string, value: number) {
   return `${label} ${value}`;
+}
+
+function toGeneratedOutlineSnapshot(input: {
+  taskType: ComicOutlineTaskType;
+  level: ComicOutlineSnapshotLevel;
+  id: string;
+  title: string;
+  numberLabel?: string | null;
+  result: ComicGeneratedOutlineContent;
+  revisionNotes?: string;
+}) {
+  return createComicGeneratedOutlineSnapshot({
+    ...input,
+    storedSummary: toStoredBilingualSummary(input.result),
+    storedOutline: toStoredBilingualOutline(input.result)
+  });
 }
 
 function normalizeGeneratedOutlineTitle(input: {
@@ -197,15 +220,22 @@ function success(
   taskType: ComicOutlineTaskType,
   status: ComicOutlineTaskStatus,
   message: string,
-  targetId?: string
+  targetId?: string,
+  generatedOutlines?: ComicGeneratedOutlineSnapshot[]
 ): ComicOutlineTaskResult {
-  return {
+  const result: ComicOutlineTaskResult = {
     ok: true,
     status,
     taskType,
     targetId,
     message
   };
+
+  if (generatedOutlines?.length) {
+    result.generatedOutlines = generatedOutlines;
+  }
+
+  return result;
 }
 
 async function translateProjectOutline(taskType: ComicOutlineTaskType, targetId: string, revisionNotes?: string) {
@@ -247,7 +277,22 @@ async function translateProjectOutline(taskType: ComicOutlineTaskType, targetId:
   });
 
   revalidateComicRoutes();
-  return success(taskType, "project-outline-translated", `Translated ${project.title} into Chinese.`, project.id);
+  return success(
+    taskType,
+    "project-outline-translated",
+    `Translated ${project.title} into Chinese.`,
+    project.id,
+    [
+      toGeneratedOutlineSnapshot({
+        taskType,
+        level: "PROJECT",
+        id: project.id,
+        title: project.title,
+        result,
+        revisionNotes
+      })
+    ]
+  );
 }
 
 async function generateProjectOutline(taskType: ComicOutlineTaskType, targetId: string, revisionNotes?: string) {
@@ -297,7 +342,22 @@ async function generateProjectOutline(taskType: ComicOutlineTaskType, targetId: 
   });
 
   revalidateComicRoutes();
-  return success(taskType, "project-outline-generated", `Generated project outline for ${project.title}.`, project.id);
+  return success(
+    taskType,
+    "project-outline-generated",
+    `Generated project outline for ${project.title}.`,
+    project.id,
+    [
+      toGeneratedOutlineSnapshot({
+        taskType,
+        level: "PROJECT",
+        id: project.id,
+        title: project.title,
+        result,
+        revisionNotes
+      })
+    ]
+  );
 }
 
 async function generateSeasonOutlines(taskType: ComicOutlineTaskType, projectIdInput: string, revisionNotes?: string) {
@@ -392,7 +452,29 @@ async function generateSeasonOutlines(taskType: ComicOutlineTaskType, projectIdI
   );
 
   revalidateComicRoutes();
-  return success(taskType, "season-outlines-generated", `Generated ${outlines.length} season outlines.`, project.id);
+  return success(
+    taskType,
+    "season-outlines-generated",
+    `Generated ${outlines.length} season outlines.`,
+    project.id,
+    outlines
+      .map((outline) => {
+        const season = seasonById.get(outline.id);
+
+        return season
+          ? toGeneratedOutlineSnapshot({
+              taskType,
+              level: "SEASON",
+              id: season.id,
+              title: season.title,
+              numberLabel: toNumberLabel("Season", season.seasonNumber),
+              result: outline,
+              revisionNotes
+            })
+          : null;
+      })
+      .filter((snapshot): snapshot is ComicGeneratedOutlineSnapshot => Boolean(snapshot))
+  );
 }
 
 async function loadSeason(seasonId: string) {
@@ -467,7 +549,23 @@ async function translateSeasonOutline(taskType: ComicOutlineTaskType, seasonId: 
   });
 
   revalidateComicRoutes({ seasonSlug: season.slug });
-  return success(taskType, "season-outline-translated", `Translated ${season.title}.`, season.id);
+  return success(
+    taskType,
+    "season-outline-translated",
+    `Translated ${season.title}.`,
+    season.id,
+    [
+      toGeneratedOutlineSnapshot({
+        taskType,
+        level: "SEASON",
+        id: season.id,
+        title: season.title,
+        numberLabel: toNumberLabel("Season", season.seasonNumber),
+        result,
+        revisionNotes
+      })
+    ]
+  );
 }
 
 async function generateSeasonOutline(taskType: ComicOutlineTaskType, seasonId: string, revisionNotes?: string) {
@@ -527,7 +625,23 @@ async function generateSeasonOutline(taskType: ComicOutlineTaskType, seasonId: s
   });
 
   revalidateComicRoutes({ seasonSlug: season.slug });
-  return success(taskType, "season-outline-generated", `Generated outline for ${season.title}.`, season.id);
+  return success(
+    taskType,
+    "season-outline-generated",
+    `Generated outline for ${season.title}.`,
+    season.id,
+    [
+      toGeneratedOutlineSnapshot({
+        taskType,
+        level: "SEASON",
+        id: season.id,
+        title: season.title,
+        numberLabel: toNumberLabel("Season", season.seasonNumber),
+        result,
+        revisionNotes
+      })
+    ]
+  );
 }
 
 async function generateChapterOutlines(taskType: ComicOutlineTaskType, seasonId: string, revisionNotes?: string) {
@@ -607,7 +721,29 @@ async function generateChapterOutlines(taskType: ComicOutlineTaskType, seasonId:
   );
 
   revalidateComicRoutes({ seasonSlug: season.slug });
-  return success(taskType, "chapter-outlines-generated", `Generated ${outlines.length} chapter outlines.`, season.id);
+  return success(
+    taskType,
+    "chapter-outlines-generated",
+    `Generated ${outlines.length} chapter outlines.`,
+    season.id,
+    outlines
+      .map((outline) => {
+        const chapter = chapterById.get(outline.id);
+
+        return chapter
+          ? toGeneratedOutlineSnapshot({
+              taskType,
+              level: "CHAPTER",
+              id: chapter.id,
+              title: chapter.title,
+              numberLabel: toNumberLabel("Chapter", chapter.chapterNumber),
+              result: outline,
+              revisionNotes
+            })
+          : null;
+      })
+      .filter((snapshot): snapshot is ComicGeneratedOutlineSnapshot => Boolean(snapshot))
+  );
 }
 
 async function loadChapter(chapterId: string) {
@@ -682,7 +818,23 @@ async function translateChapterOutline(taskType: ComicOutlineTaskType, chapterId
     seasonSlug: chapter.season.slug,
     chapterSlug: chapter.slug
   });
-  return success(taskType, "chapter-outline-translated", `Translated ${chapter.title}.`, chapter.id);
+  return success(
+    taskType,
+    "chapter-outline-translated",
+    `Translated ${chapter.title}.`,
+    chapter.id,
+    [
+      toGeneratedOutlineSnapshot({
+        taskType,
+        level: "CHAPTER",
+        id: chapter.id,
+        title: chapter.title,
+        numberLabel: toNumberLabel("Chapter", chapter.chapterNumber),
+        result,
+        revisionNotes
+      })
+    ]
+  );
 }
 
 async function generateChapterOutline(taskType: ComicOutlineTaskType, chapterId: string, revisionNotes?: string) {
@@ -746,7 +898,23 @@ async function generateChapterOutline(taskType: ComicOutlineTaskType, chapterId:
     seasonSlug: chapter.season.slug,
     chapterSlug: chapter.slug
   });
-  return success(taskType, "chapter-outline-generated", `Generated outline for ${chapter.title}.`, chapter.id);
+  return success(
+    taskType,
+    "chapter-outline-generated",
+    `Generated outline for ${chapter.title}.`,
+    chapter.id,
+    [
+      toGeneratedOutlineSnapshot({
+        taskType,
+        level: "CHAPTER",
+        id: chapter.id,
+        title: chapter.title,
+        numberLabel: toNumberLabel("Chapter", chapter.chapterNumber),
+        result,
+        revisionNotes
+      })
+    ]
+  );
 }
 
 async function generateEpisodeOutlines(taskType: ComicOutlineTaskType, chapterId: string, revisionNotes?: string) {
@@ -840,7 +1008,37 @@ async function generateEpisodeOutlines(taskType: ComicOutlineTaskType, chapterId
     seasonSlug: chapter.season.slug,
     chapterSlug: chapter.slug
   });
-  return success(taskType, "episode-outlines-generated", `Generated ${outlines.length} episode outlines.`, chapter.id);
+  return success(
+    taskType,
+    "episode-outlines-generated",
+    `Generated ${outlines.length} episode outlines.`,
+    chapter.id,
+    outlines
+      .map((outline) => {
+        const episode = episodeById.get(outline.id);
+
+        if (!episode) {
+          return null;
+        }
+
+        const nextTitle = normalizeGeneratedOutlineTitle({
+          generatedTitle: outline.title,
+          fallbackTitle: episode.title,
+          numberLabel: toNumberLabel("Episode", episode.episodeNumber)
+        });
+
+        return toGeneratedOutlineSnapshot({
+          taskType,
+          level: "EPISODE",
+          id: episode.id,
+          title: nextTitle,
+          numberLabel: toNumberLabel("Episode", episode.episodeNumber),
+          result: outline,
+          revisionNotes
+        });
+      })
+      .filter((snapshot): snapshot is ComicGeneratedOutlineSnapshot => Boolean(snapshot))
+  );
 }
 
 async function loadEpisode(episodeId: string) {
@@ -918,7 +1116,23 @@ async function translateEpisodeOutline(taskType: ComicOutlineTaskType, episodeId
     chapterSlug: episode.chapter.slug,
     episodeSlug: episode.slug
   });
-  return success(taskType, "episode-outline-translated", `Translated ${episode.title}.`, episode.id);
+  return success(
+    taskType,
+    "episode-outline-translated",
+    `Translated ${episode.title}.`,
+    episode.id,
+    [
+      toGeneratedOutlineSnapshot({
+        taskType,
+        level: "EPISODE",
+        id: episode.id,
+        title: episode.title,
+        numberLabel: toNumberLabel("Episode", episode.episodeNumber),
+        result,
+        revisionNotes
+      })
+    ]
+  );
 }
 
 async function generateEpisodeOutline(taskType: ComicOutlineTaskType, episodeId: string, revisionNotes?: string) {
@@ -986,7 +1200,23 @@ async function generateEpisodeOutline(taskType: ComicOutlineTaskType, episodeId:
     chapterSlug: episode.chapter.slug,
     episodeSlug: episode.slug
   });
-  return success(taskType, "episode-outline-generated", `Generated outline for ${nextTitle}.`, episode.id);
+  return success(
+    taskType,
+    "episode-outline-generated",
+    `Generated outline for ${nextTitle}.`,
+    episode.id,
+    [
+      toGeneratedOutlineSnapshot({
+        taskType,
+        level: "EPISODE",
+        id: episode.id,
+        title: nextTitle,
+        numberLabel: toNumberLabel("Episode", episode.episodeNumber),
+        result,
+        revisionNotes
+      })
+    ]
+  );
 }
 
 export async function runComicOutlineTask(input: {

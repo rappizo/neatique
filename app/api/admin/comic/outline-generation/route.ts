@@ -3,8 +3,10 @@ import { isAdminAuthenticated } from "@/lib/admin-auth";
 import {
   ComicOutlineTaskInputError,
   runComicOutlineTask,
+  type ComicOutlineTaskResult,
   type ComicOutlineTaskType
 } from "@/lib/comic-outline-generation";
+import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;
@@ -25,6 +27,41 @@ const OUTLINE_TASK_TYPES = new Set<ComicOutlineTaskType>([
 
 function isComicOutlineTaskType(value: string): value is ComicOutlineTaskType {
   return OUTLINE_TASK_TYPES.has(value as ComicOutlineTaskType);
+}
+
+function stringifyOutlineTaskPayload(input: {
+  taskType: ComicOutlineTaskType;
+  targetId: string;
+  revisionNotes: string;
+}) {
+  return JSON.stringify({
+    source: "outline-generation-route",
+    taskType: input.taskType,
+    targetId: input.targetId,
+    revisionNotes: input.revisionNotes
+  });
+}
+
+async function persistDirectOutlineTaskResult(input: {
+  taskType: ComicOutlineTaskType;
+  targetId: string;
+  revisionNotes: string;
+  result: ComicOutlineTaskResult;
+}) {
+  await prisma.comicAiTask.create({
+    data: {
+      taskType: "outline",
+      label: `Direct outline ${input.taskType}`,
+      status: input.result.ok ? "SUCCEEDED" : "FAILED",
+      payload: stringifyOutlineTaskPayload(input),
+      result: JSON.stringify(input.result),
+      errorMessage: input.result.ok ? null : input.result.errorMessage || input.result.message,
+      targetId: input.targetId || null,
+      attempts: 1,
+      maxAttempts: 1,
+      completedAt: new Date()
+    }
+  });
 }
 
 export async function POST(request: Request) {
@@ -78,6 +115,13 @@ export async function POST(request: Request) {
       taskType,
       targetId,
       revisionNotes
+    });
+
+    await persistDirectOutlineTaskResult({
+      taskType,
+      targetId,
+      revisionNotes,
+      result
     });
 
     return NextResponse.json(result, { status: result.ok ? 200 : 500 });
