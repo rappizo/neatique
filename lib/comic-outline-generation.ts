@@ -15,7 +15,10 @@ import {
   type ComicGeneratedOutlineSnapshot,
   type ComicOutlineSnapshotLevel
 } from "@/lib/comic-outline-snapshots";
-import { normalizeGeneratedOutlineTitle } from "@/lib/comic-outline-title";
+import {
+  extractEpisodeTitleFromChapterOutline,
+  resolveGeneratedEpisodeTitle
+} from "@/lib/comic-outline-title";
 import { prisma } from "@/lib/db";
 
 export type ComicOutlineTaskType =
@@ -948,8 +951,12 @@ async function generateEpisodeOutlines(taskType: ComicOutlineTaskType, chapterId
     outlines.map((outline) => {
       const episode = episodeById.get(outline.id);
       const nextTitle = episode
-        ? normalizeGeneratedOutlineTitle({
+        ? resolveGeneratedEpisodeTitle({
             generatedTitle: outline.title,
+            parentOutlineTitle: extractEpisodeTitleFromChapterOutline({
+              chapterOutline: chapter.outline,
+              episodeNumber: episode.episodeNumber
+            }),
             fallbackTitle: episode.title,
             numberLabel: toNumberLabel("Episode", episode.episodeNumber)
           })
@@ -973,8 +980,12 @@ async function generateEpisodeOutlines(taskType: ComicOutlineTaskType, chapterId
         return Promise.resolve();
       }
 
-      const nextTitle = normalizeGeneratedOutlineTitle({
+      const nextTitle = resolveGeneratedEpisodeTitle({
         generatedTitle: outline.title,
+        parentOutlineTitle: extractEpisodeTitleFromChapterOutline({
+          chapterOutline: chapter.outline,
+          episodeNumber: episode.episodeNumber
+        }),
         fallbackTitle: episode.title,
         numberLabel: toNumberLabel("Episode", episode.episodeNumber)
       });
@@ -1006,8 +1017,12 @@ async function generateEpisodeOutlines(taskType: ComicOutlineTaskType, chapterId
           return null;
         }
 
-        const nextTitle = normalizeGeneratedOutlineTitle({
+        const nextTitle = resolveGeneratedEpisodeTitle({
           generatedTitle: outline.title,
+          parentOutlineTitle: extractEpisodeTitleFromChapterOutline({
+            chapterOutline: chapter.outline,
+            episodeNumber: episode.episodeNumber
+          }),
           fallbackTitle: episode.title,
           numberLabel: toNumberLabel("Episode", episode.episodeNumber)
         });
@@ -1156,8 +1171,12 @@ async function generateEpisodeOutline(taskType: ComicOutlineTaskType, episodeId:
     visualStyleGuide: episode.chapter.season.project.visualStyleGuide
   });
 
-  const nextTitle = normalizeGeneratedOutlineTitle({
+  const nextTitle = resolveGeneratedEpisodeTitle({
     generatedTitle: result.title,
+    parentOutlineTitle: extractEpisodeTitleFromChapterOutline({
+      chapterOutline: episode.chapter.outline,
+      episodeNumber: episode.episodeNumber
+    }),
     fallbackTitle: episode.title,
     numberLabel: toNumberLabel("Episode", episode.episodeNumber)
   });

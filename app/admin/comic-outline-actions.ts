@@ -8,7 +8,10 @@ import {
 } from "@/lib/comic-bilingual-outline";
 import { prisma } from "@/lib/db";
 import { toComicCharacterChineseNameLocks } from "@/lib/comic-character-chinese-names";
-import { normalizeGeneratedOutlineTitle } from "@/lib/comic-outline-title";
+import {
+  extractEpisodeTitleFromChapterOutline,
+  resolveGeneratedEpisodeTitle
+} from "@/lib/comic-outline-title";
 import { toPlainString } from "@/lib/utils";
 import {
   buildComicRedirect,
@@ -681,8 +684,12 @@ export async function generateComicEpisodeOutlineAction(formData: FormData) {
       visualStyleGuide: episode.chapter.season.project.visualStyleGuide
     });
 
-    const nextTitle = normalizeGeneratedOutlineTitle({
+    const nextTitle = resolveGeneratedEpisodeTitle({
       generatedTitle: result.title,
+      parentOutlineTitle: extractEpisodeTitleFromChapterOutline({
+        chapterOutline: episode.chapter.outline,
+        episodeNumber: episode.episodeNumber
+      }),
       fallbackTitle: episode.title,
       numberLabel: toNumberLabel("Episode", episode.episodeNumber)
     });
@@ -975,8 +982,12 @@ export async function generateComicEpisodeOutlinesAction(formData: FormData) {
       outlines.map((outline) => {
         const episode = episodeById.get(outline.id);
         const nextTitle = episode
-          ? normalizeGeneratedOutlineTitle({
+          ? resolveGeneratedEpisodeTitle({
               generatedTitle: outline.title,
+              parentOutlineTitle: extractEpisodeTitleFromChapterOutline({
+                chapterOutline: chapter.outline,
+                episodeNumber: episode.episodeNumber
+              }),
               fallbackTitle: episode.title,
               numberLabel: toNumberLabel("Episode", episode.episodeNumber)
             })
