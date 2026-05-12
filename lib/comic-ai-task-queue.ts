@@ -14,6 +14,7 @@ import {
   reviseComicPagePromptForEpisode
 } from "@/lib/comic-prompt-generation";
 import { isComicPublishPageNumber } from "@/lib/comic-pages";
+import type { ComicTaskTiming } from "@/lib/comic-task-timing";
 
 export type ComicAiTaskType =
   | "generate"
@@ -69,6 +70,7 @@ export type ComicAiTaskClientRecord = {
   referenceCount?: number;
   imageCreationId?: string;
   extraPageKey?: string;
+  timing?: ComicTaskTiming;
 };
 
 type ComicAiTaskModelRecord = {
@@ -99,6 +101,7 @@ type ComicAiTaskResult = {
   assetId?: string;
   imageUrl?: string;
   payloadPatch?: ComicAiTaskPayload;
+  timing?: ComicTaskTiming;
   attemptFailures?: Array<{
     attempt: number;
     errorMessage: string;
@@ -111,6 +114,7 @@ const ACTIVE_TASK_STATUSES: ComicAiTaskStatus[] = ["QUEUED", "RUNNING"];
 const RETRYABLE_TASK_STATUSES: ComicAiTaskStatus[] = ["FAILED", "CANCELLED"];
 const DEFAULT_STALE_RUNNING_TASK_MS = 1000 * 60 * 25;
 const DEFAULT_OUTLINE_TASK_CONCURRENCY = 1;
+const DEFAULT_IMAGE_TASK_CONCURRENCY = 2;
 const IMAGE_HEAVY_TASK_TYPES = new Set<ComicAiTaskType>([
   "generate",
   "extra-page-generation",
@@ -315,7 +319,7 @@ function getImageTaskConcurrency() {
   const configured = Number.parseInt(process.env.COMIC_IMAGE_TASK_CONCURRENCY || "", 10);
 
   if (!Number.isFinite(configured) || configured <= 0) {
-    return 1;
+    return DEFAULT_IMAGE_TASK_CONCURRENCY;
   }
 
   return Math.min(Math.max(configured, 1), 3);
@@ -712,7 +716,8 @@ export function toClientComicAiTask(task: ComicAiTaskModelRecord): ComicAiTaskCl
     referenceCount: Array.isArray(payload.references)
       ? payload.references.length
       : getReferenceCreationIdsPayload(payload).length + getReferenceImagesPayload(payload).length,
-    imageCreationId: toOptionalStringValue(result?.creationId)
+    imageCreationId: toOptionalStringValue(result?.creationId),
+    timing: result?.timing
   };
 }
 

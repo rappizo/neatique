@@ -58,6 +58,12 @@ type ComicImageTask = {
   referenceCount?: number;
   imageCreationId?: string;
   extraPageKey?: string;
+  timing?: ComicTaskTiming;
+};
+
+type ComicTaskTiming = {
+  totalMs: number;
+  stages?: Record<string, number>;
 };
 
 type ComicImageCreationReferencePayload = {
@@ -239,6 +245,57 @@ function createTaskId(kind: ComicImageTaskKind, episodeId: string, pageNumber: n
 
 function getTaskSortTime(task: ComicImageTask) {
   return task.completedAt || task.createdAt;
+}
+
+function formatDuration(ms: number) {
+  if (!Number.isFinite(ms) || ms < 0) {
+    return "";
+  }
+
+  if (ms < 1000) {
+    return `${Math.round(ms)}ms`;
+  }
+
+  const seconds = Math.round(ms / 1000);
+
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+
+  return remainder > 0 ? `${minutes}m ${remainder}s` : `${minutes}m`;
+}
+
+function formatTaskStageLabel(stage: string) {
+  const labels: Record<string, string> = {
+    openAiImage: "OpenAI",
+    openAiImageEdit: "OpenAI edit",
+    openAiChineseEdit: "OpenAI zh",
+    loadReferenceContexts: "refs",
+    loadProductReferences: "product refs",
+    resolveReferences: "resolve refs",
+    storeImage: "store",
+    writePromptRun: "DB",
+    writeImageCreation: "DB"
+  };
+
+  return labels[stage] || stage;
+}
+
+function formatTaskTiming(timing?: ComicTaskTiming) {
+  if (!timing?.totalMs) {
+    return "";
+  }
+
+  const topStages = Object.entries(timing.stages || {})
+    .filter(([, duration]) => Number.isFinite(duration) && duration > 0)
+    .sort(([, leftDuration], [, rightDuration]) => rightDuration - leftDuration)
+    .slice(0, 3)
+    .map(([stage, duration]) => `${formatTaskStageLabel(stage)} ${formatDuration(duration)}`);
+
+  return [`total ${formatDuration(timing.totalMs)}`, ...topStages].join(" · ");
 }
 
 function isActiveTask(task: ComicImageTask) {
@@ -2507,6 +2564,7 @@ function ComicImageTaskQueuePanel() {
             <div>
               <strong>{task.label}</strong>
               <span>{task.message || task.status}</span>
+              {task.timing ? <small>{formatTaskTiming(task.timing)}</small> : null}
               {task.errorMessage ? <small>{task.errorMessage}</small> : null}
             </div>
             <div className="admin-comic-task__actions">

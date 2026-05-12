@@ -11,6 +11,7 @@ import {
   generateStandaloneComicImageWithAi,
   getOpenAiComicSettings
 } from "@/lib/openai-comic";
+import { createComicTaskTimer, type ComicTaskTiming } from "@/lib/comic-task-timing";
 
 export const COMIC_IMAGE_CREATION_ASPECT_RATIOS = [
   "1:1",
@@ -36,6 +37,7 @@ export type ComicImageCreationTaskResult = {
   creationId?: string;
   imageUrl?: string;
   quality?: ComicImageCreationQuality;
+  timing?: ComicTaskTiming;
 };
 
 const COMIC_IMAGE_CREATION_PROMPT_MAX_LENGTH = 8000;
@@ -259,12 +261,14 @@ export async function generateComicImageCreation(input: {
   const aspectRatio = normalizeComicImageCreationAspectRatio(input.aspectRatio);
   const quality = normalizeComicImageCreationQuality(input.quality);
   const referenceInputs = normalizeReferenceInputs(input);
+  const timer = createComicTaskTimer();
 
   if (!prompt) {
     return {
       ok: false,
       message: "Image creation failed.",
-      errorMessage: "Image prompt is required."
+      errorMessage: "Image prompt is required.",
+      timing: timer.snapshot()
     };
   }
 
@@ -283,32 +287,39 @@ export async function generateComicImageCreation(input: {
 
     for (const referenceInput of referenceInputs) {
       if (referenceInput.type === "creation" && referenceInput.id) {
-        const referenceCreation = await prisma.comicImageCreation.findUnique({
-          where: { id: referenceInput.id },
-          select: {
-            id: true,
-            prompt: true,
-            imageUrl: true,
-            imageData: true,
-            imageMimeType: true
-          }
-        });
+        const referenceInputId = referenceInput.id;
+        const referenceCreation = await timer.time("loadReferenceCreation", () =>
+          prisma.comicImageCreation.findUnique({
+            where: { id: referenceInputId },
+            select: {
+              id: true,
+              prompt: true,
+              imageUrl: true,
+              imageData: true,
+              imageMimeType: true
+            }
+          })
+        );
 
         if (!referenceCreation) {
           return {
             ok: false,
             message: "Image creation failed.",
-            errorMessage: "Selected reference image no longer exists."
+            errorMessage: "Selected reference image no longer exists.",
+            timing: timer.snapshot()
           };
         }
 
-        const referenceImage = await getComicImageSource(referenceCreation);
+        const referenceImage = await timer.time("loadReferenceImage", () =>
+          getComicImageSource(referenceCreation)
+        );
 
         if (!referenceImage) {
           return {
             ok: false,
             message: "Image creation failed.",
-            errorMessage: "Selected reference image could not be loaded."
+            errorMessage: "Selected reference image could not be loaded.",
+            timing: timer.snapshot()
           };
         }
 
@@ -339,13 +350,15 @@ export async function generateComicImageCreation(input: {
       }
     }
 
-    const image = await generateStandaloneComicImageWithAi({
-      prompt,
-      aspectRatio,
-      quality,
-      referenceImages: references.map((reference) => reference.image),
-      generationAttempt: input.attempt
-    });
+    const image = await timer.time("openAiImage", () =>
+      generateStandaloneComicImageWithAi({
+        prompt,
+        aspectRatio,
+        quality,
+        referenceImages: references.map((reference) => reference.image),
+        generationAttempt: input.attempt
+      })
+    );
 
     const firstReference = references[0] || null;
     const firstUploadedReference = firstReference?.sourceType === "UPLOAD" ? firstReference.image : null;
@@ -365,13 +378,15 @@ export async function generateComicImageCreation(input: {
     }
 
     if (firstUploadedReference) {
-      const storedReference = await storeComicImage({
-        base64Data: firstUploadedReference.base64Data,
-        mimeType: firstUploadedReference.mimeType,
-        category: "image-creation-references",
-        targetId: creationId,
-        fileName: `reference-${Date.now()}`
-      });
+      const storedReference = await timer.time("storeUploadedReference", () =>
+        storeComicImage({
+          base64Data: firstUploadedReference.base64Data,
+          mimeType: firstUploadedReference.mimeType,
+          category: "image-creation-references",
+          targetId: creationId,
+          fileName: `reference-${Date.now()}`
+        })
+      );
       const hasPublicStoredReferenceUrl =
         Boolean(storedReference.imageStorageKey) || /^https?:\/\//i.test(storedReference.imageUrl);
 
@@ -385,43 +400,47 @@ export async function generateComicImageCreation(input: {
       referenceImageSha256 = storedReference.imageSha256;
     }
 
-    const storedImage = await storeComicImage({
-      base64Data: image.base64Data,
-      mimeType: image.mimeType,
-      category: "image-creation",
-      targetId: creationId,
-      fileName: `image-${Date.now()}`
-    });
+    const storedImage = await timer.time("storeImage", () =>
+      storeComicImage({
+        base64Data: image.base64Data,
+        mimeType: image.mimeType,
+        category: "image-creation",
+        targetId: creationId,
+        fileName: `image-${Date.now()}`
+      })
+    );
     const hasPublicStoredUrl =
       Boolean(storedImage.imageStorageKey) || /^https?:\/\//i.test(storedImage.imageUrl);
     const imageUrl = hasPublicStoredUrl
       ? storedImage.imageUrl
       : buildComicImageCreationFallbackUrl(creationId);
 
-    await prisma.comicImageCreation.create({
-      data: {
-        id: creationId,
-        prompt,
-        aspectRatio,
-        quality,
-        model: getOpenAiComicSettings().imageModel,
-        sourceType,
-        referenceCreationId,
-        referenceImageUrl,
-        referenceImageData,
-        referenceImageMimeType,
-        referenceImageStorageKey,
-        referenceImageByteSize,
-        referenceImageSha256,
-        referenceImageName,
-        imageUrl,
-        imageData: storedImage.imageData,
-        imageMimeType: storedImage.imageMimeType,
-        imageStorageKey: storedImage.imageStorageKey,
-        imageByteSize: storedImage.imageByteSize,
-        imageSha256: storedImage.imageSha256
-      }
-    });
+    await timer.time("writeImageCreation", () =>
+      prisma.comicImageCreation.create({
+        data: {
+          id: creationId,
+          prompt,
+          aspectRatio,
+          quality,
+          model: getOpenAiComicSettings().imageModel,
+          sourceType,
+          referenceCreationId,
+          referenceImageUrl,
+          referenceImageData,
+          referenceImageMimeType,
+          referenceImageStorageKey,
+          referenceImageByteSize,
+          referenceImageSha256,
+          referenceImageName,
+          imageUrl,
+          imageData: storedImage.imageData,
+          imageMimeType: storedImage.imageMimeType,
+          imageStorageKey: storedImage.imageStorageKey,
+          imageByteSize: storedImage.imageByteSize,
+          imageSha256: storedImage.imageSha256
+        }
+      })
+    );
 
     revalidatePath("/admin/comic/image-creation");
 
@@ -430,13 +449,15 @@ export async function generateComicImageCreation(input: {
       message: references.length > 0 ? "Image created from reference." : "Image created.",
       creationId,
       imageUrl,
-      quality
+      quality,
+      timing: timer.snapshot()
     };
   } catch (error) {
     return {
       ok: false,
       message: "Image creation failed.",
-      errorMessage: error instanceof Error ? error.message : "Unknown image creation error."
+      errorMessage: error instanceof Error ? error.message : "Unknown image creation error.",
+      timing: timer.snapshot()
     };
   }
 }

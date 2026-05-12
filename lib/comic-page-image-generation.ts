@@ -11,6 +11,7 @@ import {
 } from "@/lib/comic-product-locks";
 import { isNextRedirectError } from "@/lib/comic-action-errors";
 import { buildComicMediaFallbackUrl, storeComicImage } from "@/lib/comic-image-storage";
+import { createComicTaskTimer, type ComicTaskTiming } from "@/lib/comic-task-timing";
 import { revalidateComicRoutes } from "@/app/admin/comic-action-helpers";
 import {
   formatComicPageFileSlug,
@@ -43,6 +44,7 @@ export type ComicPageImageGenerationResult = {
   assetId?: string;
   imageUrl?: string;
   referenceImageCount?: number;
+  timing?: ComicTaskTiming;
   message: string;
   errorMessage?: string;
 };
@@ -54,6 +56,7 @@ export async function generateComicPageImageForEpisode(input: {
 }): Promise<ComicPageImageGenerationResult> {
   const { episodeId, pageNumber } = input;
   const attempt = Math.max(input.attempt || 1, 1);
+  const timer = createComicTaskTimer();
 
   if (!episodeId) {
     throw new ComicPageImageGenerationInputError("missing-episode", "Episode is required.");
@@ -63,20 +66,22 @@ export async function generateComicPageImageForEpisode(input: {
     throw new ComicPageImageGenerationInputError("missing-page-prompt", "Page number is required.");
   }
 
-  const episode = await prisma.comicEpisode.findUnique({
-    where: { id: episodeId },
-    include: {
-      chapter: {
-        include: {
-          season: {
-            include: {
-              project: true
+  const episode = await timer.time("loadEpisode", () =>
+    prisma.comicEpisode.findUnique({
+      where: { id: episodeId },
+      include: {
+        chapter: {
+          include: {
+            season: {
+              include: {
+                project: true
+              }
             }
           }
         }
       }
-    }
-  });
+    })
+  );
 
   if (!episode?.chapter.season.project) {
     throw new ComicPageImageGenerationInputError("missing-project", "Comic project is missing.");
@@ -111,34 +116,42 @@ export async function generateComicPageImageForEpisode(input: {
       .map((upload) => [upload.label, upload.slug, upload.contentSummary].join(" "))
       .join("\n")
   ].join("\n\n");
-  const resolvedReferenceImages = await resolveComicPageReferenceImages({
-    requiredUploads: page.requiredUploads,
-    seasonSlug: episode.chapter.season.slug,
-    chapterSlug: episode.chapter.slug,
-    promptText: referenceDetectionText
-  });
-  const [baseReferenceImages, characterLocks, productLocks] = await Promise.all([
-    loadComicReferenceImageFiles(resolvedReferenceImages),
-    loadComicCharacterIdentityLocks(
-      resolvedReferenceImages
-        .filter((reference) =>
-          ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket)
+  const resolvedReferenceImages = await timer.time("resolveReferences", () =>
+    resolveComicPageReferenceImages({
+      requiredUploads: page.requiredUploads,
+      seasonSlug: episode.chapter.season.slug,
+      chapterSlug: episode.chapter.slug,
+      promptText: referenceDetectionText
+    })
+  );
+  const [baseReferenceImages, characterLocks, productLocks] = await timer.time(
+    "loadReferenceContexts",
+    () =>
+      Promise.all([
+        loadComicReferenceImageFiles(resolvedReferenceImages),
+        loadComicCharacterIdentityLocks(
+          resolvedReferenceImages
+            .filter((reference) =>
+              ["CHARACTER", "DETECTED_CHARACTER"].includes(reference.bucket)
+            )
+            .map((reference) => reference.slug)
+        ),
+        loadComicProductLockPromptContexts(
+          [
+            page.pagePurpose,
+            page.promptPackCopyText,
+            page.referenceNotesCopyText,
+            referenceDetectionText
+          ].join("\n"),
+          {
+            fallbackToAll: false
+          }
         )
-        .map((reference) => reference.slug)
-    ),
-    loadComicProductLockPromptContexts(
-      [
-        page.pagePurpose,
-        page.promptPackCopyText,
-        page.referenceNotesCopyText,
-        referenceDetectionText
-      ].join("\n"),
-      {
-        fallbackToAll: false
-      }
-    )
-  ]);
-  const productReferenceImages = await loadComicProductLockReferenceImages(productLocks);
+      ])
+  );
+  const productReferenceImages = await timer.time("loadProductReferences", () =>
+    loadComicProductLockReferenceImages(productLocks)
+  );
   const referenceImages = [...baseReferenceImages, ...productReferenceImages];
   const imageInput = {
     projectTitle: episode.chapter.season.project.title,
@@ -164,7 +177,7 @@ export async function generateComicPageImageForEpisode(input: {
     productLocks,
     generationAttempt: attempt
   };
-  const inputPrompt = buildComicPageImagePrompt(imageInput);
+  const inputPrompt = timer.timeSync("buildPrompt", () => buildComicPageImagePrompt(imageInput));
   const inputContext = JSON.stringify(
     {
       project: episode.chapter.season.project.title,
@@ -202,62 +215,70 @@ export async function generateComicPageImageForEpisode(input: {
   );
 
   try {
-    const imageAsset = await generateComicPageImageWithAi(imageInput);
-    const storedImage = await storeComicImage({
-      base64Data: imageAsset.base64Data,
-      mimeType: imageAsset.mimeType,
-      category: "generated-pages",
-      targetId: episodeId,
-      fileName: `${formatComicPageFileSlug(page.pageNumber)}-${Date.now()}`
-    });
-    const createdAsset = await prisma.comicEpisodeAsset.create({
-      data: {
-        episodeId,
-        assetType: "GENERATED_PAGE",
-        title: `${episode.title} - ${formatComicPageLabel(page.pageNumber)}`,
-        imageUrl: storedImage.imageUrl,
-        imageData: storedImage.imageData,
-        imageMimeType: storedImage.imageMimeType,
-        imageStorageKey: storedImage.imageStorageKey,
-        imageByteSize: storedImage.imageByteSize,
-        imageSha256: storedImage.imageSha256,
-        altText: `${episode.title} comic ${formatComicPageLabel(page.pageNumber).toLowerCase()}`,
-        caption: page.pagePurpose,
-        sortOrder: page.pageNumber,
-        published: false
-      },
-      select: {
-        id: true
-      }
-    });
+    const imageAsset = await timer.time("openAiImage", () =>
+      generateComicPageImageWithAi(imageInput)
+    );
+    const storedImage = await timer.time("storeImage", () =>
+      storeComicImage({
+        base64Data: imageAsset.base64Data,
+        mimeType: imageAsset.mimeType,
+        category: "generated-pages",
+        targetId: episodeId,
+        fileName: `${formatComicPageFileSlug(page.pageNumber)}-${Date.now()}`
+      })
+    );
+    const createdAsset = await timer.time("createAsset", () =>
+      prisma.comicEpisodeAsset.create({
+        data: {
+          episodeId,
+          assetType: "GENERATED_PAGE",
+          title: `${episode.title} - ${formatComicPageLabel(page.pageNumber)}`,
+          imageUrl: storedImage.imageUrl,
+          imageData: storedImage.imageData,
+          imageMimeType: storedImage.imageMimeType,
+          imageStorageKey: storedImage.imageStorageKey,
+          imageByteSize: storedImage.imageByteSize,
+          imageSha256: storedImage.imageSha256,
+          altText: `${episode.title} comic ${formatComicPageLabel(page.pageNumber).toLowerCase()}`,
+          caption: page.pagePurpose,
+          sortOrder: page.pageNumber,
+          published: false
+        },
+        select: {
+          id: true
+        }
+      })
+    );
 
     const imageUrl = storedImage.imageData
       ? buildComicMediaFallbackUrl(createdAsset.id)
       : storedImage.imageUrl;
 
-    await prisma.$transaction([
-      prisma.comicEpisodeAsset.update({
-        where: { id: createdAsset.id },
-        data: { imageUrl }
-      }),
-      prisma.comicPromptRun.create({
-        data: {
-          episodeId,
-          promptType: "PAGE_IMAGE_GENERATION",
-          model:
-            process.env.OPENAI_COMIC_MODEL ||
-            process.env.OPENAI_POST_MODEL ||
-            process.env.OPENAI_EMAIL_MODEL ||
-            "gpt-5.5",
-          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
-          status: "READY",
-          inputContext,
-          outputSummary: `Generated ${episode.title} ${formatComicPageLabel(page.pageNumber).toLowerCase()} with ${imageInput.referenceImages.length} direct reference image${imageInput.referenceImages.length === 1 ? "" : "s"}.`,
-          promptPack: page.promptPackCopyText,
-          referenceChecklist: page.referenceNotesCopyText
-        }
-      })
-    ]);
+    await timer.time("writePromptRun", () =>
+      prisma.$transaction([
+        prisma.comicEpisodeAsset.update({
+          where: { id: createdAsset.id },
+          data: { imageUrl }
+        }),
+        prisma.comicPromptRun.create({
+          data: {
+            episodeId,
+            promptType: "PAGE_IMAGE_GENERATION",
+            model:
+              process.env.OPENAI_COMIC_MODEL ||
+              process.env.OPENAI_POST_MODEL ||
+              process.env.OPENAI_EMAIL_MODEL ||
+              "gpt-5.5",
+            imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+            status: "READY",
+            inputContext,
+            outputSummary: `Generated ${episode.title} ${formatComicPageLabel(page.pageNumber).toLowerCase()} with ${imageInput.referenceImages.length} direct reference image${imageInput.referenceImages.length === 1 ? "" : "s"}.`,
+            promptPack: page.promptPackCopyText,
+            referenceChecklist: page.referenceNotesCopyText
+          }
+        })
+      ])
+    );
 
     revalidateComicRoutes({
       seasonSlug: episode.chapter.season.slug,
@@ -273,6 +294,7 @@ export async function generateComicPageImageForEpisode(input: {
       assetId: createdAsset.id,
       imageUrl,
       referenceImageCount: imageInput.referenceImages.length,
+      timing: timer.snapshot(),
       message: `Generated ${episode.title} ${formatComicPageLabel(page.pageNumber).toLowerCase()}.`
     };
   } catch (error) {
@@ -283,24 +305,26 @@ export async function generateComicPageImageForEpisode(input: {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown comic page image generation error.";
 
-    await prisma.comicPromptRun.create({
-      data: {
-        episodeId,
-        promptType: "PAGE_IMAGE_GENERATION",
-        model:
-          process.env.OPENAI_COMIC_MODEL ||
-          process.env.OPENAI_POST_MODEL ||
-          process.env.OPENAI_EMAIL_MODEL ||
-          "gpt-5.5",
-        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
-        status: "FAILED",
-        inputContext,
-        outputSummary: `${formatComicPageLabel(page.pageNumber)} image generation failed.`,
-        promptPack: page.promptPackCopyText,
-        referenceChecklist: page.referenceNotesCopyText,
-        errorMessage
-      }
-    });
+    await timer.time("writeFailedPromptRun", () =>
+      prisma.comicPromptRun.create({
+        data: {
+          episodeId,
+          promptType: "PAGE_IMAGE_GENERATION",
+          model:
+            process.env.OPENAI_COMIC_MODEL ||
+            process.env.OPENAI_POST_MODEL ||
+            process.env.OPENAI_EMAIL_MODEL ||
+            "gpt-5.5",
+          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          status: "FAILED",
+          inputContext,
+          outputSummary: `${formatComicPageLabel(page.pageNumber)} image generation failed.`,
+          promptPack: page.promptPackCopyText,
+          referenceChecklist: page.referenceNotesCopyText,
+          errorMessage
+        }
+      })
+    );
 
     revalidateComicRoutes({
       seasonSlug: episode.chapter.season.slug,
@@ -314,6 +338,7 @@ export async function generateComicPageImageForEpisode(input: {
       episodeId,
       pageNumber: page.pageNumber,
       referenceImageCount: imageInput.referenceImages.length,
+      timing: timer.snapshot(),
       message: `${formatComicPageLabel(page.pageNumber)} image generation failed.`,
       errorMessage
     };

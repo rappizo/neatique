@@ -13,6 +13,7 @@ import {
   formatComicPageLabel,
   isComicPublishPageNumber
 } from "@/lib/comic-pages";
+import { createComicTaskTimer, type ComicTaskTiming } from "@/lib/comic-task-timing";
 
 
 export type ComicChinesePageVersionStatus =
@@ -40,6 +41,7 @@ export type ComicChinesePageVersionResult = {
   pageNumber: number;
   assetId?: string;
   imageUrl?: string;
+  timing?: ComicTaskTiming;
   message: string;
   errorMessage?: string;
 };
@@ -65,25 +67,28 @@ export async function createChineseComicPageVersion(input: {
   assetId: string;
 }): Promise<ComicChinesePageVersionResult> {
   const assetId = input.assetId.trim();
+  const timer = createComicTaskTimer();
 
   if (!assetId) {
     throw new ComicChinesePageVersionInputError("missing-asset", "Comic page asset is required.");
   }
 
-  const asset = await prisma.comicEpisodeAsset.findUnique({
-    where: { id: assetId },
-    include: {
-      episode: {
-        include: {
-          chapter: {
-            include: {
-              season: true
+  const asset = await timer.time("loadAsset", () =>
+    prisma.comicEpisodeAsset.findUnique({
+      where: { id: assetId },
+      include: {
+        episode: {
+          include: {
+            chapter: {
+              include: {
+                season: true
+              }
             }
           }
         }
       }
-    }
-  });
+    })
+  );
 
   if (!asset) {
     throw new ComicChinesePageVersionInputError(
@@ -99,7 +104,7 @@ export async function createChineseComicPageVersion(input: {
     );
   }
 
-  const sourceImage = await getComicImageSource(asset);
+  const sourceImage = await timer.time("loadSourceImage", () => getComicImageSource(asset));
 
   if (!sourceImage) {
     throw new ComicChinesePageVersionInputError(
@@ -122,74 +127,84 @@ export async function createChineseComicPageVersion(input: {
   try {
     const { generateChineseComicPageVersionWithAi } = await import("@/lib/openai-comic");
     const characterNameLocks = toComicCharacterChineseNameLocks(
-      await prisma.comicCharacter.findMany({
-        where: {
-          projectId: asset.episode.chapter.season.projectId,
-          active: true
+      await timer.time("loadCharacterNameLocks", () =>
+        prisma.comicCharacter.findMany({
+          where: {
+            projectId: asset.episode.chapter.season.projectId,
+            active: true
+          },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          select: {
+            name: true,
+            slug: true,
+            chineseName: true
+          }
+        })
+      )
+    );
+    const translatedImage = await timer.time("openAiChineseEdit", () =>
+      generateChineseComicPageVersionWithAi({
+        sourceImage,
+        episodeTitle: asset.episode.title,
+        pageNumber: asset.sortOrder,
+        characterNameLocks
+      })
+    );
+    const storedImage = await timer.time("storeImage", () =>
+      storeComicImage({
+        base64Data: translatedImage.base64Data,
+        mimeType: translatedImage.mimeType,
+        category: "chinese-pages",
+        targetId: asset.episodeId,
+        fileName: `${formatComicPageFileSlug(asset.sortOrder)}-zh-${Date.now()}`
+      })
+    );
+
+    const createdAsset = await timer.time("createAsset", () =>
+      prisma.comicEpisodeAsset.create({
+        data: {
+          episodeId: asset.episodeId,
+          assetType: COMIC_CHINESE_PAGE_ASSET_TYPE,
+          title: `${asset.title} - Chinese Version`,
+          imageUrl: storedImage.imageUrl,
+          imageData: storedImage.imageData,
+          imageMimeType: storedImage.imageMimeType,
+          imageStorageKey: storedImage.imageStorageKey,
+          imageByteSize: storedImage.imageByteSize,
+          imageSha256: storedImage.imageSha256,
+          altText: `${asset.altText || asset.title} Chinese version`,
+          caption: asset.caption,
+          sortOrder: asset.sortOrder,
+          published: false
         },
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         select: {
-          name: true,
-          slug: true,
-          chineseName: true
+          id: true
         }
       })
     );
-    const translatedImage = await generateChineseComicPageVersionWithAi({
-      sourceImage,
-      episodeTitle: asset.episode.title,
-      pageNumber: asset.sortOrder,
-      characterNameLocks
-    });
-    const storedImage = await storeComicImage({
-      base64Data: translatedImage.base64Data,
-      mimeType: translatedImage.mimeType,
-      category: "chinese-pages",
-      targetId: asset.episodeId,
-      fileName: `${formatComicPageFileSlug(asset.sortOrder)}-zh-${Date.now()}`
-    });
-
-    const createdAsset = await prisma.comicEpisodeAsset.create({
-      data: {
-        episodeId: asset.episodeId,
-        assetType: COMIC_CHINESE_PAGE_ASSET_TYPE,
-        title: `${asset.title} - Chinese Version`,
-        imageUrl: storedImage.imageUrl,
-        imageData: storedImage.imageData,
-        imageMimeType: storedImage.imageMimeType,
-        imageStorageKey: storedImage.imageStorageKey,
-        imageByteSize: storedImage.imageByteSize,
-        imageSha256: storedImage.imageSha256,
-        altText: `${asset.altText || asset.title} Chinese version`,
-        caption: asset.caption,
-        sortOrder: asset.sortOrder,
-        published: false
-      },
-      select: {
-        id: true
-      }
-    });
     const imageUrl = storedImage.imageData
       ? buildComicMediaFallbackUrl(createdAsset.id)
       : storedImage.imageUrl;
 
-    await prisma.$transaction([
-      prisma.comicEpisodeAsset.update({
-        where: { id: createdAsset.id },
-        data: { imageUrl }
-      }),
-      prisma.comicPromptRun.create({
-        data: {
-          episodeId: asset.episodeId,
-          promptType: "PAGE_CHINESE_VERSION",
-          model: getComicModel(),
-          imageModel: getComicImageModel(),
-          status: "READY",
-          inputContext,
-          outputSummary: `Created Chinese draft version for ${asset.episode.title} ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`
-        }
-      })
-    ]);
+    await timer.time("writePromptRun", () =>
+      prisma.$transaction([
+        prisma.comicEpisodeAsset.update({
+          where: { id: createdAsset.id },
+          data: { imageUrl }
+        }),
+        prisma.comicPromptRun.create({
+          data: {
+            episodeId: asset.episodeId,
+            promptType: "PAGE_CHINESE_VERSION",
+            model: getComicModel(),
+            imageModel: getComicImageModel(),
+            status: "READY",
+            inputContext,
+            outputSummary: `Created Chinese draft version for ${asset.episode.title} ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`
+          }
+        })
+      ])
+    );
 
     revalidateComicRoutes({
       seasonSlug: asset.episode.chapter.season.slug,
@@ -205,24 +220,27 @@ export async function createChineseComicPageVersion(input: {
       pageNumber: asset.sortOrder,
       assetId: createdAsset.id,
       imageUrl,
+      timing: timer.snapshot(),
       message: `Created Chinese draft for ${asset.episode.title} ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`
     };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown Chinese comic page creation error.";
 
-    await prisma.comicPromptRun.create({
-      data: {
-        episodeId: asset.episodeId,
-        promptType: "PAGE_CHINESE_VERSION",
-        model: getComicModel(),
-        imageModel: getComicImageModel(),
-        status: "FAILED",
-        inputContext,
-        outputSummary: `Chinese version creation failed for ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`,
-        errorMessage
-      }
-    });
+    await timer.time("writeFailedPromptRun", () =>
+      prisma.comicPromptRun.create({
+        data: {
+          episodeId: asset.episodeId,
+          promptType: "PAGE_CHINESE_VERSION",
+          model: getComicModel(),
+          imageModel: getComicImageModel(),
+          status: "FAILED",
+          inputContext,
+          outputSummary: `Chinese version creation failed for ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`,
+          errorMessage
+        }
+      })
+    );
 
     revalidateComicRoutes({
       seasonSlug: asset.episode.chapter.season.slug,
@@ -236,6 +254,7 @@ export async function createChineseComicPageVersion(input: {
       sourceAssetId: asset.id,
       episodeId: asset.episodeId,
       pageNumber: asset.sortOrder,
+      timing: timer.snapshot(),
       message: `Chinese version creation failed for ${formatComicPageLabel(asset.sortOrder).toLowerCase()}.`,
       errorMessage
     };
