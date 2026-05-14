@@ -72,6 +72,7 @@ Muci turns the page over and sees the same ring symbol from the old plaque and b
 ### Continuity Locks
 - The Glow Thesis fragment, ring symbol, old file stack, and reading room must remain consistent as recurring main-story objects and spaces.
 - The ring symbol must match `Scratched Ring Mark.jpg`, the fixed reference cropped from approved Episode 5 Page 10. Preserve the uneven scratched/removal scar and battered plaque surface whenever the symbol appears as a clue.
+- The Glow Thesis fragment must match `The Glow Thesis Fragment.jpg`, the fixed reference cropped from approved Episode 10 Page 4 Panel 3. Preserve the torn manuscript silhouette, circular thesis mark placement, handwritten texture, and aged paper feel whenever the fragment appears.
 - Do not depict the fragment as a formula or product instruction sheet; it should feel like a philosophical/research manuscript.
 
 ### American Humor Beats

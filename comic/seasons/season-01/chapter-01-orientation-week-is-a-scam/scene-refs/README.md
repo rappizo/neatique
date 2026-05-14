@@ -42,6 +42,9 @@ Use them as chapter-level references when building prompts for `gpt-image-2`. On
 - `Scratched Ring Mark.jpg`
   Recurring mystery prop locked from the approved Episode 5 Page 10 plaque: a battered square old plaque with four corner screws, chipped edges, gray manga screentone surface, and a hand-scratched/removal scar forming an uneven ring. This is the source reference for the scratched-out ring mark, ring symbol, removed mark, and early Luster Circle clue in later chapters.
 
+- `The Glow Thesis Fragment.jpg`
+  Recurring manuscript prop locked from the approved Episode 10 Page 4 Panel 3 image: a torn founder-era research/philosophy page with ragged aged paper, loose handwritten lines, a circular thesis mark in the upper-right area, and botanical margin detail. Use this exact paper design when later pages show or zoom into the fragment.
+
 ## Prompt use notes
 
 - Keep the chapter line-art style light, clean, and readable.
@@ -51,3 +54,4 @@ Use them as chapter-level references when building prompts for `gpt-image-2`. On
 - If a named prop appears on multiple pages, create or reuse a dedicated reference like `Sunscreen Field Handbook.jpg` before generating images, then list that prop reference in the page prompt's upload checklist.
 - If the old student handbook appears, use `Student Handbook (old edition).jpg` and match the approved Episode 4 Page 10 cover design exactly.
 - If the scratched ring mark, ring symbol, removed mark, old plaque mark, or early Luster Circle clue appears, use `Scratched Ring Mark.jpg` and preserve the uneven hand-scratched circular scar from the approved Episode 5 Page 10 plaque.
+- If the Glow Thesis fragment appears, use `The Glow Thesis Fragment.jpg` and preserve the torn paper silhouette, circular thesis mark placement, handwritten research-note texture, and aged manuscript feel from the approved Episode 10 Page 4 Panel 3 image.

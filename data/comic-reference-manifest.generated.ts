@@ -8,7 +8,7 @@ type ComicReferenceManifest = {
 };
 
 const comicReferenceManifest = {
-  "generatedAt": "2026-05-12T13:21:52.427Z",
+  "generatedAt": "2026-05-14T11:22:04.162Z",
   "characters": {
     "artrans": [
       {
@@ -220,6 +220,14 @@ const comicReferenceManifest = {
         "extension": "jpg"
       }
     ],
+    "season-01-chapter-01-orientation-week-is-a-scam-the-glow-thesis-fragment": [
+      {
+        "label": "The Glow Thesis Fragment",
+        "fileName": "The Glow Thesis Fragment.jpg",
+        "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/The Glow Thesis Fragment.jpg",
+        "extension": "jpg"
+      }
+    ],
     "similar-character-comparison": [
       {
         "label": "Similar Character Comparison",
@@ -311,6 +319,12 @@ const comicReferenceManifest = {
           "label": "Sunscreen Field",
           "fileName": "Sunscreen Field.jpg",
           "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/Sunscreen Field.jpg",
+          "extension": "jpg"
+        },
+        {
+          "label": "The Glow Thesis Fragment",
+          "fileName": "The Glow Thesis Fragment.jpg",
+          "relativePath": "comic/seasons/season-01/chapter-01-orientation-week-is-a-scam/scene-refs/The Glow Thesis Fragment.jpg",
           "extension": "jpg"
         }
       ]
