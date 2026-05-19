@@ -36,6 +36,7 @@ export const siteConfig = {
     },
     { href: "/admin/forms", label: "Forms" },
     { href: "/admin/orders", label: "Orders" },
+    { href: "/admin/finance", label: "Finance" },
     { href: "/admin/customers", label: "Users" },
     {
       href: "/admin/rewards",

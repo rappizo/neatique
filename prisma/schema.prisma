@@ -812,3 +812,31 @@ model MailboxReplyExample {
   @@index([toEmail, createdAt])
   @@index([createdAt])
 }
+
+model FinancePaymentDetail {
+  id                 String   @id @default(cuid())
+  paymentDate        DateTime @default(now())
+  paymentStage       String   @default("预付款")
+  accountType        String   @default("公账")
+  lingxingContractNo String?
+  sku                String
+  productName        String
+  unit               String   @default("瓶")
+  quantity           Decimal  @default(0) @db.Decimal(18, 4)
+  unitPriceYuan      Decimal  @default(0) @db.Decimal(18, 4)
+  totalAmountYuan    Decimal  @default(0) @db.Decimal(18, 2)
+  paymentAmountYuan  Decimal  @default(0) @db.Decimal(18, 2)
+  sourceFileName     String?
+  paymentProofName   String?
+  paymentProofMimeType String?
+  paymentProofBase64 String?
+  paymentProofBytes  Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([paymentDate])
+  @@index([paymentStage, paymentDate])
+  @@index([accountType, paymentDate])
+  @@index([lingxingContractNo])
+  @@index([sku])
+}
