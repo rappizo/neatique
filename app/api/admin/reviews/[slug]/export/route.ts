@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { getReviewUrl } from "@/lib/review-links";
 
@@ -25,7 +25,7 @@ function escapeCsvValue(value: string | number | null | undefined) {
 }
 
 export async function GET(_request: Request, { params }: ReviewExportRouteProps) {
-  const authenticated = await isAdminAuthenticated();
+  const authenticated = await isFullAdminAuthenticated();
 
   if (!authenticated) {
     return new NextResponse("Unauthorized", { status: 401 });

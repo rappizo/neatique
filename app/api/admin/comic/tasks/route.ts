@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import {
   enqueueComicAiTask,
   listComicAiTasks,
@@ -25,7 +25,7 @@ function isComicAiTaskType(value: string): value is ComicAiTaskType {
 }
 
 async function requireAdmin() {
-  const authenticated = await isAdminAuthenticated();
+  const authenticated = await isFullAdminAuthenticated();
 
   if (!authenticated) {
     return NextResponse.json(

@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
 import { prisma } from "@/lib/db";
 
@@ -69,7 +69,7 @@ export async function GET(_request: Request, { params }: ComicMediaRouteProps) {
   try {
     const image = await getComicImageAsset(id);
 
-    if (image && !image.public && !(await isAdminAuthenticated())) {
+    if (image && !image.public && !(await isFullAdminAuthenticated())) {
       return new NextResponse("Comic image not found.", { status: 404 });
     }
 

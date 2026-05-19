@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireFullAdminSession } from "@/lib/admin-auth";
 import {
   formatComicBilingualOutline,
   formatComicBilingualSummary
@@ -156,7 +156,7 @@ function formatExtraStoryRevisionNotes(input: {
 }
 
 export async function createComicExtraStoryOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicEpisodeWorkspace } = await loadComicWorkspaceModule();
 
   const parentEpisodeId = toPlainString(formData.get("parentEpisodeId"));
@@ -326,7 +326,7 @@ export async function createComicExtraStoryOutlineAction(formData: FormData) {
 }
 
 export async function updateComicExtraStoryOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const title = toPlainString(formData.get("title"));
@@ -372,7 +372,7 @@ export async function updateComicExtraStoryOutlineAction(formData: FormData) {
 }
 
 export async function updateComicExtraStoryPlacementAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const parentEpisodeId = toPlainString(formData.get("parentEpisodeId"));

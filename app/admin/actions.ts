@@ -25,9 +25,9 @@ import {
 import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import {
   clearAdminSession,
-  requireAdminSession,
-  setAdminSession,
-  validateAdminCredentials
+  getAdminUserForCredentials,
+  requireFullAdminSession,
+  setAdminSession
 } from "@/lib/admin-auth";
 import { EMAIL_SETTINGS_CACHE_TAG, STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
 import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from "@/lib/coupons";
@@ -647,13 +647,14 @@ function createRandomReviewDates(quantity: number, start: Date, end: Date) {
 export async function loginAction(formData: FormData) {
   const username = toPlainString(formData.get("username"));
   const password = toPlainString(formData.get("password"));
+  const user = getAdminUserForCredentials(username, password);
 
-  if (!validateAdminCredentials(username, password)) {
+  if (!user) {
     redirect("/admin/login?error=1");
   }
 
-  await setAdminSession(username);
-  redirect("/admin");
+  await setAdminSession(user.username, user.role);
+  redirect(user.role === "finance" ? "/admin/finance" : "/admin");
 }
 
 export async function logoutAction() {
@@ -662,7 +663,7 @@ export async function logoutAction() {
 }
 
 export async function createProductAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   await ensureProductCodes();
   const prices = buildProductPriceData(formData);
@@ -699,7 +700,7 @@ export async function createProductAction(formData: FormData) {
 }
 
 export async function updateProductAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const existingProduct = await prisma.product.findUnique({
@@ -742,7 +743,7 @@ export async function updateProductAction(formData: FormData) {
 }
 
 export async function deleteProductAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const product = await prisma.product.findUnique({
@@ -760,7 +761,7 @@ export async function deleteProductAction(formData: FormData) {
 }
 
 export async function createCouponAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const payload = buildCouponPayload(formData);
 
@@ -789,7 +790,7 @@ export async function createCouponAction(formData: FormData) {
 }
 
 export async function updateCouponAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const payload = buildCouponPayload(formData);
@@ -821,7 +822,7 @@ export async function updateCouponAction(formData: FormData) {
 }
 
 export async function toggleCouponStatusAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const nextActive = toPlainString(formData.get("nextActive")) === "true";
@@ -847,7 +848,7 @@ export async function toggleCouponStatusAction(formData: FormData) {
 }
 
 export async function toggleFormSubmissionHandledAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const formKey = toPlainString(formData.get("formKey"));
@@ -874,7 +875,7 @@ export async function toggleFormSubmissionHandledAction(formData: FormData) {
 }
 
 export async function updateOmbClaimAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -895,7 +896,7 @@ export async function updateOmbClaimAction(formData: FormData) {
 }
 
 export async function createPostAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const published = toBool(formData.get("published"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -923,7 +924,7 @@ export async function createPostAction(formData: FormData) {
 }
 
 export async function updatePostAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const published = toBool(formData.get("published"));
   const id = toPlainString(formData.get("id"));
@@ -958,7 +959,7 @@ export async function updatePostAction(formData: FormData) {
 }
 
 export async function deletePostAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -970,7 +971,7 @@ export async function deletePostAction(formData: FormData) {
 }
 
 export async function regeneratePostImageAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo")) || `/admin/posts/${id}`;
@@ -1041,7 +1042,7 @@ export async function regeneratePostImageAction(formData: FormData) {
 }
 
 export async function approvePostImagePreviewAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo")) || `/admin/posts/${id}`;
@@ -1093,7 +1094,7 @@ export async function approvePostImagePreviewAction(formData: FormData) {
 }
 
 export async function saveAiPostAutomationSettingsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const settings = [
     ["ai_post_enabled", toBool(formData.get("ai_post_enabled")) ? "true" : "false"],
@@ -1121,7 +1122,7 @@ export async function saveAiPostAutomationSettingsAction(formData: FormData) {
 }
 
 export async function generateAiPostNowAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/posts";
   const result = await runAiPostAutomation({
@@ -1147,7 +1148,7 @@ export async function generateAiPostNowAction(formData: FormData) {
 }
 
 export async function validatePostExternalLinksAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/posts";
   const posts = await prisma.post.findMany({
@@ -1178,7 +1179,7 @@ export async function validatePostExternalLinksAction(formData: FormData) {
 }
 
 export async function updateOrderAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   await updateOrderWithReconciliation({
@@ -1197,7 +1198,7 @@ export async function updateOrderAction(formData: FormData) {
 }
 
 export async function adjustCustomerPointsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const customerId = toPlainString(formData.get("customerId"));
   const customerEmail = toPlainString(formData.get("customerEmail")).toLowerCase();
@@ -1260,7 +1261,7 @@ export async function adjustCustomerPointsAction(formData: FormData) {
 }
 
 export async function createMascotRewardAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const payload = buildMascotPayload(formData);
 
@@ -1279,7 +1280,7 @@ export async function createMascotRewardAction(formData: FormData) {
 }
 
 export async function updateMascotRewardAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const payload = buildMascotPayload(formData);
@@ -1305,7 +1306,7 @@ export async function updateMascotRewardAction(formData: FormData) {
 }
 
 export async function updateMascotRedemptionAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/rewards";
@@ -1331,7 +1332,7 @@ export async function updateMascotRedemptionAction(formData: FormData) {
 }
 
 export async function approveRyoClaimRewardAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/rewards";
@@ -1366,7 +1367,7 @@ export async function approveRyoClaimRewardAction(formData: FormData) {
 }
 
 export async function updateCustomerAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
 
@@ -1384,7 +1385,7 @@ export async function updateCustomerAction(formData: FormData) {
 }
 
 export async function updateReviewAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const productSlug = toPlainString(formData.get("productSlug"));
@@ -1426,7 +1427,7 @@ export async function updateReviewAction(formData: FormData) {
 }
 
 export async function deleteReviewAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const productSlug = toPlainString(formData.get("productSlug"));
@@ -1445,7 +1446,7 @@ export async function deleteReviewAction(formData: FormData) {
 }
 
 export async function approveReviewAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const productSlug = toPlainString(formData.get("productSlug"));
@@ -1479,7 +1480,7 @@ export async function approveReviewAction(formData: FormData) {
 }
 
 export async function bulkModerateReviewsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const productSlug = toPlainString(formData.get("productSlug"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -1562,7 +1563,7 @@ export async function bulkModerateReviewsAction(formData: FormData) {
 }
 
 export async function generateAiReviewsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const productSlug = toPlainString(formData.get("productSlug"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -1675,7 +1676,7 @@ export async function generateAiReviewsAction(formData: FormData) {
 }
 
 export async function bulkImportReviewsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const productSlug = toPlainString(formData.get("productSlug"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -1777,7 +1778,7 @@ export async function bulkImportReviewsAction(formData: FormData) {
 }
 
 export async function saveStoreSettingsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const settings = [
     ["shipping_region", toPlainString(formData.get("shipping_region"))],
@@ -1802,7 +1803,7 @@ export async function saveStoreSettingsAction(formData: FormData) {
 }
 
 export async function saveEmailSettingsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const settings = [
     ["email_enabled", toBool(formData.get("email_enabled")) ? "true" : "false"],
@@ -1839,7 +1840,7 @@ export async function saveEmailSettingsAction(formData: FormData) {
 }
 
 export async function sendAdminMailboxEmailAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
   const contactSubmissionId = toPlainString(formData.get("contactSubmissionId")) || null;
@@ -1962,7 +1963,7 @@ export async function sendAdminMailboxEmailAction(formData: FormData) {
 }
 
 export async function sendAdminSmtpTestEmailAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
   const testEmail = toPlainString(formData.get("testEmail"));
@@ -2003,7 +2004,7 @@ export async function sendAdminSmtpTestEmailAction(formData: FormData) {
 }
 
 export async function updateMailboxReadStateAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
   const uid = toInt(formData.get("uid"));
@@ -2097,7 +2098,7 @@ async function loadMailboxReplyStyleExamples(targetEmail: string | null) {
 }
 
 export async function generateAdminMailboxReplyAiAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email";
   const uid = toInt(formData.get("uid"));
@@ -2203,7 +2204,7 @@ export async function generateAdminMailboxReplyAiAction(formData: FormData) {
 }
 
 export async function saveEmailMarketingSettingsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const existingSettings = await loadStoreSettingsMap();
   const nextApiKey = toPlainString(formData.get("brevo_api_key")) || existingSettings.brevo_api_key || "";
@@ -2238,7 +2239,7 @@ export async function saveEmailMarketingSettingsAction(formData: FormData) {
 }
 
 export async function saveFollowEmailSettingsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/omb-claims";
   const processKey = toPlainString(formData.get("processKey")) === "RYO" ? "RYO" : "OMB";
@@ -2294,7 +2295,7 @@ export async function saveFollowEmailSettingsAction(formData: FormData) {
 }
 
 export async function importBrevoAudienceAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email-marketing";
   const audienceType = parseEmailAudienceType(toPlainString(formData.get("audienceType")));
@@ -2345,7 +2346,7 @@ export async function importBrevoAudienceAction(formData: FormData) {
 }
 
 export async function deleteEmailAudienceContactAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const email = toPlainString(formData.get("email")).toLowerCase();
   const audienceType = parseEmailAudienceType(toPlainString(formData.get("audienceType")));
@@ -2387,7 +2388,7 @@ export async function deleteEmailAudienceContactAction(formData: FormData) {
 }
 
 export async function syncBrevoAudienceAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/email-marketing";
   const audienceType = parseEmailAudienceType(toPlainString(formData.get("audienceType")));
@@ -2424,7 +2425,7 @@ export async function syncBrevoAudienceAction(formData: FormData) {
 }
 
 export async function generateEmailCampaignWithAiAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -2507,7 +2508,7 @@ export async function generateEmailCampaignWithAiAction(formData: FormData) {
 }
 
 export async function createEmailCampaignAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const payload = buildEmailCampaignPayload(formData);
 
@@ -2533,7 +2534,7 @@ export async function createEmailCampaignAction(formData: FormData) {
 }
 
 export async function updateEmailCampaignAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -2562,7 +2563,7 @@ export async function updateEmailCampaignAction(formData: FormData) {
 }
 
 export async function deleteEmailCampaignAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
 
@@ -2579,7 +2580,7 @@ export async function deleteEmailCampaignAction(formData: FormData) {
 }
 
 export async function syncEmailCampaignToBrevoAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -2635,7 +2636,7 @@ export async function syncEmailCampaignToBrevoAction(formData: FormData) {
 }
 
 export async function sendEmailCampaignTestAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
@@ -2704,7 +2705,7 @@ export async function sendEmailCampaignTestAction(formData: FormData) {
 }
 
 export async function sendEmailCampaignNowAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo"));

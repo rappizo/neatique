@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PostArticleView } from "@/components/site/post-article-view";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireFullAdminSession } from "@/lib/admin-auth";
 import { getPostById } from "@/lib/queries";
 
 type AdminPostPreviewPageProps = {
@@ -9,7 +9,7 @@ type AdminPostPreviewPageProps = {
 };
 
 export default async function AdminPostPreviewPage({ params }: AdminPostPreviewPageProps) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const { id } = await params;
   const post = await getPostById(id);

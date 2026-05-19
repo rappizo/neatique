@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireFullAdminSession } from "@/lib/admin-auth";
 import {
   formatComicBilingualOutline,
   formatComicBilingualSummary
@@ -140,7 +140,7 @@ async function getComicOutlineSupport(projectId: string) {
 }
 
 export async function translateComicProjectOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const projectId = await ensureComicProjectId(toPlainString(formData.get("projectId")));
@@ -191,7 +191,7 @@ export async function translateComicProjectOutlineAction(formData: FormData) {
 }
 
 export async function translateComicSeasonOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const seasonId = toPlainString(formData.get("seasonId"));
@@ -247,7 +247,7 @@ export async function translateComicSeasonOutlineAction(formData: FormData) {
 }
 
 export async function translateComicChapterOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const chapterId = toPlainString(formData.get("chapterId"));
@@ -308,7 +308,7 @@ export async function translateComicChapterOutlineAction(formData: FormData) {
   redirect(buildComicRedirect(redirectTo, status));
 }
 export async function translateComicEpisodeOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const episodeId = toPlainString(formData.get("episodeId"));
@@ -375,7 +375,7 @@ export async function translateComicEpisodeOutlineAction(formData: FormData) {
 }
 
 export async function generateComicProjectOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const projectId = await ensureComicProjectId(toPlainString(formData.get("projectId")));
@@ -434,7 +434,7 @@ export async function generateComicProjectOutlineAction(formData: FormData) {
 }
 
 export async function generateComicSeasonOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const seasonId = toPlainString(formData.get("seasonId"));
@@ -519,7 +519,7 @@ export async function generateComicSeasonOutlineAction(formData: FormData) {
 }
 
 export async function generateComicChapterOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const chapterId = toPlainString(formData.get("chapterId"));
@@ -614,7 +614,7 @@ export async function generateComicChapterOutlineAction(formData: FormData) {
 }
 
 export async function generateComicEpisodeOutlineAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const episodeId = toPlainString(formData.get("episodeId"));
@@ -715,7 +715,7 @@ export async function generateComicEpisodeOutlineAction(formData: FormData) {
 }
 
 export async function generateComicSeasonOutlinesAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const projectId = await ensureComicProjectId(toPlainString(formData.get("projectId")));
@@ -804,7 +804,7 @@ export async function generateComicSeasonOutlinesAction(formData: FormData) {
 }
 
 export async function generateComicChapterOutlinesAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const seasonId = toPlainString(formData.get("seasonId"));
@@ -903,7 +903,7 @@ export async function generateComicChapterOutlinesAction(formData: FormData) {
 }
 
 export async function generateComicEpisodeOutlinesAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const redirectTo = getRedirectTarget(formData);
   const chapterId = toPlainString(formData.get("chapterId"));

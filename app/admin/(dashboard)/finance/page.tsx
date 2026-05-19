@@ -124,6 +124,7 @@ export default async function AdminFinancePage({ searchParams }: AdminFinancePag
   ]);
   const defaultDate = getTodayDateInputValue();
   const statusMessage = getStatusMessage(params.status, params.count);
+  const exportHref = `/api/admin/finance/payment-details/export?${buildQuery(filters, sortKey, sortDirection).toString()}`;
 
   function buildSortHref(nextSortKey: FinancePaymentSortKey) {
     const nextDirection = sortKey === nextSortKey && sortDirection === "asc" ? "desc" : "asc";
@@ -169,6 +170,11 @@ export default async function AdminFinancePage({ searchParams }: AdminFinancePag
               当前总数量 {formatFinancePlainNumber(paymentPage.totalQuantity)}，总金额{" "}
               {formatFinanceYuan(paymentPage.totalAmountYuan)}。
             </p>
+          </div>
+          <div className="stack-row">
+            <a href={exportHref} className="button button--secondary">
+              导出 CSV
+            </a>
           </div>
         </div>
         <form method="get" className="finance-filter-grid">

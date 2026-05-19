@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import { cancelComicAiTask, retryComicAiTask } from "@/lib/comic-ai-task-queue";
 
 type ComicAiTaskRouteContext = {
@@ -7,7 +7,7 @@ type ComicAiTaskRouteContext = {
 };
 
 async function requireAdmin() {
-  const authenticated = await isAdminAuthenticated();
+  const authenticated = await isFullAdminAuthenticated();
 
   if (!authenticated) {
     return NextResponse.json(

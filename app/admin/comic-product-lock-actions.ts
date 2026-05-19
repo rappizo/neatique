@@ -2,7 +2,7 @@
 
 import { Buffer } from "node:buffer";
 import { redirect } from "next/navigation";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireFullAdminSession } from "@/lib/admin-auth";
 import {
   buildDefaultComicProductLock,
   generateComicProductLockReferenceImage,
@@ -34,7 +34,7 @@ function isUploadedFile(value: FormDataEntryValue | null): value is File {
 }
 
 export async function syncComicProductLocksAction() {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const result = await syncComicProductLocksFromActiveProducts();
   const status =
@@ -49,7 +49,7 @@ export async function syncComicProductLocksAction() {
 }
 
 export async function resetComicProductLockDefaultsAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
 
@@ -83,7 +83,7 @@ export async function resetComicProductLockDefaultsAction(formData: FormData) {
 }
 
 export async function updateComicProductLockAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
 
@@ -130,7 +130,7 @@ export async function updateComicProductLockAction(formData: FormData) {
 }
 
 export async function generateComicProductLockImageAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
 
@@ -186,7 +186,7 @@ export async function generateComicProductLockImageAction(formData: FormData) {
 }
 
 export async function uploadComicProductLockImageAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
 

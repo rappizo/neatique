@@ -194,6 +194,53 @@ export function formatFinanceDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+function escapeFinanceCsvCell(value: unknown) {
+  const text = String(value ?? "");
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function formatFinanceCsvNumber(value: number, fractionDigits: number) {
+  return value.toFixed(fractionDigits).replace(/\.?0+$/, "");
+}
+
+export function buildFinancePaymentDetailsCsv(rows: FinancePaymentDetailRecord[]) {
+  const header = [
+    "日期",
+    "预付款/尾款",
+    "公账/私账",
+    "领星合同号",
+    "SKU",
+    "品名",
+    "单位",
+    "数量",
+    "单价（元）",
+    "总金额",
+    "预付款/尾款付款金额（元）",
+    "付款信息",
+    "创建时间",
+    "更新时间"
+  ];
+  const csvRows = rows.map((row) => [
+    formatFinanceDateInputValue(row.paymentDate),
+    row.paymentStage,
+    row.accountType,
+    row.lingxingContractNo ?? "",
+    row.sku,
+    row.productName,
+    row.unit,
+    formatFinanceCsvNumber(row.quantity, 4),
+    formatFinanceCsvNumber(row.unitPriceYuan, 4),
+    formatFinanceCsvNumber(row.totalAmountYuan, 2),
+    formatFinanceCsvNumber(row.paymentAmountYuan, 2),
+    row.paymentProofName ?? "",
+    row.createdAt.toISOString(),
+    row.updatedAt.toISOString()
+  ]);
+  const lines = [header, ...csvRows].map((row) => row.map(escapeFinanceCsvCell).join(","));
+
+  return `\uFEFF${lines.join("\r\n")}\r\n`;
+}
+
 function toText(value: unknown) {
   return String(value ?? "").trim();
 }

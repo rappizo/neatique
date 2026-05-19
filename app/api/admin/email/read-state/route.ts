@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import type { MailboxFolderKey } from "@/lib/admin-mailbox";
 import { updateMailboxReadState } from "@/lib/admin-mailbox";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (!(await isAdminAuthenticated())) {
+  if (!(await isFullAdminAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import {
   createComicEpisodeDownloadZip,
   parseComicDownloadLanguage
@@ -8,7 +8,7 @@ import {
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  if (!(await isAdminAuthenticated())) {
+  if (!(await isFullAdminAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

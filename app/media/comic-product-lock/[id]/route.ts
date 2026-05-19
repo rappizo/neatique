@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 
 type ComicProductLockMediaRouteProps = {
@@ -10,7 +10,7 @@ type ComicProductLockMediaRouteProps = {
 };
 
 export async function GET(_request: Request, { params }: ComicProductLockMediaRouteProps) {
-  if (!(await isAdminAuthenticated())) {
+  if (!(await isFullAdminAuthenticated())) {
     return new NextResponse("Comic product lock image not found.", { status: 404 });
   }
 

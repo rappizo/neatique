@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireFullAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { parseComicPromptOutput } from "@/lib/comic-prompt-output";
 import { addNeglectedComicPromptQaFinding } from "@/lib/comic-prompt-health-neglect";
@@ -20,7 +20,7 @@ import { toInt, toPlainString } from "@/lib/utils";
 import { formatComicPageLabel, isComicPublishPageNumber } from "@/lib/comic-pages";
 
 export async function neglectComicPromptQaFindingAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const findingKey = toPlainString(formData.get("findingKey"));
   const severity = toPlainString(formData.get("severity")) || "warning";
@@ -43,7 +43,7 @@ export async function neglectComicPromptQaFindingAction(formData: FormData) {
 }
 
 export async function generateComicPromptPackageAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const redirectTo =
@@ -279,7 +279,7 @@ export async function generateComicPromptPackageAction(formData: FormData) {
 }
 
 export async function generateComicPageImageAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const pageNumber = toInt(formData.get("pageNumber"), 0);
@@ -378,7 +378,7 @@ function normalizePromptRestoreVersion(value: string) {
 }
 
 export async function restoreComicPagePromptRevisionAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const revisionId = toPlainString(formData.get("revisionId"));
@@ -569,7 +569,7 @@ export async function restoreComicPagePromptRevisionAction(formData: FormData) {
 }
 
 export async function reviseComicPagePromptAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const pageNumber = toInt(formData.get("pageNumber"), 0);

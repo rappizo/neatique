@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import {
   COMIC_APPROVAL_ASSET_TYPES,
   COMIC_CHINESE_PAGE_ASSET_TYPE,
@@ -616,7 +616,7 @@ function isPublishCenterIntent(value: string): value is PublishCenterIntent {
 }
 
 export async function POST(request: Request) {
-  const authenticated = await isAdminAuthenticated();
+  const authenticated = await isFullAdminAuthenticated();
 
   if (!authenticated) {
     return NextResponse.json(

@@ -1,12 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireFullAdminSession } from "@/lib/admin-auth";
 import { deleteComicImageCreation } from "@/lib/comic-image-creation";
 import { toPlainString } from "@/lib/utils";
 
 export async function deleteComicImageCreationAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
 

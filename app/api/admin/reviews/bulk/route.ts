@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 
 function refreshReviewPaths(productSlug: string) {
@@ -12,7 +12,7 @@ function refreshReviewPaths(productSlug: string) {
 }
 
 export async function POST(request: Request) {
-  if (!(await isAdminAuthenticated())) {
+  if (!(await isFullAdminAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 

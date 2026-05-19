@@ -1,17 +1,17 @@
 import { redirect } from "next/navigation";
 import { loginAction } from "@/app/admin/actions";
 import { Logo } from "@/components/brand/logo";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { getAdminSession } from "@/lib/admin-auth";
 
 type AdminLoginPageProps = {
   searchParams: Promise<{ error?: string }>;
 };
 
 export default async function AdminLoginPage({ searchParams }: AdminLoginPageProps) {
-  const authenticated = await isAdminAuthenticated();
+  const session = await getAdminSession();
 
-  if (authenticated) {
-    redirect("/admin");
+  if (session) {
+    redirect(session.role === "finance" ? "/admin/finance" : "/admin");
   }
 
   const params = await searchParams;
@@ -24,8 +24,7 @@ export default async function AdminLoginPage({ searchParams }: AdminLoginPagePro
           <p className="eyebrow">Admin access</p>
           <h1>Manage products, orders, users, points, and SEO posts.</h1>
           <p>
-            Use the admin credentials from your environment variables to enter the Neatique
-            operations dashboard.
+            Use your admin or finance credentials to enter the Neatique operations dashboard.
           </p>
         </div>
         {params.error === "1" ? <p className="notice">Invalid username or password.</p> : null}

@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireFullAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { getComicCharacterReferenceFolder, getComicSceneReferenceFolder } from "@/lib/comic-paths";
 import {
@@ -120,7 +120,7 @@ function usesStandardSceneReferenceFolder(referenceFolder: string, sceneSlug: st
 }
 
 export async function saveComicProjectAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicWorkspaceScaffold } = await loadComicWorkspaceModule();
   await ensureComicWorkspaceScaffold();
 
@@ -165,7 +165,7 @@ export async function saveComicProjectAction(formData: FormData) {
 }
 
 export async function createComicCharacterAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicWorkspaceScaffold, ensureComicCharacterWorkspace } =
     await loadComicWorkspaceModule();
   await ensureComicWorkspaceScaffold();
@@ -209,7 +209,7 @@ export async function createComicCharacterAction(formData: FormData) {
 }
 
 export async function updateComicCharacterAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicCharacterWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
@@ -271,7 +271,7 @@ export async function updateComicCharacterAction(formData: FormData) {
 }
 
 export async function uploadComicCharacterReferenceAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicCharacterWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
@@ -309,7 +309,7 @@ export async function uploadComicCharacterReferenceAction(formData: FormData) {
 }
 
 export async function reviseComicCharacterLockAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const revisionInstruction = normalizeLongText(formData.get("revisionInstruction"));
@@ -332,7 +332,7 @@ export async function reviseComicCharacterLockAction(formData: FormData) {
 }
 
 export async function restoreComicCharacterLockAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const snapshotId = toPlainString(formData.get("snapshotId"));
@@ -374,7 +374,7 @@ export async function restoreComicCharacterLockAction(formData: FormData) {
 }
 
 export async function createComicSceneAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicWorkspaceScaffold, ensureComicSceneWorkspace } =
     await loadComicWorkspaceModule();
   await ensureComicWorkspaceScaffold();
@@ -412,7 +412,7 @@ export async function createComicSceneAction(formData: FormData) {
 }
 
 export async function updateComicSceneAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicSceneWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
@@ -470,7 +470,7 @@ export async function updateComicSceneAction(formData: FormData) {
 }
 
 export async function uploadComicSceneReferenceAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicSceneWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
@@ -508,7 +508,7 @@ export async function uploadComicSceneReferenceAction(formData: FormData) {
 }
 
 export async function reviseComicSceneLockAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const revisionInstruction = normalizeLongText(formData.get("revisionInstruction"));
@@ -531,7 +531,7 @@ export async function reviseComicSceneLockAction(formData: FormData) {
 }
 
 export async function restoreComicSceneLockAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const snapshotId = toPlainString(formData.get("snapshotId"));
@@ -572,7 +572,7 @@ export async function restoreComicSceneLockAction(formData: FormData) {
 }
 
 export async function createComicSeasonAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicWorkspaceScaffold, ensureComicSeasonWorkspace } =
     await loadComicWorkspaceModule();
   await ensureComicWorkspaceScaffold();
@@ -605,7 +605,7 @@ export async function createComicSeasonAction(formData: FormData) {
 }
 
 export async function updateComicSeasonAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicSeasonWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
@@ -648,7 +648,7 @@ export async function updateComicSeasonAction(formData: FormData) {
 }
 
 export async function createComicChapterAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicChapterWorkspace } = await loadComicWorkspaceModule();
 
   const seasonId = toPlainString(formData.get("seasonId"));
@@ -691,7 +691,7 @@ export async function createComicChapterAction(formData: FormData) {
 }
 
 export async function updateComicChapterAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicChapterWorkspace } = await loadComicWorkspaceModule();
 
   const id = toPlainString(formData.get("id"));
@@ -737,7 +737,7 @@ export async function updateComicChapterAction(formData: FormData) {
 }
 
 export async function createComicEpisodeAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
   const { ensureComicEpisodeWorkspace } = await loadComicWorkspaceModule();
 
   const chapterId = toPlainString(formData.get("chapterId"));
@@ -813,7 +813,7 @@ export async function createComicEpisodeAction(formData: FormData) {
 }
 
 export async function deleteComicEpisodeAssetAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const requestedRedirectTo = toPlainString(formData.get("redirectTo"));
@@ -894,7 +894,7 @@ function getComicPublishRedirect(formData: FormData, fallback = "/admin/comic/pu
 }
 
 export async function approveComicExtraPageAssetAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -951,7 +951,7 @@ export async function approveComicExtraPageAssetAction(formData: FormData) {
 }
 
 export async function unapproveComicExtraPageAssetAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -995,7 +995,7 @@ export async function unapproveComicExtraPageAssetAction(formData: FormData) {
 }
 
 export async function approveComicEpisodeAssetAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -1070,7 +1070,7 @@ export async function approveComicEpisodeAssetAction(formData: FormData) {
 }
 
 export async function unapproveComicEpisodeAssetAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -1133,7 +1133,7 @@ export async function unapproveComicEpisodeAssetAction(formData: FormData) {
 }
 
 export async function approveChineseComicPageAssetAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -1215,7 +1215,7 @@ export async function approveChineseComicPageAssetAction(formData: FormData) {
 }
 
 export async function unapproveChineseComicPageAssetAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -1267,7 +1267,7 @@ export async function unapproveChineseComicPageAssetAction(formData: FormData) {
 }
 
 export async function createChineseComicPageVersionAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -1288,7 +1288,7 @@ export async function createChineseComicPageVersionAction(formData: FormData) {
 }
 
 export async function editComicPageAssetAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -1310,7 +1310,7 @@ export async function editComicPageAssetAction(formData: FormData) {
 }
 
 export async function uploadComicPageAssetAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -1341,7 +1341,7 @@ export async function uploadComicPageAssetAction(formData: FormData) {
 }
 
 export async function publishComicEpisodeFromCenterAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const redirectTo = getComicPublishRedirect(formData);
@@ -1420,7 +1420,7 @@ export async function publishComicEpisodeFromCenterAction(formData: FormData) {
 }
 
 export async function unpublishComicEpisodeFromCenterAction(formData: FormData) {
-  await requireAdminSession();
+  await requireFullAdminSession();
 
   const episodeId = toPlainString(formData.get("episodeId"));
   const redirectTo = getComicPublishRedirect(formData);

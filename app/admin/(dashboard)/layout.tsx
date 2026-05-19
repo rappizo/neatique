@@ -8,6 +8,6 @@ export default async function AdminDashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  await requireAdminSession();
-  return <AdminShell>{children}</AdminShell>;
+  const session = await requireAdminSession();
+  return <AdminShell session={session}>{children}</AdminShell>;
 }

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 
 type ImageRouteProps = {
   params: Promise<{ id: string }>;
 };
 
 export async function GET(_request: Request, { params }: ImageRouteProps) {
-  const authenticated = await isAdminAuthenticated();
+  const authenticated = await isFullAdminAuthenticated();
 
   if (!authenticated) {
     return new NextResponse("Unauthorized", { status: 401 });

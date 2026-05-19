@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import {
   getComicCharacters,
   getComicPublishEpisodeDetail,
@@ -346,7 +346,7 @@ async function getEpisodePromptPages(episode: ComicPublishCenterEpisodeRecord) {
 }
 
 export async function GET(request: Request) {
-  if (!(await isAdminAuthenticated())) {
+  if (!(await isFullAdminAuthenticated())) {
     return NextResponse.json(
       {
         ok: false,

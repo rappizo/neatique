@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import {
   ComicOutlineTaskInputError,
   runComicOutlineTask,
@@ -65,7 +65,7 @@ async function persistDirectOutlineTaskResult(input: {
 }
 
 export async function POST(request: Request) {
-  const authenticated = await isAdminAuthenticated();
+  const authenticated = await isFullAdminAuthenticated();
 
   if (!authenticated) {
     return NextResponse.json(

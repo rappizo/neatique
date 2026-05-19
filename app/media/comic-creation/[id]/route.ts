@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
 import { prisma } from "@/lib/db";
 
@@ -55,7 +55,7 @@ function isTransientComicImageCreationError(error: unknown) {
 }
 
 export async function GET(request: Request, { params }: ComicImageCreationMediaRouteProps) {
-  if (!(await isAdminAuthenticated())) {
+  if (!(await isFullAdminAuthenticated())) {
     return new NextResponse("Comic image creation not found.", { status: 404 });
   }
 

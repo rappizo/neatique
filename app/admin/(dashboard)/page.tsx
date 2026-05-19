@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { saveStoreSettingsAction } from "@/app/admin/actions";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { getDashboardSummary, getStoreSettings } from "@/lib/queries";
 
 type AdminDashboardPageProps = {
@@ -7,6 +9,12 @@ type AdminDashboardPageProps = {
 };
 
 export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
+  const session = await requireAdminSession();
+
+  if (session.role === "finance") {
+    redirect("/admin/finance");
+  }
+
   const [summary, settings, params] = await Promise.all([
     getDashboardSummary(),
     getStoreSettings(),

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { validateAdminCredentials } from "@/lib/admin-auth";
+import { validateFullAdminCredentials } from "@/lib/admin-auth";
 import { sampleReviews } from "@/lib/sample-store-data";
 
 export const runtime = "nodejs";
@@ -41,7 +41,7 @@ function isAuthorized(request: Request) {
     const username = decoded.slice(0, separatorIndex);
     const password = decoded.slice(separatorIndex + 1);
 
-    return validateAdminCredentials(username, password);
+    return validateFullAdminCredentials(username, password);
   } catch {
     return false;
   }
