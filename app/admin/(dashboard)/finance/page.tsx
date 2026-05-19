@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { addFinancePaymentDetailsAction } from "@/app/admin/finance/actions";
+import {
+  addFinancePaymentDetailsAction,
+  deleteFinancePaymentDetailAction,
+  updateFinancePaymentDetailAction
+} from "@/app/admin/finance/actions";
 import { FinancePaymentDetailForm } from "@/components/admin/finance-payment-detail-form";
 import { FinancePaymentProofViewer } from "@/components/admin/finance-payment-proof-viewer";
 import {
@@ -47,12 +51,24 @@ function getStatusMessage(status?: string, count?: string) {
   switch (status) {
     case "payment-details-added":
       return `已添加 ${count || "0"} 行付款明细。`;
+    case "payment-detail-updated":
+      return "付款明细已更新。";
+    case "payment-detail-deleted":
+      return "付款明细已删除。";
+    case "missing-fields":
+      return "付款明细所有字段都是必填项。";
+    case "invalid-number":
+      return "数量、单价和付款金额必须填写数字。";
+    case "missing-payment-proof":
+      return "付款截图是必填项。";
+    case "missing-payment-row":
+      return "没有找到这条付款明细。";
     case "missing-payment-rows":
-      return "没有找到可添加的 SKU 行，请选择产品 SKU、手动填写 SKU，或上传包含 SKU 表头的账单。";
-    case "upload-parse-failed":
-      return "付款账单解析失败，请确认文件为 xlsx、xls 或 csv。";
+      return "没有找到可添加的 SKU 行，请选择产品 SKU 或手动填写 SKU。";
     case "save-failed":
       return "付款明细保存失败，请确认数据库迁移已经部署。";
+    case "delete-failed":
+      return "付款明细删除失败。";
     case "payment-proof-too-large":
       return "付款截图太大，请上传 8MB 以内的图片或 PDF。";
     case "payment-proof-unsupported":
@@ -120,7 +136,7 @@ export default async function AdminFinancePage({ searchParams }: AdminFinancePag
         <p className="eyebrow">Finance</p>
         <h1>按 SKU 和付款节点管理供应商付款明细。</h1>
         <p>
-          上传付款账单或手动添加单行付款记录，SKU 可以从产品库选择，也可以临时手动填写。
+          添加单行付款记录并上传付款截图，SKU 可以从产品库选择，也可以临时手动填写。
         </p>
       </div>
 
@@ -258,6 +274,7 @@ export default async function AdminFinancePage({ searchParams }: AdminFinancePag
                 </th>
               ))}
               <th>付款信息</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -282,11 +299,142 @@ export default async function AdminFinancePage({ searchParams }: AdminFinancePag
                       mimeType={row.paymentProofMimeType}
                     />
                   </td>
+                  <td>
+                    <div className="finance-row-actions">
+                      <details className="finance-row-editor">
+                        <summary className="button button--secondary button--compact">编辑</summary>
+                        <form
+                          action={updateFinancePaymentDetailAction}
+                          className="finance-row-editor__form"
+                          encType="multipart/form-data"
+                        >
+                          <input type="hidden" name="id" value={row.id} />
+                          <div className="field">
+                            <label htmlFor={`finance-payment-date-${row.id}`}>日期</label>
+                            <input
+                              id={`finance-payment-date-${row.id}`}
+                              name="paymentDate"
+                              type="date"
+                              defaultValue={formatFinanceDateInputValue(row.paymentDate)}
+                              required
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`finance-payment-stage-${row.id}`}>预付款/尾款</label>
+                            <select
+                              id={`finance-payment-stage-${row.id}`}
+                              name="paymentStage"
+                              defaultValue={row.paymentStage}
+                              required
+                            >
+                              {FINANCE_PAYMENT_STAGE_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`finance-account-type-${row.id}`}>公账/私账</label>
+                            <select
+                              id={`finance-account-type-${row.id}`}
+                              name="accountType"
+                              defaultValue={row.accountType}
+                              required
+                            >
+                              {FINANCE_ACCOUNT_TYPE_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`finance-contract-${row.id}`}>领星合同号</label>
+                            <input
+                              id={`finance-contract-${row.id}`}
+                              name="lingxingContractNo"
+                              defaultValue={row.lingxingContractNo ?? ""}
+                              required
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`finance-sku-${row.id}`}>SKU</label>
+                            <input id={`finance-sku-${row.id}`} name="sku" defaultValue={row.sku} required />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`finance-product-name-${row.id}`}>品名</label>
+                            <input
+                              id={`finance-product-name-${row.id}`}
+                              name="productName"
+                              defaultValue={row.productName}
+                              required
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`finance-unit-${row.id}`}>单位</label>
+                            <input id={`finance-unit-${row.id}`} name="unit" defaultValue={row.unit} required />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`finance-quantity-${row.id}`}>数量</label>
+                            <input
+                              id={`finance-quantity-${row.id}`}
+                              name="quantity"
+                              inputMode="decimal"
+                              defaultValue={String(row.quantity)}
+                              required
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`finance-unit-price-${row.id}`}>单价（元）</label>
+                            <input
+                              id={`finance-unit-price-${row.id}`}
+                              name="unitPriceYuan"
+                              inputMode="decimal"
+                              defaultValue={String(row.unitPriceYuan)}
+                              required
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`finance-payment-amount-${row.id}`}>预付款/尾款付款金额（元）</label>
+                            <input
+                              id={`finance-payment-amount-${row.id}`}
+                              name="paymentAmountYuan"
+                              inputMode="decimal"
+                              defaultValue={String(row.paymentAmountYuan)}
+                              required
+                            />
+                          </div>
+                          <div className="field finance-row-editor__wide">
+                            <label htmlFor={`finance-payment-proof-${row.id}`}>付款截图</label>
+                            <input
+                              id={`finance-payment-proof-${row.id}`}
+                              name="paymentProofFile"
+                              type="file"
+                              accept="image/*,.pdf"
+                              required={!row.paymentProofUrl}
+                            />
+                          </div>
+                          <div className="finance-row-editor__actions">
+                            <button type="submit" className="button button--primary button--compact">
+                              保存修改
+                            </button>
+                          </div>
+                        </form>
+                      </details>
+                      <form action={deleteFinancePaymentDetailAction}>
+                        <input type="hidden" name="id" value={row.id} />
+                        <button type="submit" className="button button--ghost button--compact">
+                          删除
+                        </button>
+                      </form>
+                    </div>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={sortHeaders.length + 1} className="admin-table__empty">
+                <td colSpan={sortHeaders.length + 2} className="admin-table__empty">
                   暂无付款明细。
                 </td>
               </tr>
