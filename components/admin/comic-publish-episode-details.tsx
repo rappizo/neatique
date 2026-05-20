@@ -59,6 +59,7 @@ type ComicPublishEpisodeDetailsProps = {
   id: string;
   storageKey: string;
   episodeNumber: number;
+  episodeLabel?: string;
   title: string;
   summary: string;
   published: boolean;
@@ -77,6 +78,7 @@ export function ComicPublishEpisodeDetails({
   id,
   storageKey,
   episodeNumber,
+  episodeLabel,
   title,
   summary,
   published,
@@ -152,7 +154,8 @@ export function ComicPublishEpisodeDetails({
           <span className="admin-comic-publish-episode-summary__marker" aria-hidden="true" />
           <div className="admin-comic-publish-episode-summary__copy">
             <p className="eyebrow">
-              Episode {episodeNumber} / {publishedState ? "Published" : "Draft"}
+              {episodeLabel || `Episode ${episodeNumber}`} /{" "}
+              {publishedState ? "Published" : "Draft"}
             </p>
             <h2>{title}</h2>
             <p className="form-note">{summary || "No episode summary yet."}</p>

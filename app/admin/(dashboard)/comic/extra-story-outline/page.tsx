@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   createComicExtraStoryOutlineAction,
+  deleteComicExtraStoryAction,
   updateComicExtraStoryOutlineAction
 } from "@/app/admin/comic-extra-story-actions";
 import { ComicExtraStoryOutlineRevisionForm } from "@/components/admin/comic-extra-story-outline-revision-form";
@@ -21,6 +22,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   "extra-story-outline-generated": "Extra story outline generated.",
   "extra-story-created-outline-failed":
     "Extra story draft was created, but AI outline generation failed. You can edit the outline manually and regenerate prompts in Publish Center.",
+  "extra-story-deleted": "Extra story deleted.",
   "extra-story-saved": "Extra story outline saved.",
   "missing-parent-episode": "Choose the main episode this extra story should follow.",
   "missing-extra-story-request": "Enter the extra-story request first.",
@@ -196,7 +198,7 @@ export default async function AdminComicExtraStoryOutlinePage({
             </section>
 
             {selectedStory ? (
-              <section className="admin-form">
+              <section className="admin-form admin-comic-extra-story-editor">
                 <div className="admin-review-pagination">
                   <div>
                     <p className="eyebrow">
@@ -210,12 +212,25 @@ export default async function AdminComicExtraStoryOutlinePage({
                       {formatDate(selectedStory.updatedAt)}
                     </p>
                   </div>
-                  <Link
-                    href={`/admin/comic/extra-story-publish-center#episode-${selectedStory.id}`}
-                    className="button button--primary"
-                  >
-                    Open Publish Center
-                  </Link>
+                  <div className="stack-row">
+                    <Link
+                      href={`/admin/comic/extra-story-publish-center#episode-${selectedStory.id}`}
+                      className="button button--primary"
+                    >
+                      Open Publish Center
+                    </Link>
+                    <form action={deleteComicExtraStoryAction}>
+                      <input type="hidden" name="episodeId" value={selectedStory.id} />
+                      <input
+                        type="hidden"
+                        name="redirectTo"
+                        value="/admin/comic/extra-story-outline"
+                      />
+                      <button type="submit" className="button button--danger">
+                        Delete extra story
+                      </button>
+                    </form>
+                  </div>
                 </div>
 
                 <form
@@ -268,7 +283,7 @@ export default async function AdminComicExtraStoryOutlinePage({
                   </div>
                 </form>
 
-                <div className="admin-comic-extra-story-memo">
+                <div className="admin-comic-extra-story-memo admin-comic-extra-story-revision">
                   <strong>Continue revising with AI</strong>
                   <p>
                     Write what should change, then queue another AI pass. The revision keeps the

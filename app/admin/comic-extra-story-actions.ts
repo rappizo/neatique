@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { requireFullAdminSession } from "@/lib/admin-auth";
 import {
@@ -212,6 +213,71 @@ export async function updateComicExtraStoryOutlineAction(formData: FormData) {
     episodeSlug: episode.slug
   });
   redirect(buildComicRedirect(`${EXTRA_STORY_OUTLINE_PATH}?storyId=${episode.id}`, "extra-story-saved"));
+}
+
+export async function deleteComicExtraStoryAction(formData: FormData) {
+  await requireFullAdminSession();
+
+  const episodeId = toPlainString(formData.get("episodeId"));
+  const redirectTo = toPlainString(formData.get("redirectTo")) || EXTRA_STORY_OUTLINE_PATH;
+
+  if (!episodeId) {
+    redirect(buildComicRedirect(redirectTo, "missing-extra-story"));
+  }
+
+  const episode = await prisma.comicEpisode.findUnique({
+    where: { id: episodeId },
+    include: {
+      assets: {
+        select: {
+          id: true
+        }
+      },
+      chapter: {
+        include: {
+          season: true
+        }
+      }
+    }
+  });
+
+  if (!episode || episode.storyType !== EXTRA_STORY_TYPE) {
+    redirect(buildComicRedirect(redirectTo, "missing-extra-story"));
+  }
+
+  const taskFilters: Prisma.ComicAiTaskWhereInput[] = [
+    { episodeId: episode.id },
+    { targetId: episode.id }
+  ];
+  const assetIds = episode.assets.map((asset) => asset.id);
+
+  if (assetIds.length > 0) {
+    taskFilters.push({
+      sourceAssetId: {
+        in: assetIds
+      }
+    });
+  }
+
+  await prisma.$transaction([
+    prisma.comicAiTask.deleteMany({
+      where: {
+        OR: taskFilters
+      }
+    }),
+    prisma.comicEpisode.delete({
+      where: {
+        id: episode.id
+      }
+    })
+  ]);
+
+  revalidateComicRoutes({
+    seasonSlug: episode.chapter.season.slug,
+    chapterSlug: episode.chapter.slug,
+    episodeSlug: episode.slug
+  });
+  redirect(buildComicRedirect(redirectTo, "extra-story-deleted"));
 }
 
 export async function updateComicExtraStoryPlacementAction(formData: FormData) {

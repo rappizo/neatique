@@ -1141,7 +1141,6 @@ export async function getComicExtraStoryPublishCenter() {
             }
           },
           orderBy: [
-            { extraStoryPlacementOrder: "asc" },
             { episodeNumber: "asc" },
             { createdAt: "asc" }
           ]
@@ -1199,15 +1198,8 @@ export async function getComicExtraStoryPublishCenter() {
           };
         })
         .sort((left, right) => {
-          const leftParent = left.parentEpisodeNumber ?? Number.MAX_SAFE_INTEGER;
-          const rightParent = right.parentEpisodeNumber ?? Number.MAX_SAFE_INTEGER;
-
-          if (leftParent !== rightParent) {
-            return leftParent - rightParent;
-          }
-
-          if (left.extraStoryPlacementOrder !== right.extraStoryPlacementOrder) {
-            return left.extraStoryPlacementOrder - right.extraStoryPlacementOrder;
+          if (left.episodeNumber !== right.episodeNumber) {
+            return left.episodeNumber - right.episodeNumber;
           }
 
           return left.createdAt.getTime() - right.createdAt.getTime();

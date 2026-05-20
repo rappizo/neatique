@@ -2,7 +2,10 @@ import Link from "next/link";
 import { ComicImageTaskQueueProvider } from "@/components/admin/comic-image-task-queue";
 import { ComicPublishEpisodeDetails } from "@/components/admin/comic-publish-episode-details";
 import { ComicPublishEpisodeProductionPanel } from "@/components/admin/comic-publish-episode-production-panel";
-import { updateComicExtraStoryPlacementAction } from "@/app/admin/comic-extra-story-actions";
+import {
+  deleteComicExtraStoryAction,
+  updateComicExtraStoryPlacementAction
+} from "@/app/admin/comic-extra-story-actions";
 import { getComicExtraStoryPublishCenter } from "@/lib/comic-queries";
 
 type AdminComicExtraStoryPublishCenterPageProps = {
@@ -10,7 +13,9 @@ type AdminComicExtraStoryPublishCenterPageProps = {
 };
 
 const STATUS_MESSAGES: Record<string, string> = {
+  "extra-story-deleted": "Extra story deleted.",
   "extra-story-placement-saved": "Extra story placement saved.",
+  "missing-extra-story": "That extra story could not be found.",
   "missing-extra-story-placement": "Choose both an extra story and the main episode it should follow.",
   "prompt-generated": "A fresh cover-plus-10-page prompt package is ready.",
   "prompt-failed": "Comic prompt generation failed. Check the episode prompt run history.",
@@ -91,7 +96,7 @@ export default async function AdminComicExtraStoryPublishCenterPage({
 
         {publishCenter.extraStories.length > 0 ? (
           <div className="admin-comic-publish-stack">
-            {publishCenter.extraStories.map((episode) => {
+            {publishCenter.extraStories.map((episode, index) => {
               const redirectTo = `/admin/comic/extra-story-publish-center#episode-${episode.id}`;
 
               return (
@@ -100,6 +105,7 @@ export default async function AdminComicExtraStoryPublishCenterPage({
                   id={`episode-${episode.id}`}
                   storageKey={`neatique:comic-extra-story-publish-center:episode:${episode.id}:open`}
                   episodeNumber={episode.episodeNumber}
+                  episodeLabel={`Extra Story ${index + 1}`}
                   title={episode.title}
                   summary={episode.summary}
                   published={episode.published}
@@ -148,6 +154,17 @@ export default async function AdminComicExtraStoryPublishCenterPage({
                       </label>
                       <button type="submit" className="button button--secondary">
                         Save placement
+                      </button>
+                    </form>
+                    <form action={deleteComicExtraStoryAction} className="stack-row">
+                      <input type="hidden" name="episodeId" value={episode.id} />
+                      <input
+                        type="hidden"
+                        name="redirectTo"
+                        value="/admin/comic/extra-story-publish-center"
+                      />
+                      <button type="submit" className="button button--danger">
+                        Delete extra story
                       </button>
                     </form>
                   </section>
