@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 import { isFullAdminAuthenticated } from "@/lib/admin-auth";
-import {
-  ComicOutlineTaskInputError,
-  runComicOutlineTask,
-  type ComicOutlineTaskResult,
-  type ComicOutlineTaskType
-} from "@/lib/comic-outline-generation";
-import { prisma } from "@/lib/db";
+import { enqueueComicAiTask } from "@/lib/comic-ai-task-queue";
+import type { ComicOutlineTaskType } from "@/lib/comic-outline-generation";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;
@@ -22,46 +17,12 @@ const OUTLINE_TASK_TYPES = new Set<ComicOutlineTaskType>([
   "chapter-translate",
   "episodes-generate",
   "episode-generate",
-  "episode-translate"
+  "episode-translate",
+  "extra-story-generate"
 ]);
 
 function isComicOutlineTaskType(value: string): value is ComicOutlineTaskType {
   return OUTLINE_TASK_TYPES.has(value as ComicOutlineTaskType);
-}
-
-function stringifyOutlineTaskPayload(input: {
-  taskType: ComicOutlineTaskType;
-  targetId: string;
-  revisionNotes: string;
-}) {
-  return JSON.stringify({
-    source: "outline-generation-route",
-    taskType: input.taskType,
-    targetId: input.targetId,
-    revisionNotes: input.revisionNotes
-  });
-}
-
-async function persistDirectOutlineTaskResult(input: {
-  taskType: ComicOutlineTaskType;
-  targetId: string;
-  revisionNotes: string;
-  result: ComicOutlineTaskResult;
-}) {
-  await prisma.comicAiTask.create({
-    data: {
-      taskType: "outline",
-      label: `Direct outline ${input.taskType}`,
-      status: input.result.ok ? "SUCCEEDED" : "FAILED",
-      payload: stringifyOutlineTaskPayload(input),
-      result: JSON.stringify(input.result),
-      errorMessage: input.result.ok ? null : input.result.errorMessage || input.result.message,
-      targetId: input.targetId || null,
-      attempts: 1,
-      maxAttempts: 1,
-      completedAt: new Date()
-    }
-  });
 }
 
 export async function POST(request: Request) {
@@ -98,6 +59,7 @@ export async function POST(request: Request) {
   const targetId = typeof payload.targetId === "string" ? payload.targetId.trim() : "";
   const revisionNotes =
     typeof payload.revisionNotes === "string" ? payload.revisionNotes.trim() : "";
+  const userRequest = typeof payload.userRequest === "string" ? payload.userRequest.trim() : "";
 
   if (!isComicOutlineTaskType(taskType)) {
     return NextResponse.json(
@@ -110,44 +72,23 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    const result = await runComicOutlineTask({
-      taskType,
-      targetId,
-      revisionNotes
-    });
-
-    await persistDirectOutlineTaskResult({
+  const task = await enqueueComicAiTask({
+    taskType: "outline",
+    label: `Outline ${taskType}`,
+    payload: {
       taskType,
       targetId,
       revisionNotes,
-      result
-    });
-
-    return NextResponse.json(result, { status: result.ok ? 200 : 500 });
-  } catch (error) {
-    if (error instanceof ComicOutlineTaskInputError) {
-      return NextResponse.json(
-        {
-          ok: false,
-          status: error.status,
-          taskType,
-          targetId,
-          message: error.message
-        },
-        { status: 400 }
-      );
+      userRequest
     }
+  });
 
-    return NextResponse.json(
-      {
-        ok: false,
-        status: "outline-failed",
-        taskType,
-        targetId,
-        message: error instanceof Error ? error.message : "Unknown comic outline task error."
-      },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    ok: true,
+    status: "outline-queued",
+    taskType,
+    targetId,
+    message: "Comic outline generation was added to Comic tasks.",
+    task
+  });
 }

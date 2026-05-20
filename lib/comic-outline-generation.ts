@@ -4,6 +4,7 @@ import {
   formatComicBilingualSummary
 } from "@/lib/comic-bilingual-outline";
 import { toComicCharacterChineseNameLocks } from "@/lib/comic-character-chinese-names";
+import { generateComicExtraStoryOutlineForEpisode } from "@/lib/comic-extra-story-outline-generation";
 import {
   writeGeneratedChapterOutlineToWorkspace,
   writeGeneratedEpisodeOutlineToWorkspace,
@@ -32,7 +33,8 @@ export type ComicOutlineTaskType =
   | "chapter-translate"
   | "episodes-generate"
   | "episode-generate"
-  | "episode-translate";
+  | "episode-translate"
+  | "extra-story-generate";
 
 export type ComicOutlineTaskStatus =
   | "project-outline-generated"
@@ -42,6 +44,7 @@ export type ComicOutlineTaskStatus =
   | "chapter-outline-generated"
   | "chapter-outline-translated"
   | "episode-outline-generated"
+  | "extra-story-outline-generated"
   | "episode-outline-translated"
   | "season-outlines-generated"
   | "chapter-outlines-generated"
@@ -1227,10 +1230,12 @@ export async function runComicOutlineTask(input: {
   taskType: ComicOutlineTaskType;
   targetId?: string;
   revisionNotes?: string;
+  userRequest?: string;
 }): Promise<ComicOutlineTaskResult> {
   const taskType = input.taskType;
   const targetId = input.targetId || "";
   const revisionNotes = input.revisionNotes?.trim() || "";
+  const userRequest = input.userRequest?.trim() || "";
 
   try {
     switch (taskType) {
@@ -1256,6 +1261,12 @@ export async function runComicOutlineTask(input: {
         return await generateEpisodeOutline(taskType, targetId, revisionNotes);
       case "episode-translate":
         return await translateEpisodeOutline(taskType, targetId, revisionNotes);
+      case "extra-story-generate":
+        return await generateComicExtraStoryOutlineForEpisode({
+          episodeId: targetId,
+          userRequest,
+          revisionNotes
+        });
       default:
         throw new ComicOutlineTaskInputError("missing-record", "Unsupported outline task.");
     }

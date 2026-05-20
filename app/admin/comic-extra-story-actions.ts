@@ -6,12 +6,8 @@ import {
   formatComicBilingualOutline,
   formatComicBilingualSummary
 } from "@/lib/comic-bilingual-outline";
-import { toComicCharacterChineseNameLocks } from "@/lib/comic-character-chinese-names";
+import { enqueueComicAiTask } from "@/lib/comic-ai-task-queue";
 import { getNextComicEpisodeNumber } from "@/lib/comic-episode-numbering";
-import {
-  formatComicProductLockPromptContext,
-  loadComicProductLockPromptContexts
-} from "@/lib/comic-product-locks";
 import { prisma } from "@/lib/db";
 import { toInt, toPlainString } from "@/lib/utils";
 import {
@@ -56,103 +52,6 @@ async function getUniqueEpisodeSlug(chapterId: string, requestedSlug: string, ep
   });
 
   return existing ? `${baseSlug}-${episodeNumber}` : baseSlug;
-}
-
-async function getComicOutlineSupport(projectId: string) {
-  const [characters, scenes] = await Promise.all([
-    prisma.comicCharacter.findMany({
-      where: { projectId, active: true },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      select: { name: true, slug: true, chineseName: true }
-    }),
-    prisma.comicScene.findMany({
-      where: { projectId, active: true },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      select: { name: true }
-    })
-  ]);
-
-  return {
-    characterNames: characters.map((character) => character.name),
-    characterNameLocks: toComicCharacterChineseNameLocks(characters),
-    sceneNames: scenes.map((scene) => scene.name)
-  };
-}
-
-function getProjectChain(project: {
-  title: string;
-  shortDescription: string;
-  storyOutline: string;
-}) {
-  return {
-    level: "PROJECT" as const,
-    title: project.title,
-    summary: project.shortDescription,
-    outline: project.storyOutline
-  };
-}
-
-function getSeasonChain(season: {
-  seasonNumber: number;
-  title: string;
-  summary: string;
-  outline: string;
-}) {
-  return {
-    level: "SEASON" as const,
-    title: `Season ${season.seasonNumber}: ${season.title}`,
-    summary: season.summary,
-    outline: season.outline
-  };
-}
-
-function getChapterChain(chapter: {
-  chapterNumber: number;
-  title: string;
-  summary: string;
-  outline: string;
-}) {
-  return {
-    level: "CHAPTER" as const,
-    title: `Chapter ${chapter.chapterNumber}: ${chapter.title}`,
-    summary: chapter.summary,
-    outline: chapter.outline
-  };
-}
-
-function toChildContext(input: {
-  label: string;
-  title: string;
-  summary?: string | null;
-  outline?: string | null;
-}) {
-  return {
-    label: input.label,
-    title: input.title,
-    summary: input.summary || null,
-    outline: input.outline || null
-  };
-}
-
-function formatExtraStoryRevisionNotes(input: {
-  userRequest: string;
-  parentEpisode: { episodeNumber: number; title: string; summary: string; outline: string };
-  productLockSummary: string;
-}) {
-  return [
-    "Generate a bilingual outline for a Neatique Extra Story.",
-    "This is a side story, character intro, product-use moment, or product interaction page sequence. It should feel lively and useful without disrupting the main episode canon.",
-    `User request:\n${input.userRequest}`,
-    "",
-    `Publish placement: after Episode ${input.parentEpisode.episodeNumber}: ${input.parentEpisode.title}`,
-    `Parent episode summary:\n${input.parentEpisode.summary}`,
-    `Parent episode outline:\n${input.parentEpisode.outline}`,
-    "",
-    "Product locks available for this extra story:",
-    input.productLockSummary,
-    "",
-    "If a product is mentioned, keep its product design locked: simple bottle, front label only shows the big product code, no small packaging text."
-  ].join("\n");
 }
 
 export async function createComicExtraStoryOutlineAction(formData: FormData) {
@@ -242,72 +141,16 @@ export async function createComicExtraStoryOutlineAction(formData: FormData) {
     }
   });
 
-  let status = "extra-story-created";
-
-  try {
-    const [{ generateChineseComicOutlineWithAi }, support, productLocks] = await Promise.all([
-      import("@/lib/openai-comic"),
-      getComicOutlineSupport(parentEpisode.chapter.season.projectId),
-      loadComicProductLockPromptContexts(userRequest)
-    ]);
-    const result = await generateChineseComicOutlineWithAi({
-      level: "EPISODE",
-      title,
-      numberLabel: "Extra Story",
-      existingSummary: "",
-      existingOutline: userRequest,
-      revisionNotes: formatExtraStoryRevisionNotes({
-        userRequest,
-        parentEpisode,
-        productLockSummary: formatComicProductLockPromptContext(productLocks)
-      }),
-      parentChain: [
-        getProjectChain(parentEpisode.chapter.season.project),
-        getSeasonChain(parentEpisode.chapter.season),
-        getChapterChain(parentEpisode.chapter)
-      ],
-      siblingOutlines: [
-        toChildContext({
-          label: `Parent Episode ${parentEpisode.episodeNumber}`,
-          title: parentEpisode.title,
-          summary: parentEpisode.summary,
-          outline: parentEpisode.outline
-        }),
-        ...parentEpisode.chapter.episodes.map((candidate) =>
-          toChildContext({
-            label: `Episode ${candidate.episodeNumber}`,
-            title: candidate.title,
-            summary: candidate.summary,
-            outline: candidate.outline
-          })
-        )
-      ],
-      characterNames: support.characterNames,
-      characterNameLocks: support.characterNameLocks,
-      sceneNames: support.sceneNames,
-      worldRules: parentEpisode.chapter.season.project.worldRules,
-      visualStyleGuide: parentEpisode.chapter.season.project.visualStyleGuide
-    });
-
-    await prisma.comicEpisode.update({
-      where: {
-        id: episode.id
-      },
-      data: {
-        summary: formatComicBilingualSummary({
-          zh: result.summary,
-          en: result.summaryEn
-        }),
-        outline: formatComicBilingualOutline({
-          zh: result.outline,
-          en: result.outlineEn
-        })
-      }
-    });
-  } catch (error) {
-    console.error("Extra story outline generation failed:", error);
-    status = "extra-story-created-outline-failed";
-  }
+  await enqueueComicAiTask({
+    taskType: "outline",
+    label: `Extra-story outline: ${title}`,
+    payload: {
+      taskType: "extra-story-generate",
+      targetId: episode.id,
+      userRequest,
+      revisionNotes: ""
+    }
+  });
 
   await ensureComicEpisodeWorkspace({
     seasonSlug: parentEpisode.chapter.season.slug,
@@ -322,7 +165,7 @@ export async function createComicExtraStoryOutlineAction(formData: FormData) {
     chapterSlug: parentEpisode.chapter.slug,
     episodeSlug: episode.slug
   });
-  redirect(buildComicRedirect(`${EXTRA_STORY_OUTLINE_PATH}?storyId=${episode.id}`, status));
+  redirect(buildComicRedirect(`${EXTRA_STORY_OUTLINE_PATH}?storyId=${episode.id}`, "extra-story-outline-queued"));
 }
 
 export async function updateComicExtraStoryOutlineAction(formData: FormData) {

@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { isFullAdminAuthenticated } from "@/lib/admin-auth";
-import {
-  ComicPageImageGenerationInputError,
-  generateComicPageImageForEpisode
-} from "@/lib/comic-page-image-generation";
+import { enqueueComicAiTask } from "@/lib/comic-ai-task-queue";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;
@@ -44,35 +41,31 @@ export async function POST(request: Request) {
       ? payload.pageNumber
       : Number.parseInt(typeof payload.pageNumber === "string" ? payload.pageNumber : "", 10);
 
-  try {
-    const result = await generateComicPageImageForEpisode({
-      episodeId,
-      pageNumber: Number.isFinite(pageNumber) ? pageNumber : 0,
-      referenceImages: Array.isArray(payload.referenceImages)
-        ? payload.referenceImages
-        : undefined
-    });
-
-    return NextResponse.json(result, { status: result.ok ? 200 : 500 });
-  } catch (error) {
-    if (error instanceof ComicPageImageGenerationInputError) {
-      return NextResponse.json(
-        {
-          ok: false,
-          status: error.status,
-          message: error.message
-        },
-        { status: 400 }
-      );
-    }
-
+  if (!episodeId || !Number.isFinite(pageNumber)) {
     return NextResponse.json(
       {
         ok: false,
-        status: "page-image-failed",
-        message: error instanceof Error ? error.message : "Unknown comic page image generation error."
+        status: "invalid-page-request",
+        message: "Episode and page number are required."
       },
-      { status: 500 }
+      { status: 400 }
     );
   }
+
+  const task = await enqueueComicAiTask({
+    taskType: "generate",
+    label: pageNumber === 0 ? "Cover" : `Page ${String(pageNumber).padStart(2, "0")}`,
+    payload: {
+      episodeId,
+      pageNumber,
+      referenceImages: Array.isArray(payload.referenceImages) ? payload.referenceImages : undefined
+    }
+  });
+
+  return NextResponse.json({
+    ok: true,
+    status: "page-image-queued",
+    message: "Comic page image generation was added to Comic tasks.",
+    task
+  });
 }

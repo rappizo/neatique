@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { isFullAdminAuthenticated } from "@/lib/admin-auth";
-import {
-  ComicPromptGenerationInputError,
-  generateComicPromptPackageForEpisode
-} from "@/lib/comic-prompt-generation";
+import { enqueueComicAiTask } from "@/lib/comic-ai-task-queue";
 
 export async function POST(request: Request) {
   const authenticated = await isFullAdminAuthenticated();
@@ -37,29 +34,29 @@ export async function POST(request: Request) {
   const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const episodeId = typeof payload.episodeId === "string" ? payload.episodeId.trim() : "";
 
-  try {
-    const result = await generateComicPromptPackageForEpisode({ episodeId });
-
-    return NextResponse.json(result, { status: result.ok ? 200 : 500 });
-  } catch (error) {
-    if (error instanceof ComicPromptGenerationInputError) {
-      return NextResponse.json(
-        {
-          ok: false,
-          status: error.status,
-          message: error.message
-        },
-        { status: 400 }
-      );
-    }
-
+  if (!episodeId) {
     return NextResponse.json(
       {
         ok: false,
-        status: "prompt-failed",
-        message: error instanceof Error ? error.message : "Unknown comic prompt generation error."
+        status: "missing-episode",
+        message: "Episode is required."
       },
-      { status: 500 }
+      { status: 400 }
     );
   }
+
+  const task = await enqueueComicAiTask({
+    taskType: "prompt-package",
+    label: "Prompt package",
+    payload: {
+      episodeId
+    }
+  });
+
+  return NextResponse.json({
+    ok: true,
+    status: "prompt-queued",
+    message: "Prompt package generation was added to Comic tasks.",
+    task
+  });
 }

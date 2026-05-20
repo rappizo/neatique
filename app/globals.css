@@ -4857,6 +4857,30 @@ main {
   gap: 16px;
 }
 
+.admin-comic-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-comic-extra-story-memo {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(237, 115, 97, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 247, 244, 0.82);
+}
+
+.admin-comic-extra-story-memo p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
 .admin-comic-prompt-page-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

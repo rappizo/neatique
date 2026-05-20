@@ -649,7 +649,8 @@ async function executeComicAiTask(
       return runComicOutlineTask({
         taskType: toStringValue(payload.taskType || payload.outlineTaskType) as ComicOutlineTaskType,
         targetId: toStringValue(payload.targetId),
-        revisionNotes: toStringValue(payload.revisionNotes)
+        revisionNotes: toStringValue(payload.revisionNotes),
+        userRequest: toStringValue(payload.userRequest)
       });
     case "character-lock-revision":
       return reviseComicCharacterLock({
