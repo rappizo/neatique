@@ -4854,7 +4854,32 @@ main {
 .admin-comic-copy-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 18px;
+}
+
+.admin-comic-field--full {
+  grid-column: 1 / -1;
+}
+
+.admin-form .admin-comic-extra-story-edit-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.admin-comic-copy-grid .field,
+.admin-comic-extra-story-edit-form .field {
+  min-width: 0;
+}
+
+.admin-comic-copy-grid input,
+.admin-comic-copy-grid select,
+.admin-comic-copy-grid textarea,
+.admin-comic-extra-story-edit-form input,
+.admin-comic-extra-story-edit-form textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-comic-form-actions {
@@ -4879,6 +4904,21 @@ main {
   margin: 0;
   color: var(--muted);
   line-height: 1.7;
+}
+
+.admin-comic-outline-preview {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid rgba(46, 40, 37, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-comic-outline-preview h3 {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
 }
 
 .admin-comic-prompt-page-grid {
@@ -5126,10 +5166,19 @@ main {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-comic-outline-bilingual--bounded {
+  overflow: hidden;
 }
 
 .admin-comic-outline-language-pane {
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   display: grid;
   gap: 12px;
   align-content: start;
@@ -5159,10 +5208,22 @@ main {
 }
 
 .admin-comic-outline-language-pane pre {
+  min-width: 0;
+  max-width: 100%;
+  max-height: 460px;
+  margin: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.92rem;
+  line-height: 1.65;
 }
 
 .admin-comic-outline-actions {
