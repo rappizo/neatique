@@ -5,13 +5,21 @@ import {
   describeOrderAccountingTransition,
   resolveOrderAccountingTransition
 } from "@/lib/order-accounting";
-import type { FulfillmentStatus, OrderStatus } from "@/lib/types";
+import {
+  formatShippingCarrierLabel,
+  normalizeShippingCarrier,
+  normalizeTrackingNumber,
+  resolveFulfillmentStatusFromShipment
+} from "@/lib/order-shipping";
+import type { FulfillmentStatus, OrderStatus, ShippingCarrier } from "@/lib/types";
 
 type UpdateOrderWithReconciliationInput = {
   id: string;
   status: OrderStatus;
-  fulfillmentStatus: FulfillmentStatus;
+  fulfillmentStatus?: FulfillmentStatus;
   notes: string | null;
+  shippingCarrier: ShippingCarrier | null;
+  trackingNumber: string | null;
 };
 
 export class OrderUpdateError extends Error {
@@ -39,6 +47,10 @@ function buildOrderActivityCopy(input: {
   nextStatus: OrderStatus;
   previousFulfillmentStatus: FulfillmentStatus;
   nextFulfillmentStatus: FulfillmentStatus;
+  previousShippingCarrier: ShippingCarrier | null;
+  nextShippingCarrier: ShippingCarrier | null;
+  previousTrackingNumber: string | null;
+  nextTrackingNumber: string | null;
   previousNotes: string | null;
   nextNotes: string | null;
   totalCents: number;
@@ -50,11 +62,18 @@ function buildOrderActivityCopy(input: {
   const detailParts: string[] = [];
 
   if (input.previousStatus !== input.nextStatus) {
-    parts.push(`Status ${input.previousStatus} → ${input.nextStatus}`);
+    parts.push(`Status ${input.previousStatus} -> ${input.nextStatus}`);
   }
 
   if (input.previousFulfillmentStatus !== input.nextFulfillmentStatus) {
-    parts.push(`Fulfillment ${input.previousFulfillmentStatus} → ${input.nextFulfillmentStatus}`);
+    parts.push(`Fulfillment ${input.previousFulfillmentStatus} -> ${input.nextFulfillmentStatus}`);
+  }
+
+  if (
+    input.previousShippingCarrier !== input.nextShippingCarrier ||
+    input.previousTrackingNumber !== input.nextTrackingNumber
+  ) {
+    parts.push(input.nextShippingCarrier && input.nextTrackingNumber ? "Tracking added" : "Tracking cleared");
   }
 
   if (input.previousNotes !== input.nextNotes) {
@@ -81,12 +100,20 @@ function buildOrderActivityCopy(input: {
     detailParts.push("Coupon usage was released back.");
   }
 
+  if (input.nextShippingCarrier && input.nextTrackingNumber) {
+    detailParts.push(
+      `Shipment: ${formatShippingCarrierLabel(input.nextShippingCarrier)} ${input.nextTrackingNumber}.`
+    );
+  } else {
+    detailParts.push("Shipment: unshipped.");
+  }
+
   if (input.nextNotes) {
     detailParts.push(`Current note: ${input.nextNotes}`);
   }
 
   return {
-    summary: `${input.orderNumber}: ${parts.join(" · ")}`,
+    summary: `${input.orderNumber}: ${parts.join(" | ")}`,
     detail: detailParts.join(" ")
   };
 }
@@ -94,8 +121,9 @@ function buildOrderActivityCopy(input: {
 export async function updateOrderWithReconciliation({
   id,
   status,
-  fulfillmentStatus,
-  notes
+  notes,
+  shippingCarrier,
+  trackingNumber
 }: UpdateOrderWithReconciliationInput) {
   const existingOrder = await prisma.order.findUnique({
     where: { id },
@@ -128,10 +156,25 @@ export async function updateOrderWithReconciliation({
   }
 
   const nextNotes = normalizeNotes(notes);
+  const nextShippingCarrier = normalizeShippingCarrier(shippingCarrier);
+  const nextTrackingNumber = normalizeTrackingNumber(trackingNumber);
+
+  if (Boolean(nextShippingCarrier) !== Boolean(nextTrackingNumber)) {
+    throw new OrderUpdateError("Carrier and Tracking Number must be filled together.");
+  }
+
+  const fulfillmentStatus = resolveFulfillmentStatusFromShipment(
+    nextShippingCarrier,
+    nextTrackingNumber
+  );
+  const previousShippingCarrier = normalizeShippingCarrier(existingOrder.shippingCarrier);
+  const previousTrackingNumber = normalizeTrackingNumber(existingOrder.trackingNumber);
 
   if (
     existingOrder.status === status &&
     existingOrder.fulfillmentStatus === fulfillmentStatus &&
+    previousShippingCarrier === nextShippingCarrier &&
+    previousTrackingNumber === nextTrackingNumber &&
     normalizeNotes(existingOrder.notes) === nextNotes
   ) {
     return {
@@ -139,6 +182,8 @@ export async function updateOrderWithReconciliation({
         id: existingOrder.id,
         status: existingOrder.status,
         fulfillmentStatus: existingOrder.fulfillmentStatus,
+        shippingCarrier: existingOrder.shippingCarrier,
+        trackingNumber: existingOrder.trackingNumber,
         notes: existingOrder.notes
       },
       transition: resolveOrderAccountingTransition({
@@ -167,6 +212,10 @@ export async function updateOrderWithReconciliation({
     nextStatus: status,
     previousFulfillmentStatus: existingOrder.fulfillmentStatus as FulfillmentStatus,
     nextFulfillmentStatus: fulfillmentStatus,
+    previousShippingCarrier,
+    nextShippingCarrier,
+    previousTrackingNumber,
+    nextTrackingNumber,
     previousNotes: normalizeNotes(existingOrder.notes),
     nextNotes,
     totalCents: existingOrder.totalCents,
@@ -273,12 +322,16 @@ export async function updateOrderWithReconciliation({
       data: {
         status,
         fulfillmentStatus,
+        shippingCarrier: nextShippingCarrier,
+        trackingNumber: nextTrackingNumber,
         notes: nextNotes
       },
       select: {
         id: true,
         status: true,
         fulfillmentStatus: true,
+        shippingCarrier: true,
+        trackingNumber: true,
         notes: true
       }
     });

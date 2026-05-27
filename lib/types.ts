@@ -1,6 +1,7 @@
 export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
 export type OrderStatus = "PENDING" | "PAID" | "FULFILLED" | "CANCELLED" | "REFUNDED";
 export type FulfillmentStatus = "UNFULFILLED" | "PROCESSING" | "SHIPPED" | "DELIVERED";
+export type ShippingCarrier = "USPS" | "UPS_GROUND" | "DHL";
 export type RewardType = "EARNED" | "REDEEMED" | "ADJUSTMENT";
 export type MascotRedemptionStatus = "REQUESTED" | "FULFILLED" | "CANCELLED";
 export type ReviewStatus = "PENDING" | "PUBLISHED" | "HIDDEN";
@@ -204,6 +205,8 @@ export type OrderRecord = {
   shippingState: string | null;
   shippingPostalCode: string | null;
   shippingCountry: string | null;
+  shippingCarrier: ShippingCarrier | null;
+  trackingNumber: string | null;
   billingName: string | null;
   billingAddress1: string | null;
   billingAddress2: string | null;

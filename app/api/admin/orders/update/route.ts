@@ -5,7 +5,7 @@ import {
   isOrderConflictError,
   updateOrderWithReconciliation
 } from "@/lib/admin-order-updates";
-import type { FulfillmentStatus, OrderStatus } from "@/lib/types";
+import type { FulfillmentStatus, OrderStatus, ShippingCarrier } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -19,6 +19,8 @@ export async function POST(request: Request) {
         id?: string;
         status?: OrderStatus;
         fulfillmentStatus?: FulfillmentStatus;
+        shippingCarrier?: ShippingCarrier | null;
+        trackingNumber?: string | null;
         notes?: string;
       }
     | null;
@@ -34,6 +36,8 @@ export async function POST(request: Request) {
       id,
       status: (payload?.status || "PENDING") as OrderStatus,
       fulfillmentStatus: (payload?.fulfillmentStatus || "UNFULFILLED") as FulfillmentStatus,
+      shippingCarrier: payload?.shippingCarrier ?? null,
+      trackingNumber: payload?.trackingNumber ?? null,
       notes: payload?.notes?.trim() ? payload.notes.trim() : null
     });
 
@@ -41,6 +45,7 @@ export async function POST(request: Request) {
     revalidatePath("/admin/orders");
     revalidatePath("/admin/customers");
     revalidatePath("/admin/rewards");
+    revalidatePath("/account");
     revalidatePath("/shop");
 
     return NextResponse.json({

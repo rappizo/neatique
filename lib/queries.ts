@@ -392,6 +392,8 @@ function mapOrder(order: any): OrderRecord {
     shippingState: order.shippingState ?? null,
     shippingPostalCode: order.shippingPostalCode ?? null,
     shippingCountry: order.shippingCountry ?? null,
+    shippingCarrier: order.shippingCarrier ?? null,
+    trackingNumber: order.trackingNumber ?? null,
     billingName: order.billingName ?? null,
     billingAddress1: order.billingAddress1 ?? null,
     billingAddress2: order.billingAddress2 ?? null,

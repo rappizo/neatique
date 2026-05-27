@@ -66,7 +66,8 @@ import type {
   FulfillmentStatus,
   OrderStatus,
   ProductStatus,
-  ReviewStatus
+  ReviewStatus,
+  ShippingCarrier
 } from "@/lib/types";
 import { normalizeMultilineValue, slugify, toBool, toInt, toPlainString, toPriceCents } from "@/lib/utils";
 
@@ -1187,6 +1188,8 @@ export async function updateOrderAction(formData: FormData) {
     status: (toPlainString(formData.get("status")) || "PENDING") as OrderStatus,
     fulfillmentStatus: (toPlainString(formData.get("fulfillmentStatus")) ||
       "UNFULFILLED") as FulfillmentStatus,
+    shippingCarrier: (toPlainString(formData.get("shippingCarrier")) || null) as ShippingCarrier | null,
+    trackingNumber: toPlainString(formData.get("trackingNumber")) || null,
     notes: toPlainString(formData.get("notes")) || null
   });
 
@@ -1194,6 +1197,7 @@ export async function updateOrderAction(formData: FormData) {
   revalidatePath("/admin/orders");
   revalidatePath("/admin/customers");
   revalidatePath("/admin/rewards");
+  revalidatePath("/account");
   redirect("/admin/orders?status=updated");
 }
 

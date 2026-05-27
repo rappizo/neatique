@@ -29,6 +29,12 @@ enum FulfillmentStatus {
   DELIVERED
 }
 
+enum ShippingCarrier {
+  USPS
+  UPS_GROUND
+  DHL
+}
+
 enum RewardType {
   EARNED
   REDEEMED
@@ -520,6 +526,8 @@ model Order {
   shippingState         String?
   shippingPostalCode    String?
   shippingCountry       String?
+  shippingCarrier       ShippingCarrier?
+  trackingNumber        String?
   billingName           String?
   billingAddress1       String?
   billingAddress2       String?

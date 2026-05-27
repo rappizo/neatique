@@ -2,6 +2,7 @@ import Link from "next/link";
 import { logoutCustomerAction, updateCustomerPasswordAction } from "@/app/(site)/account/actions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { requireCustomerSession } from "@/lib/customer-auth";
+import { formatShippingCarrierLabel, hasCompleteShipment } from "@/lib/order-shipping";
 import { getCustomerAccountById } from "@/lib/queries";
 
 type AccountPageProps = {
@@ -96,26 +97,41 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                   <tr>
                     <th>Order</th>
                     <th>Date</th>
-                    <th>Status</th>
+                    <th>Shipping</th>
                     <th>Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {account.orders.map((order) => (
-                    <tr key={order.id}>
-                      <td>
-                        <div>{order.orderNumber}</div>
-                        {order.couponCode ? (
-                          <small>
-                            {order.couponCode} saved {formatCurrency(order.discountCents)}
-                          </small>
-                        ) : null}
-                      </td>
-                      <td>{formatDate(order.createdAt)}</td>
-                      <td>{order.status}</td>
-                      <td>{formatCurrency(order.totalCents)}</td>
-                    </tr>
-                  ))}
+                  {account.orders.map((order) => {
+                    const shipped = hasCompleteShipment(order.shippingCarrier, order.trackingNumber);
+
+                    return (
+                      <tr key={order.id}>
+                        <td>
+                          <div>{order.orderNumber}</div>
+                          {order.couponCode ? (
+                            <small>
+                              {order.couponCode} saved {formatCurrency(order.discountCents)}
+                            </small>
+                          ) : null}
+                        </td>
+                        <td>{formatDate(order.createdAt)}</td>
+                        <td>
+                          {shipped ? (
+                            <div>
+                              <div>Shipped</div>
+                              <small>
+                                {formatShippingCarrierLabel(order.shippingCarrier)} {order.trackingNumber}
+                              </small>
+                            </div>
+                          ) : (
+                            "Unshipped"
+                          )}
+                        </td>
+                        <td>{formatCurrency(order.totalCents)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </section>

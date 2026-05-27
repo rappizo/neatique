@@ -2,11 +2,17 @@
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { formatCurrency, formatDate, formatTime } from "@/lib/format";
+import {
+  formatShippingCarrierLabel,
+  resolveFulfillmentStatusFromShipment,
+  shippingCarrierOptions
+} from "@/lib/order-shipping";
 import type {
   FulfillmentStatus,
   OrderActivityLogRecord,
   OrderRecord,
-  OrderStatus
+  OrderStatus,
+  ShippingCarrier
 } from "@/lib/types";
 
 type OrderTableRowProps = {
@@ -19,6 +25,8 @@ type OrderUpdateResponse = {
   order?: {
     status: OrderStatus;
     fulfillmentStatus: FulfillmentStatus;
+    shippingCarrier: ShippingCarrier | null;
+    trackingNumber: string | null;
     notes: string | null;
   };
   activityLog?: {
@@ -58,8 +66,12 @@ function getStatusBadgeClass(value: string) {
 export function OrderTableRow({ order }: OrderTableRowProps) {
   const [status, setStatus] = useState<OrderStatus>(order.status);
   const [fulfillmentStatus, setFulfillmentStatus] = useState<FulfillmentStatus>(
-    order.fulfillmentStatus
+    resolveFulfillmentStatusFromShipment(order.shippingCarrier, order.trackingNumber)
   );
+  const [shippingCarrier, setShippingCarrier] = useState<ShippingCarrier | "">(
+    order.shippingCarrier ?? ""
+  );
+  const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber ?? "");
   const [notes, setNotes] = useState(order.notes ?? "");
   const [activityLogs, setActivityLogs] = useState<OrderActivityLogRecord[]>(
     order.activityLogs ?? []
@@ -91,6 +103,8 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
             id: order.id,
             status,
             fulfillmentStatus,
+            shippingCarrier: shippingCarrier || null,
+            trackingNumber,
             notes
           })
         });
@@ -105,6 +119,8 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
         if (payload?.order) {
           setStatus(payload.order.status);
           setFulfillmentStatus(payload.order.fulfillmentStatus);
+          setShippingCarrier(payload.order.shippingCarrier ?? "");
+          setTrackingNumber(payload.order.trackingNumber ?? "");
           setNotes(payload.order.notes ?? "");
         }
 
@@ -166,7 +182,16 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
           </div>
         </td>
         <td>
-          <span className={getStatusBadgeClass(fulfillmentStatus)}>{fulfillmentStatus}</span>
+          <div className="admin-table__cell-stack">
+            <span className={getStatusBadgeClass(fulfillmentStatus)}>{fulfillmentStatus}</span>
+            {shippingCarrier && trackingNumber.trim() ? (
+              <span className="form-note">
+                {formatShippingCarrierLabel(shippingCarrier)} {trackingNumber.trim()}
+              </span>
+            ) : (
+              <span className="form-note">No tracking yet</span>
+            )}
+          </div>
         </td>
         <td className="admin-table__clip">
           <div className="admin-table__cell-stack">
@@ -212,6 +237,13 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
                       order.shippingCountry
                     ]) || "No shipping address"}
                   </p>
+                  {shippingCarrier && trackingNumber.trim() ? (
+                    <p className="form-note">
+                      Tracking: {formatShippingCarrierLabel(shippingCarrier)} {trackingNumber.trim()}
+                    </p>
+                  ) : (
+                    <p className="form-note">Shipment: unshipped</p>
+                  )}
                 </section>
 
                 <section className="admin-card">
@@ -260,18 +292,53 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
                     </div>
                     <div className="field">
                       <label>Fulfillment</label>
-                      <select
-                        className="admin-table__select"
-                        value={fulfillmentStatus}
-                        onChange={(event) =>
-                          setFulfillmentStatus(event.target.value as FulfillmentStatus)
-                        }
-                      >
+                      <select className="admin-table__select" value={fulfillmentStatus} disabled>
                         <option value="UNFULFILLED">UNFULFILLED</option>
-                        <option value="PROCESSING">PROCESSING</option>
                         <option value="SHIPPED">SHIPPED</option>
-                        <option value="DELIVERED">DELIVERED</option>
                       </select>
+                      <span className="form-note">Automatically updates from tracking details.</span>
+                    </div>
+                  </div>
+                  <div className="admin-form__grid">
+                    <div className="field">
+                      <label htmlFor={`shipping-carrier-${order.id}`}>Carrier</label>
+                      <select
+                        id={`shipping-carrier-${order.id}`}
+                        className="admin-table__select"
+                        value={shippingCarrier}
+                        onChange={(event) => {
+                          const nextCarrier = event.target.value as ShippingCarrier | "";
+                          setShippingCarrier(nextCarrier);
+                          setFulfillmentStatus(
+                            resolveFulfillmentStatusFromShipment(nextCarrier || null, trackingNumber)
+                          );
+                        }}
+                      >
+                        <option value="">Select carrier</option>
+                        {shippingCarrierOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`tracking-number-${order.id}`}>Tracking Number</label>
+                      <input
+                        id={`tracking-number-${order.id}`}
+                        className="admin-table__select"
+                        value={trackingNumber}
+                        onChange={(event) => {
+                          const nextTrackingNumber = event.target.value;
+                          setTrackingNumber(nextTrackingNumber);
+                          setFulfillmentStatus(
+                            resolveFulfillmentStatusFromShipment(
+                              shippingCarrier || null,
+                              nextTrackingNumber
+                            )
+                          );
+                        }}
+                      />
                     </div>
                   </div>
                   <div className="field">
