@@ -1,9 +1,11 @@
 "use client";
 
-import { Fragment, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
+import Image from "next/image";
 import { formatCurrency, formatDate, formatTime } from "@/lib/format";
 import {
   formatShippingCarrierLabel,
+  resolveOrderStatusFromShipment,
   resolveFulfillmentStatusFromShipment,
   shippingCarrierOptions
 } from "@/lib/order-shipping";
@@ -38,6 +40,9 @@ type OrderUpdateResponse = {
   } | null;
 };
 
+type OrderAction = "save" | "cancel" | "refund";
+type MessageTone = "success" | "warning";
+
 function extractErrorMessage(payload: unknown) {
   if (!payload || typeof payload !== "object") {
     return "Order update failed.";
@@ -63,6 +68,34 @@ function getStatusBadgeClass(value: string) {
   return "admin-table__status-badge admin-table__status-badge--warning";
 }
 
+function isWarningMessage(message: string) {
+  return /failed|not enough|not found|cannot|must|only|already|missing|does not/i.test(message);
+}
+
+function buildActionFeedback(
+  operation: OrderAction,
+  order: OrderUpdateResponse["order"] | undefined,
+  fallback: string | undefined
+) {
+  if (operation === "save") {
+    if (order?.shippingCarrier && order.trackingNumber) {
+      return `Shipment updated: ${formatShippingCarrierLabel(order.shippingCarrier)} ${order.trackingNumber}. Status: ${order.status}; fulfillment: ${order.fulfillmentStatus}.`;
+    }
+
+    if (order) {
+      return `Shipment cleared. Status: ${order.status}; fulfillment: ${order.fulfillmentStatus}.`;
+    }
+
+    return fallback || "Shipment updated.";
+  }
+
+  if (operation === "cancel") {
+    return fallback || "Order cancelled.";
+  }
+
+  return fallback || "Refund submitted through Stripe.";
+}
+
 export function OrderTableRow({ order }: OrderTableRowProps) {
   const [status, setStatus] = useState<OrderStatus>(order.status);
   const [fulfillmentStatus, setFulfillmentStatus] = useState<FulfillmentStatus>(
@@ -77,6 +110,9 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
     order.activityLogs ?? []
   );
   const [message, setMessage] = useState<string | null>(null);
+  const [messageTone, setMessageTone] = useState<MessageTone>("success");
+  const [activeAction, setActiveAction] = useState<OrderAction | null>(null);
+  const [confirmedAction, setConfirmedAction] = useState<OrderAction | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -89,10 +125,42 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
     [order.items]
   );
 
-  const handleSave = () => {
-    startTransition(async () => {
-      setMessage(null);
+  useEffect(() => {
+    if (!confirmedAction) {
+      return;
+    }
 
+    const timeoutId = window.setTimeout(() => {
+      setConfirmedAction(null);
+    }, 3200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [confirmedAction]);
+
+  const handleOrderAction = (operation: OrderAction) => {
+    if (activeAction) {
+      return;
+    }
+
+    if (
+      operation === "cancel" &&
+      !window.confirm("Cancel this order locally? This does not issue a Stripe refund.")
+    ) {
+      return;
+    }
+
+    if (
+      operation === "refund" &&
+      !window.confirm("Issue a full Stripe refund for this order?")
+    ) {
+      return;
+    }
+
+    setActiveAction(operation);
+    setConfirmedAction(null);
+    setMessage(null);
+
+    startTransition(async () => {
       try {
         const response = await fetch("/api/admin/orders/update", {
           method: "POST",
@@ -101,8 +169,7 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
           },
           body: JSON.stringify({
             id: order.id,
-            status,
-            fulfillmentStatus,
+            operation,
             shippingCarrier: shippingCarrier || null,
             trackingNumber,
             notes
@@ -140,12 +207,32 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
         }
 
         setExpanded(true);
-        setMessage(payload?.summary || "Saved");
+        setConfirmedAction(operation);
+        setMessageTone("success");
+        setMessage(buildActionFeedback(operation, payload?.order, payload?.summary));
       } catch (error) {
+        setMessageTone("warning");
         setMessage(error instanceof Error ? error.message : "Order update failed.");
+      } finally {
+        setActiveAction(null);
       }
     });
   };
+
+  const isCancelled = status === "CANCELLED";
+  const isRefunded = status === "REFUNDED";
+  const hasActiveAction = isPending || Boolean(activeAction);
+  const canCancel = !hasActiveAction && !isCancelled && !isRefunded;
+  const canRefund = !hasActiveAction && !isRefunded && Boolean(order.stripePaymentIntentId);
+  const saveButtonLabel =
+    activeAction === "save"
+      ? "Updating shipment..."
+      : confirmedAction === "save"
+        ? "Shipment updated"
+        : "Update shipment";
+  const feedbackTone = messageTone === "warning" || (message ? isWarningMessage(message) : false)
+    ? "warning"
+    : "success";
 
   return (
     <Fragment>
@@ -264,31 +351,46 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
 
               <section className="admin-card">
                 <h3>Items</h3>
-                <ul className="admin-list">
+                <ul className="admin-order-items">
                   {order.items.map((item) => (
                     <li key={item.id}>
-                      {item.name} x {item.quantity} · {formatCurrency(item.lineTotalCents)}
+                      {item.imageUrl ? (
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.name}
+                          width={58}
+                          height={58}
+                          loading="lazy"
+                          unoptimized
+                          className="admin-order-item__image"
+                        />
+                      ) : (
+                        <span className="admin-order-item__image admin-order-item__image--empty" />
+                      )}
+                      <div className="admin-order-item__copy">
+                        <strong>{item.name}</strong>
+                        <span className="form-note">
+                          Quantity {item.quantity} | {formatCurrency(item.lineTotalCents)}
+                        </span>
+                      </div>
                     </li>
                   ))}
                 </ul>
               </section>
 
               <div className="admin-order-row__detail-grid">
-                <section className="admin-card">
+                <section className="admin-card admin-order-row__control-card">
                   <div className="admin-form__grid">
                     <div className="field">
                       <label>Status</label>
-                      <select
-                        className="admin-table__select"
-                        value={status}
-                        onChange={(event) => setStatus(event.target.value as OrderStatus)}
-                      >
+                      <select className="admin-table__select" value={status} disabled>
                         <option value="PENDING">PENDING</option>
                         <option value="PAID">PAID</option>
                         <option value="FULFILLED">FULFILLED</option>
                         <option value="CANCELLED">CANCELLED</option>
                         <option value="REFUNDED">REFUNDED</option>
                       </select>
+                      <span className="form-note">Automatically updates from shipment, cancel, and refund actions.</span>
                     </div>
                     <div className="field">
                       <label>Fulfillment</label>
@@ -311,6 +413,9 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
                           setShippingCarrier(nextCarrier);
                           setFulfillmentStatus(
                             resolveFulfillmentStatusFromShipment(nextCarrier || null, trackingNumber)
+                          );
+                          setStatus(
+                            resolveOrderStatusFromShipment(status, nextCarrier || null, trackingNumber)
                           );
                         }}
                       >
@@ -337,6 +442,13 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
                               nextTrackingNumber
                             )
                           );
+                          setStatus(
+                            resolveOrderStatusFromShipment(
+                              status,
+                              shippingCarrier || null,
+                              nextTrackingNumber
+                            )
+                          );
                         }}
                       />
                     </div>
@@ -349,28 +461,45 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
                       onChange={(event) => setNotes(event.target.value)}
                     />
                   </div>
-                  <div className="stack-row">
-                    <button
-                      type="button"
-                      className="button button--primary"
-                      onClick={handleSave}
-                      disabled={isPending}
-                      aria-busy={isPending}
-                    >
-                      {isPending ? "Saving..." : "Update order"}
-                    </button>
-                    {message ? (
-                      <span
-                        className={
-                          message.includes("failed") ||
-                          message.includes("Not enough") ||
-                          message.includes("not found")
-                            ? "form-note notice--warning"
-                            : "form-note"
-                        }
+                  <div className="admin-order-row__shipment-actions">
+                    <div className="stack-row admin-order-row__control-actions">
+                      <button
+                        type="button"
+                        className={`button button--primary${confirmedAction === "save" ? " button--success" : ""}`}
+                        onClick={() => handleOrderAction("save")}
+                        disabled={hasActiveAction}
+                        aria-busy={activeAction === "save"}
                       >
-                        {message}
-                      </span>
+                        {saveButtonLabel}
+                      </button>
+                      <button
+                        type="button"
+                        className="button button--secondary"
+                        onClick={() => handleOrderAction("cancel")}
+                        disabled={!canCancel}
+                        aria-busy={activeAction === "cancel"}
+                      >
+                        {activeAction === "cancel" ? "Cancelling..." : "Cancel order"}
+                      </button>
+                      <button
+                        type="button"
+                        className="button button--danger"
+                        onClick={() => handleOrderAction("refund")}
+                        disabled={!canRefund}
+                        aria-busy={activeAction === "refund"}
+                      >
+                        {activeAction === "refund" ? "Refunding..." : "Refund through Stripe"}
+                      </button>
+                    </div>
+                    {message ? (
+                      <div
+                        className={`admin-order-row__feedback admin-order-row__feedback--${feedbackTone}`}
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <strong>{feedbackTone === "warning" ? "Needs attention" : "Saved"}</strong>
+                        <span>{message}</span>
+                      </div>
                     ) : null}
                   </div>
                 </section>

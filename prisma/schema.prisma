@@ -33,6 +33,7 @@ enum ShippingCarrier {
   USPS
   UPS_GROUND
   DHL
+  AMAZON_TBA
 }
 
 enum RewardType {

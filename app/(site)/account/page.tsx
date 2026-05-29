@@ -97,7 +97,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                   <tr>
                     <th>Order</th>
                     <th>Date</th>
-                    <th>Shipping</th>
+                    <th>Status</th>
                     <th>Total</th>
                   </tr>
                 </thead>
@@ -117,7 +117,11 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                         </td>
                         <td>{formatDate(order.createdAt)}</td>
                         <td>
-                          {shipped ? (
+                          {order.status === "CANCELLED" ? (
+                            "Cancelled"
+                          ) : order.status === "REFUNDED" ? (
+                            "Refunded"
+                          ) : shipped ? (
                             <div>
                               <div>Shipped</div>
                               <small>

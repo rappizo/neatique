@@ -1,0 +1,1 @@
+ALTER TYPE "ShippingCarrier" ADD VALUE 'AMAZON_TBA';

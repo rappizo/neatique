@@ -9,14 +9,17 @@ import {
   formatShippingCarrierLabel,
   normalizeShippingCarrier,
   normalizeTrackingNumber,
+  resolveOrderStatusFromShipment,
   resolveFulfillmentStatusFromShipment
 } from "@/lib/order-shipping";
+import { stripe } from "@/lib/stripe";
 import type { FulfillmentStatus, OrderStatus, ShippingCarrier } from "@/lib/types";
+
+export type OrderUpdateOperation = "save" | "cancel" | "refund";
 
 type UpdateOrderWithReconciliationInput = {
   id: string;
-  status: OrderStatus;
-  fulfillmentStatus?: FulfillmentStatus;
+  operation?: OrderUpdateOperation;
   notes: string | null;
   shippingCarrier: ShippingCarrier | null;
   trackingNumber: string | null;
@@ -41,6 +44,10 @@ function normalizeNotes(value: string | null) {
   return trimmed ? trimmed : null;
 }
 
+function isOrderUpdateOperation(value: string): value is OrderUpdateOperation {
+  return value === "save" || value === "cancel" || value === "refund";
+}
+
 function buildOrderActivityCopy(input: {
   orderNumber: string;
   previousStatus: OrderStatus;
@@ -57,6 +64,8 @@ function buildOrderActivityCopy(input: {
   pointsEarned: number;
   transitionSummary: string;
   couponUsageDelta: number;
+  operation: OrderUpdateOperation;
+  stripeRefundId: string | null;
 }) {
   const parts: string[] = [];
   const detailParts: string[] = [];
@@ -78,6 +87,14 @@ function buildOrderActivityCopy(input: {
 
   if (input.previousNotes !== input.nextNotes) {
     parts.push(input.nextNotes ? "Notes updated" : "Notes cleared");
+  }
+
+  if (input.operation === "cancel") {
+    parts.push("Order cancelled");
+  }
+
+  if (input.operation === "refund") {
+    parts.push("Refund issued");
   }
 
   if (parts.length === 0) {
@@ -112,6 +129,10 @@ function buildOrderActivityCopy(input: {
     detailParts.push(`Current note: ${input.nextNotes}`);
   }
 
+  if (input.stripeRefundId) {
+    detailParts.push(`Stripe refund: ${input.stripeRefundId}.`);
+  }
+
   return {
     summary: `${input.orderNumber}: ${parts.join(" | ")}`,
     detail: detailParts.join(" ")
@@ -120,7 +141,7 @@ function buildOrderActivityCopy(input: {
 
 export async function updateOrderWithReconciliation({
   id,
-  status,
+  operation = "save",
   notes,
   shippingCarrier,
   trackingNumber
@@ -155,20 +176,89 @@ export async function updateOrderWithReconciliation({
     throw new OrderUpdateError("Order not found.", 404);
   }
 
+  if (!isOrderUpdateOperation(operation)) {
+    throw new OrderUpdateError("Unsupported order action.");
+  }
+
   const nextNotes = normalizeNotes(notes);
-  const nextShippingCarrier = normalizeShippingCarrier(shippingCarrier);
-  const nextTrackingNumber = normalizeTrackingNumber(trackingNumber);
+  let nextShippingCarrier = normalizeShippingCarrier(shippingCarrier);
+  let nextTrackingNumber = normalizeTrackingNumber(trackingNumber);
 
   if (Boolean(nextShippingCarrier) !== Boolean(nextTrackingNumber)) {
     throw new OrderUpdateError("Carrier and Tracking Number must be filled together.");
   }
 
-  const fulfillmentStatus = resolveFulfillmentStatusFromShipment(
-    nextShippingCarrier,
-    nextTrackingNumber
-  );
   const previousShippingCarrier = normalizeShippingCarrier(existingOrder.shippingCarrier);
   const previousTrackingNumber = normalizeTrackingNumber(existingOrder.trackingNumber);
+  let status: OrderStatus = existingOrder.status as OrderStatus;
+  let fulfillmentStatus: FulfillmentStatus = existingOrder.fulfillmentStatus as FulfillmentStatus;
+  let stripeRefundId: string | null = null;
+
+  if (operation === "save") {
+    if (
+      nextShippingCarrier &&
+      nextTrackingNumber &&
+      (status === "CANCELLED" || status === "REFUNDED")
+    ) {
+      throw new OrderUpdateError("Cancelled or refunded orders cannot be shipped.");
+    }
+
+    if (nextShippingCarrier && nextTrackingNumber && status === "PENDING") {
+      throw new OrderUpdateError("Only paid orders can be shipped.");
+    }
+
+    fulfillmentStatus = resolveFulfillmentStatusFromShipment(
+      nextShippingCarrier,
+      nextTrackingNumber
+    );
+    status = resolveOrderStatusFromShipment(status, nextShippingCarrier, nextTrackingNumber);
+  } else if (operation === "cancel") {
+    if (status === "REFUNDED") {
+      throw new OrderUpdateError("Refunded orders cannot be cancelled.");
+    }
+
+    status = "CANCELLED";
+    fulfillmentStatus = "UNFULFILLED";
+    nextShippingCarrier = null;
+    nextTrackingNumber = null;
+  } else if (operation === "refund") {
+    if (status === "REFUNDED") {
+      throw new OrderUpdateError("Order is already refunded.");
+    }
+
+    if (!stripe) {
+      throw new OrderUpdateError("Stripe is not configured for refunds.", 500);
+    }
+
+    if (!existingOrder.stripePaymentIntentId) {
+      throw new OrderUpdateError("This order does not have a Stripe payment intent to refund.");
+    }
+
+    try {
+      const refund = await stripe.refunds.create(
+        {
+          payment_intent: existingOrder.stripePaymentIntentId,
+          metadata: {
+            orderId: existingOrder.id,
+            orderNumber: existingOrder.orderNumber
+          }
+        },
+        {
+          idempotencyKey: `neatique-order-refund-${existingOrder.id}`
+        }
+      );
+
+      stripeRefundId = refund.id;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Stripe refund failed.";
+      throw new OrderUpdateError(`Stripe refund failed: ${message}`, 502);
+    }
+
+    status = "REFUNDED";
+    fulfillmentStatus = "UNFULFILLED";
+    nextShippingCarrier = null;
+    nextTrackingNumber = null;
+  }
 
   if (
     existingOrder.status === status &&
@@ -221,7 +311,9 @@ export async function updateOrderWithReconciliation({
     totalCents: existingOrder.totalCents,
     pointsEarned: existingOrder.pointsEarned,
     transitionSummary: describeOrderAccountingTransition(transition),
-    couponUsageDelta: transition.couponUsageDelta
+    couponUsageDelta: transition.couponUsageDelta,
+    operation,
+    stripeRefundId
   });
 
   const updatedOrder = await prisma.$transaction(async (tx) => {
@@ -339,7 +431,12 @@ export async function updateOrderWithReconciliation({
     const activityLog = await tx.orderActivityLog.create({
       data: {
         orderId: existingOrder.id,
-        eventType: "ADMIN_UPDATE",
+        eventType:
+          operation === "refund"
+            ? "ADMIN_REFUND"
+            : operation === "cancel"
+              ? "ADMIN_CANCEL"
+              : "ADMIN_UPDATE",
         summary: activityCopy.summary,
         detail: activityCopy.detail
       },

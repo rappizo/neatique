@@ -63,8 +63,6 @@ import type {
   EmailCampaignRecord,
   EmailCampaignStatus,
   CouponUsageMode,
-  FulfillmentStatus,
-  OrderStatus,
   ProductStatus,
   ReviewStatus,
   ShippingCarrier
@@ -1185,9 +1183,7 @@ export async function updateOrderAction(formData: FormData) {
   const id = toPlainString(formData.get("id"));
   await updateOrderWithReconciliation({
     id,
-    status: (toPlainString(formData.get("status")) || "PENDING") as OrderStatus,
-    fulfillmentStatus: (toPlainString(formData.get("fulfillmentStatus")) ||
-      "UNFULFILLED") as FulfillmentStatus,
+    operation: "save",
     shippingCarrier: (toPlainString(formData.get("shippingCarrier")) || null) as ShippingCarrier | null,
     trackingNumber: toPlainString(formData.get("trackingNumber")) || null,
     notes: toPlainString(formData.get("notes")) || null

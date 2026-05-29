@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import {
+  type OrderUpdateOperation,
   isOrderConflictError,
   updateOrderWithReconciliation
 } from "@/lib/admin-order-updates";
-import type { FulfillmentStatus, OrderStatus, ShippingCarrier } from "@/lib/types";
+import type { ShippingCarrier } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -17,8 +18,7 @@ export async function POST(request: Request) {
   const payload = (await request.json().catch(() => null)) as
     | {
         id?: string;
-        status?: OrderStatus;
-        fulfillmentStatus?: FulfillmentStatus;
+        operation?: OrderUpdateOperation;
         shippingCarrier?: ShippingCarrier | null;
         trackingNumber?: string | null;
         notes?: string;
@@ -34,8 +34,7 @@ export async function POST(request: Request) {
   try {
     const result = await updateOrderWithReconciliation({
       id,
-      status: (payload?.status || "PENDING") as OrderStatus,
-      fulfillmentStatus: (payload?.fulfillmentStatus || "UNFULFILLED") as FulfillmentStatus,
+      operation: payload?.operation || "save",
       shippingCarrier: payload?.shippingCarrier ?? null,
       trackingNumber: payload?.trackingNumber ?? null,
       notes: payload?.notes?.trim() ? payload.notes.trim() : null
