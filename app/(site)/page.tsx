@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { HomeBannerSlider } from "@/components/home/home-banner-slider";
 import { SocialProofSliderDeferred } from "@/components/home/social-proof-slider-deferred";
@@ -6,6 +7,7 @@ import { PostCard } from "@/components/ui/post-card";
 import { ProductCard } from "@/components/ui/product-card";
 import { ResponsiveSitePicture } from "@/components/ui/responsive-site-picture";
 import { SectionHeading } from "@/components/ui/section-heading";
+import toyAllImage from "@/images/mascot/TOYALL.png";
 import { getFeaturedProducts, getPublishedPosts } from "@/lib/queries";
 import { siteConfig } from "@/lib/site-config";
 import { buildSiteImageUrl } from "@/lib/site-media";
@@ -355,6 +357,44 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <p>{pillar.description}</p>
                 </article>
               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section section--deferred">
+        <div className="container">
+          <div className="comic-mascot-feature">
+            <div className="comic-mascot-feature__copy">
+              <p className="eyebrow">Comic & Mascot Rewards</p>
+              <h2>Meet the Neatique story world, then apply your points toward a mascot reward.</h2>
+              <p>
+                The Neatique comic brings the brand characters into a softer, playful universe,
+                while the mascot program gives customers a way to turn follow and order activity
+                into collectible plush rewards.
+              </p>
+              <div className="comic-mascot-feature__badges">
+                <span className="pill">Published comic episodes</span>
+                <span className="pill">Mascot reward applications</span>
+                <span className="pill">Points through TikTok and order registration</span>
+              </div>
+              <div className="hero-actions">
+                <Link href="/comic" className="button button--primary">
+                  Read the comic
+                </Link>
+                <Link href="/mascot" className="button button--secondary">
+                  Apply for mascots
+                </Link>
+              </div>
+            </div>
+
+            <div className="comic-mascot-feature__media">
+              <Image
+                src={toyAllImage}
+                alt="Neatique mascot plush collection displayed together."
+                sizes="(max-width: 1080px) 100vw, 720px"
+                fetchPriority="low"
+              />
             </div>
           </div>
         </div>

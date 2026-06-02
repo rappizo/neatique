@@ -667,6 +667,7 @@ main {
 
 .brand-manifesto,
 .philosophy-band,
+.comic-mascot-feature,
 .home-cta,
 .subscribe-panel {
   display: grid;
@@ -686,6 +687,7 @@ main {
 
 .brand-manifesto__copy,
 .philosophy-band__intro,
+.comic-mascot-feature__copy,
 .ritual-spotlight__content,
 .ingredient-story__copy,
 .home-cta__copy,
@@ -727,6 +729,7 @@ main {
 
 .brand-manifesto__note,
 .philosophy-band__intro p:not(.eyebrow),
+.comic-mascot-feature__copy p:not(.eyebrow),
 .ingredient-story__copy p:not(.eyebrow),
 .ritual-step p,
 .image-prompt__body,
@@ -738,6 +741,7 @@ main {
 }
 
 .philosophy-band__intro h2,
+.comic-mascot-feature__copy h2,
 .home-cta__copy h1,
 .home-cta__copy h2,
 .subscribe-panel__copy h2 {
@@ -843,6 +847,36 @@ main {
 
 .philosophy-band__grid {
   align-items: stretch;
+}
+
+.comic-mascot-feature {
+  grid-template-columns: minmax(0, 0.86fr) minmax(420px, 1.14fr);
+  gap: clamp(24px, 4vw, 68px);
+  align-items: center;
+}
+
+.comic-mascot-feature__copy {
+  max-width: 660px;
+  align-content: center;
+}
+
+.comic-mascot-feature__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.comic-mascot-feature__media {
+  display: grid;
+  justify-items: end;
+  min-height: clamp(420px, 39vw, 650px);
+}
+
+.comic-mascot-feature__media img {
+  width: min(100%, 760px);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 24px 36px rgba(46, 40, 37, 0.12));
 }
 
 .philosophy-card {
@@ -6020,11 +6054,16 @@ main {
   .admin-review-detail__hero,
   .brand-manifesto,
   .philosophy-band__hero,
+  .comic-mascot-feature,
   .ritual-spotlight__hero,
   .ingredient-story-grid,
   .home-cta,
   .subscribe-panel {
     grid-template-columns: 1fr;
+  }
+
+  .comic-mascot-feature__media {
+    justify-items: center;
   }
 
   .site-footer__grid {
@@ -6675,6 +6714,7 @@ main {
 
   .brand-manifesto,
   .philosophy-band,
+  .comic-mascot-feature,
   .home-cta,
   .subscribe-panel {
     padding: 22px;
@@ -6683,9 +6723,19 @@ main {
 
   .brand-manifesto__title,
   .philosophy-band__intro h2,
+  .comic-mascot-feature__copy h2,
   .home-cta__copy h2,
   .subscribe-panel__copy h2 {
     font-size: clamp(1.85rem, 8vw, 2.45rem);
+  }
+
+  .comic-mascot-feature__media {
+    min-height: auto;
+    justify-items: center;
+  }
+
+  .comic-mascot-feature__media img {
+    width: 100%;
   }
 
   .brand-manifesto__lead {
