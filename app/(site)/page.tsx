@@ -194,8 +194,8 @@ type HomePageProps = {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const [products, posts, params] = await Promise.all([
-    getFeaturedProducts(4),
-    getPublishedPosts(2),
+    getFeaturedProducts(3),
+    getPublishedPosts(3),
     searchParams
   ]);
 
@@ -308,10 +308,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <div className="container">
           <SectionHeading
             eyebrow="Signature Collection"
-            title="Four core essentials created for brighter, softer, more confident skin days."
+            title="Three core essentials created for brighter, softer, more confident skin days."
             description="Meet the PDRN and Snail Mucin formulas that anchor the Neatique collection, from fresh serum layers to comforting cream finishes."
           />
-          <div className="product-grid">
+          <div className="product-grid product-grid--home-featured">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -453,7 +453,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             title="Routine guidance made to feel useful, clear, and easy to come back to."
             description="Discover ingredient explainers, layering ideas, and practical skincare notes designed to help women get more from every step of the ritual."
           />
-          <div className="post-grid">
+          <div className="post-grid post-grid--home-featured">
             {posts.map((post) => (
               <PostCard key={post.id} post={post} />
             ))}
