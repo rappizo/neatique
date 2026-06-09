@@ -20,6 +20,7 @@
     "comic:compress-references": "tsx scripts/compress-comic-reference-assets.ts && tsx scripts/sync-comic-reference-assets.ts",
     "comic:references": "tsx scripts/sync-comic-reference-assets.ts",
     "comic:migrate-images": "tsx scripts/migrate-comic-images-to-blob.ts",
+    "media:migrate-blob": "tsx scripts/migrate-site-media-to-blob.ts",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "postinstall": "prisma generate"
   },

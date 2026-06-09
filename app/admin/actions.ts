@@ -33,6 +33,7 @@ import { EMAIL_SETTINGS_CACHE_TAG, STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-
 import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from "@/lib/coupons";
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
 import { normalizeArticleContent } from "@/lib/article-format";
+import { storePostCoverImage } from "@/lib/post-image-storage";
 import {
   buildFollowEmailSettingsEntries,
   FOLLOW_EMAIL_STAGE_ORDER,
@@ -1054,6 +1055,7 @@ export async function approvePostImagePreviewAction(formData: FormData) {
     where: { id },
     select: {
       slug: true,
+      title: true,
       previewImageData: true,
       previewImageMimeType: true,
       previewImagePrompt: true
@@ -1068,12 +1070,20 @@ export async function approvePostImagePreviewAction(formData: FormData) {
     redirect(buildPostsRedirect("missing-image-preview", redirectTo));
   }
 
+  const storedCoverImage = await storePostCoverImage({
+    postId: id,
+    slug: post.slug,
+    title: post.title,
+    base64Data: post.previewImageData,
+    mimeType: post.previewImageMimeType || "image/png"
+  });
+
   await prisma.post.update({
     where: { id },
     data: {
-      coverImageUrl: `/media/post/${id}?v=${Date.now()}`,
-      coverImageData: post.previewImageData,
-      coverImageMimeType: post.previewImageMimeType || "image/png",
+      coverImageUrl: storedCoverImage.coverImageUrl,
+      coverImageData: storedCoverImage.coverImageData,
+      coverImageMimeType: storedCoverImage.coverImageMimeType,
       imagePrompt: post.previewImagePrompt || undefined,
       previewImageData: null,
       previewImageMimeType: null,

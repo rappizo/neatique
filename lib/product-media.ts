@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { getVercelBlobMediaUrl } from "@/data/vercel-blob-media-manifest.generated";
 
 const PRODUCT_MEDIA_FOLDERS: Record<string, string> = {
   "bee-venom-body-cream": "HH049 Bee Venom Optimized",
@@ -21,7 +22,8 @@ export function getProductImageRoot() {
 }
 
 export function buildProductMediaUrl(folder: string, fileName: string) {
-  return `/media/product/${encodeURIComponent(folder)}/${encodeURIComponent(fileName)}`;
+  const localUrl = `/media/product/${encodeURIComponent(folder)}/${encodeURIComponent(fileName)}`;
+  return getVercelBlobMediaUrl(localUrl) ?? localUrl;
 }
 
 export function getProductMediaFolder(slug: string) {

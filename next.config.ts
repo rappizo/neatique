@@ -10,6 +10,16 @@ const nextConfig: NextConfig = {
     "/**/*": [".git/**/*", ".next/cache/**/*", "comic/**/*", "public/comic-reference/**/*"]
   },
   images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.public.blob.vercel-storage.com"
+      },
+      {
+        protocol: "https",
+        hostname: "**.blob.vercel-storage.com"
+      }
+    ],
     localPatterns: [
       {
         pathname: "/media/site/**"

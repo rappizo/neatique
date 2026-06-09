@@ -7,7 +7,6 @@ import { PostCard } from "@/components/ui/post-card";
 import { ProductCard } from "@/components/ui/product-card";
 import { ResponsiveSitePicture } from "@/components/ui/responsive-site-picture";
 import { SectionHeading } from "@/components/ui/section-heading";
-import toyAllImage from "@/images/mascot/TOYALL.png";
 import { getFeaturedProducts, getPublishedPosts } from "@/lib/queries";
 import { siteConfig } from "@/lib/site-config";
 import { buildSiteImageUrl } from "@/lib/site-media";
@@ -389,12 +388,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
 
             <div className="comic-mascot-feature__media">
-              <Image
-                src={toyAllImage}
-                alt="Neatique mascot plush collection displayed together."
-                sizes="(max-width: 1080px) 100vw, 720px"
-                fetchPriority="low"
-              />
+                <Image
+                  src={buildSiteImageUrl("mascot", "TOYALL.png")}
+                  alt="Neatique mascot plush collection displayed together."
+                  width={1200}
+                  height={1200}
+                  sizes="(max-width: 1080px) 100vw, 720px"
+                  fetchPriority="low"
+                />
             </div>
           </div>
         </div>

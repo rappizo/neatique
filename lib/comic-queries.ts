@@ -201,6 +201,20 @@ function mapComicEpisodeAsset(asset: any): ComicEpisodeAssetRecord {
   };
 }
 
+const comicEpisodeAssetRecordSelect = {
+  id: true,
+  assetType: true,
+  title: true,
+  imageUrl: true,
+  altText: true,
+  caption: true,
+  sortOrder: true,
+  published: true,
+  episodeId: true,
+  createdAt: true,
+  updatedAt: true
+} as const;
+
 function mapComicPromptRun(run: any): ComicPromptRunRecord {
   return {
     id: run.id,
@@ -1441,6 +1455,7 @@ export async function getPublishedComicLibrary(language: ComicLanguage = "en") {
                       assetType: { in: COMIC_PUBLIC_PAGE_ASSET_TYPES },
                       sortOrder: { gte: 0, lte: COMIC_STORY_PAGES_PER_EPISODE }
                     },
+                    select: comicEpisodeAssetRecordSelect,
                     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
                   }
                 },
@@ -1528,6 +1543,7 @@ export async function getPublishedComicEpisodePageBySlugs(
               assetType: { in: COMIC_PUBLIC_PAGE_ASSET_TYPES },
               sortOrder: { gte: 0, lte: COMIC_STORY_PAGES_PER_EPISODE }
             },
+            select: comicEpisodeAssetRecordSelect,
             orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
           }
         }

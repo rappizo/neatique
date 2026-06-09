@@ -1358,6 +1358,12 @@ export async function publishComicEpisodeFromCenterAction(formData: FormData) {
           published: true,
           assetType: { in: COMIC_PAGE_ASSET_TYPES }
         },
+        select: {
+          assetType: true,
+          sortOrder: true,
+          imageUrl: true,
+          altText: true
+        },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
       },
       chapter: {

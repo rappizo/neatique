@@ -1,6 +1,11 @@
 import { Buffer } from "node:buffer";
 import { createHash, randomUUID } from "node:crypto";
-import { put } from "@vercel/blob";
+import {
+  getImageExtension,
+  getVercelBlobToken,
+  putPublicBlob,
+  sanitizeBlobSegment
+} from "@/lib/vercel-blob-storage";
 
 export type StoredComicImage = {
   imageUrl: string;
@@ -17,44 +22,8 @@ export type ComicImageSource = {
   fileName: string;
 };
 
-const COMIC_BLOB_CACHE_MAX_AGE = 60 * 60 * 24 * 365;
-
-function getComicBlobToken() {
-  return (
-    process.env.comic_READ_WRITE_TOKEN ||
-    process.env.COMIC_READ_WRITE_TOKEN ||
-    process.env.BLOB_READ_WRITE_TOKEN ||
-    ""
-  ).trim();
-}
-
 export function getComicImageExtension(mimeType: string | null | undefined) {
-  const normalized = (mimeType || "").toLowerCase();
-
-  if (normalized.includes("jpeg") || normalized.includes("jpg")) {
-    return "jpg";
-  }
-
-  if (normalized.includes("webp")) {
-    return "webp";
-  }
-
-  if (normalized.includes("avif")) {
-    return "avif";
-  }
-
-  return "png";
-}
-
-function sanitizeBlobSegment(value: string) {
-  return (
-    value
-      .trim()
-      .replace(/[^a-z0-9._-]+/gi, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 80) || "comic"
-  );
+  return getImageExtension(mimeType);
 }
 
 function buildComicBlobPath(input: {
@@ -90,7 +59,7 @@ export async function storeComicImage(input: {
   const imageMimeType = input.mimeType || "image/png";
   const buffer = Buffer.from(input.base64Data, "base64");
   const imageSha256 = createHash("sha256").update(buffer).digest("hex");
-  const token = getComicBlobToken();
+  const token = getVercelBlobToken();
 
   if (!token) {
     return {
@@ -109,13 +78,23 @@ export async function storeComicImage(input: {
     fileName: input.fileName,
     mimeType: imageMimeType
   });
-  const blob = await put(pathname, buffer, {
-    access: "public",
-    token,
+  const blob = await putPublicBlob({
+    pathname,
+    body: buffer,
     contentType: imageMimeType,
-    cacheControlMaxAge: COMIC_BLOB_CACHE_MAX_AGE,
-    addRandomSuffix: false
+    token
   });
+
+  if (!blob) {
+    return {
+      imageUrl: "/media/comic/pending",
+      imageData: input.base64Data,
+      imageMimeType,
+      imageStorageKey: null,
+      imageByteSize: buffer.length,
+      imageSha256
+    };
+  }
 
   return {
     imageUrl: blob.url,

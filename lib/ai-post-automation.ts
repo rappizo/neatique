@@ -9,6 +9,7 @@ import {
   getOpenAiPostSettings
 } from "@/lib/openai-posts";
 import { getDefaultProductImageReferenceAsset } from "@/lib/product-media";
+import { storePostCoverImage } from "@/lib/post-image-storage";
 import type { AiPostAutomationOverviewRecord, StoreSettingsRecord } from "@/lib/types";
 
 const AI_POST_SETTING_KEYS = [
@@ -288,6 +289,14 @@ export async function runAiPostAutomation(
     const postId = randomUUID();
     const now = new Date();
     const published = settings.autoPublish;
+    const storedCoverImage = await storePostCoverImage({
+      postId,
+      slug: uniqueSlug,
+      title: draft.title,
+      base64Data: imageAsset.base64Data,
+      mimeType: imageAsset.mimeType,
+      timestamp: now.getTime()
+    });
 
     const post = await prisma.post.create({
       data: {
@@ -297,10 +306,10 @@ export async function runAiPostAutomation(
         excerpt: draft.excerpt,
         category: draft.category,
         readTime: draft.readTime,
-        coverImageUrl: `/media/post/${postId}?v=${now.getTime()}`,
+        coverImageUrl: storedCoverImage.coverImageUrl,
         coverImageAlt: draft.coverImageAlt,
-        coverImageData: imageAsset.base64Data,
-        coverImageMimeType: imageAsset.mimeType,
+        coverImageData: storedCoverImage.coverImageData,
+        coverImageMimeType: storedCoverImage.coverImageMimeType,
         content: draft.content,
         seoTitle: draft.seoTitle,
         seoDescription: draft.seoDescription,
