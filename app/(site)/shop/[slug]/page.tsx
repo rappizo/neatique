@@ -6,6 +6,7 @@ import { addToCartAction } from "@/app/(site)/cart/actions";
 import { ProductCustomerVoiceSlider } from "@/components/product/product-customer-voice-slider";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { ProductReviewsShowcase } from "@/components/product/product-reviews-showcase";
+import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { getCurrentCustomerId } from "@/lib/customer-auth";
@@ -55,17 +56,20 @@ type LandingImageProps = {
 
 function LandingImage({ src, alt, width, height, sizes, className }: LandingImageProps) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      sizes={sizes}
-      loading="lazy"
-      decoding="async"
-      className={className}
-    />
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        sizes={sizes}
+        loading="lazy"
+        decoding="async"
+        className={className}
+      />
+      <AiGeneratedPersonBadge src={src} />
+    </>
   );
 }
 
@@ -556,6 +560,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                         sizes="(max-width: 720px) 100vw, (max-width: 1080px) 80vw, 42vw"
                         className="product-editorial__image-media"
                       />
+                      <AiGeneratedPersonBadge src={section.image.src} />
                     </div>
                   ) : null}
                 </section>
@@ -582,6 +587,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                         sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 26vw"
                         className="product-editorial__image-media"
                       />
+                      <AiGeneratedPersonBadge src={image.src} />
                     </div>
                   ))}
                 </div>
@@ -598,6 +604,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                       sizes="(max-width: 720px) 100vw, (max-width: 1080px) 80vw, 48vw"
                       className="product-editorial__image-media"
                     />
+                    <AiGeneratedPersonBadge src={pdrnCreamRoutineContent.image.src} />
                   </div>
                 </div>
                 <div className="product-routine__copy">

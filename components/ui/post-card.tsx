@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { BeautyPostRecord } from "@/lib/types";
+import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { formatDate } from "@/lib/format";
 
 type PostCardProps = {
@@ -21,6 +22,7 @@ export function PostCard({ post }: PostCardProps) {
             quality={75}
             unoptimized
           />
+          <AiGeneratedPersonBadge src={post.coverImageUrl} />
         </div>
       </Link>
       <div className="post-card__content">

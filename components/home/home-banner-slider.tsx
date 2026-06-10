@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { buildSiteImageUrl } from "@/lib/site-media";
 
 const transparentPixel =
@@ -90,6 +91,7 @@ export function HomeBannerSlider() {
                       decoding="async"
                     />
                   </picture>
+                  <AiGeneratedPersonBadge src={slide.middleImage} />
                 </div>
                 <div className="slide-part image-part right-img">
                   <picture>
@@ -104,6 +106,7 @@ export function HomeBannerSlider() {
                       decoding="async"
                     />
                   </picture>
+                  <AiGeneratedPersonBadge src={slide.rightImage} />
                 </div>
               </div>
             ))}

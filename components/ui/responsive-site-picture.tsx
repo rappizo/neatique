@@ -1,3 +1,5 @@
+import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
+
 type ResponsiveSitePictureProps = {
   desktopSrc: string;
   mobileSrc: string;
@@ -20,17 +22,20 @@ export function ResponsiveSitePicture({
   fetchPriority = "auto"
 }: ResponsiveSitePictureProps) {
   return (
-    <picture className={className}>
-      <source media="(max-width: 720px)" srcSet={mobileSrc} type="image/webp" />
-      <img
-        src={desktopSrc}
-        alt={alt}
-        width={width}
-        height={height}
-        loading={loading}
-        fetchPriority={fetchPriority}
-        decoding="async"
-      />
-    </picture>
+    <>
+      <picture className={className}>
+        <source media="(max-width: 720px)" srcSet={mobileSrc} type="image/webp" />
+        <img
+          src={desktopSrc}
+          alt={alt}
+          width={width}
+          height={height}
+          loading={loading}
+          fetchPriority={fetchPriority}
+          decoding="async"
+        />
+      </picture>
+      <AiGeneratedPersonBadge src={desktopSrc} />
+    </>
   );
 }

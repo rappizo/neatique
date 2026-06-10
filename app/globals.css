@@ -444,6 +444,7 @@ main {
 }
 
 .image-part {
+  position: relative;
   min-height: 696px;
 }
 
@@ -954,6 +955,7 @@ main {
 }
 
 .home-image {
+  position: relative;
   overflow: hidden;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.65);
@@ -1134,6 +1136,7 @@ main {
 
 .product-card__image-wrap,
 .post-card__image-wrap {
+  position: relative;
   background: linear-gradient(180deg, #fff7f3, #f9dfd5);
 }
 
@@ -1796,6 +1799,7 @@ main {
 }
 
 .product-editorial__image {
+  position: relative;
   overflow: hidden;
   border-radius: 26px;
   border: 1px solid rgba(255, 255, 255, 0.65);
@@ -1822,6 +1826,25 @@ main {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.ai-person-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - 20px);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(42, 36, 33, 0.54);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.68rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
 }
 
 .product-routine {

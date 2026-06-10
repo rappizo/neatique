@@ -3,6 +3,7 @@ import Link from "next/link";
 import { formatCurrency, getSavingsCents } from "@/lib/format";
 import { isLocalProductMediaUrl } from "@/lib/media-url";
 import type { ProductRecord } from "@/lib/types";
+import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { RatingStars } from "@/components/ui/rating-stars";
 
 type ProductCardProps = {
@@ -26,6 +27,7 @@ export function ProductCard({ product }: ProductCardProps) {
             quality={75}
             unoptimized={isLocalProductMediaUrl(product.imageUrl)}
           />
+          <AiGeneratedPersonBadge src={product.imageUrl} />
         </div>
       </Link>
       <div className="product-card__content">

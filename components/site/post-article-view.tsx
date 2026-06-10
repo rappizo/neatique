@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { parseArticleContent } from "@/lib/article-format";
 import { formatDate } from "@/lib/format";
 import { defaultOgImage } from "@/lib/seo";
@@ -99,6 +100,7 @@ export function PostArticleView({
                 quality={75}
                 unoptimized
               />
+              <AiGeneratedPersonBadge src={imageUrl} />
             </div>
           </div>
 

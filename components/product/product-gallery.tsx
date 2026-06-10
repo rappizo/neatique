@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
+import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { isLocalProductMediaUrl } from "@/lib/media-url";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +52,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           unoptimized={activeImageIsLocalProductMedia}
           className="product-detail__media-image"
         />
+        <AiGeneratedPersonBadge src={activeImage} />
         {images.length > 1 ? (
           <div className="product-detail__media-nav">
             <button
