@@ -4,6 +4,7 @@ import {
   formatShippingCarrierLabel,
   normalizeShippingCarrier,
   normalizeTrackingNumber,
+  parseTrackingNumbers,
   resolveFulfillmentStatusFromShipment,
   resolveOrderStatusFromShipment
 } from "../lib/order-shipping";
@@ -13,6 +14,7 @@ test("shipping carrier labels stay customer friendly", () => {
   assert.equal(formatShippingCarrierLabel("UPS_GROUND"), "UPS Ground");
   assert.equal(formatShippingCarrierLabel("DHL"), "DHL");
   assert.equal(formatShippingCarrierLabel("AMAZON_TBA"), "Amazon TBA");
+  assert.equal(formatShippingCarrierLabel("GOFO"), "GOFO");
 });
 
 test("shipment details derive the fulfillment status", () => {
@@ -32,7 +34,16 @@ test("shipping form input is normalized before saving", () => {
   assert.equal(normalizeShippingCarrier("ups ground"), "UPS_GROUND");
   assert.equal(normalizeShippingCarrier("amazon tba"), "AMAZON_TBA");
   assert.equal(normalizeShippingCarrier("tba"), "AMAZON_TBA");
+  assert.equal(normalizeShippingCarrier("gofo"), "GOFO");
   assert.equal(normalizeShippingCarrier("unknown"), null);
   assert.equal(normalizeTrackingNumber("  9400111206213850123456  "), "9400111206213850123456");
+  assert.equal(
+    normalizeTrackingNumber("  9400111206213850123456  \n  JD014600006155226861  "),
+    "9400111206213850123456\nJD014600006155226861"
+  );
   assert.equal(normalizeTrackingNumber("   "), null);
+  assert.deepEqual(parseTrackingNumbers("9400111206213850123456, JD014600006155226861"), [
+    "9400111206213850123456",
+    "JD014600006155226861"
+  ]);
 });

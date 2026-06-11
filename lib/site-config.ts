@@ -35,7 +35,15 @@ export const siteConfig = {
       ]
     },
     { href: "/admin/forms", label: "Forms" },
-    { href: "/admin/orders", label: "Orders" },
+    {
+      href: "/admin/orders",
+      label: "Orders",
+      children: [
+        { href: "/admin/orders", label: "All Orders" },
+        { href: "/admin/orders#order-email-list", label: "Customer Email List" },
+        { href: "/admin/orders#order-email-settings", label: "Order Email Settings" }
+      ]
+    },
     { href: "/admin/finance", label: "Finance" },
     { href: "/admin/customers", label: "Users" },
     {

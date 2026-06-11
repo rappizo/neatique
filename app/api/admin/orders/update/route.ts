@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       ok: true,
       order: result.order,
       activityLog: result.activityLog,
+      orderEmailLog: result.orderEmailLog,
       summary: result.summary
     });
   } catch (error) {

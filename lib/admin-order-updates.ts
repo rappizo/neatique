@@ -6,14 +6,19 @@ import {
   resolveOrderAccountingTransition
 } from "@/lib/order-accounting";
 import {
-  formatShippingCarrierLabel,
+  formatShipmentSummary,
+  hasCompleteShipment,
   normalizeShippingCarrier,
   normalizeTrackingNumber,
   resolveOrderStatusFromShipment,
   resolveFulfillmentStatusFromShipment
 } from "@/lib/order-shipping";
+import {
+  ORDER_EMAIL_EVENT_LABELS,
+  sendOrderEventEmailForOrder
+} from "@/lib/order-emails";
 import { stripe } from "@/lib/stripe";
-import type { FulfillmentStatus, OrderStatus, ShippingCarrier } from "@/lib/types";
+import type { FulfillmentStatus, OrderEmailEventKey, OrderStatus, ShippingCarrier } from "@/lib/types";
 
 export type OrderUpdateOperation = "save" | "cancel" | "refund";
 
@@ -117,10 +122,10 @@ function buildOrderActivityCopy(input: {
     detailParts.push("Coupon usage was released back.");
   }
 
-  if (input.nextShippingCarrier && input.nextTrackingNumber) {
-    detailParts.push(
-      `Shipment: ${formatShippingCarrierLabel(input.nextShippingCarrier)} ${input.nextTrackingNumber}.`
-    );
+  const shipmentSummary = formatShipmentSummary(input.nextShippingCarrier, input.nextTrackingNumber);
+
+  if (shipmentSummary) {
+    detailParts.push(`Shipment: ${shipmentSummary}.`);
   } else {
     detailParts.push("Shipment: unshipped.");
   }
@@ -136,6 +141,28 @@ function buildOrderActivityCopy(input: {
   return {
     summary: `${input.orderNumber}: ${parts.join(" | ")}`,
     detail: detailParts.join(" ")
+  };
+}
+
+function mapOrderEmailLogResult(log: any) {
+  const eventType: OrderEmailEventKey =
+    log.eventType === "ORDER_SHIPPED" ? "ORDER_SHIPPED" : "ORDER_RECEIVED";
+
+  return {
+    id: log.id,
+    eventType,
+    eventLabel: ORDER_EMAIL_EVENT_LABELS[eventType],
+    recipientEmail: log.recipientEmail,
+    recipientName: log.recipientName ?? null,
+    subject: log.subject,
+    bodyText: log.bodyText,
+    deliveryStatus: log.deliveryStatus === "FAILED" ? "FAILED" : "SENT",
+    deliveryProvider: log.deliveryProvider ?? null,
+    deliveryMessageId: log.deliveryMessageId ?? null,
+    errorReason: log.errorReason ?? null,
+    orderId: log.orderId,
+    orderNumber: null,
+    createdAt: log.createdAt
   };
 }
 
@@ -190,6 +217,9 @@ export async function updateOrderWithReconciliation({
 
   const previousShippingCarrier = normalizeShippingCarrier(existingOrder.shippingCarrier);
   const previousTrackingNumber = normalizeTrackingNumber(existingOrder.trackingNumber);
+  const shipmentChanged =
+    previousShippingCarrier !== nextShippingCarrier ||
+    previousTrackingNumber !== nextTrackingNumber;
   let status: OrderStatus = existingOrder.status as OrderStatus;
   let fulfillmentStatus: FulfillmentStatus = existingOrder.fulfillmentStatus as FulfillmentStatus;
   let stripeRefundId: string | null = null;
@@ -284,6 +314,7 @@ export async function updateOrderWithReconciliation({
         hasCoupon: Boolean(existingOrder.couponId)
       }),
       activityLog: null,
+      orderEmailLog: null,
       summary: "No changes to save"
     };
   }
@@ -455,10 +486,26 @@ export async function updateOrderWithReconciliation({
     };
   });
 
+  let orderEmailLog = null;
+
+  if (
+    operation === "save" &&
+    shipmentChanged &&
+    hasCompleteShipment(updatedOrder.order.shippingCarrier, updatedOrder.order.trackingNumber)
+  ) {
+    try {
+      const sentLog = await sendOrderEventEmailForOrder(existingOrder.id, "ORDER_SHIPPED");
+      orderEmailLog = sentLog ? mapOrderEmailLogResult(sentLog) : null;
+    } catch (error) {
+      console.error("Order shipped email delivery failed:", error);
+    }
+  }
+
   return {
     order: updatedOrder.order,
     transition,
     activityLog: updatedOrder.activityLog,
+    orderEmailLog,
     summary: activityCopy.detail || describeOrderAccountingTransition(transition)
   };
 }

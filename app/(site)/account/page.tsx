@@ -2,7 +2,11 @@ import Link from "next/link";
 import { logoutCustomerAction, updateCustomerPasswordAction } from "@/app/(site)/account/actions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { requireCustomerSession } from "@/lib/customer-auth";
-import { formatShippingCarrierLabel, hasCompleteShipment } from "@/lib/order-shipping";
+import {
+  formatShippingCarrierLabel,
+  hasCompleteShipment,
+  parseTrackingNumbers
+} from "@/lib/order-shipping";
 import { getCustomerAccountById } from "@/lib/queries";
 
 type AccountPageProps = {
@@ -104,6 +108,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                 <tbody>
                   {account.orders.map((order) => {
                     const shipped = hasCompleteShipment(order.shippingCarrier, order.trackingNumber);
+                    const trackingNumbers = parseTrackingNumbers(order.trackingNumber);
 
                     return (
                       <tr key={order.id}>
@@ -125,7 +130,8 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                             <div>
                               <div>Shipped</div>
                               <small>
-                                {formatShippingCarrierLabel(order.shippingCarrier)} {order.trackingNumber}
+                                {formatShippingCarrierLabel(order.shippingCarrier)}{" "}
+                                {trackingNumbers.join(", ")}
                               </small>
                             </div>
                           ) : (

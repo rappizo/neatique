@@ -4,13 +4,16 @@ import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import Image from "next/image";
 import { formatCurrency, formatDate, formatTime } from "@/lib/format";
 import {
+  formatShipmentSummary,
   formatShippingCarrierLabel,
+  parseTrackingNumbers,
   resolveOrderStatusFromShipment,
   resolveFulfillmentStatusFromShipment,
   shippingCarrierOptions
 } from "@/lib/order-shipping";
 import type {
   FulfillmentStatus,
+  OrderEmailLogRecord,
   OrderActivityLogRecord,
   OrderRecord,
   OrderStatus,
@@ -38,6 +41,22 @@ type OrderUpdateResponse = {
     detail: string | null;
     createdAt: string;
   } | null;
+  orderEmailLog?: {
+    id: string;
+    eventType: "ORDER_RECEIVED" | "ORDER_SHIPPED";
+    eventLabel: string;
+    recipientEmail: string;
+    recipientName: string | null;
+    subject: string;
+    bodyText: string;
+    deliveryStatus: "SENT" | "FAILED";
+    deliveryProvider: string | null;
+    deliveryMessageId: string | null;
+    errorReason: string | null;
+    orderId: string;
+    orderNumber: string | null;
+    createdAt: string;
+  } | null;
 };
 
 type OrderAction = "save" | "cancel" | "refund";
@@ -54,6 +73,18 @@ function extractErrorMessage(payload: unknown) {
 
 function formatAddress(parts: Array<string | null>) {
   return parts.filter(Boolean).join(", ");
+}
+
+function toTrackingInputs(value: string | null | undefined) {
+  const trackingNumbers = parseTrackingNumbers(value);
+  return trackingNumbers.length > 0 ? trackingNumbers : [""];
+}
+
+function serializeTrackingInputs(values: string[]) {
+  return values
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join("\n");
 }
 
 function getStatusBadgeClass(value: string) {
@@ -78,8 +109,10 @@ function buildActionFeedback(
   fallback: string | undefined
 ) {
   if (operation === "save") {
-    if (order?.shippingCarrier && order.trackingNumber) {
-      return `Shipment updated: ${formatShippingCarrierLabel(order.shippingCarrier)} ${order.trackingNumber}. Status: ${order.status}; fulfillment: ${order.fulfillmentStatus}.`;
+    const shipmentSummary = formatShipmentSummary(order?.shippingCarrier, order?.trackingNumber);
+
+    if (shipmentSummary && order) {
+      return `Shipment updated: ${shipmentSummary}. Status: ${order.status}; fulfillment: ${order.fulfillmentStatus}.`;
     }
 
     if (order) {
@@ -104,11 +137,14 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
   const [shippingCarrier, setShippingCarrier] = useState<ShippingCarrier | "">(
     order.shippingCarrier ?? ""
   );
-  const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber ?? "");
+  const [trackingNumbers, setTrackingNumbers] = useState<string[]>(() =>
+    toTrackingInputs(order.trackingNumber)
+  );
   const [notes, setNotes] = useState(order.notes ?? "");
   const [activityLogs, setActivityLogs] = useState<OrderActivityLogRecord[]>(
     order.activityLogs ?? []
   );
+  const [emailLogs, setEmailLogs] = useState<OrderEmailLogRecord[]>(order.emailLogs ?? []);
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<MessageTone>("success");
   const [activeAction, setActiveAction] = useState<OrderAction | null>(null);
@@ -124,6 +160,9 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
         .join(", "),
     [order.items]
   );
+  const trackingNumber = serializeTrackingInputs(trackingNumbers);
+  const shipmentSummary = formatShipmentSummary(shippingCarrier || null, trackingNumber);
+  const shipmentTrackingNumbers = parseTrackingNumbers(trackingNumber);
 
   useEffect(() => {
     if (!confirmedAction) {
@@ -136,6 +175,18 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
 
     return () => window.clearTimeout(timeoutId);
   }, [confirmedAction]);
+
+  const applyTrackingNumbers = (nextTrackingNumbers: string[]) => {
+    const nextTrackingNumber = serializeTrackingInputs(nextTrackingNumbers);
+
+    setTrackingNumbers(nextTrackingNumbers);
+    setFulfillmentStatus(
+      resolveFulfillmentStatusFromShipment(shippingCarrier || null, nextTrackingNumber)
+    );
+    setStatus(
+      resolveOrderStatusFromShipment(status, shippingCarrier || null, nextTrackingNumber)
+    );
+  };
 
   const handleOrderAction = (operation: OrderAction) => {
     if (activeAction) {
@@ -187,7 +238,7 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
           setStatus(payload.order.status);
           setFulfillmentStatus(payload.order.fulfillmentStatus);
           setShippingCarrier(payload.order.shippingCarrier ?? "");
-          setTrackingNumber(payload.order.trackingNumber ?? "");
+          setTrackingNumbers(toTrackingInputs(payload.order.trackingNumber));
           setNotes(payload.order.notes ?? "");
         }
 
@@ -203,6 +254,18 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
               createdAt: new Date(activityLog.createdAt)
             },
             ...current.filter((entry) => entry.id !== activityLog.id)
+          ]);
+        }
+
+        if (payload?.orderEmailLog) {
+          const orderEmailLog = payload.orderEmailLog;
+
+          setEmailLogs((current) => [
+            {
+              ...orderEmailLog,
+              createdAt: new Date(orderEmailLog.createdAt)
+            },
+            ...current.filter((entry) => entry.id !== orderEmailLog.id)
           ]);
         }
 
@@ -271,10 +334,8 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
         <td>
           <div className="admin-table__cell-stack">
             <span className={getStatusBadgeClass(fulfillmentStatus)}>{fulfillmentStatus}</span>
-            {shippingCarrier && trackingNumber.trim() ? (
-              <span className="form-note">
-                {formatShippingCarrierLabel(shippingCarrier)} {trackingNumber.trim()}
-              </span>
+            {shipmentSummary ? (
+              <span className="form-note">{shipmentSummary}</span>
             ) : (
               <span className="form-note">No tracking yet</span>
             )}
@@ -324,10 +385,17 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
                       order.shippingCountry
                     ]) || "No shipping address"}
                   </p>
-                  {shippingCarrier && trackingNumber.trim() ? (
-                    <p className="form-note">
-                      Tracking: {formatShippingCarrierLabel(shippingCarrier)} {trackingNumber.trim()}
-                    </p>
+                  {shipmentSummary ? (
+                    <div className="admin-order-tracking-summary">
+                      <p className="form-note">
+                        Tracking: {formatShippingCarrierLabel(shippingCarrier || null)}
+                      </p>
+                      {shipmentTrackingNumbers.map((item, index) => (
+                        <span key={`${item}-${index}`} className="pill">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   ) : (
                     <p className="form-note">Shipment: unshipped</p>
                   )}
@@ -429,28 +497,44 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
                     </div>
                     <div className="field">
                       <label htmlFor={`tracking-number-${order.id}`}>Tracking Number</label>
-                      <input
-                        id={`tracking-number-${order.id}`}
-                        className="admin-table__select"
-                        value={trackingNumber}
-                        onChange={(event) => {
-                          const nextTrackingNumber = event.target.value;
-                          setTrackingNumber(nextTrackingNumber);
-                          setFulfillmentStatus(
-                            resolveFulfillmentStatusFromShipment(
-                              shippingCarrier || null,
-                              nextTrackingNumber
-                            )
-                          );
-                          setStatus(
-                            resolveOrderStatusFromShipment(
-                              status,
-                              shippingCarrier || null,
-                              nextTrackingNumber
-                            )
-                          );
-                        }}
-                      />
+                      <div className="admin-order-tracking-inputs">
+                        {trackingNumbers.map((value, index) => (
+                          <div key={index} className="admin-order-tracking-input">
+                            <input
+                              id={index === 0 ? `tracking-number-${order.id}` : undefined}
+                              className="admin-table__select"
+                              value={value}
+                              placeholder={index === 0 ? "Tracking number" : "Additional tracking number"}
+                              onChange={(event) => {
+                                const nextTrackingNumbers = [...trackingNumbers];
+                                nextTrackingNumbers[index] = event.target.value;
+                                applyTrackingNumbers(nextTrackingNumbers);
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="button button--ghost"
+                              onClick={() => {
+                                const nextTrackingNumbers =
+                                  trackingNumbers.length === 1
+                                    ? [""]
+                                    : trackingNumbers.filter((_, itemIndex) => itemIndex !== index);
+                                applyTrackingNumbers(nextTrackingNumbers);
+                              }}
+                              disabled={trackingNumbers.length === 1 && !value.trim()}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="button button--secondary"
+                          onClick={() => setTrackingNumbers((current) => [...current, ""])}
+                        >
+                          Add tracking number
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="field">
@@ -531,6 +615,43 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
                   )}
                 </section>
               </div>
+
+              <section className="admin-card">
+                <div className="admin-review-pagination">
+                  <div>
+                    <h3>Customer emails</h3>
+                    <p className="form-note">Automatic order emails sent for this order.</p>
+                  </div>
+                  <span className="pill">{emailLogs.length} entries</span>
+                </div>
+                {emailLogs.length > 0 ? (
+                  <div className="admin-order-log-list">
+                    {emailLogs.map((entry) => (
+                      <div key={entry.id} className="admin-order-log-list__item">
+                        <div className="stack-row">
+                          <strong>{entry.eventLabel}</strong>
+                          <span
+                            className={
+                              entry.deliveryStatus === "FAILED"
+                                ? "admin-table__status-badge admin-table__status-badge--danger"
+                                : "admin-table__status-badge admin-table__status-badge--success"
+                            }
+                          >
+                            {entry.deliveryStatus}
+                          </span>
+                          <span className="form-note">
+                            {formatDate(entry.createdAt)} {formatTime(entry.createdAt)}
+                          </span>
+                        </div>
+                        <p className="form-note">{entry.subject}</p>
+                        {entry.errorReason ? <p className="form-note">{entry.errorReason}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="form-note">No automatic order emails yet.</p>
+                )}
+              </section>
             </div>
           </td>
         </tr>

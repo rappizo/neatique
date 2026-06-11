@@ -1082,6 +1082,14 @@ export const sampleStoreSettings: StoreSettingsRecord = {
   brevo_subscribers_list_id: "",
   brevo_contact_list_id: "",
   brevo_customers_list_id: "",
+  order_email_order_received_enabled: "true",
+  order_email_order_received_subject: "We received your Neatique order [Order Number]",
+  order_email_order_received_body:
+    "Hi [Customer Name],\n\nThank you for your order. We have received your order [Order Number], and our team is preparing it now.\n\nWe expect to ship your order within 24-48 hours. We will email you again once the tracking number is ready.\n\nOrder total: [Order Total]\nItems: [Order Items]\n\nBest regards,\nNeatique Team",
+  order_email_order_shipped_enabled: "true",
+  order_email_order_shipped_subject: "Your Neatique order [Order Number] has shipped",
+  order_email_order_shipped_body:
+    "Hi [Customer Name],\n\nYour order [Order Number] has shipped.\n\nCarrier: [Shipping Carrier]\nTracking number(s): [Tracking Numbers]\n\nPlease keep an eye out for the delivery.\n\nBest regards,\nNeatique Team",
   ai_post_enabled: "false",
   ai_post_cadence_days: "2",
   ai_post_auto_publish: "false",

@@ -34,6 +34,7 @@ enum ShippingCarrier {
   UPS_GROUND
   DHL
   AMAZON_TBA
+  GOFO
 }
 
 enum RewardType {
@@ -542,6 +543,7 @@ model Order {
   coupon                Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items                 OrderItem[]
   activityLogs          OrderActivityLog[]
+  emailLogs             OrderEmailLog[]
   rewards               RewardEntry[]
   reviews               ProductReview[]
   createdAt             DateTime           @default(now())
@@ -563,6 +565,26 @@ model OrderActivityLog {
 
   @@index([orderId, createdAt])
   @@index([eventType, createdAt])
+}
+
+model OrderEmailLog {
+  id                String   @id @default(cuid())
+  eventType         String
+  recipientEmail    String
+  recipientName     String?
+  subject           String
+  bodyText          String
+  deliveryStatus    String
+  deliveryProvider  String?
+  deliveryMessageId String?
+  errorReason       String?
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([recipientEmail, createdAt])
 }
 
 model OrderItem {

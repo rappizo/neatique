@@ -4,7 +4,8 @@ export const shippingCarrierOptions: Array<{ value: ShippingCarrier; label: stri
   { value: "USPS", label: "USPS" },
   { value: "UPS_GROUND", label: "UPS Ground" },
   { value: "DHL", label: "DHL" },
-  { value: "AMAZON_TBA", label: "Amazon TBA" }
+  { value: "AMAZON_TBA", label: "Amazon TBA" },
+  { value: "GOFO", label: "GOFO" }
 ];
 
 const shippingCarrierLabels = new Map(
@@ -33,8 +34,19 @@ export function normalizeShippingCarrier(value: string | null | undefined): Ship
 }
 
 export function normalizeTrackingNumber(value: string | null | undefined) {
-  const normalized = value?.trim();
-  return normalized ? normalized : null;
+  const trackingNumbers = parseTrackingNumbers(value);
+  return trackingNumbers.length > 0 ? trackingNumbers.join("\n") : null;
+}
+
+export function parseTrackingNumbers(value: string | null | undefined) {
+  return (value ?? "")
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function formatTrackingNumbers(value: string | null | undefined) {
+  return parseTrackingNumbers(value).join(", ");
 }
 
 export function hasCompleteShipment(
@@ -65,4 +77,14 @@ export function resolveOrderStatusFromShipment(
 
 export function formatShippingCarrierLabel(carrier: ShippingCarrier | null | undefined) {
   return carrier ? shippingCarrierLabels.get(carrier) ?? carrier : null;
+}
+
+export function formatShipmentSummary(
+  carrier: ShippingCarrier | null | undefined,
+  trackingNumber: string | null | undefined
+) {
+  const label = formatShippingCarrierLabel(carrier);
+  const trackingNumbers = formatTrackingNumbers(trackingNumber);
+
+  return label && trackingNumbers ? `${label} ${trackingNumbers}` : null;
 }

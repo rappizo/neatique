@@ -1,7 +1,7 @@
 export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
 export type OrderStatus = "PENDING" | "PAID" | "FULFILLED" | "CANCELLED" | "REFUNDED";
 export type FulfillmentStatus = "UNFULFILLED" | "PROCESSING" | "SHIPPED" | "DELIVERED";
-export type ShippingCarrier = "USPS" | "UPS_GROUND" | "DHL" | "AMAZON_TBA";
+export type ShippingCarrier = "USPS" | "UPS_GROUND" | "DHL" | "AMAZON_TBA" | "GOFO";
 export type RewardType = "EARNED" | "REDEEMED" | "ADJUSTMENT";
 export type MascotRedemptionStatus = "REQUESTED" | "FULFILLED" | "CANCELLED";
 export type ReviewStatus = "PENDING" | "PUBLISHED" | "HIDDEN";
@@ -11,6 +11,8 @@ export type EmailCampaignStatus = "DRAFT" | "SYNCED" | "SCHEDULED" | "SENT" | "F
 export type EmailAudienceType = "NEWSLETTER" | "CUSTOMERS" | "LEADS" | "ALL_MARKETING" | "CUSTOM";
 export type FollowEmailProcessKey = "OMB" | "RYO";
 export type FollowEmailStageKey = "WAITING_STEP_2" | "WAITING_LAST_STEP" | "COMPLETED";
+export type OrderEmailEventKey = "ORDER_RECEIVED" | "ORDER_SHIPPED";
+export type OrderEmailDeliveryStatus = "SENT" | "FAILED";
 export type ComicPromptRunStatus = "DRAFT" | "READY" | "FAILED" | "APPROVED";
 export type ComicStoryType = "MAIN" | "EXTRA";
 
@@ -183,6 +185,39 @@ export type OrderActivityLogRecord = {
   createdAt: Date;
 };
 
+export type OrderEmailLogRecord = {
+  id: string;
+  eventType: OrderEmailEventKey;
+  eventLabel: string;
+  recipientEmail: string;
+  recipientName: string | null;
+  subject: string;
+  bodyText: string;
+  deliveryStatus: OrderEmailDeliveryStatus;
+  deliveryProvider: string | null;
+  deliveryMessageId: string | null;
+  errorReason: string | null;
+  orderId: string;
+  orderNumber: string | null;
+  createdAt: Date;
+};
+
+export type OrderEmailTemplateRecord = {
+  eventKey: OrderEmailEventKey;
+  eventLabel: string;
+  description: string;
+  enabled: boolean;
+  subject: string;
+  bodyText: string;
+  sentCount: number;
+  failedCount: number;
+};
+
+export type OrderEmailOverviewRecord = {
+  templates: OrderEmailTemplateRecord[];
+  logs: OrderEmailLogRecord[];
+};
+
 export type OrderRecord = {
   id: string;
   orderNumber: string;
@@ -222,6 +257,7 @@ export type OrderRecord = {
   updatedAt: Date;
   items: OrderItemRecord[];
   activityLogs?: OrderActivityLogRecord[];
+  emailLogs?: OrderEmailLogRecord[];
 };
 
 export type AdminOrderPageRecord = {
@@ -230,6 +266,7 @@ export type AdminOrderPageRecord = {
   currentPage: number;
   totalPages: number;
   pageSize: number;
+  emailOverview: OrderEmailOverviewRecord;
 };
 
 export type CouponRecord = {

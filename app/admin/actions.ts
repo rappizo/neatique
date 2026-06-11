@@ -39,6 +39,10 @@ import {
   FOLLOW_EMAIL_STAGE_ORDER,
   getEnabledAtKey
 } from "@/lib/follow-emails";
+import {
+  buildOrderEmailSettingsEntries,
+  ORDER_EMAIL_EVENT_ORDER
+} from "@/lib/order-emails";
 import { sendConfiguredEmail, sendSmtpDiagnosticEmail } from "@/lib/email";
 import { getMailboxOverview, updateMailboxReadState } from "@/lib/admin-mailbox";
 import {
@@ -1205,6 +1209,49 @@ export async function updateOrderAction(formData: FormData) {
   revalidatePath("/admin/rewards");
   revalidatePath("/account");
   redirect("/admin/orders?status=updated");
+}
+
+export async function saveOrderEmailSettingsAction(formData: FormData) {
+  await requireFullAdminSession();
+
+  const enabled = Object.fromEntries(
+    ORDER_EMAIL_EVENT_ORDER.map((eventKey) => [
+      eventKey,
+      toBool(formData.get(`${eventKey}_enabled`))
+    ])
+  );
+  const subjects = Object.fromEntries(
+    ORDER_EMAIL_EVENT_ORDER.map((eventKey) => [
+      eventKey,
+      toPlainString(formData.get(`subject_${eventKey}`))
+    ])
+  );
+  const bodies = Object.fromEntries(
+    ORDER_EMAIL_EVENT_ORDER.map((eventKey) => [
+      eventKey,
+      toPlainString(formData.get(`body_${eventKey}`))
+    ])
+  );
+
+  const settings = buildOrderEmailSettingsEntries({
+    enabled,
+    subjects,
+    bodies
+  });
+
+  await Promise.all(
+    settings.map(([key, value]) =>
+      prisma.storeSetting.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value }
+      })
+    )
+  );
+
+  revalidateSettingsCaches();
+  revalidatePath("/admin/orders");
+  redirect("/admin/orders?status=order-email-settings-saved#order-email-settings");
 }
 
 export async function adjustCustomerPointsAction(formData: FormData) {

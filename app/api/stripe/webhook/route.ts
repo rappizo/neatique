@@ -8,6 +8,7 @@ import {
 } from "@/lib/checkout-metadata";
 import { prisma } from "@/lib/db";
 import { sendCustomerWelcomeEmail } from "@/lib/email";
+import { sendOrderEventEmailForOrder } from "@/lib/order-emails";
 import { generateTemporaryPassword, hashPassword } from "@/lib/password";
 import { stripe } from "@/lib/stripe";
 
@@ -114,6 +115,7 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
     0
   );
   let welcomePayload: { email: string; firstName: string | null; password: string } | null = null;
+  let orderReceivedEmailOrderId: string | null = null;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -244,6 +246,7 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
           }
         }
       });
+      orderReceivedEmailOrderId = order.id;
 
       if (pointsEarned > 0) {
         await tx.rewardEntry.create({
@@ -308,6 +311,12 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
   if (welcomePayload) {
     await sendCustomerWelcomeEmail(welcomePayload).catch((error) => {
       console.error("Welcome email delivery failed:", error);
+    });
+  }
+
+  if (orderReceivedEmailOrderId) {
+    await sendOrderEventEmailForOrder(orderReceivedEmailOrderId, "ORDER_RECEIVED").catch((error) => {
+      console.error("Order received email delivery failed:", error);
     });
   }
 }

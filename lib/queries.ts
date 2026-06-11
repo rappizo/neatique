@@ -28,6 +28,8 @@ import type {
   MascotRedemptionRecord,
   MascotRewardRecord,
   OmbClaimRecord,
+  OrderEmailEventKey,
+  OrderEmailLogRecord,
   OrderRecord,
   ProductRecord,
   ProductReviewRecord,
@@ -52,6 +54,10 @@ import { getOpenAiEmailSettings } from "@/lib/openai-email";
 import { getAiPostAutomationOverview as loadAiPostAutomationOverview } from "@/lib/ai-post-automation";
 import { getOpenAiPostSettings } from "@/lib/openai-posts";
 import { getFollowEmailOverview as buildFollowEmailOverview } from "@/lib/follow-emails";
+import {
+  buildOrderEmailOverview,
+  ORDER_EMAIL_EVENT_LABELS
+} from "@/lib/order-emails";
 import { getDateKeyInTimeZone, LOS_ANGELES_TIME_ZONE } from "@/lib/format";
 import {
   ensureLegacyContactFormBackfill,
@@ -369,6 +375,31 @@ async function loadEmailContactLookup(emails: string[], audienceType: EmailAudie
   return new Map(contacts.map((contact) => [contact.email.trim().toLowerCase(), mapEmailContact(contact)]));
 }
 
+function normalizeOrderEmailEvent(value: string): OrderEmailEventKey {
+  return value === "ORDER_SHIPPED" ? "ORDER_SHIPPED" : "ORDER_RECEIVED";
+}
+
+function mapOrderEmailLog(log: any): OrderEmailLogRecord {
+  const eventType = normalizeOrderEmailEvent(log.eventType);
+
+  return {
+    id: log.id,
+    eventType,
+    eventLabel: ORDER_EMAIL_EVENT_LABELS[eventType],
+    recipientEmail: log.recipientEmail,
+    recipientName: log.recipientName ?? null,
+    subject: log.subject,
+    bodyText: log.bodyText,
+    deliveryStatus: log.deliveryStatus === "FAILED" ? "FAILED" : "SENT",
+    deliveryProvider: log.deliveryProvider ?? null,
+    deliveryMessageId: log.deliveryMessageId ?? null,
+    errorReason: log.errorReason ?? null,
+    orderId: log.orderId,
+    orderNumber: log.order?.orderNumber ?? null,
+    createdAt: new Date(log.createdAt)
+  };
+}
+
 function mapOrder(order: any): OrderRecord {
   return {
     id: order.id,
@@ -422,7 +453,8 @@ function mapOrder(order: any): OrderRecord {
       summary: log.summary,
       detail: log.detail ?? null,
       createdAt: new Date(log.createdAt)
-    }))
+    })),
+    emailLogs: (order.emailLogs ?? []).map(mapOrderEmailLog)
   };
 }
 
@@ -954,12 +986,30 @@ export async function getOrders(page = 1, pageSize = 50) {
     totalCount: fallbackOrders.length,
     currentPage: fallbackCurrentPage,
     totalPages: fallbackTotalPages,
-    pageSize
+    pageSize,
+    emailOverview: buildOrderEmailOverview({
+      settings: fallbackSettings,
+      logs: []
+    })
   };
 
   return withFallback<AdminOrderPageRecord>(
     async () => {
-      const totalCount = await prisma.order.count();
+      const [totalCount, settings, recentEmailLogRows] = await Promise.all([
+        prisma.order.count(),
+        getStoreSettings(),
+        prisma.orderEmailLog.findMany({
+          include: {
+            order: {
+              select: {
+                orderNumber: true
+              }
+            }
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: 50
+        })
+      ]);
       const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
       const currentPage = Math.min(Math.max(1, page), totalPages);
         const rows = await prisma.order.findMany({
@@ -968,19 +1018,44 @@ export async function getOrders(page = 1, pageSize = 50) {
             activityLogs: {
               orderBy: [{ createdAt: "desc" }],
               take: 8
+            },
+            emailLogs: {
+              orderBy: [{ createdAt: "desc" }],
+              take: 4
             }
           },
           orderBy: [{ createdAt: "desc" }],
           skip: (currentPage - 1) * pageSize,
           take: pageSize
       });
+      const recentEmailLogs = recentEmailLogRows.map(mapOrderEmailLog);
+      const emailCounts = recentEmailLogs.reduce<Partial<Record<OrderEmailEventKey, { sent: number; failed: number }>>>(
+        (accumulator, log) => {
+          const bucket = accumulator[log.eventType] ?? { sent: 0, failed: 0 };
+
+          if (log.deliveryStatus === "FAILED") {
+            bucket.failed += 1;
+          } else {
+            bucket.sent += 1;
+          }
+
+          accumulator[log.eventType] = bucket;
+          return accumulator;
+        },
+        {}
+      );
 
       return {
         orders: rows.map(mapOrder),
         totalCount,
         currentPage,
         totalPages,
-        pageSize
+        pageSize,
+        emailOverview: buildOrderEmailOverview({
+          settings,
+          counts: emailCounts,
+          logs: recentEmailLogs
+        })
       };
     },
     fallback
