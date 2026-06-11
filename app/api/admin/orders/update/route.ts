@@ -21,6 +21,10 @@ export async function POST(request: Request) {
         operation?: OrderUpdateOperation;
         shippingCarrier?: ShippingCarrier | null;
         trackingNumber?: string | null;
+        shipments?: Array<{
+          shippingCarrier?: ShippingCarrier | null;
+          trackingNumber?: string | null;
+        }>;
         notes?: string;
       }
     | null;
@@ -37,6 +41,7 @@ export async function POST(request: Request) {
       operation: payload?.operation || "save",
       shippingCarrier: payload?.shippingCarrier ?? null,
       trackingNumber: payload?.trackingNumber ?? null,
+      shipments: Array.isArray(payload?.shipments) ? payload.shipments : null,
       notes: payload?.notes?.trim() ? payload.notes.trim() : null
     });
 

@@ -96,6 +96,16 @@ export const fallbackOrders: OrderRecord[] = [
     shippingCountry: "US",
     shippingCarrier: "USPS",
     trackingNumber: "9400111206213850123456",
+    shipments: [
+      {
+        id: "shipment_1003_1",
+        shippingCarrier: "USPS",
+        trackingNumber: "9400111206213850123456",
+        sortOrder: 0,
+        createdAt: new Date("2026-03-23T09:00:00.000Z"),
+        updatedAt: new Date("2026-03-23T09:00:00.000Z")
+      }
+    ],
     billingName: "Emma Roberts",
     billingAddress1: "1480 Sunset Blvd",
     billingAddress2: null,
@@ -154,6 +164,7 @@ export const fallbackOrders: OrderRecord[] = [
     shippingCountry: "US",
     shippingCarrier: null,
     trackingNumber: null,
+    shipments: [],
     billingName: "Zoe Turner",
     billingAddress1: "225 Lake Shore Dr",
     billingAddress2: null,
@@ -203,6 +214,7 @@ export const fallbackOrders: OrderRecord[] = [
     shippingCountry: "US",
     shippingCarrier: null,
     trackingNumber: null,
+    shipments: [],
     billingName: "Ava Miller",
     billingAddress1: "77 Spring St",
     billingAddress2: "Unit 4A",

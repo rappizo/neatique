@@ -1076,6 +1076,11 @@ main {
   margin-top: 18px;
 }
 
+.account-order-shipments {
+  display: grid;
+  gap: 2px;
+}
+
 .account-reviews-table {
   margin-top: 0;
 }
@@ -3620,7 +3625,7 @@ main {
 
 .admin-order-tracking-input {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(130px, 0.4fr) minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
 }

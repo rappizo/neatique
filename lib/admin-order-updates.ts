@@ -6,12 +6,18 @@ import {
   resolveOrderAccountingTransition
 } from "@/lib/order-accounting";
 import {
-  formatShipmentSummary,
-  hasCompleteShipment,
-  normalizeShippingCarrier,
-  normalizeTrackingNumber,
-  resolveOrderStatusFromShipment,
-  resolveFulfillmentStatusFromShipment
+  buildLegacyTrackingNumber,
+  deriveShipmentsFromLegacy,
+  formatShipmentListSummary,
+  getCompleteShipmentItems,
+  getPrimaryShipmentCarrier,
+  getShipmentComparisonKey,
+  hasCompleteShipmentItems,
+  normalizeShipmentItems,
+  resolveOrderStatusFromShipments,
+  resolveFulfillmentStatusFromShipments,
+  type ShipmentInputLike,
+  type ShipmentLike
 } from "@/lib/order-shipping";
 import {
   ORDER_EMAIL_EVENT_LABELS,
@@ -26,8 +32,9 @@ type UpdateOrderWithReconciliationInput = {
   id: string;
   operation?: OrderUpdateOperation;
   notes: string | null;
-  shippingCarrier: ShippingCarrier | null;
-  trackingNumber: string | null;
+  shippingCarrier?: ShippingCarrier | null;
+  trackingNumber?: string | null;
+  shipments?: ShipmentInputLike[] | null;
 };
 
 export class OrderUpdateError extends Error {
@@ -63,6 +70,8 @@ function buildOrderActivityCopy(input: {
   nextShippingCarrier: ShippingCarrier | null;
   previousTrackingNumber: string | null;
   nextTrackingNumber: string | null;
+  previousShipmentSummary: string | null;
+  nextShipmentSummary: string | null;
   previousNotes: string | null;
   nextNotes: string | null;
   totalCents: number;
@@ -83,10 +92,7 @@ function buildOrderActivityCopy(input: {
     parts.push(`Fulfillment ${input.previousFulfillmentStatus} -> ${input.nextFulfillmentStatus}`);
   }
 
-  if (
-    input.previousShippingCarrier !== input.nextShippingCarrier ||
-    input.previousTrackingNumber !== input.nextTrackingNumber
-  ) {
+  if (input.previousShipmentSummary !== input.nextShipmentSummary) {
     parts.push(input.nextShippingCarrier && input.nextTrackingNumber ? "Tracking added" : "Tracking cleared");
   }
 
@@ -122,10 +128,8 @@ function buildOrderActivityCopy(input: {
     detailParts.push("Coupon usage was released back.");
   }
 
-  const shipmentSummary = formatShipmentSummary(input.nextShippingCarrier, input.nextTrackingNumber);
-
-  if (shipmentSummary) {
-    detailParts.push(`Shipment: ${shipmentSummary}.`);
+  if (input.nextShipmentSummary) {
+    detailParts.push(`Shipment: ${input.nextShipmentSummary}.`);
   } else {
     detailParts.push("Shipment: unshipped.");
   }
@@ -166,16 +170,44 @@ function mapOrderEmailLogResult(log: any) {
   };
 }
 
+function normalizeOrderShipments(input: ShipmentInputLike[] | null | undefined) {
+  const normalized = normalizeShipmentItems(input);
+
+  if (normalized.some((shipment) => Boolean(shipment.shippingCarrier) !== Boolean(shipment.trackingNumber))) {
+    throw new OrderUpdateError("Carrier and tracking number must be filled together for every shipment.");
+  }
+
+  return getCompleteShipmentItems(normalized);
+}
+
+function resolveExistingShipments(order: {
+  shipments?: ShipmentLike[] | null;
+  shippingCarrier?: ShippingCarrier | string | null;
+  trackingNumber?: string | null;
+}) {
+  const shipmentRows = getCompleteShipmentItems(order.shipments);
+
+  if (shipmentRows.length > 0) {
+    return shipmentRows;
+  }
+
+  return deriveShipmentsFromLegacy(order.shippingCarrier, order.trackingNumber);
+}
+
 export async function updateOrderWithReconciliation({
   id,
   operation = "save",
   notes,
   shippingCarrier,
-  trackingNumber
+  trackingNumber,
+  shipments
 }: UpdateOrderWithReconciliationInput) {
   const existingOrder = await prisma.order.findUnique({
     where: { id },
     include: {
+      shipments: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      },
       items: {
         select: {
           productId: true,
@@ -208,40 +240,35 @@ export async function updateOrderWithReconciliation({
   }
 
   const nextNotes = normalizeNotes(notes);
-  let nextShippingCarrier = normalizeShippingCarrier(shippingCarrier);
-  let nextTrackingNumber = normalizeTrackingNumber(trackingNumber);
-
-  if (Boolean(nextShippingCarrier) !== Boolean(nextTrackingNumber)) {
-    throw new OrderUpdateError("Carrier and Tracking Number must be filled together.");
-  }
-
-  const previousShippingCarrier = normalizeShippingCarrier(existingOrder.shippingCarrier);
-  const previousTrackingNumber = normalizeTrackingNumber(existingOrder.trackingNumber);
-  const shipmentChanged =
-    previousShippingCarrier !== nextShippingCarrier ||
-    previousTrackingNumber !== nextTrackingNumber;
+  let nextShipments = normalizeOrderShipments(
+    shipments ?? deriveShipmentsFromLegacy(shippingCarrier ?? null, trackingNumber ?? null)
+  );
+  let nextShippingCarrier = getPrimaryShipmentCarrier(nextShipments);
+  let nextTrackingNumber = buildLegacyTrackingNumber(nextShipments);
+  const previousShipments = resolveExistingShipments(existingOrder);
+  const previousShippingCarrier = getPrimaryShipmentCarrier(previousShipments);
+  const previousTrackingNumber = buildLegacyTrackingNumber(previousShipments);
+  const previousShipmentSummary = formatShipmentListSummary(previousShipments);
+  let nextShipmentSummary = formatShipmentListSummary(nextShipments);
+  const shipmentChanged = getShipmentComparisonKey(previousShipments) !== getShipmentComparisonKey(nextShipments);
   let status: OrderStatus = existingOrder.status as OrderStatus;
   let fulfillmentStatus: FulfillmentStatus = existingOrder.fulfillmentStatus as FulfillmentStatus;
   let stripeRefundId: string | null = null;
 
   if (operation === "save") {
     if (
-      nextShippingCarrier &&
-      nextTrackingNumber &&
+      hasCompleteShipmentItems(nextShipments) &&
       (status === "CANCELLED" || status === "REFUNDED")
     ) {
       throw new OrderUpdateError("Cancelled or refunded orders cannot be shipped.");
     }
 
-    if (nextShippingCarrier && nextTrackingNumber && status === "PENDING") {
+    if (hasCompleteShipmentItems(nextShipments) && status === "PENDING") {
       throw new OrderUpdateError("Only paid orders can be shipped.");
     }
 
-    fulfillmentStatus = resolveFulfillmentStatusFromShipment(
-      nextShippingCarrier,
-      nextTrackingNumber
-    );
-    status = resolveOrderStatusFromShipment(status, nextShippingCarrier, nextTrackingNumber);
+    fulfillmentStatus = resolveFulfillmentStatusFromShipments(nextShipments);
+    status = resolveOrderStatusFromShipments(status, nextShipments);
   } else if (operation === "cancel") {
     if (status === "REFUNDED") {
       throw new OrderUpdateError("Refunded orders cannot be cancelled.");
@@ -249,8 +276,10 @@ export async function updateOrderWithReconciliation({
 
     status = "CANCELLED";
     fulfillmentStatus = "UNFULFILLED";
+    nextShipments = [];
     nextShippingCarrier = null;
     nextTrackingNumber = null;
+    nextShipmentSummary = null;
   } else if (operation === "refund") {
     if (status === "REFUNDED") {
       throw new OrderUpdateError("Order is already refunded.");
@@ -286,15 +315,16 @@ export async function updateOrderWithReconciliation({
 
     status = "REFUNDED";
     fulfillmentStatus = "UNFULFILLED";
+    nextShipments = [];
     nextShippingCarrier = null;
     nextTrackingNumber = null;
+    nextShipmentSummary = null;
   }
 
   if (
     existingOrder.status === status &&
     existingOrder.fulfillmentStatus === fulfillmentStatus &&
-    previousShippingCarrier === nextShippingCarrier &&
-    previousTrackingNumber === nextTrackingNumber &&
+    !shipmentChanged &&
     normalizeNotes(existingOrder.notes) === nextNotes
   ) {
     return {
@@ -304,7 +334,8 @@ export async function updateOrderWithReconciliation({
         fulfillmentStatus: existingOrder.fulfillmentStatus,
         shippingCarrier: existingOrder.shippingCarrier,
         trackingNumber: existingOrder.trackingNumber,
-        notes: existingOrder.notes
+        notes: existingOrder.notes,
+        shipments: existingOrder.shipments
       },
       transition: resolveOrderAccountingTransition({
         previousStatus: existingOrder.status as OrderStatus,
@@ -337,6 +368,8 @@ export async function updateOrderWithReconciliation({
     nextShippingCarrier,
     previousTrackingNumber,
     nextTrackingNumber,
+    previousShipmentSummary,
+    nextShipmentSummary,
     previousNotes: normalizeNotes(existingOrder.notes),
     nextNotes,
     totalCents: existingOrder.totalCents,
@@ -440,6 +473,21 @@ export async function updateOrderWithReconciliation({
       });
     }
 
+    await tx.orderShipment.deleteMany({
+      where: { orderId: existingOrder.id }
+    });
+
+    if (nextShipments.length > 0) {
+      await tx.orderShipment.createMany({
+        data: nextShipments.map((shipment, index) => ({
+          orderId: existingOrder.id,
+          shippingCarrier: shipment.shippingCarrier,
+          trackingNumber: shipment.trackingNumber,
+          sortOrder: index
+        }))
+      });
+    }
+
     const order = await tx.order.update({
       where: { id: existingOrder.id },
       data: {
@@ -455,7 +503,18 @@ export async function updateOrderWithReconciliation({
         fulfillmentStatus: true,
         shippingCarrier: true,
         trackingNumber: true,
-        notes: true
+        notes: true,
+        shipments: {
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          select: {
+            id: true,
+            shippingCarrier: true,
+            trackingNumber: true,
+            sortOrder: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        }
       }
     });
 
@@ -491,7 +550,7 @@ export async function updateOrderWithReconciliation({
   if (
     operation === "save" &&
     shipmentChanged &&
-    hasCompleteShipment(updatedOrder.order.shippingCarrier, updatedOrder.order.trackingNumber)
+    hasCompleteShipmentItems(updatedOrder.order.shipments)
   ) {
     try {
       const sentLog = await sendOrderEventEmailForOrder(existingOrder.id, "ORDER_SHIPPED");

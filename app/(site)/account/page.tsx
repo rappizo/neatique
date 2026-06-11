@@ -4,8 +4,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { requireCustomerSession } from "@/lib/customer-auth";
 import {
   formatShippingCarrierLabel,
-  hasCompleteShipment,
-  parseTrackingNumbers
+  hasCompleteShipmentItems
 } from "@/lib/order-shipping";
 import { getCustomerAccountById } from "@/lib/queries";
 
@@ -107,8 +106,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                 </thead>
                 <tbody>
                   {account.orders.map((order) => {
-                    const shipped = hasCompleteShipment(order.shippingCarrier, order.trackingNumber);
-                    const trackingNumbers = parseTrackingNumbers(order.trackingNumber);
+                    const shipped = hasCompleteShipmentItems(order.shipments);
 
                     return (
                       <tr key={order.id}>
@@ -129,10 +127,14 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                           ) : shipped ? (
                             <div>
                               <div>Shipped</div>
-                              <small>
-                                {formatShippingCarrierLabel(order.shippingCarrier)}{" "}
-                                {trackingNumbers.join(", ")}
-                              </small>
+                              <div className="account-order-shipments">
+                                {order.shipments.map((shipment) => (
+                                  <small key={shipment.id}>
+                                    {formatShippingCarrierLabel(shipment.shippingCarrier)}{" "}
+                                    {shipment.trackingNumber}
+                                  </small>
+                                ))}
+                              </div>
                             </div>
                           ) : (
                             "Unshipped"

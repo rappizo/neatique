@@ -185,6 +185,15 @@ export type OrderActivityLogRecord = {
   createdAt: Date;
 };
 
+export type OrderShipmentRecord = {
+  id: string;
+  shippingCarrier: ShippingCarrier;
+  trackingNumber: string;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type OrderEmailLogRecord = {
   id: string;
   eventType: OrderEmailEventKey;
@@ -256,6 +265,7 @@ export type OrderRecord = {
   createdAt: Date;
   updatedAt: Date;
   items: OrderItemRecord[];
+  shipments: OrderShipmentRecord[];
   activityLogs?: OrderActivityLogRecord[];
   emailLogs?: OrderEmailLogRecord[];
 };

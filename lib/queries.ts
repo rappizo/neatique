@@ -30,6 +30,7 @@ import type {
   OmbClaimRecord,
   OrderEmailEventKey,
   OrderEmailLogRecord,
+  OrderShipmentRecord,
   OrderRecord,
   ProductRecord,
   ProductReviewRecord,
@@ -58,6 +59,7 @@ import {
   buildOrderEmailOverview,
   ORDER_EMAIL_EVENT_LABELS
 } from "@/lib/order-emails";
+import { deriveShipmentsFromLegacy } from "@/lib/order-shipping";
 import { getDateKeyInTimeZone, LOS_ANGELES_TIME_ZONE } from "@/lib/format";
 import {
   ensureLegacyContactFormBackfill,
@@ -400,7 +402,29 @@ function mapOrderEmailLog(log: any): OrderEmailLogRecord {
   };
 }
 
+function mapOrderShipment(shipment: any): OrderShipmentRecord {
+  return {
+    id: shipment.id,
+    shippingCarrier: shipment.shippingCarrier,
+    trackingNumber: shipment.trackingNumber,
+    sortOrder: shipment.sortOrder ?? 0,
+    createdAt: new Date(shipment.createdAt),
+    updatedAt: new Date(shipment.updatedAt)
+  };
+}
+
 function mapOrder(order: any): OrderRecord {
+  const shipments = Array.isArray(order.shipments) && order.shipments.length > 0
+    ? order.shipments.map(mapOrderShipment)
+    : deriveShipmentsFromLegacy(order.shippingCarrier, order.trackingNumber).map((shipment, index) => ({
+        id: `${order.id}-legacy-shipment-${index}`,
+        shippingCarrier: shipment.shippingCarrier,
+        trackingNumber: shipment.trackingNumber,
+        sortOrder: shipment.sortOrder,
+        createdAt: new Date(order.updatedAt ?? order.createdAt),
+        updatedAt: new Date(order.updatedAt ?? order.createdAt)
+      }));
+
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -447,6 +471,7 @@ function mapOrder(order: any): OrderRecord {
       lineTotalCents: item.lineTotalCents,
       imageUrl: item.imageUrl
     })),
+    shipments,
     activityLogs: (order.activityLogs ?? []).map((log: any): OrderActivityLogRecord => ({
       id: log.id,
       eventType: log.eventType,
@@ -1015,6 +1040,9 @@ export async function getOrders(page = 1, pageSize = 50) {
         const rows = await prisma.order.findMany({
           include: {
             items: true,
+            shipments: {
+              orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+            },
             activityLogs: {
               orderBy: [{ createdAt: "desc" }],
               take: 8
@@ -2362,7 +2390,10 @@ export async function getCustomerAccountById(customerId: string) {
           },
           orders: {
             include: {
-              items: true
+              items: true,
+              shipments: {
+                orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+              }
             },
             orderBy: {
               createdAt: "desc"
@@ -2528,6 +2559,9 @@ export async function getDashboardSummary() {
           prisma.order.findMany({
             include: {
               items: true,
+              shipments: {
+                orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+              },
               activityLogs: {
                 orderBy: [{ createdAt: "desc" }],
                 take: 3

@@ -542,6 +542,7 @@ model Order {
   customer              Customer?          @relation(fields: [customerId], references: [id])
   coupon                Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items                 OrderItem[]
+  shipments             OrderShipment[]
   activityLogs          OrderActivityLog[]
   emailLogs             OrderEmailLog[]
   rewards               RewardEntry[]
@@ -565,6 +566,20 @@ model OrderActivityLog {
 
   @@index([orderId, createdAt])
   @@index([eventType, createdAt])
+}
+
+model OrderShipment {
+  id              String          @id @default(cuid())
+  shippingCarrier ShippingCarrier
+  trackingNumber  String
+  sortOrder       Int             @default(0)
+  orderId         String
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([orderId, sortOrder])
+  @@index([shippingCarrier])
 }
 
 model OrderEmailLog {

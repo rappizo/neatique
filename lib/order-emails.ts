@@ -2,16 +2,18 @@ import { prisma } from "@/lib/db";
 import { sendConfiguredEmail } from "@/lib/email";
 import { formatCurrency } from "@/lib/format";
 import {
-  formatShipmentSummary,
+  deriveShipmentsFromLegacy,
+  formatShipmentListSummary,
   formatShippingCarrierLabel,
-  formatTrackingNumbers,
-  parseTrackingNumbers
+  getCompleteShipmentItems,
+  hasCompleteShipmentItems
 } from "@/lib/order-shipping";
 import type {
   OrderEmailEventKey,
   OrderEmailLogRecord,
   OrderEmailOverviewRecord,
   OrderEmailTemplateRecord,
+  OrderShipmentRecord,
   ShippingCarrier
 } from "@/lib/types";
 
@@ -36,6 +38,7 @@ type OrderEmailOrder = {
   billingName: string | null;
   shippingCarrier: ShippingCarrier | null;
   trackingNumber: string | null;
+  shipments?: Array<Pick<OrderShipmentRecord, "shippingCarrier" | "trackingNumber" | "sortOrder">>;
   items?: Array<{
     name: string;
     quantity: number;
@@ -179,15 +182,34 @@ function getOrderItemsSummary(order: OrderEmailOrder) {
 }
 
 function buildTemplateInput(order: OrderEmailOrder): OrderEmailTemplateInput {
+  const shipments = getOrderShipmentItems(order);
+  const carriers = Array.from(
+    new Set(
+      shipments
+        .map((shipment) => formatShippingCarrierLabel(shipment.shippingCarrier))
+        .filter((label): label is string => Boolean(label))
+    )
+  ).join(", ");
+
   return {
     customerName: getCustomerDisplayName(order),
     customerEmail: order.email,
     orderNumber: order.orderNumber,
     orderTotal: formatCurrency(order.totalCents),
     orderItems: getOrderItemsSummary(order),
-    shippingCarrier: formatShippingCarrierLabel(order.shippingCarrier),
-    trackingNumbers: formatTrackingNumbers(order.trackingNumber)
+    shippingCarrier: carriers || formatShippingCarrierLabel(order.shippingCarrier),
+    trackingNumbers: formatShipmentListSummary(shipments)
   };
+}
+
+function getOrderShipmentItems(order: OrderEmailOrder) {
+  const shipmentRows = getCompleteShipmentItems(order.shipments);
+
+  if (shipmentRows.length > 0) {
+    return shipmentRows;
+  }
+
+  return deriveShipmentsFromLegacy(order.shippingCarrier, order.trackingNumber);
 }
 
 async function loadOrderEmailSettingsMap() {
@@ -242,7 +264,7 @@ async function createOrderEmailLog(input: {
 }
 
 export async function sendOrderEventEmail(order: OrderEmailOrder, eventKey: OrderEmailEventKey) {
-  if (eventKey === "ORDER_SHIPPED" && parseTrackingNumbers(order.trackingNumber).length === 0) {
+  if (eventKey === "ORDER_SHIPPED" && !hasCompleteShipmentItems(getOrderShipmentItems(order))) {
     return null;
   }
 
@@ -302,6 +324,9 @@ export async function sendOrderEventEmailForOrder(orderId: string, eventKey: Ord
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
+      shipments: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      },
       items: {
         select: {
           name: true,
@@ -325,6 +350,7 @@ export async function sendOrderEventEmailForOrder(orderId: string, eventKey: Ord
       billingName: order.billingName,
       shippingCarrier: order.shippingCarrier,
       trackingNumber: order.trackingNumber,
+      shipments: order.shipments,
       items: order.items
     },
     eventKey
@@ -335,5 +361,5 @@ export function describeShipmentForEmail(
   carrier: ShippingCarrier | null | undefined,
   trackingNumber: string | null | undefined
 ) {
-  return formatShipmentSummary(carrier, trackingNumber) || "Shipment details not available";
+  return formatShipmentListSummary(deriveShipmentsFromLegacy(carrier, trackingNumber)) || "Shipment details not available";
 }
