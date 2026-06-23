@@ -874,7 +874,17 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                             <h3>{section.title}</h3>
                             <StoryBody body={section.body} />
                           </div>
-                          <div className="story-home-section__media">
+                          <div
+                            className="story-home-section__media"
+                            style={{
+                              aspectRatio: "2 / 3",
+                              height: "auto",
+                              justifySelf: "center",
+                              maxHeight: "700px",
+                              maxWidth: "466.67px",
+                              width: "100%"
+                            }}
+                          >
                             <Image
                               src={image.src}
                               alt={image.alt}
