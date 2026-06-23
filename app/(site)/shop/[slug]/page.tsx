@@ -74,6 +74,18 @@ function LandingImage({ src, alt, width, height, sizes, className }: LandingImag
   );
 }
 
+function StoryBody({ body }: { body: string | string[] }) {
+  const paragraphs = Array.isArray(body) ? body : [body];
+
+  return (
+    <div className="story-body">
+      {paragraphs.map((paragraph) => (
+        <p key={paragraph}>{paragraph}</p>
+      ))}
+    </div>
+  );
+}
+
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
@@ -830,7 +842,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
           ) : null}
 
           {!isPdrnCream && !isPdrnSerum && story.sections.length > 0 ? (
-            <section className="product-page-section">
+            <section className="product-page-section product-detail-story-section">
               <div className="section-heading">
                 <p className="section-heading__eyebrow">Product details</p>
                 <h2>Everything you may want to know before adding it to your routine.</h2>
@@ -840,8 +852,8 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                 </p>
               </div>
               {storyDetailImages.length ? (
-                <div className="story-mosaic-wrap">
-                  <div className="story-mosaic-grid">
+                <div className="story-home-wrap">
+                  <div className="story-home-sections">
                     {storyDetailImages.map((image, index) => {
                       const section = storyVisualSections[index];
 
@@ -850,37 +862,28 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                       }
 
                       const detailLabel = index < 5 ? "Key highlight" : "Formula story";
-                      const cardClassName = [
-                        "story-mosaic-card",
-                        index === 0 || index === 5 ? "story-mosaic-card--wide" : "",
-                        index === 1 || index === 4 ? "story-mosaic-card--reverse" : "",
-                        index === 2 ? "story-mosaic-card--tall" : "",
-                        index === 3 ? "story-mosaic-card--stacked" : ""
-                      ]
-                        .filter(Boolean)
-                        .join(" ");
-
                       return (
-                        <article key={`${section.title}-${image.src}`} className={cardClassName}>
-                          <div className="story-mosaic-card__copy">
-                            <span className="story-mosaic-card__eyebrow">{detailLabel}</span>
+                        <article
+                          key={`${section.title}-${image.src}`}
+                          className={`story-home-section ${
+                            index % 2 === 1 ? "story-home-section--reverse" : ""
+                          }`}
+                        >
+                          <div className="story-home-section__copy">
+                            <span className="story-home-section__eyebrow">{detailLabel}</span>
                             <h3>{section.title}</h3>
-                            <p>{section.body}</p>
+                            <StoryBody body={section.body} />
                           </div>
-                          <div className="story-mosaic-card__media">
+                          <div className="story-home-section__media">
                             <Image
                               src={image.src}
                               alt={image.alt}
                               width={1344}
                               height={2016}
-                              sizes={
-                                index === 0 || index === 5
-                                  ? "(max-width: 720px) 100vw, (max-width: 1080px) 90vw, 640px"
-                                  : "(max-width: 720px) 100vw, (max-width: 1080px) 45vw, 520px"
-                              }
+                              sizes="(max-width: 720px) 100vw, (max-width: 1080px) 92vw, 48vw"
                               quality={75}
                               unoptimized={isLocalProductMediaUrl(image.src)}
-                              className="story-mosaic-card__image"
+                              className="story-home-section__image"
                             />
                             <AiGeneratedPersonBadge src={image.src} />
                           </div>
@@ -891,20 +894,11 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
 
                   {storyCopySections.length ? (
                     <div className="story-copy-grid">
-                      {storyCopySections.map((section, index) => {
-                        const cardClassName = [
-                          "story-copy-card",
-                          index === 0 || index === storyCopySections.length - 1
-                            ? "story-copy-card--wide"
-                            : ""
-                        ]
-                          .filter(Boolean)
-                          .join(" ");
-
+                      {storyCopySections.map((section) => {
                         return (
-                          <article key={section.title} className={cardClassName}>
+                          <article key={section.title} className="story-copy-card">
                             <h3>{section.title}</h3>
-                            <p>{section.body}</p>
+                            <StoryBody body={section.body} />
                           </article>
                         );
                       })}
@@ -916,7 +910,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                   {story.sections.map((section) => (
                     <article key={section.title} className="panel">
                       <h3>{section.title}</h3>
-                      <p>{section.body}</p>
+                      <StoryBody body={section.body} />
                     </article>
                   ))}
                 </div>

@@ -2,7 +2,7 @@ import { buildProductMediaUrl, getLocalProductGallery } from "@/lib/product-medi
 
 export type ProductStorySection = {
   title: string;
-  body: string;
+  body: string | string[];
 };
 
 type ProductStoryImage = {
@@ -37,69 +37,56 @@ export const productStories: Record<string, ProductStory> = {
     detailImages: pdrnCleanserDetailImages,
     sections: [
       {
-        title: "1. PDRN Pink 99% + Niacinamide Power Cleanse",
-        body:
-          "A pink-powered daily cleanser designed to refresh dull, tired-looking skin while washing away buildup, excess oil, and daily impurities in one soft, creamy cleanse."
+        title: "PDRN Pink 99% + Niacinamide Power Cleanse",
+        body: [
+          "A pink-powered daily cleanser designed to refresh dull, tired-looking skin while washing away buildup, excess oil, and daily impurities in one soft, creamy cleanse.",
+          "Neatique PDRN Pink 99% + Niacinamide Whip Cleanser is made to give skin a fresh, clean, hydrated-looking start every day, with a creamy texture that turns cleansing into the first skin-care step rather than a basic rinse.",
+          "Powered by PDRN Pink 99%, niacinamide, and a rich whip-foam texture, this cleanser helps remove daily dirt, excess oil, sunscreen residue, and makeup residue while supporting a soft, smooth, healthy-looking glow."
+        ]
       },
       {
-        title: "2. Deep Cleanse Without The Tight Feeling",
-        body:
-          "The rich whip foam helps lift away dirt, oil, sunscreen residue, and makeup residue while leaving skin feeling soft, hydrated, and comfortable - never stripped or dry."
+        title: "Deep Cleanse Without The Tight Feeling",
+        body: [
+          "The rich whip foam helps lift away dirt, oil, sunscreen residue, and makeup residue while leaving skin feeling soft, hydrated, and comfortable - never stripped or dry.",
+          "This is not a harsh cleanser that leaves your skin feeling tight. It is designed for a deep yet comfortable cleanse, the kind of clean that makes skin feel refreshed, balanced, and ready for the next steps in your routine.",
+          "The creamy whip foam expands into a rich lather that cushions the skin while cleansing. It helps wash away impurities from the skin surface and pores, leaving the complexion feeling fresh, clean, and smooth without the over-dry, squeaky feeling many cleansers leave behind.",
+          "Deep daily cleanse, soft hydrated finish, and brighter fresher-looking skin all work together so skin feels clean, fresh, breathable, and comfortable after rinsing."
+        ]
       },
       {
-        title: "3. Creamy Whip Foam Texture",
-        body:
-          "A dense, cushiony foam wraps the skin in a smooth cleansing layer, making every wash feel soft, luxurious, and skin-caring."
+        title: "Creamy Whip Foam Texture",
+        body: [
+          "A dense, cushiony foam wraps the skin in a smooth cleansing layer, making every wash feel soft, luxurious, and skin-caring.",
+          "The texture starts as a creamy cleanser and transforms into a dense, soft whip foam when mixed with water. The foam feels smooth, rich, and cloud-like on the skin, helping create a gentle but effective cleansing experience.",
+          "After rinsing, skin feels fresh, clean, soft, comfortable, hydrated, smooth-looking, and ready for skincare."
+        ]
       },
       {
-        title: "4. Supports A Healthy, Even-Looking Glow",
-        body:
-          "Infused with niacinamide to help improve the look of dullness and uneven tone, leaving skin looking fresher, clearer, and more radiant after cleansing."
+        title: "Supports A Healthy, Even-Looking Glow",
+        body: [
+          "Infused with niacinamide to help improve the look of dullness and uneven tone, leaving skin looking fresher, clearer, and more radiant after cleansing.",
+          "PDRN Pink 99% gives the formula a premium skin-care feel and supports a fresh, healthy-looking glow. It helps make cleansing feel less basic and more treatment-like.",
+          "Niacinamide is loved for helping improve the look of dullness, uneven tone, and tired-looking skin. In this cleanser, it helps support a clearer, smoother, more radiant-looking finish.",
+          "Creamy Whip Foam creates a rich, soft cleansing cushion. It helps rinse away daily buildup while keeping skin feeling soft, clean, and comfortable."
+        ]
       },
       {
-        title: "5. AM And PM Friendly Daily Cleanser",
-        body:
-          "Gentle enough for morning and night use, this cleanser is the perfect first step before serum, cream, or your full Neatique PDRN skincare routine."
+        title: "AM And PM Friendly Daily Cleanser",
+        body: [
+          "Gentle enough for morning and night use, this cleanser is the perfect first step before serum, cream, or your full Neatique PDRN skincare routine.",
+          "Wet face with lukewarm water. Apply a small amount of cleanser to your palm, add water, and lather into a creamy foam. Massage gently over the face in circular motions, then rinse thoroughly.",
+          "Use it before Neatique PDRN5+ Serum and PDRN Pink Collagen Capsule Cream when you want a complete pink skincare routine for skin that looks fresh, hydrated, and radiant."
+        ]
       },
       {
-        title: "6. Meet The Cleanser That Does More Than Wash Your Face",
-        body:
-          "Neatique PDRN Pink 99% + Niacinamide Whip Cleanser is a creamy, cushion-soft facial cleanser created to give your skin a fresh, clean, hydrated-looking start every day. It helps remove daily dirt, excess oil, sunscreen residue, and makeup residue while supporting a soft, smooth, healthy-looking glow."
-      },
-      {
-        title: "7. Why You'll Love It",
-        body:
-          "Every day, skin collects oil, sweat, dust, sunscreen, makeup residue, and environmental buildup. This cleanser is designed to give you the best of both sides: a satisfying deep-clean feeling with a soft, hydrated finish that leaves skin feeling refreshed, balanced, and ready for the next steps."
-      },
-      {
-        title: "8. Key Benefits",
-        body:
-          "It helps remove dirt, excess oil, sunscreen residue, and makeup residue for skin that feels clean, fresh, and breathable. After rinsing, skin feels comfortable and moisturized without the tight or stripped feeling, while niacinamide supports a clearer, brighter, more even-looking complexion."
-      },
-      {
-        title: "9. Ingredient Story",
-        body:
-          "PDRN Pink 99% gives the formula a premium skin-care feel and supports a fresh, healthy-looking glow. Niacinamide helps improve the look of dullness, uneven tone, and tired-looking skin. The creamy whip foam cushions the skin while cleansing and helps reduce rough friction."
-      },
-      {
-        title: "10. Texture And Feel",
-        body:
-          "The texture starts as a creamy cleanser and transforms into a dense, soft whip foam when mixed with water. The foam feels smooth, rich, and cloud-like on the skin, helping create a gentle but effective cleansing experience. After rinsing, skin feels fresh, clean, soft, comfortable, hydrated, and ready for skincare."
-      },
-      {
-        title: "11. Who It's For",
-        body:
-          "This cleanser is ideal for anyone who wants a daily cleanser that feels gentle but effective, a deep-clean feeling without dryness, a soft foam texture instead of a harsh gel cleanser, and a fresher, brighter-looking complexion."
-      },
-      {
-        title: "12. How To Use",
-        body:
-          "Wet face with lukewarm water, apply a small amount to your palm, add water, and lather into a creamy foam. Massage gently over the face in circular motions, rinse thoroughly, then follow with Neatique PDRN serum and cream. Use daily, morning and night."
-      },
-      {
-        title: "13. Complete Routine Suggestion",
-        body:
-          "Step 1: cleanse with Neatique PDRN Pink 99% + Niacinamide Whip Cleanser. Step 2: apply Neatique PDRN5+ Serum to support hydration and a smoother-looking complexion. Step 3: seal in moisture with Neatique PDRN Pink Collagen Capsule Cream for a soft, plump, glowing finish."
+        title: "A Complete Pink PDRN Routine Starter",
+        body: [
+          "This cleanser is ideal for anyone who wants a daily cleanser that feels gentle but effective, a deep-clean feeling without dryness, and a soft foam texture instead of a harsh gel cleanser.",
+          "It is also a strong fit for routines focused on removing oil, dirt, sunscreen, and makeup residue while keeping the complexion looking fresher, brighter, and more comfortable.",
+          "Step 1: Cleanser. Start with Neatique PDRN Pink 99% + Niacinamide Whip Cleanser to remove daily buildup and refresh the skin.",
+          "Step 2: Serum. Apply Neatique PDRN5+ Serum to support hydration and a smoother-looking complexion.",
+          "Step 3: Cream. Seal in moisture with Neatique PDRN Pink Collagen Capsule Cream for a soft, plump, glowing finish. Together, the cleanser, serum, and cream create a complete pink skincare routine."
+        ]
       }
     ]
   },
