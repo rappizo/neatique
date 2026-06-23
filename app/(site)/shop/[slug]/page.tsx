@@ -402,6 +402,9 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   ]);
 
   const story = getProductStory(product.slug);
+  const storyDetailImages = story.detailImages ?? [];
+  const storyVisualSections = story.sections.slice(0, storyDetailImages.length);
+  const storyCopySections = story.sections.slice(storyDetailImages.length);
   const gallery = product.galleryImages.length > 0 ? product.galleryImages : story.gallery;
   const displayGallery = gallery.length > 0 ? gallery : [product.imageUrl];
   const canReview = Boolean(account?.purchasedProductIds.includes(product.id));
@@ -836,42 +839,77 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                   head to cart.
                 </p>
               </div>
-              {story.detailImages?.length ? (
-                <div className="story-media-sections">
-                  {story.sections.map((section, index) => {
-                    const image = story.detailImages?.[index] ?? null;
-                    const cardClassName = [
-                      "story-media-card",
-                      image && index % 2 === 1 ? "story-media-card--reverse" : "",
-                      !image ? "story-media-card--text-only" : ""
-                    ]
-                      .filter(Boolean)
-                      .join(" ");
+              {storyDetailImages.length ? (
+                <div className="story-mosaic-wrap">
+                  <div className="story-mosaic-grid">
+                    {storyDetailImages.map((image, index) => {
+                      const section = storyVisualSections[index];
 
-                    return (
-                      <article key={section.title} className={cardClassName}>
-                        <div className="story-media-card__copy">
-                          <h3>{section.title}</h3>
-                          <p>{section.body}</p>
-                        </div>
-                        {image ? (
-                          <div className="story-media-card__media">
+                      if (!section) {
+                        return null;
+                      }
+
+                      const detailLabel = index < 5 ? "Key highlight" : "Formula story";
+                      const cardClassName = [
+                        "story-mosaic-card",
+                        index === 0 || index === 5 ? "story-mosaic-card--wide" : "",
+                        index === 1 || index === 4 ? "story-mosaic-card--reverse" : "",
+                        index === 2 ? "story-mosaic-card--tall" : "",
+                        index === 3 ? "story-mosaic-card--stacked" : ""
+                      ]
+                        .filter(Boolean)
+                        .join(" ");
+
+                      return (
+                        <article key={`${section.title}-${image.src}`} className={cardClassName}>
+                          <div className="story-mosaic-card__copy">
+                            <span className="story-mosaic-card__eyebrow">{detailLabel}</span>
+                            <h3>{section.title}</h3>
+                            <p>{section.body}</p>
+                          </div>
+                          <div className="story-mosaic-card__media">
                             <Image
                               src={image.src}
                               alt={image.alt}
                               width={1344}
                               height={2016}
-                              sizes="(max-width: 720px) 78vw, (max-width: 1080px) 34vw, 340px"
+                              sizes={
+                                index === 0 || index === 5
+                                  ? "(max-width: 720px) 100vw, (max-width: 1080px) 90vw, 640px"
+                                  : "(max-width: 720px) 100vw, (max-width: 1080px) 45vw, 520px"
+                              }
                               quality={75}
                               unoptimized={isLocalProductMediaUrl(image.src)}
-                              className="story-media-card__image"
+                              className="story-mosaic-card__image"
                             />
                             <AiGeneratedPersonBadge src={image.src} />
                           </div>
-                        ) : null}
-                      </article>
-                    );
-                  })}
+                        </article>
+                      );
+                    })}
+                  </div>
+
+                  {storyCopySections.length ? (
+                    <div className="story-copy-grid">
+                      {storyCopySections.map((section, index) => {
+                        const cardClassName = [
+                          "story-copy-card",
+                          index === 0 || index === storyCopySections.length - 1
+                            ? "story-copy-card--wide"
+                            : ""
+                        ]
+                          .filter(Boolean)
+                          .join(" ");
+
+                        return (
+                          <article key={section.title} className={cardClassName}>
+                            <h3>{section.title}</h3>
+                            <p>{section.body}</p>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="story-sections">
