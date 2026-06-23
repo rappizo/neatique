@@ -16,6 +16,12 @@ function buildProductGallery(folder, totalImages) {
   );
 }
 
+function buildPaddedProductGallery(folder, totalImages) {
+  return Array.from({ length: totalImages }, (_, index) =>
+    buildProductMediaUrl(folder, `${String(index).padStart(2, "0")}.png`)
+  );
+}
+
 const firstNames = [
   "Olivia",
   "Emma",
@@ -68,6 +74,32 @@ function buildDisplayName(index) {
 }
 
 const products = [
+  {
+    id: "prod_pdrn_cleanser",
+    productCode: "0011",
+    productShortName: "PDRN Cleanser",
+    amazonAsin: null,
+    name: "PDRN Pink 99% + Niacinamide Whip Cleanser",
+    slug: "pdrn-cleanser",
+    tagline:
+      "A creamy pink whip cleanser that deeply cleanses daily buildup while leaving skin soft, hydrated, and refreshed.",
+    category: "Facial Cleanser",
+    shortDescription:
+      "A creamy pink whip cleanser powered by PDRN Pink 99% and niacinamide for a deep daily cleanse without the tight, stripped feeling.",
+    description:
+      "Neatique PDRN Pink 99% + Niacinamide Whip Cleanser is a cushion-soft facial cleanser created to give skin a fresh, clean, hydrated-looking start every day. Powered by PDRN Pink 99%, niacinamide, and a rich whip-foam texture, it helps remove daily dirt, excess oil, sunscreen residue, and makeup residue while supporting a soft, smooth, healthy-looking glow.",
+    details:
+      "PDRN Pink 99% + niacinamide formula designed for dull, tired-looking skin.\nRich whip foam helps lift away dirt, oil, sunscreen residue, and makeup residue without a tight or stripped feeling.\nUse morning and night as the first step before serum, cream, or the full Neatique PDRN routine.",
+    imageUrl: buildProductMediaUrl("HH080 PDRN Cleanser", "00.png"),
+    galleryImages: buildPaddedProductGallery("HH080 PDRN Cleanser", 9).join("\n"),
+    featured: false,
+    status: "ACTIVE",
+    inventory: 126,
+    priceCents: 1899,
+    compareAtPriceCents: 2999,
+    currency: "USD",
+    pointsReward: 19
+  },
   {
     id: "prod_kit9_serum",
     productCode: "0010",

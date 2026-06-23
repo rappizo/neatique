@@ -39,6 +39,7 @@ import { nt16SerumSeo } from "@/lib/nt16-serum-page";
 import { toAbsoluteUrl } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
 import { tnv3SerumSeo } from "@/lib/tnv3-serum-page";
+import { isLocalProductMediaUrl } from "@/lib/media-url";
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
@@ -88,6 +89,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     product.slug === "bee-venom-body-cream"
       ? "Bee Venom Body Cream | Moisturizing Cream for Dry Rough Areas"
       :
+    product.slug === "pdrn-cleanser"
+      ? "PDRN Pink 99% + Niacinamide Whip Cleanser | Soft Daily Cleanser"
+      :
     product.slug === "nt16-niacinamide-tranexamic-serum"
       ? nt16SerumSeo.title
       : 
@@ -105,6 +109,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const description =
     product.slug === "bee-venom-body-cream"
       ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
+      :
+    product.slug === "pdrn-cleanser"
+      ? "Shop Neatique PDRN Pink 99% + Niacinamide Whip Cleanser, a creamy pink foam cleanser for daily buildup, excess oil, sunscreen residue, and makeup residue without a tight, stripped finish."
       :
     product.slug === "nt16-niacinamide-tranexamic-serum"
       ? nt16SerumSeo.description
@@ -162,6 +169,43 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
         "body cream for elbows and knees",
         "non greasy body cream",
         "buy bee venom body cream"
+      ],
+      alternates: {
+        canonical: `/shop/${product.slug}`
+      },
+      openGraph: {
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        url: `${siteConfig.url}/shop/${product.slug}`,
+        images: [
+          {
+            url: absoluteImageUrl,
+            alt: product.name
+          }
+        ]
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        images: [absoluteImageUrl]
+      }
+    };
+  }
+
+  if (product.slug === "pdrn-cleanser") {
+    return {
+      title,
+      description,
+      keywords: [
+        "PDRN cleanser",
+        "PDRN Pink cleanser",
+        "niacinamide cleanser",
+        "whip cleanser",
+        "pink foam cleanser",
+        "daily facial cleanser",
+        "cleanser without tight feeling",
+        "buy PDRN cleanser"
       ],
       alternates: {
         canonical: `/shop/${product.slug}`
@@ -368,6 +412,8 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const seoDescription =
     product.slug === "bee-venom-body-cream"
       ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
+      : product.slug === "pdrn-cleanser"
+      ? "Shop Neatique PDRN Pink 99% + Niacinamide Whip Cleanser, a creamy pink foam cleanser for daily buildup, excess oil, sunscreen residue, and makeup residue without a tight, stripped finish."
       : product.slug === "pdrn-cream"
       ? pdrnCreamSeo.description
       : product.slug === "pdrn-serum"
@@ -796,6 +842,36 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                     <h3>{section.title}</h3>
                     <p>{section.body}</p>
                   </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {!isPdrnCream && !isPdrnSerum && story.detailImages?.length ? (
+            <section className="product-page-section product-detail-images-section">
+              <div className="section-heading">
+                <p className="section-heading__eyebrow">Product detail images</p>
+                <h2>Take a closer look at the texture, routine, and formula story.</h2>
+                <p className="section-heading__description">
+                  Browse the full visual detail set for the cleanser before you add it to your
+                  routine.
+                </p>
+              </div>
+              <div className="product-detail-image-stack">
+                {story.detailImages.map((image) => (
+                  <div key={image.src} className="product-detail-image-stack__item">
+                    <Image
+                      src={image.src}
+                      alt={image.alt}
+                      width={1344}
+                      height={2016}
+                      sizes="(max-width: 720px) 100vw, (max-width: 1080px) 86vw, 920px"
+                      quality={82}
+                      unoptimized={isLocalProductMediaUrl(image.src)}
+                      className="product-detail-image-stack__image"
+                    />
+                    <AiGeneratedPersonBadge src={image.src} />
+                  </div>
                 ))}
               </div>
             </section>

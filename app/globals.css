@@ -1833,6 +1833,28 @@ main {
   object-fit: cover;
 }
 
+.product-detail-image-stack {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 920px);
+  margin: 0 auto;
+}
+
+.product-detail-image-stack__item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: #fff7f3;
+  box-shadow: 0 18px 42px rgba(237, 115, 97, 0.12);
+}
+
+.product-detail-image-stack__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .ai-person-badge {
   position: absolute;
   right: 10px;
