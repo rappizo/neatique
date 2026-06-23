@@ -836,44 +836,53 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                   head to cart.
                 </p>
               </div>
-              <div className="story-sections">
-                {story.sections.map((section) => (
-                  <article key={section.title} className="panel">
-                    <h3>{section.title}</h3>
-                    <p>{section.body}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ) : null}
+              {story.detailImages?.length ? (
+                <div className="story-media-sections">
+                  {story.sections.map((section, index) => {
+                    const image = story.detailImages?.[index] ?? null;
+                    const cardClassName = [
+                      "story-media-card",
+                      image && index % 2 === 1 ? "story-media-card--reverse" : "",
+                      !image ? "story-media-card--text-only" : ""
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
 
-          {!isPdrnCream && !isPdrnSerum && story.detailImages?.length ? (
-            <section className="product-page-section product-detail-images-section">
-              <div className="section-heading">
-                <p className="section-heading__eyebrow">Product detail images</p>
-                <h2>Take a closer look at the texture, routine, and formula story.</h2>
-                <p className="section-heading__description">
-                  Browse the full visual detail set for the cleanser before you add it to your
-                  routine.
-                </p>
-              </div>
-              <div className="product-detail-image-stack">
-                {story.detailImages.map((image) => (
-                  <div key={image.src} className="product-detail-image-stack__item">
-                    <Image
-                      src={image.src}
-                      alt={image.alt}
-                      width={1344}
-                      height={2016}
-                      sizes="(max-width: 720px) 100vw, (max-width: 1080px) 86vw, 920px"
-                      quality={82}
-                      unoptimized={isLocalProductMediaUrl(image.src)}
-                      className="product-detail-image-stack__image"
-                    />
-                    <AiGeneratedPersonBadge src={image.src} />
-                  </div>
-                ))}
-              </div>
+                    return (
+                      <article key={section.title} className={cardClassName}>
+                        <div className="story-media-card__copy">
+                          <h3>{section.title}</h3>
+                          <p>{section.body}</p>
+                        </div>
+                        {image ? (
+                          <div className="story-media-card__media">
+                            <Image
+                              src={image.src}
+                              alt={image.alt}
+                              width={1344}
+                              height={2016}
+                              sizes="(max-width: 720px) 78vw, (max-width: 1080px) 34vw, 340px"
+                              quality={75}
+                              unoptimized={isLocalProductMediaUrl(image.src)}
+                              className="story-media-card__image"
+                            />
+                            <AiGeneratedPersonBadge src={image.src} />
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="story-sections">
+                  {story.sections.map((section) => (
+                    <article key={section.title} className="panel">
+                      <h3>{section.title}</h3>
+                      <p>{section.body}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
           ) : null}
 
