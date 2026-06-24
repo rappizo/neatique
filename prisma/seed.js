@@ -22,6 +22,14 @@ function buildPaddedProductGallery(folder, totalImages) {
   );
 }
 
+function buildNadFaceCreamGallery() {
+  const folder = "HH081 NAD+ Cream";
+  return [
+    buildProductMediaUrl(folder, "Main.png"),
+    ...Array.from({ length: 7 }, (_, index) => buildProductMediaUrl(folder, `${index}.png`))
+  ];
+}
+
 const firstNames = [
   "Olivia",
   "Emma",
@@ -74,6 +82,32 @@ function buildDisplayName(index) {
 }
 
 const products = [
+  {
+    id: "prod_nad_face_cream",
+    productCode: "0012",
+    productShortName: "8+ NAD+ Cream",
+    amazonAsin: null,
+    name: "8+ NAD+ Face Cream",
+    slug: "nad-face-cream",
+    tagline:
+      "A rich yet lightweight multi-active cream for tired-looking skin from face to neck and targeted dry areas.",
+    category: "Face Cream",
+    shortDescription:
+      "A multi-active NAD+ inspired face cream with niacinamide, alpha-arbutin, hyaluronic acid, ceramide, and adenosine for a hydrated, smoother, more radiant-looking finish.",
+    description:
+      "Neatique 8+ NAD+ Face Cream is a rich yet lightweight cream created for skin that looks dry, dull, tired, flat, or less defined. Built around the signature 8+ NAD+ concept and a 6-ingredient cosmetic care system, it helps skin look more hydrated, smoother, softer, fresher, and naturally radiant from face to neck and targeted dry-looking areas.",
+    details:
+      "Powered by a 6-ingredient cosmetic care concept with NAD+, niacinamide, alpha-arbutin, hyaluronic acid, ceramide, and adenosine.\nRich cream, light feel texture melts into skin without a greasy or heavy after-feel.\nUse morning and night on face, neck, jawline, collarbone, upper arms, elbows, knees, and other dry-looking targeted areas.",
+    imageUrl: buildProductMediaUrl("HH081 NAD+ Cream", "Main.png"),
+    galleryImages: buildNadFaceCreamGallery().join("\n"),
+    featured: false,
+    status: "ACTIVE",
+    inventory: 126,
+    priceCents: 2899,
+    compareAtPriceCents: null,
+    currency: "USD",
+    pointsReward: 29
+  },
   {
     id: "prod_pdrn_cleanser",
     productCode: "0011",

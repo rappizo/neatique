@@ -90,8 +90,42 @@ const pdrnCleanserFolder = "HH080 PDRN Cleanser";
 const pdrnCleanserGallery = Array.from({ length: 9 }, (_, index) =>
   buildProductMediaUrl(pdrnCleanserFolder, `${String(index).padStart(2, "0")}.png`)
 );
+const nadFaceCreamFolder = "HH081 NAD+ Cream";
+const nadFaceCreamGallery = [
+  buildProductMediaUrl(nadFaceCreamFolder, "Main.png"),
+  ...Array.from({ length: 7 }, (_, index) => buildProductMediaUrl(nadFaceCreamFolder, `${index}.png`))
+];
 
 const baseProducts: BaseProduct[] = [
+  {
+    id: "prod_nad_face_cream",
+    productCode: "0012",
+    productShortName: "8+ NAD+ Cream",
+    amazonAsin: null,
+    name: "8+ NAD+ Face Cream",
+    slug: "nad-face-cream",
+    tagline:
+      "A rich yet lightweight multi-active cream for tired-looking skin from face to neck and targeted dry areas.",
+    category: "Face Cream",
+    shortDescription:
+      "A multi-active NAD+ inspired face cream with niacinamide, alpha-arbutin, hyaluronic acid, ceramide, and adenosine for a hydrated, smoother, more radiant-looking finish.",
+    description:
+      "Neatique 8+ NAD+ Face Cream is a rich yet lightweight cream created for skin that looks dry, dull, tired, flat, or less defined. Built around the signature 8+ NAD+ concept and a 6-ingredient cosmetic care system, it helps skin look more hydrated, smoother, softer, fresher, and naturally radiant from face to neck and targeted dry-looking areas.",
+    details:
+      "Powered by a 6-ingredient cosmetic care concept with NAD+, niacinamide, alpha-arbutin, hyaluronic acid, ceramide, and adenosine.\nRich cream, light feel texture melts into skin without a greasy or heavy after-feel.\nUse morning and night on face, neck, jawline, collarbone, upper arms, elbows, knees, and other dry-looking targeted areas.",
+    imageUrl: buildProductMediaUrl(nadFaceCreamFolder, "Main.png"),
+    galleryImages: nadFaceCreamGallery,
+    featured: false,
+    status: "ACTIVE",
+    inventory: 126,
+    priceCents: 2899,
+    compareAtPriceCents: null,
+    currency: "USD",
+    pointsReward: 29,
+    stripePriceId: null,
+    createdAt: new Date("2026-06-24T08:00:00.000Z"),
+    updatedAt: new Date("2026-06-24T08:00:00.000Z")
+  },
   {
     id: "prod_pdrn_cleanser",
     productCode: "0011",

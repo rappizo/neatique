@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { submitProductReviewAction } from "@/app/(site)/account/actions";
@@ -101,6 +102,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     product.slug === "bee-venom-body-cream"
       ? "Bee Venom Body Cream | Moisturizing Cream for Dry Rough Areas"
       :
+    product.slug === "nad-face-cream"
+      ? "8+ NAD+ Face Cream | Multi-Active Care for Tired-Looking Skin"
+      :
     product.slug === "pdrn-cleanser"
       ? "PDRN Pink 99% + Niacinamide Whip Cleanser | Soft Daily Cleanser"
       :
@@ -121,6 +125,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const description =
     product.slug === "bee-venom-body-cream"
       ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
+      :
+    product.slug === "nad-face-cream"
+      ? "Shop Neatique 8+ NAD+ Face Cream, a rich yet lightweight multi-active cream for dry, dull, tired-looking skin on the face, neck, jawline, and targeted dry-looking areas."
       :
     product.slug === "pdrn-cleanser"
       ? "Shop Neatique PDRN Pink 99% + Niacinamide Whip Cleanser, a creamy pink foam cleanser for daily buildup, excess oil, sunscreen residue, and makeup residue without a tight, stripped finish."
@@ -218,6 +225,43 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
         "daily facial cleanser",
         "cleanser without tight feeling",
         "buy PDRN cleanser"
+      ],
+      alternates: {
+        canonical: `/shop/${product.slug}`
+      },
+      openGraph: {
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        url: `${siteConfig.url}/shop/${product.slug}`,
+        images: [
+          {
+            url: absoluteImageUrl,
+            alt: product.name
+          }
+        ]
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${title} | ${siteConfig.title}`,
+        description,
+        images: [absoluteImageUrl]
+      }
+    };
+  }
+
+  if (product.slug === "nad-face-cream") {
+    return {
+      title,
+      description,
+      keywords: [
+        "NAD+ face cream",
+        "8+ NAD+ cream",
+        "multi active face cream",
+        "niacinamide face cream",
+        "alpha arbutin cream",
+        "hyaluronic acid ceramide cream",
+        "face and neck cream",
+        "buy NAD+ face cream"
       ],
       alternates: {
         canonical: `/shop/${product.slug}`
@@ -415,6 +459,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
 
   const story = getProductStory(product.slug);
   const storyDetailImages = story.detailImages ?? [];
+  const storyIconHighlights = story.iconHighlights ?? [];
   const storyVisualSections = story.sections.slice(0, storyDetailImages.length);
   const storyCopySections = story.sections.slice(storyDetailImages.length);
   const gallery = product.galleryImages.length > 0 ? product.galleryImages : story.gallery;
@@ -427,6 +472,8 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const seoDescription =
     product.slug === "bee-venom-body-cream"
       ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
+      : product.slug === "nad-face-cream"
+      ? "Shop Neatique 8+ NAD+ Face Cream, a rich yet lightweight multi-active cream for dry, dull, tired-looking skin on the face, neck, jawline, and targeted dry-looking areas."
       : product.slug === "pdrn-cleanser"
       ? "Shop Neatique PDRN Pink 99% + Niacinamide Whip Cleanser, a creamy pink foam cleanser for daily buildup, excess oil, sunscreen residue, and makeup residue without a tight, stripped finish."
       : product.slug === "pdrn-cream"
@@ -853,6 +900,20 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
               </div>
               {storyDetailImages.length ? (
                 <div className="story-home-wrap">
+                  {storyIconHighlights.length ? (
+                    <div className="story-icon-grid">
+                      {storyIconHighlights.map((highlight) => (
+                        <article key={highlight.title} className="story-icon-card">
+                          <span className="story-icon-card__mark">{highlight.label}</span>
+                          <div>
+                            <h3>{highlight.title}</h3>
+                            <p>{highlight.body}</p>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
+
                   <div className="story-home-sections">
                     {storyDetailImages.map((image, index) => {
                       const section = storyVisualSections[index];
@@ -861,13 +922,29 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                         return null;
                       }
 
-                      const detailLabel = index < 5 ? "Key highlight" : "Formula story";
+                      const detailLabel = section.eyebrow ?? (index < 5 ? "Key highlight" : "Formula story");
+                      const imageWidth = image.width ?? 1344;
+                      const imageHeight = image.height ?? 2016;
+                      const mediaWidth = image.mediaWidth ?? "466.67px";
+                      const mediaStyle: CSSProperties = {
+                        aspectRatio: image.aspectRatio ?? "2 / 3",
+                        height: "auto",
+                        justifySelf: "center",
+                        maxHeight: image.maxHeight ?? "700px",
+                        maxWidth: mediaWidth,
+                        width: "100%"
+                      };
+                      const sectionStyle = {
+                        "--story-detail-media-width": mediaWidth
+                      } as CSSProperties;
+
                       return (
                         <article
                           key={`${section.title}-${image.src}`}
                           className={`story-home-section ${
                             index % 2 === 1 ? "story-home-section--reverse" : ""
                           }`}
+                          style={sectionStyle}
                         >
                           <div className="story-home-section__copy">
                             <span className="story-home-section__eyebrow">{detailLabel}</span>
@@ -876,21 +953,14 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                           </div>
                           <div
                             className="story-home-section__media"
-                            style={{
-                              aspectRatio: "2 / 3",
-                              height: "auto",
-                              justifySelf: "center",
-                              maxHeight: "700px",
-                              maxWidth: "466.67px",
-                              width: "100%"
-                            }}
+                            style={mediaStyle}
                           >
                             <Image
                               src={image.src}
                               alt={image.alt}
-                              width={1344}
-                              height={2016}
-                              sizes="(max-width: 720px) 100vw, (max-width: 1080px) 92vw, 48vw"
+                              width={imageWidth}
+                              height={imageHeight}
+                              sizes="(max-width: 720px) 100vw, (max-width: 1080px) 92vw, 44vw"
                               quality={75}
                               unoptimized={isLocalProductMediaUrl(image.src)}
                               className="story-home-section__image"

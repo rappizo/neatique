@@ -9,6 +9,7 @@ const PRODUCT_MEDIA_FOLDERS: Record<string, string> = {
   "tnv3-tranexamic-nicotinamide-serum": "HH060 TNV3 10% Tranexamic Acid + 2% Nicotinamide Secrum",
   "at13-arbutin-tranexamic-cream": "HH061 AT13 8% Arbutin + 5% Tranexamic Cream",
   "nad-collagen-peptide-serum": "HH076 NAD+ Collagen Peptide Serum Optimized",
+  "nad-face-cream": "HH081 NAD+ Cream",
   "pdrn-cleanser": "HH080 PDRN Cleanser",
   "pdrn-cream": "HH075 PDRN Cream",
   "pdrn-serum": "HH079 PDRN Serum",

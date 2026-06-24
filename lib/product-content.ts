@@ -3,17 +3,30 @@ import { buildProductMediaUrl, getLocalProductGallery } from "@/lib/product-medi
 export type ProductStorySection = {
   title: string;
   body: string | string[];
+  eyebrow?: string;
 };
 
 type ProductStoryImage = {
   src: string;
   alt: string;
+  width?: number;
+  height?: number;
+  aspectRatio?: string;
+  mediaWidth?: string;
+  maxHeight?: string;
+};
+
+type ProductStoryIcon = {
+  label: string;
+  title: string;
+  body: string;
 };
 
 type ProductStory = {
   gallery: string[];
   heroLabel?: string;
   detailImages?: ProductStoryImage[];
+  iconHighlights?: ProductStoryIcon[];
   sections: ProductStorySection[];
 };
 
@@ -29,8 +42,153 @@ const pdrnCleanserDetailImages = Array.from({ length: 6 }, (_, index) => {
     alt: `Neatique PDRN Pink 99% + Niacinamide Whip Cleanser detail image ${index + 1}`
   };
 });
+const nadFaceCreamFolder = "HH081 NAD+ Cream";
+const nadFaceCreamGallery = [
+  buildProductMediaUrl(nadFaceCreamFolder, "Main.png"),
+  ...Array.from({ length: 7 }, (_, index) => buildProductMediaUrl(nadFaceCreamFolder, `${index}.png`))
+];
+const nadFaceCreamDetailImages = Array.from({ length: 4 }, (_, index) => {
+  const fileName = `d${index + 1}.png`;
+
+  return {
+    src: buildProductMediaUrl(nadFaceCreamFolder, fileName),
+    alt: `Neatique 8+ NAD+ Face Cream detail image ${index + 1}`,
+    width: 1448,
+    height: 1086,
+    aspectRatio: "4 / 3",
+    mediaWidth: "680px",
+    maxHeight: "560px"
+  };
+});
 
 export const productStories: Record<string, ProductStory> = {
+  "nad-face-cream": {
+    gallery: nadFaceCreamGallery,
+    heroLabel: "HH081 NAD+ Cream",
+    detailImages: nadFaceCreamDetailImages,
+    iconHighlights: [
+      {
+        label: "6X",
+        title: "Multi-Active Care System",
+        body:
+          "Powered by a 6-ingredient cosmetic care concept, this rich yet lightweight face cream is designed to help tired-looking skin appear smoother, fresher, more hydrated, and more radiant-looking."
+      },
+      {
+        label: "8+",
+        title: "8+ NAD+ Inspired Skin Care",
+        body:
+          "Built around the signature 8+ NAD+ concept, this formula helps revive the look of dull, dry, fatigued skin and supports a more refreshed-looking glow from face to neck."
+      },
+      {
+        label: "GO",
+        title: "6 Visible Care Goals in One Cream",
+        body:
+          "NAD+, niacinamide, α-arbutin, hyaluronic acid, ceramide, and adenosine work together to target the appearance of dryness, dullness, dry fine lines, uneven-looking tone, flat-looking cheeks, and loose-looking areas."
+      },
+      {
+        label: "FEEL",
+        title: "Rich Cream. Light Feel.",
+        body:
+          "A smooth, silky, non-greasy cream texture that melts into skin beautifully, leaving a hydrated, bouncy-looking finish without a heavy after-feel."
+      },
+      {
+        label: "ALL",
+        title: "Face + Neck + Targeted Areas",
+        body:
+          "More than a basic face cream, this is a complete-looking care solution for the forehead, cheeks, smile-line area, jawline, neck, collarbone, upper arms, elbows, knees, and other dry or loose-looking areas."
+      }
+    ],
+    sections: [
+      {
+        eyebrow: "Hero section",
+        title: "8+ NAD+ Face Cream",
+        body: [
+          "Multi-Active Care for Tired-Looking Skin",
+          "Meet NEATIQUE 8+ NAD+ Face Cream, a rich yet lightweight cream created for skin that looks dry, dull, tired, flat, or less defined. Inspired by the concept of daily skin energy support, this multi-active formula helps skin look more hydrated, smoother, softer, and naturally radiant.",
+          "With a luxurious cream texture and a 6-ingredient cosmetic care system, it is designed for the face, neck, and targeted dry-looking areas that need extra care.",
+          "Hydrate • Refresh • Smooth • Plump-Looking Glow"
+        ]
+      },
+      {
+        eyebrow: "Multi-active care system",
+        title: "6 Ingredients. 6 Visible Care Goals.",
+        body: [
+          "A complete cosmetic care system for a more refreshed-looking complexion.",
+          "This cream is not just a basic moisturizer. It combines six well-known skincare ingredients in one elegant formula to support multiple visible skin concerns at the same time.",
+          "NAD+ supports a revitalized-looking appearance. Niacinamide helps skin look more even and radiant. α-Arbutin supports a luminous-looking tone. Hyaluronic Acid delivers a plump, hydrated look. Ceramide helps support a comfortable, well-moisturized skin feel. Adenosine helps soften the look of fine lines.",
+          "Together, they create a multi-active care system for skin that looks dry, dull, tired, or less smooth.",
+          "Multi-Active Care System: 6 Ingredients. 6 Visible Care Goals. Revitalized-Looking • Hydrated • Smoother-Looking • Radiant-Looking"
+        ]
+      },
+      {
+        eyebrow: "Key ingredients",
+        title: "Powered by 6 Signature Care Ingredients",
+        body: [
+          "Designed to improve the visible look and feel of tired-looking skin.",
+          "NAD+ helps support a revitalized-looking skin appearance and a more refreshed glow.",
+          "Niacinamide helps improve the look of uneven tone and supports a smoother, more radiant-looking complexion.",
+          "α-Arbutin supports a more luminous-looking appearance and helps dull-looking skin appear clearer and more even.",
+          "Hyaluronic Acid attracts hydration to help skin look plumper, smoother, and more supple. Ceramide helps maintain a soft, comfortable, moisturized skin feel. Adenosine helps smooth the appearance of dry fine lines and supports a more refined-looking texture.",
+          "NAD+ — Revitalized-Looking Skin • Niacinamide — More Even-Looking Tone • α-Arbutin — Radiance Support • Hyaluronic Acid — Plump Hydration • Ceramide — Moisture Comfort • Adenosine — Smooth Fine Line Appearance"
+        ]
+      },
+      {
+        eyebrow: "Texture and skin feel",
+        title: "Rich Cream. Light Feel.",
+        body: [
+          "Silky, bouncy, and non-greasy.",
+          "The texture feels rich at first touch, then melts beautifully into the skin for a smooth, lightweight finish. It is designed to deliver comfort and hydration without leaving a greasy or heavy residue.",
+          "The cream spreads easily across the face, neck, and targeted areas, making it ideal for both morning and night routines. Skin is left feeling soft, cushiony, and well-moisturized, with a healthy-looking glow.",
+          "Bouncy • Silky • Non-Greasy. Melts in for a hydrated glow."
+        ]
+      },
+      {
+        eyebrow: "AM 8 + PM 8 care concept",
+        title: "AM 8 Defense + PM 8 Renew",
+        body: [
+          "Precise day and night care for tired-looking skin.",
+          "Use it in the morning to help skin look fresh, hydrated, and prepared for the day. Its moisturizing texture helps reduce the look of dryness and dullness caused by daily environmental exposure.",
+          "Use it at night as a comforting cream step to help skin look smoother, softer, and more refreshed by morning. The rich yet breathable texture makes it perfect for overnight moisture care.",
+          "AM Routine: Daytime care for skin that looks dry, dull, or tired. Helps skin appear hydrated, smooth, and protected-looking from daily dryness.",
+          "PM Routine: Nighttime care for a softer, smoother-looking finish. Helps wake up skin looking more refreshed and radiant.",
+          "AM 8 Defense • PM 8 Renew • Day & Night Care for Tired-Looking Skin"
+        ]
+      },
+      {
+        eyebrow: "Targeted areas",
+        title: "Face + Neck + Targeted Areas",
+        body: [
+          "Care for the areas that show tiredness first.",
+          "This cream is designed for more than the cheeks. Use it anywhere your skin looks dry, dull, less smooth, or less firm-looking.",
+          "Apply to the forehead, smile-line area, cheeks, jawline, and neck. It can also be used on targeted body areas such as the collarbone, upper arms, elbows, knees, and other dry-looking zones that need extra moisture and a smoother-looking finish.",
+          "Target Area List: Forehead, smile-line area, cheeks, jawline, neck, collarbone, upper arms, elbows, knees.",
+          "Targeted Care Areas: Face • Neck • Jawline • Collarbone • Upper Arms • Elbows • Knees"
+        ]
+      },
+      {
+        eyebrow: "Visible care goals",
+        title: "For Skin That Looks Tired, Dry, or Less Defined",
+        body: [
+          "A cosmetic care cream designed to improve the look of everyday skin fatigue.",
+          "When skin looks tired, it can show up in many ways: dullness, dryness, dry fine lines, less bouncy-looking cheeks, a less defined-looking jawline, and visible neck lines.",
+          "NEATIQUE 8+ NAD+ Face Cream is designed to address these visible care goals with a rich, multi-active moisturizing formula that helps skin look more hydrated, smoother, softer, fresher, and more radiant.",
+          "Dull-looking skin → More radiant-looking glow. Dry fine lines → Smoother-looking texture. Flat-looking cheeks → Bouncier-looking appearance.",
+          "Less defined-looking jawline → More refined-looking profile. Neck lines → Softer, smoother-looking neck area. Dry targeted areas → More moisturized, comfortable feel."
+        ]
+      },
+      {
+        eyebrow: "How to use",
+        title: "How to Use",
+        body: [
+          "Use daily on face, neck, and targeted dry-looking areas.",
+          "After cleansing and applying serum, take a small amount of cream and massage gently onto the face and neck. Use upward motions along the cheeks, jawline, and neck area.",
+          "For targeted care, apply a thin layer to dry-looking areas such as the collarbone, upper arms, elbows, or knees. Use morning and night as the final cream step in your skincare routine.",
+          "Directions: 1. Cleanse skin thoroughly. 2. Apply serum if desired. 3. Massage a small amount of cream onto face and neck. 4. Apply extra cream to targeted dry-looking areas. 5. Use daily, morning and night.",
+          "Make tired-looking skin look refreshed, hydrated, and beautifully cared for — from face to neck and beyond."
+        ]
+      }
+    ]
+  },
   "pdrn-cleanser": {
     gallery: pdrnCleanserGallery,
     heroLabel: "HH080 PDRN Cleanser",
