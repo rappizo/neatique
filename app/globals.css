@@ -310,6 +310,10 @@ main {
   padding: clamp(42px, 5vw, 56px) 0;
 }
 
+.section--compact {
+  padding: clamp(18px, 3vw, 28px) 0;
+}
+
 .section--deferred {
   content-visibility: auto;
   contain-intrinsic-size: 960px;
@@ -2478,6 +2482,10 @@ main {
   padding: 28px;
 }
 
+.om-shell__form-actions {
+  align-items: center;
+}
+
 .om-shell__submit {
   width: fit-content;
   min-width: 132px;
@@ -2568,6 +2576,30 @@ main {
   margin: 0;
   color: var(--muted);
   line-height: 1.75;
+}
+
+.omb-resume-card {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 22px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(237, 115, 97, 0.2);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 16px 34px rgba(87, 61, 53, 0.1);
+}
+
+.omb-resume-card h2 {
+  margin: 0;
+  font-family: Baskerville, "Palatino Linotype", serif;
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+  color: var(--ink);
+}
+
+.omb-resume-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
 }
 
 .omb-file-input {

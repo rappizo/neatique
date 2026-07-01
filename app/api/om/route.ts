@@ -6,11 +6,13 @@ import {
   isOrderMatchPlatform,
   validateOrderId
 } from "@/lib/order-match";
+import { getOmbClaimResumePath } from "@/lib/order-match-progress";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   const formData = await request.formData();
+  const claimId = String(formData.get("claimId") || "").trim();
   const requestedPlatform = String(formData.get("platform") || "").trim().toLowerCase();
   const orderId = String(formData.get("orderId") || "").trim();
   const name = String(formData.get("name") || "").trim();
@@ -68,6 +70,47 @@ export async function POST(request: Request) {
       new URL(`/om?platform=${platform.key}&error=duplicate-email`, request.url),
       303
     );
+  }
+
+  const existingIncompleteClaim = await prisma.ombClaim.findFirst({
+    where: {
+      completedAt: null,
+      orderId,
+      email,
+      ...(claimId ? { id: claimId } : {})
+    },
+    orderBy: {
+      updatedAt: "desc"
+    }
+  });
+
+  const fallbackIncompleteClaim =
+    existingIncompleteClaim ||
+    (claimId
+      ? await prisma.ombClaim.findFirst({
+          where: {
+            completedAt: null,
+            orderId,
+            email
+          },
+          orderBy: {
+            updatedAt: "desc"
+          }
+        })
+      : null);
+
+  if (fallbackIncompleteClaim) {
+    const resumedClaim = await prisma.ombClaim.update({
+      where: { id: fallbackIncompleteClaim.id },
+      data: {
+        platformKey: platform.key,
+        platformLabel: platform.label,
+        name,
+        phone: phone || null
+      }
+    });
+
+    return NextResponse.redirect(new URL(getOmbClaimResumePath(resumedClaim), request.url), 303);
   }
 
   const claim = await prisma.ombClaim.create({

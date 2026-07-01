@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { OrderMatchPanel } from "@/components/order-match/order-match-panel";
 import { getOrderMatchErrorMessage, getOrderMatchPlatform } from "@/lib/order-match";
+import { OMB_CLAIM_PROGRESS_STORAGE_KEY } from "@/lib/order-match-progress";
+import { prisma } from "@/lib/db";
 
 type OrderMatchPageProps = {
-  searchParams: Promise<{ platform?: string; error?: string }>;
+  searchParams: Promise<{ platform?: string; error?: string; claim?: string }>;
 };
 
 export const metadata: Metadata = {
@@ -13,7 +15,12 @@ export const metadata: Metadata = {
 
 export default async function OrderMatchPage({ searchParams }: OrderMatchPageProps) {
   const params = await searchParams;
-  const activePlatform = getOrderMatchPlatform(params.platform);
+  const restoredClaim = params.claim
+    ? await prisma.ombClaim.findUnique({
+        where: { id: params.claim }
+      })
+    : null;
+  const activePlatform = getOrderMatchPlatform(restoredClaim?.platformKey ?? params.platform);
   const errorMessage = getOrderMatchErrorMessage(params.error);
 
   return (
@@ -22,7 +29,21 @@ export default async function OrderMatchPage({ searchParams }: OrderMatchPagePro
         {errorMessage ? <p className="notice">{errorMessage}</p> : null}
 
         <div className="section om-section">
-          <OrderMatchPanel initialPlatform={activePlatform.key} />
+          <OrderMatchPanel
+            initialPlatform={activePlatform.key}
+            initialValues={
+              restoredClaim
+                ? {
+                    claimId: restoredClaim.id,
+                    orderId: restoredClaim.orderId,
+                    name: restoredClaim.name,
+                    email: restoredClaim.email,
+                    phone: restoredClaim.phone
+                  }
+                : undefined
+            }
+            resumeStorageKey={OMB_CLAIM_PROGRESS_STORAGE_KEY}
+          />
         </div>
       </div>
     </section>

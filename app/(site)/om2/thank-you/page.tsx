@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClearOmbClaimProgress } from "@/components/order-match/omb-claim-resume-card";
 import { ButtonLink } from "@/components/ui/button-link";
 
 export const metadata: Metadata = {
@@ -10,6 +11,7 @@ export default function OmbClaimThankYouPage() {
   return (
     <section className="section">
       <div className="container">
+        <ClearOmbClaimProgress />
         <div className="page-hero om-thank-you">
           <p className="eyebrow">Thank you</p>
           <h1>Your Extra Bottle Will Be Sent in 24 Hour After We Confirm the Order.</h1>

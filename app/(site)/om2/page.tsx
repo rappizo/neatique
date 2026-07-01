@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OmbClaimStepTwoForm } from "@/components/order-match/omb-claim-step-two-form";
 import { getOrderMatchPlatform, getOmbStepTwoErrorMessage } from "@/lib/order-match";
+import { OMB_CLAIM_PROGRESS_STORAGE_KEY } from "@/lib/order-match-progress";
 import { prisma } from "@/lib/db";
 import { getOmbSelectableProducts } from "@/lib/queries";
 
@@ -52,6 +53,11 @@ export default async function OrderMatchStepTwoPage({
             name={claim.name}
             email={claim.email}
             phone={claim.phone}
+            initialPurchasedProduct={claim.purchasedProduct}
+            initialReviewRating={claim.reviewRating}
+            initialCommentText={claim.commentText}
+            backHref={`/om?claim=${claim.id}`}
+            resumeStorageKey={OMB_CLAIM_PROGRESS_STORAGE_KEY}
             productOptions={productOptions.map((product) => ({
               id: product.id,
               name: product.name,

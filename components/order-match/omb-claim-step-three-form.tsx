@@ -1,10 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { OrderMatchPlatform } from "@/lib/order-match";
+import {
+  isFreshOmbClaimProgressSnapshot,
+  type OmbClaimProgressSnapshot
+} from "@/lib/order-match-progress";
 
 type OmbClaimStepThreeFormProps = {
   claimId: string;
-  platformKey: string;
+  platformKey: OrderMatchPlatform;
   platformLabel: string;
   orderId: string;
   name: string;
@@ -23,6 +29,10 @@ type OmbClaimStepThreeFormProps = {
   submitLabel?: string;
   addressLabel?: string;
   includeAddress?: boolean;
+  initialExtraBottleAddress?: string | null;
+  backHref?: string;
+  resumeStorageKey?: string;
+  progressSaveAction?: string;
 };
 
 export function OmbClaimStepThreeForm({
@@ -45,17 +55,118 @@ export function OmbClaimStepThreeForm({
   submitAction = "/api/om3",
   submitLabel = "Submit OMB Claim",
   addressLabel = "Leave the address for an extra bottle",
-  includeAddress = true
+  includeAddress = true,
+  initialExtraBottleAddress,
+  backHref,
+  resumeStorageKey,
+  progressSaveAction
 }: OmbClaimStepThreeFormProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [extraBottleAddress, setExtraBottleAddress] = useState(initialExtraBottleAddress ?? "");
   const requiresScreenshot = useMemo(() => platformKey !== "amazon", [platformKey]);
   const canUseOutboundButton = Boolean(destinationUrl);
+
+  useEffect(() => {
+    if (!resumeStorageKey || initialExtraBottleAddress) {
+      return;
+    }
+
+    try {
+      const rawProgress = window.localStorage.getItem(resumeStorageKey);
+      const storedProgress = rawProgress ? (JSON.parse(rawProgress) as unknown) : null;
+
+      if (
+        isFreshOmbClaimProgressSnapshot(storedProgress) &&
+        storedProgress.claimId === claimId &&
+        storedProgress.extraBottleAddress
+      ) {
+        setExtraBottleAddress(storedProgress.extraBottleAddress);
+      }
+    } catch {
+      window.localStorage.removeItem(resumeStorageKey);
+    }
+  }, [claimId, initialExtraBottleAddress, resumeStorageKey]);
+
+  const writeProgress = useCallback(
+    (nextAddress = extraBottleAddress) => {
+      if (!resumeStorageKey) {
+        return;
+      }
+
+      const snapshot: OmbClaimProgressSnapshot = {
+        version: 1,
+        processKey: "OMB",
+        claimId,
+        step: "last-step",
+        platformKey,
+        platformLabel,
+        orderId,
+        name,
+        email,
+        phone,
+        purchasedProduct,
+        reviewRating,
+        commentText,
+        extraBottleAddress: nextAddress || null,
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        window.localStorage.setItem(resumeStorageKey, JSON.stringify(snapshot));
+      } catch {
+        // Ignore storage failures so the claim form remains usable.
+      }
+    },
+    [
+      claimId,
+      commentText,
+      email,
+      extraBottleAddress,
+      name,
+      orderId,
+      phone,
+      platformKey,
+      platformLabel,
+      purchasedProduct,
+      resumeStorageKey,
+      reviewRating
+    ]
+  );
+
+  useEffect(() => {
+    writeProgress();
+  }, [writeProgress]);
+
+  async function saveProgressToServer() {
+    if (!progressSaveAction) {
+      return;
+    }
+
+    try {
+      await fetch(progressSaveAction, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          claimId,
+          extraBottleAddress
+        }),
+        keepalive: true
+      });
+    } catch (error) {
+      console.error("Could not save OMB progress:", error);
+    }
+  }
 
   async function handleCopyAndGo() {
     if (!canUseOutboundButton) {
       return;
     }
+
+    writeProgress();
+    await saveProgressToServer();
 
     try {
       await navigator.clipboard.writeText(commentText.trim());
@@ -140,13 +251,29 @@ export function OmbClaimStepThreeForm({
               <label htmlFor="omb-address">
                 {addressLabel} <span className="field__required">(Required)</span>
               </label>
-              <textarea id="omb-address" name="extraBottleAddress" required />
+              <textarea
+                id="omb-address"
+                name="extraBottleAddress"
+                value={extraBottleAddress}
+                onChange={(event) => {
+                  setExtraBottleAddress(event.target.value);
+                  writeProgress(event.target.value);
+                }}
+                required
+              />
             </div>
           ) : null}
 
-          <button type="submit" className="button button--primary om-shell__submit">
-            {submitLabel}
-          </button>
+          <div className="stack-row om-shell__form-actions">
+            {backHref ? (
+              <Link href={backHref} className="button button--secondary">
+                Back to product review
+              </Link>
+            ) : null}
+            <button type="submit" className="button button--primary om-shell__submit">
+              {submitLabel}
+            </button>
+          </div>
         </form>
       </div>
     </section>

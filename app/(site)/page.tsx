@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { HomeBannerSlider } from "@/components/home/home-banner-slider";
+import { OmbClaimResumeCard } from "@/components/order-match/omb-claim-resume-card";
 import { SocialProofSliderDeferred } from "@/components/home/social-proof-slider-deferred";
 import { PostCard } from "@/components/ui/post-card";
 import { ProductCard } from "@/components/ui/product-card";
@@ -259,6 +260,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       />
 
       <HomeBannerSlider />
+      <OmbClaimResumeCard wrapInPageSection />
 
       <section className="section">
         <div className="container">

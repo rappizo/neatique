@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OmbClaimStepThreeForm } from "@/components/order-match/omb-claim-step-three-form";
 import { getOrderMatchPlatform, getOmbStepTwoErrorMessage, isHighRating } from "@/lib/order-match";
+import { OMB_CLAIM_PROGRESS_STORAGE_KEY } from "@/lib/order-match-progress";
 import { prisma } from "@/lib/db";
 
 type OrderMatchStepThreePageProps = {
@@ -65,6 +66,10 @@ export default async function OrderMatchStepThreePage({
             commentText={claim.commentText}
             destinationUrl={claim.reviewDestinationUrl}
             outboundButtonLabel={platform.outboundButtonLabel}
+            initialExtraBottleAddress={claim.extraBottleAddress}
+            backHref={`/om2?claim=${claim.id}`}
+            resumeStorageKey={OMB_CLAIM_PROGRESS_STORAGE_KEY}
+            progressSaveAction="/api/om-progress"
           />
         </div>
       </div>
