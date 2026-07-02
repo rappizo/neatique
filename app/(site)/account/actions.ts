@@ -4,9 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { clearCustomerSession, createCustomerSession, makeReviewDisplayName, requireCustomerSession } from "@/lib/customer-auth";
 import { prisma } from "@/lib/db";
+import { sendCustomerPasswordResetEmail } from "@/lib/email";
 import { syncEmailMarketingContact } from "@/lib/email-marketing";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import { generateTemporaryPassword, hashPassword, verifyPassword } from "@/lib/password";
 import { toBool, toInt, toPlainString } from "@/lib/utils";
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function registerCustomerAction(formData: FormData) {
   const email = toPlainString(formData.get("email")).toLowerCase();
@@ -92,6 +95,48 @@ export async function loginCustomerAction(formData: FormData) {
 
   await createCustomerSession(customer.id);
   redirect("/account");
+}
+
+export async function requestCustomerPasswordResetAction(formData: FormData) {
+  const email = toPlainString(formData.get("email")).toLowerCase();
+
+  if (!email) {
+    redirect("/account/forgot-password?error=missing");
+  }
+
+  if (!emailPattern.test(email)) {
+    redirect("/account/forgot-password?error=email");
+  }
+
+  const customer = await prisma.customer.findUnique({
+    where: { email }
+  });
+
+  if (!customer) {
+    redirect("/account/login?status=reset-sent");
+  }
+
+  const temporaryPassword = generateTemporaryPassword();
+  const delivery = await sendCustomerPasswordResetEmail({
+    email: customer.email,
+    firstName: customer.firstName,
+    password: temporaryPassword
+  });
+
+  if (!delivery.delivered) {
+    console.error("Customer password reset email delivery failed:", delivery);
+    redirect("/account/forgot-password?error=send");
+  }
+
+  await prisma.customer.update({
+    where: { id: customer.id },
+    data: {
+      passwordHash: hashPassword(temporaryPassword),
+      passwordSetAt: new Date()
+    }
+  });
+
+  redirect("/account/login?status=reset-sent");
 }
 
 export async function logoutCustomerAction() {

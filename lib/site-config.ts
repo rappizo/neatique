@@ -51,6 +51,7 @@ export const siteConfig = {
       label: "Points & Rewards",
       children: [
         { href: "/admin/rewards/ryo", label: "RYO" },
+        { href: "/admin/rewards/tk-follow", label: "TK Follow" },
         { href: "/admin/rewards/redemption", label: "Redemption" },
         { href: "/admin/rewards#point-adjustment", label: "Point Adjustment" },
         { href: "/admin/rewards#mascot-setting", label: "Mascot Setting" },

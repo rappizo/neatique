@@ -30,7 +30,8 @@ export default async function AdminRewardsPage({ searchParams }: AdminRewardsPag
         <h1>Manage loyalty balances, mascot rewards, and reward-point history.</h1>
         <p>
           This overview now keeps point adjustments, mascot settings, and the ledger together.
-          RYO completion tracking and mascot redemptions have dedicated subpages for focused daily handling.
+          RYO completion tracking, TK Follow uploads, and mascot redemptions have dedicated subpages
+          for focused daily handling.
         </p>
       </div>
 

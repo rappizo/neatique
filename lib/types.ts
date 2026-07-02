@@ -324,6 +324,27 @@ export type RewardEntryRecord = {
   createdAt: Date;
 };
 
+export type TikTokFollowRewardRecord = {
+  id: string;
+  email: string;
+  fullName: string;
+  tiktokUsername: string | null;
+  screenshotName: string;
+  screenshotMimeType: string;
+  screenshotBytes: number;
+  customerId: string;
+  customerEmail: string;
+  customerFirstName: string | null;
+  customerLastName: string | null;
+  customerLoyaltyPoints: number;
+  pointsAwarded: number;
+  rewardGranted: boolean;
+  rewardGrantedAt: Date | null;
+  rewardLedger: RewardEntryRecord[];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type MascotRewardRecord = {
   id: string;
   sku: string;

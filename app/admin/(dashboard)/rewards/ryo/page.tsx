@@ -5,7 +5,11 @@ import {
 } from "@/app/admin/(dashboard)/rewards/_components/rewards-workspaces";
 import { getBrevoSettings } from "@/lib/brevo";
 import { formatNumber } from "@/lib/format";
-import { getFollowEmailOverview, getRyoClaims, getStoreSettings } from "@/lib/queries";
+import {
+  getFollowEmailOverview,
+  getRyoClaims,
+  getStoreSettings
+} from "@/lib/queries";
 
 type AdminRyoRewardsPageProps = {
   searchParams: Promise<{ status?: string }>;

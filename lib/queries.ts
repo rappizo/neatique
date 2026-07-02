@@ -37,7 +37,8 @@ import type {
   RewardEntryRecord,
   OrderActivityLogRecord,
   RyoClaimRecord,
-  StoreSettingsRecord
+  StoreSettingsRecord,
+  TikTokFollowRewardRecord
 } from "@/lib/types";
 import { unstable_cache } from "next/cache";
 import {
@@ -518,6 +519,33 @@ function mapReward(reward: any): RewardEntryRecord {
     customerId: reward.customerId,
     customerEmail: reward.customer?.email ?? "Unknown customer",
     createdAt: new Date(reward.createdAt)
+  };
+}
+
+function mapTikTokFollowReward(reward: any): TikTokFollowRewardRecord {
+  const customer = reward.customer;
+
+  return {
+    id: reward.id,
+    email: reward.email,
+    fullName: reward.fullName,
+    tiktokUsername: reward.tiktokUsername ?? null,
+    screenshotName: reward.screenshotName,
+    screenshotMimeType: reward.screenshotMimeType,
+    screenshotBytes: reward.screenshotBytes,
+    customerId: reward.customerId,
+    customerEmail: customer?.email ?? reward.email,
+    customerFirstName: customer?.firstName ?? null,
+    customerLastName: customer?.lastName ?? null,
+    customerLoyaltyPoints: customer?.loyaltyPoints ?? 0,
+    pointsAwarded: reward.pointsAwarded,
+    rewardGranted: reward.rewardGranted,
+    rewardGrantedAt: reward.rewardGrantedAt ? new Date(reward.rewardGrantedAt) : null,
+    rewardLedger: Array.isArray(customer?.rewards)
+      ? customer.rewards.map((entry: any) => mapReward({ ...entry, customer }))
+      : [],
+    createdAt: new Date(reward.createdAt),
+    updatedAt: new Date(reward.updatedAt)
   };
 }
 
@@ -1675,6 +1703,29 @@ export async function getRyoClaims(limit = 50) {
       );
     },
     [] as RyoClaimRecord[]
+  );
+}
+
+export async function getTikTokFollowRewards(limit = 50) {
+  return withFallback(
+    async () =>
+      (
+        await prisma.tikTokFollowReward.findMany({
+          include: {
+            customer: {
+              include: {
+                rewards: {
+                  orderBy: [{ createdAt: "desc" }],
+                  take: 12
+                }
+              }
+            }
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: limit
+        })
+      ).map(mapTikTokFollowReward),
+    [] as TikTokFollowRewardRecord[]
   );
 }
 

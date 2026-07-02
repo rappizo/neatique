@@ -31,10 +31,11 @@ export async function POST(request: Request) {
   const rawEmail = String(formData.get("email") || "").trim().toLowerCase();
   const tiktokUsername = String(formData.get("tiktokUsername") || "").trim() || null;
   const screenshot = formData.get("screenshot");
-  const fullName = currentCustomer
-    ? [currentCustomer.firstName, currentCustomer.lastName].filter(Boolean).join(" ") || rawName || currentCustomer.email.split("@")[0]
-    : rawName;
-  const email = currentCustomer?.email.trim().toLowerCase() || rawEmail;
+  const currentCustomerName = currentCustomer
+    ? [currentCustomer.firstName, currentCustomer.lastName].filter(Boolean).join(" ")
+    : "";
+  const email = rawEmail || currentCustomer?.email.trim().toLowerCase() || "";
+  const fullName = rawName || currentCustomerName || email.split("@")[0];
 
   if (!fullName || !email) {
     return redirectWithError(request, "missing");
@@ -160,6 +161,17 @@ export async function POST(request: Request) {
     return redirectWithStatus(request, result.status);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const existing = await prisma.tikTokFollowReward.findUnique({
+        where: { email },
+        select: { customerId: true }
+      });
+
+      if (existing?.customerId) {
+        await createCustomerSession(existing.customerId).catch((sessionError) => {
+          console.error("TikTok follow duplicate session creation failed:", sessionError);
+        });
+      }
+
       return redirectWithStatus(request, "duplicate");
     }
 

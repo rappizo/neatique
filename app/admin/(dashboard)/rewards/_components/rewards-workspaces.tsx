@@ -14,8 +14,17 @@ import type {
   MascotRedemptionRecord,
   MascotRewardRecord,
   RewardEntryRecord,
-  RyoClaimRecord
+  RyoClaimRecord,
+  TikTokFollowRewardRecord
 } from "@/lib/types";
+
+function formatImageSize(bytes: number) {
+  if (bytes < 1024) {
+    return `${formatNumber(bytes)} B`;
+  }
+
+  return `${formatNumber(Math.round(bytes / 1024))} KB`;
+}
 
 export function RewardsStatusNotice({
   status,
@@ -34,12 +43,16 @@ export function RewardWorkspaceLinks() {
         <div>
           <h2>Operational queues</h2>
           <p className="form-note">
-            RYO completion tracking and mascot redemptions now run in their own focused workspaces.
+            RYO completion tracking, TK Follow proof uploads, and mascot redemptions run in their
+            own focused workspaces.
           </p>
         </div>
         <div className="stack-row">
           <Link href="/admin/rewards/ryo" className="button button--primary">
             Open RYO
+          </Link>
+          <Link href="/admin/rewards/tk-follow" className="button button--secondary">
+            Open TK Follow
           </Link>
           <Link href="/admin/rewards/redemption" className="button button--secondary">
             Open Redemption
@@ -385,6 +398,136 @@ export function RyoApprovalQueueSection({
           ) : (
             <tr>
               <td colSpan={11}>No RYO registrations yet.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+export function TikTokFollowRewardsSection({
+  followRewards
+}: {
+  followRewards: TikTokFollowRewardRecord[];
+}) {
+  return (
+    <section id="tk-follow" className="admin-table admin-table--scroll">
+      <div className="stack-row">
+        <div>
+          <h2>TK Follow</h2>
+          <p className="form-note">
+            Customer TikTok follow screenshots, automatic point awards, current customer balances,
+            and recent point ledger entries.
+          </p>
+        </div>
+        <span className="pill">{formatNumber(followRewards.length)} uploads</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Uploaded</th>
+            <th>Screenshot</th>
+            <th>Customer</th>
+            <th>TikTok</th>
+            <th>Points added</th>
+            <th>Total points</th>
+            <th>Point ledger</th>
+          </tr>
+        </thead>
+        <tbody>
+          {followRewards.length > 0 ? (
+            followRewards.map((reward) => {
+              const customerName =
+                [reward.customerFirstName, reward.customerLastName].filter(Boolean).join(" ") ||
+                reward.fullName;
+              const imageHref = `/api/tiktok-follow-rewards/${reward.id}/image`;
+
+              return (
+                <tr key={reward.id}>
+                  <td>{formatDate(reward.createdAt)}</td>
+                  <td>
+                    <div className="admin-proof-thumbnail">
+                      <Link href={imageHref} target="_blank" className="admin-proof-thumbnail__image">
+                        <Image
+                          src={imageHref}
+                          alt={`TikTok follow screenshot from ${reward.fullName}`}
+                          width={112}
+                          height={112}
+                          unoptimized
+                        />
+                      </Link>
+                      <div className="admin-table__cell-stack">
+                        <Link href={imageHref} target="_blank" className="link-inline">
+                          View full screenshot
+                        </Link>
+                        <span className="admin-table__empty">
+                          {reward.screenshotName} - {formatImageSize(reward.screenshotBytes)}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      <strong>{customerName}</strong>
+                      <span>{reward.customerEmail}</span>
+                      {reward.email !== reward.customerEmail ? (
+                        <span className="form-note">Submitted email: {reward.email}</span>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td>
+                    {reward.tiktokUsername ? (
+                      reward.tiktokUsername
+                    ) : (
+                      <span className="admin-table__empty">Not provided</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      <span
+                        className={
+                          reward.rewardGranted
+                            ? "admin-table__status-badge admin-table__status-badge--success"
+                            : "admin-table__status-badge admin-table__status-badge--warning"
+                        }
+                      >
+                        {reward.rewardGranted ? "Granted" : "Pending"}
+                      </span>
+                      <span className="pill">{formatNumber(reward.pointsAwarded)} pts</span>
+                      <span>{formatDate(reward.rewardGrantedAt)}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <strong>{formatNumber(reward.customerLoyaltyPoints)} pts</strong>
+                  </td>
+                  <td>
+                    {reward.rewardLedger.length > 0 ? (
+                      <details className="admin-follow-email-log">
+                        <summary>{formatNumber(reward.rewardLedger.length)} recent entries</summary>
+                        <div className="admin-table__cell-stack">
+                          {reward.rewardLedger.map((entry) => (
+                            <div key={entry.id} className="admin-table__cell-stack admin-reward-ledger-item">
+                              <div className="stack-row">
+                                <span className="pill">{entry.type}</span>
+                                <strong>{formatNumber(entry.points)} pts</strong>
+                              </div>
+                              <span>{formatDate(entry.createdAt)}</span>
+                              <span>{entry.note || "No note"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : (
+                      <span className="admin-table__empty">No point ledger yet</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td colSpan={7}>No TK follow uploads yet.</td>
             </tr>
           )}
         </tbody>

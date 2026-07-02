@@ -28,20 +28,29 @@ export async function POST(request: Request) {
   }
 
   if (claim.completedAt) {
+    let completedCustomerId = claim.customerId;
+
     if (!claim.rewardGranted) {
       const completionResult = await completeRyoClaimSubmission({
         claimId: claim.id
       });
 
+      if (completionResult.status === "completed" || completionResult.status === "already-complete") {
+        completedCustomerId = completionResult.customerId;
+      }
+
       if (completionResult.status === "completed") {
-        await createCustomerSession(completionResult.customerId).catch((error) => {
-          console.error("RYO customer session creation failed:", error);
-        });
         revalidatePath("/admin/rewards");
         revalidatePath("/admin/rewards/ryo");
         revalidatePath("/account");
         revalidatePath("/rd");
       }
+    }
+
+    if (completedCustomerId) {
+      await createCustomerSession(completedCustomerId).catch((error) => {
+        console.error("RYO customer session creation failed:", error);
+      });
     }
 
     return NextResponse.redirect(new URL(`/ryo2/thank-you?claim=${claim.id}`, request.url), 303);

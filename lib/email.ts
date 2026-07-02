@@ -547,7 +547,30 @@ export async function sendCustomerWelcomeEmail(input: {
         <p>Hi ${name}, your account has been created so you can track orders, points, and reviews.</p>
         <p><strong>Login email:</strong> ${input.email}</p>
         <p><strong>Temporary password:</strong> ${input.password}</p>
-        <p>You can sign in and update your password anytime from the account center.</p>
+        <p>You can sign in and update your password anytime from the account center. If you lose this password, use Forgot password to receive a new temporary password.</p>
+      </div>
+    `
+  });
+}
+
+export async function sendCustomerPasswordResetEmail(input: {
+  email: string;
+  firstName?: string | null;
+  password: string;
+}) {
+  const name = input.firstName || "there";
+
+  return sendConfiguredEmail({
+    to: input.email,
+    subject: "Your Neatique temporary password",
+    text: `Hi ${name}, we created a new temporary password for your Neatique account. Sign in with ${input.email} and temporary password ${input.password}.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
+        <h2 style="font-family:Georgia,serif;color:#ed7361">Your temporary password is ready</h2>
+        <p>Hi ${name}, we created a new temporary password for your Neatique account.</p>
+        <p><strong>Login email:</strong> ${input.email}</p>
+        <p><strong>Temporary password:</strong> ${input.password}</p>
+        <p>Sign in at <a href="https://neatiquebeauty.com/account/login" style="color:#ed7361">neatiquebeauty.com/account/login</a>, then update your password from the account center.</p>
       </div>
     `
   });

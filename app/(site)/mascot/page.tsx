@@ -102,8 +102,8 @@ export default async function MascotPage({ searchParams }: MascotPageProps) {
                 <p className="eyebrow">Screenshot upload</p>
                 <h3>Show us the follow, then watch your balance move.</h3>
                 <p>
-                  Use the same email you want to use for mascot redemption. If you are already
-                  signed in, we will attach the points to your current account.
+                  Use the same email you want to use for mascot redemption. That email decides
+                  which account receives the points, and we will sign that account in after upload.
                 </p>
                 <TikTokFollowUploadForm
                   customerName={customerName}

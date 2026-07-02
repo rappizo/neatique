@@ -42,13 +42,21 @@ export async function createCustomerSession(customerId: string) {
   const tokenHash = hashSessionToken(token);
   const expiresAt = buildCookieExpiry();
 
-  await prisma.customerSession.create({
-    data: {
-      customerId,
-      tokenHash,
-      expiresAt
-    }
-  });
+  await prisma.$transaction([
+    prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        lastLoginAt: new Date()
+      }
+    }),
+    prisma.customerSession.create({
+      data: {
+        customerId,
+        tokenHash,
+        expiresAt
+      }
+    })
+  ]);
 
   const cookieStore = await cookies();
   cookieStore.set({

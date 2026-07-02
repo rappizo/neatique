@@ -12,7 +12,6 @@ export function TikTokFollowUploadForm({
   customerEmail = ""
 }: TikTokFollowUploadFormProps) {
   const [selectedFileName, setSelectedFileName] = useState("");
-  const isSignedIn = Boolean(customerEmail);
 
   return (
     <form
@@ -40,7 +39,6 @@ export function TikTokFollowUploadForm({
             name="email"
             type="email"
             defaultValue={customerEmail}
-            readOnly={isSignedIn}
             placeholder="you@example.com"
             required
           />
