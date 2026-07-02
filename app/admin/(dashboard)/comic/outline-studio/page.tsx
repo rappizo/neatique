@@ -557,6 +557,11 @@ function SeasonOutlineSection({
       : season.chapters.length === 0
         ? "本季还没有 Chapter。"
         : undefined;
+  const chapterBatchTasks = season.chapters.map((chapter) => ({
+    taskType: "chapter-generate",
+    targetId: chapter.id,
+    taskLabel: `Generate chapter ${chapter.chapterNumber}: ${chapter.title}`
+  }));
 
   return (
     <OutlinePanel
@@ -583,11 +588,10 @@ function SeasonOutlineSection({
               disabledReason: generationDisabledReason
             },
             {
-              taskType: "chapters-generate",
-              targetId: season.id,
-              taskLabel: `Generate chapters for ${seasonLabel(season)}`,
-              idleLabel: "确定Season大纲并生成对应Chapter大纲",
-              includeRevisionNotes: false,
+              actionType: "outline-batch",
+              tasks: chapterBatchTasks,
+              idleLabel: "根据Season大纲逐章生成Chapter大纲",
+              includeRevisionNotes: true,
               disabled: Boolean(chapterGenerationDisabledReason),
               disabledReason: chapterGenerationDisabledReason
             }
