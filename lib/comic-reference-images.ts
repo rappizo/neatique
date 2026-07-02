@@ -43,6 +43,7 @@ const FALLBACK_CHARACTER_SLUGS = [
 ];
 const CHARACTER_REFERENCE_ALIASES: Record<string, string[]> = {
   artrans: ["\u5b89\u5ddd\u897f"],
+  "mira-mistwell": ["Mira"],
   muci: ["\u6155\u897f"],
   nia: ["\u5c3c\u4e9a"],
   padarana: ["\u556a\u55d2\u5b89\u5a1c"],

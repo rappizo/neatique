@@ -183,6 +183,25 @@ test("comic reference resolver does not attach comparison for one similar charac
   );
 });
 
+test("comic reference resolver auto-attaches Mira by short name", async () => {
+  const references = await resolveComicPageReferenceImages({
+    seasonSlug: "season-01",
+    chapterSlug: "chapter-02-the-floor-4-curfew",
+    promptText:
+      "Mira enters the Residence Hall sink area with a calm inspection clipboard and gentle RA authority.",
+    requiredUploads: []
+  });
+
+  assert.ok(
+    references.some(
+      (reference) =>
+        reference.slug === "mira-mistwell" &&
+        reference.relativePath === "comic/characters/mira-mistwell/refs/model-sheet.jpg"
+    ),
+    "Expected Mira's model sheet to be attached from the short-name mention."
+  );
+});
+
 test("comic reference resolver auto-attaches old student handbook prop", async () => {
   const references = await resolveComicPageReferenceImages({
     seasonSlug: "season-01",

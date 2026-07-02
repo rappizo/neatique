@@ -502,6 +502,129 @@ test("comic page image prompt protects Padaruna and Padarana from Snacri head dr
   assert.doesNotMatch(prompt, /anti-Snacri|Never copy|never Snacri/);
 });
 
+test("comic page image prompt adds panel focus locks for four-character pages", () => {
+  const characterLocks = [
+    {
+      slug: "muci",
+      name: "Muci",
+      role: "Audience surrogate.",
+      appearance: "Broad squat rounded droplet.",
+      personality: "Curious.",
+      speechGuide: "Warm.",
+      referenceNotes: "Use refs/model-sheet.jpg.",
+      profileMarkdown: "# Muci",
+      referenceFiles: []
+    },
+    {
+      slug: "padaruna",
+      name: "Padaruna",
+      role: "Trend magnet.",
+      appearance: "Sharp centered point with chubby lower body.",
+      personality: "Energetic.",
+      speechGuide: "Fast.",
+      referenceNotes: "Use refs/model-sheet.jpg.",
+      profileMarkdown: "# Padaruna",
+      referenceFiles: []
+    },
+    {
+      slug: "snacri",
+      name: "Snacri",
+      role: "Quiet observer.",
+      appearance: "Right-leaning quiet droplet.",
+      personality: "Sparse.",
+      speechGuide: "Minimal.",
+      referenceNotes: "Use refs/model-sheet.jpg.",
+      profileMarkdown: "# Snacri",
+      referenceFiles: []
+    },
+    {
+      slug: "padarana",
+      name: "Padarana",
+      role: "Emotional anchor.",
+      appearance: "Upright soft point with closed smiling eyes.",
+      personality: "Gentle.",
+      speechGuide: "Soft.",
+      referenceNotes: "Use refs/model-sheet.jpg.",
+      profileMarkdown: "# Padarana",
+      referenceFiles: []
+    }
+  ];
+  const prompt = buildComicPageImagePrompt({
+    projectTitle: "Neatique Skincare College",
+    seasonTitle: "Season 1",
+    chapterTitle: "Chapter 2",
+    episodeTitle: "Routine Wars",
+    episodeSummary: "The dorm routine turns into a tiny negotiation.",
+    pageNumber: 5,
+    panelCount: 3,
+    pagePurpose: "Bring Padarana into a four-character page without crowding each panel.",
+    promptPackCopyText:
+      "Panel 1 Muci and Padaruna argue while Snacri stays background closed-mouth and Padarana stays off-panel. Panel 2 Muci and Snacri speak while Padaruna is background closed-mouth. Panel 3 Padarana and Muci speak while the others are closed-mouth reactions.",
+    referenceNotesCopyText: "Use all four model sheets, but keep each panel focused.",
+    globalGptImage2Notes: "Keep foreground action to 2-3 active characters.",
+    panels: [
+      {
+        pageNumber: 5,
+        panelNumber: 1,
+        panelTitle: "Routine Complaint",
+        storyBeat:
+          "Muci listens as Padaruna objects to the routine; Snacri stays background closed-mouth and Padarana remains off-panel.",
+        promptText:
+          "Foreground Muci and Padaruna only, speech balloons above them. Snacri is a small background closed-mouth observer; Padarana is off-panel.",
+        dialogueLines: [
+          { speaker: "Muci", text: "One routine first." },
+          { speaker: "Padaruna", text: "One routine forever?" }
+        ]
+      },
+      {
+        pageNumber: 5,
+        panelNumber: 2,
+        panelTitle: "Quiet Rule",
+        storyBeat:
+          "Snacri gives a tiny practical answer while Muci reacts; Padaruna stays at the edge closed-mouth.",
+        promptText:
+          "Foreground Snacri and Muci only, with Padaruna as a small edge closed-mouth reaction.",
+        dialogueLines: [
+          { speaker: "Snacri", text: "It is cheaper." },
+          { speaker: "Muci", text: "Emotionally?" }
+        ]
+      },
+      {
+        pageNumber: 5,
+        panelNumber: 3,
+        panelTitle: "Soft Mediation",
+        storyBeat:
+          "Padarana gently reframes the routine while Muci looks relieved; the others are closed-mouth reactions.",
+        promptText:
+          "Foreground Padarana and Muci only, with others kept as tiny closed-mouth background reactions.",
+        dialogueLines: [
+          { speaker: "Padarana", text: "Maybe it is a floor habit." },
+          { speaker: "Muci", text: "That sounds less bossy." }
+        ]
+      }
+    ],
+    requiredUploads: characterLocks.map((character) => ({
+      label: `${character.name} Model Sheet`,
+      slug: character.slug,
+      bucket: "CHARACTER" as const,
+      uploadImageNames: ["model-sheet.jpg"],
+      relativePaths: [`comic/characters/${character.slug}/refs/model-sheet.jpg`],
+      whyThisMatters: `${character.name} identity lock.`,
+      contentSummary: `${character.name} model sheet.`
+    })),
+    referenceImages: [],
+    characterLocks,
+    generationAttempt: 1
+  });
+
+  assert.match(prompt, /Multi-character panel focus lock/);
+  assert.match(prompt, /do not stage all 4 as equally active in every panel/);
+  assert.match(prompt, /Panel 1 active speakers\/actors: Muci, Padaruna/);
+  assert.match(prompt, /Panel 2 active speakers\/actors: Snacri, Muci/);
+  assert.match(prompt, /Panel 3 active speakers\/actors: Padarana, Muci/);
+  assert.match(prompt, /background\/edge\/off-panel\/closed-mouth/);
+});
+
 test("comic page image prompt keeps absent Snacri out of Padarana pages", () => {
   const prompt = buildComicPageImagePrompt({
     projectTitle: "Neatique Skincare College",

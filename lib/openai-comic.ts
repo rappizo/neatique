@@ -70,7 +70,9 @@ const COMPACT_CHARACTER_IMAGE_REMINDERS: Record<string, string> = {
   "coach-ray":
     "match the Coach Ray model sheet: broad shield-shaped body, centered shallow crest, planted stance, controlled smile, two attached feet",
   "sunny-spritz":
-    "match the Sunny Spritz model sheet: soft five-point star body with two small rounded feet directly underneath"
+    "match the Sunny Spritz model sheet: soft five-point star body with two small rounded feet directly underneath",
+  "mira-mistwell":
+    "match the Mira Mistwell model sheet: soft rounded-square marshmallow-like body, no arms or hands, upper-left gloss marks, dot eyes, tiny smile, two short lower nubs"
 };
 const COMIC_VISUAL_PRODUCTION_LOCKS = [
   "Compact visual production guidance:",
@@ -93,7 +95,8 @@ const COMIC_IMAGE_PRODUCTION_LOCKS = [
   "- Full-body droplet characters have exactly two small connected feet/foot nubs. Do not add third feet, shoes, toes, side nubs, arms, or detached appendages.",
   "- Do not copy readable text from model sheets, profiles, reference labels, or continuity notes unless it is explicitly listed in this page's visible-text whitelist.",
   "- Height/comparison references are off-canvas production guides only. Never draw charts, labels, lineups, or scale marks in story panels.",
-  "- Character-specific reminders are short and positive. Follow each visible character's own model sheet and do not stack cross-character negative comparison rules."
+  "- Character-specific reminders are short and positive. Follow each visible character's own model sheet and do not stack cross-character negative comparison rules.",
+  "- Multi-character pages must keep panel focus small: even if four or more character references are attached for the page, each panel should stage only the panel's active speakers/actors as foreground performers while other page characters stay background, edge, off-panel, or closed-mouth reaction only when explicitly needed."
 ].join("\n");
 const COMIC_LETTERING_STYLE_LOCKS = [
   "Comic lettering style locks:",
@@ -2143,6 +2146,198 @@ function buildComicPageCharacterSeparationLocks(characters: ComicCharacterIdenti
   return locks.length > 0 ? locks.join("\n\n") : "No extra character reminders needed.";
 }
 
+type ComicPageCrowdCharacter = {
+  name: string;
+  slug: string;
+};
+
+const NON_CHARACTER_DIALOGUE_SPEAKERS = new Set([
+  "caption",
+  "captions",
+  "sfx",
+  "sound effect",
+  "sound effects",
+  "narration",
+  "narrator",
+  "sign",
+  "text",
+  "note"
+]);
+
+const DEEMPHASIZED_CHARACTER_CONTEXT_PATTERN =
+  /\b(background|back\s*ground|off[-\s]?panel|edge|closed[-\s]?mouth|closed\s+mouth|bystander|reaction[-\s]?only|small\s+reaction|reserve|watching\s+from|behind)\b/i;
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeCrowdCharacterName(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function getCrowdCharacterAliases(character: ComicPageCrowdCharacter) {
+  const aliases = new Set<string>();
+  const name = normalizeCrowdCharacterName(character.name);
+
+  if (name) {
+    aliases.add(name);
+  }
+
+  const firstName = name.split(" ")[0] || "";
+  if (
+    firstName.length >= 3 &&
+    !["professor", "coach", "caption", "sfx"].includes(firstName.toLowerCase())
+  ) {
+    aliases.add(firstName);
+  }
+
+  if (character.slug) {
+    aliases.add(character.slug.replace(/-/g, " "));
+  }
+
+  return Array.from(aliases).filter(Boolean);
+}
+
+function textHasActiveCrowdCharacterMention(text: string, aliases: string[]) {
+  if (!text.trim()) {
+    return false;
+  }
+
+  return aliases.some((alias) => {
+    const pattern = new RegExp(`(^|[^a-z0-9])${escapeRegExp(alias)}([^a-z0-9]|$)`, "gi");
+    let match: RegExpExecArray | null;
+
+    while ((match = pattern.exec(text)) !== null) {
+      const start = Math.max(0, match.index - 60);
+      const end = Math.min(text.length, match.index + match[0].length + 90);
+      const context = text.slice(start, end);
+
+      if (!DEEMPHASIZED_CHARACTER_CONTEXT_PATTERN.test(context)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+}
+
+function getComicPageCrowdCharacters(input: GenerateComicPageImageInput) {
+  const characters = new Map<string, ComicPageCrowdCharacter>();
+
+  (input.characterLocks || []).forEach((character) => {
+    const name = normalizeCrowdCharacterName(character.name);
+    const slug = character.slug.trim();
+
+    if (name || slug) {
+      characters.set(slug || name.toLowerCase(), {
+        name: name || slug,
+        slug
+      });
+    }
+  });
+
+  input.requiredUploads
+    .filter((upload) => upload.bucket === "CHARACTER")
+    .forEach((upload) => {
+      const slug = upload.slug.trim();
+      const label = normalizeCrowdCharacterName(upload.label.replace(/\bmodel\s*sheet\b/gi, ""));
+
+      if (!characters.has(slug || label.toLowerCase()) && (label || slug)) {
+        characters.set(slug || label.toLowerCase(), {
+          name: label || slug,
+          slug
+        });
+      }
+    });
+
+  return Array.from(characters.values());
+}
+
+function getPanelActiveCrowdCharacterNames(
+  panel: GeneratedComicPanelPrompt,
+  characters: ComicPageCrowdCharacter[]
+) {
+  const activeNames = new Map<string, string>();
+
+  const addCharacter = (character: ComicPageCrowdCharacter) => {
+    const key = character.slug || character.name.toLowerCase();
+    activeNames.set(key, character.name);
+  };
+
+  const findCharacterByName = (speaker: string) => {
+    const normalizedSpeaker = normalizeCrowdCharacterName(speaker).toLowerCase();
+
+    return characters.find((character) =>
+      getCrowdCharacterAliases(character).some(
+        (alias) => alias.toLowerCase() === normalizedSpeaker
+      )
+    );
+  };
+
+  (panel.dialogueLines || []).forEach((line) => {
+    const speaker = normalizeCrowdCharacterName(line.speaker);
+
+    if (!speaker || NON_CHARACTER_DIALOGUE_SPEAKERS.has(speaker.toLowerCase())) {
+      return;
+    }
+
+    const character = findCharacterByName(speaker);
+    if (character) {
+      addCharacter(character);
+    }
+  });
+
+  const panelActionText = [panel.panelTitle, panel.storyBeat, panel.promptText]
+    .filter(Boolean)
+    .join("\n");
+
+  characters.forEach((character) => {
+    if (textHasActiveCrowdCharacterMention(panelActionText, getCrowdCharacterAliases(character))) {
+      addCharacter(character);
+    }
+  });
+
+  return Array.from(activeNames.values());
+}
+
+function buildComicPageCrowdControlLock(input: GenerateComicPageImageInput) {
+  const characters = getComicPageCrowdCharacters(input);
+
+  if (characters.length < 4) {
+    return "";
+  }
+
+  const pageCharacterNames = characters.map((character) => character.name).join(", ");
+  const panelFocusLines = input.panels.map((panel) => {
+    const activeNames = getPanelActiveCrowdCharacterNames(panel, characters);
+    const activeNameSet = new Set(activeNames);
+    const reserveNames = characters
+      .map((character) => character.name)
+      .filter((name) => !activeNameSet.has(name));
+
+    return [
+      `- Panel ${panel.panelNumber} active speakers/actors: ${
+        activeNames.length ? activeNames.join(", ") : "use only the characters explicitly named in this panel"
+      }.`,
+      reserveNames.length
+        ? `  Other loaded page characters (${reserveNames.join(
+            ", "
+          )}) stay background/edge/off-panel/closed-mouth only if this panel explicitly needs them.`
+        : "  No extra loaded page characters should be added."
+    ].join("\n");
+  });
+
+  return [
+    "Multi-character panel focus lock:",
+    `- This page loads ${characters.length} character reference sets (${pageCharacterNames}), but do not stage all ${characters.length} as equally active in every panel.`,
+    "- Each panel should foreground only the panel's active speakers/actors. Background reaction characters stay small, simple, and closed-mouth; omit them when the panel composition would become crowded.",
+    "- Do not merge body shapes, highlights, feet, face placement, mouth style, or silhouettes between page-level characters.",
+    "- If a panel says 'others' or group reaction, treat that as background/edge/off-panel/closed-mouth reaction only, not a fourth foreground performer.",
+    "Panel-by-panel active focus:",
+    ...panelFocusLines
+  ].join("\n");
+}
+
 function enforceComicImagePromptLength(prompt: string, preservedCurrentPageContext = "") {
   if (prompt.length <= OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH) {
     return prompt;
@@ -2915,6 +3110,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
   const currentPageCriticalContent = buildComicPageCriticalContent(input, {
     coverPage: isCoverPage
   });
+  const crowdControlLock = buildComicPageCrowdControlLock(input);
   const promptPackCopyText = sanitizeStoredImagePromptContext(
     input.promptPackCopyText,
     activeCharacterSlugs
@@ -2963,6 +3159,7 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     getComicPageImageAttemptGuide(input),
     "",
     currentPageCriticalContent,
+    crowdControlLock ? ["", crowdControlLock].join("\n") : null,
     "",
     "Story context:",
     `Project: ${input.projectTitle}`,
@@ -3940,6 +4137,7 @@ export async function generateComicPromptPackageWithAi(
                 "Every promptPackCopyText block must include the exact dialogue text to render on the page, organized by panel.",
                 "Every visual prompt must enforce one consistent lettering style for all dialogue balloons, captions, and SFX.",
                 "For comic quality and image clarity, keep most story beats focused on 2-3 active characters. Avoid crowding many characters into the same event, panel sequence, or dialogue exchange.",
+                "When a page has four or more visible page-level characters, the page can still be valid, but each panel must clearly name only 2-3 active speakers/actors and separately state which other page characters are background, edge, off-panel, or closed-mouth reaction characters.",
                 "Any action that would normally require hands must be staged as gentle telekinesis: nearby objects float, slide, open, tilt, or move with manga motion cues.",
                 "For character consistency, rely first on each required model-sheet file. In page prompts, add only one short positive model-sheet reminder for each visible character.",
                 "Use these short reminders only when relevant: Muci broad squat/no brow/reader-left lean; Nia taller sharp/one angled brow; Snacri reader-right lean/open round eyes/tiny smile; Padaruna sharp centered point/chubby lower body/no brows; Padarana upright soft point/closed eyes; Professor Cera Lin rounded six-sided hexagon; Coach Ray broad shield-shaped mascot.",
@@ -4018,6 +4216,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Expand the episode into a readable production script.",
                 "- The episodeScript must include dialogue, not only prose narration.",
                 "- Keep most events, page beats, and conversations focused on 2-3 active characters. If more characters are present in the episode, rotate them across different beats instead of staging large group dialogue.",
+                "- If a page uses four or more visible page-level characters, promptPackCopyText and every panel promptText must separate the foreground active speakers/actors from background, edge, off-panel, or closed-mouth reaction characters. Do not make every page-level character active in every panel.",
                 "- Create a 10-story-page plan. Do not include the cover in the returned pages array; the application prepends the cover page prompt as pageNumber 0.",
                 "- If a named character needs a first-appearance introduction box, put it on that character's first story page appearance within pages 1-10. Never reserve it for the cover, and never treat the cover as the first appearance.",
                 "- If the episode mentions a locked product, use the matching product lock. The product should appear as a clean manga bottle whose front label shows only the large short code, such as SE96, with no small text.",

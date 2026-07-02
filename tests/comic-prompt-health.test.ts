@@ -84,6 +84,18 @@ function buildPromptOutput(overrides: Partial<ParsedComicPromptOutput> = {}): Pa
   };
 }
 
+function characterUpload(name: string, slug: string) {
+  return {
+    bucket: "CHARACTER" as const,
+    label: `${name} Model Sheet`,
+    slug,
+    whyThisMatters: `${name} identity lock.`,
+    contentSummary: `${name} model sheet.`,
+    uploadImageNames: ["model-sheet.jpg"],
+    relativePaths: [`comic/characters/${slug}/refs/model-sheet.jpg`]
+  };
+}
+
 test("comic prompt health accepts complete dialogue and lettering prompts", () => {
   const summary = getComicPromptHealthSummary(buildPromptOutput());
 
@@ -184,3 +196,101 @@ test("comic prompt health warns for contextual objects when they affect the stor
     /Recurring prop "bottle"/
   );
 });
+
+test("comic prompt health warns when one panel makes four characters active", () => {
+  const promptOutput = buildPromptOutput();
+  const page = promptOutput.pages[1];
+
+  page.requiredUploads = [
+    characterUpload("Muci", "muci"),
+    characterUpload("Padaruna", "padaruna"),
+    characterUpload("Snacri", "snacri"),
+    characterUpload("Padarana", "padarana")
+  ];
+  page.promptPackCopyText = [
+    "Page 1 image prompt.",
+    "Use consistent rounded hand-lettered font, clean lettering, speech balloons, and caption boxes.",
+    'Panel 1 dialogue: Muci: "One routine first." Padaruna: "One routine forever?" Snacri: "It is cheaper." Padarana: "Maybe softer."',
+    'Panel 2 dialogue: Caption: "The routine did not become calmer."'
+  ].join("\n");
+  page.panels[0] = {
+    panelNumber: 1,
+    panelTitle: "Crowded Argument",
+    storyBeat: "Muci, Padaruna, Snacri, and Padarana crowd into the foreground together.",
+    promptText:
+      "Muci, Padaruna, Snacri, and Padarana all speak and react in the same foreground group.",
+    dialogueLines: [
+      { speaker: "Muci", text: "One routine first." },
+      { speaker: "Padaruna", text: "One routine forever?" },
+      { speaker: "Snacri", text: "It is cheaper." },
+      { speaker: "Padarana", text: "Maybe softer." }
+    ]
+  };
+  page.panels[1].dialogueLines = [
+    { speaker: "Caption", text: "The routine did not become calmer." }
+  ];
+
+  const summary = getComicPromptHealthSummary(promptOutput);
+  const findingKeys = pageFindings(summary, 1).map((finding) => finding.key);
+
+  assert.equal(summary.issueCount, 0);
+  assert.equal(findingKeys.includes("page.multi-character.focus-missing"), true);
+  assert.equal(findingKeys.includes("panel.active-cast.too-many"), true);
+});
+
+test("comic prompt health accepts four-character pages with clear panel focus", () => {
+  const promptOutput = buildPromptOutput();
+  const page = promptOutput.pages[1];
+
+  page.requiredUploads = [
+    characterUpload("Muci", "muci"),
+    characterUpload("Padaruna", "padaruna"),
+    characterUpload("Snacri", "snacri"),
+    characterUpload("Padarana", "padarana")
+  ];
+  page.promptPackCopyText = [
+    "Page 1 image prompt.",
+    "Use consistent rounded hand-lettered font, clean lettering, speech balloons, and caption boxes.",
+    "Panel 1 foreground active speakers are Muci and Padaruna; Snacri is background closed-mouth and Padarana is off-panel.",
+    'Panel 1 dialogue: Muci: "One routine first." Padaruna: "One routine forever?"',
+    "Panel 2 foreground active speakers are Snacri and Muci; Padaruna is edge closed-mouth and Padarana stays off-panel.",
+    'Panel 2 dialogue: Snacri: "It is cheaper." Muci: "Emotionally?"'
+  ].join("\n");
+  page.panels = [
+    {
+      panelNumber: 1,
+      panelTitle: "Two-Person Complaint",
+      storyBeat:
+        "Muci and Padaruna argue in the foreground; Snacri is background closed-mouth and Padarana is off-panel.",
+      promptText:
+        "Foreground Muci and Padaruna only, speech balloons above them. Snacri stays background closed-mouth; Padarana is off-panel.",
+      dialogueLines: [
+        { speaker: "Muci", text: "One routine first." },
+        { speaker: "Padaruna", text: "One routine forever?" }
+      ]
+    },
+    {
+      panelNumber: 2,
+      panelTitle: "Two-Person Reply",
+      storyBeat:
+        "Snacri and Muci speak in the foreground while Padaruna is an edge closed-mouth reaction and Padarana stays off-panel.",
+      promptText:
+        "Foreground Snacri and Muci only, with Padaruna edge closed-mouth and Padarana off-panel.",
+      dialogueLines: [
+        { speaker: "Snacri", text: "It is cheaper." },
+        { speaker: "Muci", text: "Emotionally?" }
+      ]
+    }
+  ];
+
+  const summary = getComicPromptHealthSummary(promptOutput);
+  const findingKeys = pageFindings(summary, 1).map((finding) => finding.key);
+
+  assert.equal(summary.issueCount, 0);
+  assert.equal(findingKeys.includes("page.multi-character.focus-missing"), false);
+  assert.equal(findingKeys.includes("panel.active-cast.too-many"), false);
+});
+
+function pageFindings(summary: ReturnType<typeof getComicPromptHealthSummary>, pageNumber: number) {
+  return summary.pages.find((page) => page.pageNumber === pageNumber)?.findings || [];
+}

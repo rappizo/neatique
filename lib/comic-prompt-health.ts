@@ -46,6 +46,36 @@ const STORY_SIGNIFICANCE_KEYWORDS = [
   "canon",
   "continuity-critical"
 ];
+const COMIC_CHARACTER_NAME_ALIASES = [
+  { canonical: "Muci", aliases: ["Muci"] },
+  { canonical: "Artrans", aliases: ["Artrans"] },
+  { canonical: "Nia", aliases: ["Nia"] },
+  { canonical: "Padarana", aliases: ["Padarana"] },
+  { canonical: "Padaruna", aliases: ["Padaruna"] },
+  { canonical: "Snacri", aliases: ["Snacri"] },
+  { canonical: "Mira", aliases: ["Mira Mistwell", "Mira"] },
+  { canonical: "Professor Cera Lin", aliases: ["Professor Cera Lin", "Cera Lin"] },
+  { canonical: "Coach Ray", aliases: ["Coach Ray"] },
+  { canonical: "Sunny Spritz", aliases: ["Sunny Spritz", "Sunny"] },
+  { canonical: "Vela Sheen", aliases: ["Vela Sheen", "Vela"] },
+  { canonical: "Dewey Dot", aliases: ["Dewey Dot", "Dewey"] }
+];
+const NON_CHARACTER_DIALOGUE_SPEAKERS = new Set([
+  "caption",
+  "captions",
+  "sfx",
+  "sound effect",
+  "sound effects",
+  "narration",
+  "narrator",
+  "sign",
+  "text",
+  "note"
+]);
+const MULTI_CHARACTER_FOCUS_PATTERN =
+  /\b(background|back\s*ground|off[-\s]?panel|edge|closed[-\s]?mouth|closed\s+mouth|bystander|reaction[-\s]?only|small\s+reaction|reserve|watching\s+from|behind)\b/i;
+const DEEMPHASIZED_CHARACTER_CONTEXT_PATTERN =
+  /\b(background|back\s*ground|off[-\s]?panel|edge|closed[-\s]?mouth|closed\s+mouth|bystander|reaction[-\s]?only|small\s+reaction|reserve|watching\s+from|behind)\b/i;
 
 export type ComicPromptHealthSeverity = "issue" | "warning";
 
@@ -109,6 +139,10 @@ function keywordPattern(keyword: string) {
   return new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?\\b`, "i");
 }
 
+function namePattern(name: string) {
+  return new RegExp(`(^|[^a-z0-9])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "gi");
+}
+
 function keywordMatches(keyword: string, text: string) {
   return keywordPattern(keyword).test(text);
 }
@@ -159,6 +193,65 @@ function getUploadContinuityText(page: ParsedComicPromptOutput["pages"][number])
       ].join(" ")
     )
     .join("\n");
+}
+
+function getCharacterUploadCount(page: ParsedComicPromptOutput["pages"][number]) {
+  return new Set(
+    page.requiredUploads
+      .filter((upload) => upload.bucket === "CHARACTER")
+      .map((upload) => normalizeText(upload.slug || upload.label))
+      .filter(Boolean)
+  ).size;
+}
+
+function textHasActiveCharacterMention(text: string, aliases: string[]) {
+  return aliases.some((alias) => {
+    const pattern = namePattern(alias);
+    let match: RegExpExecArray | null;
+
+    while ((match = pattern.exec(text)) !== null) {
+      const start = Math.max(0, match.index - 60);
+      const end = Math.min(text.length, match.index + match[0].length + 90);
+      const context = text.slice(start, end);
+
+      if (!DEEMPHASIZED_CHARACTER_CONTEXT_PATTERN.test(context)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+}
+
+function getPanelActiveCharacterNames(
+  panel: ParsedComicPromptOutput["pages"][number]["panels"][number]
+) {
+  const names = new Set<string>();
+  const panelActionText = [panel.panelTitle, panel.storyBeat, panel.promptText || ""]
+    .filter(Boolean)
+    .join("\n");
+
+  (panel.dialogueLines || []).forEach((line) => {
+    const speaker = normalizeText(line.speaker || "");
+
+    if (!speaker || NON_CHARACTER_DIALOGUE_SPEAKERS.has(speaker)) {
+      return;
+    }
+
+    const matchedCharacter = COMIC_CHARACTER_NAME_ALIASES.find((character) =>
+      character.aliases.some((alias) => normalizeText(alias) === speaker)
+    );
+
+    names.add(matchedCharacter?.canonical || line.speaker.trim());
+  });
+
+  COMIC_CHARACTER_NAME_ALIASES.forEach((character) => {
+    if (textHasActiveCharacterMention(panelActionText, character.aliases)) {
+      names.add(character.canonical);
+    }
+  });
+
+  return Array.from(names);
 }
 
 function getRecurringContinuityObjectKeywords(promptOutput: ParsedComicPromptOutput) {
@@ -303,6 +396,7 @@ export function getComicPromptHealthSummary(
     const findings: ComicPromptHealthFinding[] = [];
     const isCoverPage = isComicCoverPageNumber(page.pageNumber);
     const uploadNames = getUniqueUploadNames(page);
+    const characterUploadCount = getCharacterUploadCount(page);
     const dialogueLines = page.panels.flatMap((panel) => panel.dialogueLines || []);
     const pagePromptText = [
       page.pagePurpose,
@@ -357,6 +451,15 @@ export function getComicPromptHealthSummary(
       );
     }
 
+    if (!isCoverPage && characterUploadCount > 3 && !MULTI_CHARACTER_FOCUS_PATTERN.test(pagePromptText)) {
+      addFinding(
+        findings,
+        "warning",
+        "page.multi-character.focus-missing",
+        `Page uses ${characterUploadCount} character references; separate each panel's active 2-3 speakers/actors from background, edge, off-panel, or closed-mouth reaction characters before image generation.`
+      );
+    }
+
     page.requiredUploads.forEach((upload) => {
       if (upload.uploadImageNames.length === 0 || upload.relativePaths.length === 0) {
         addFinding(
@@ -388,12 +491,25 @@ export function getComicPromptHealthSummary(
     });
 
     page.panels.forEach((panel) => {
+      const activeCharacterNames = getPanelActiveCharacterNames(panel);
+
       if (!panel.promptText?.trim()) {
         addFinding(
           findings,
           "warning",
           "panel.prompt-text.missing",
           `Panel ${panel.panelNumber} is missing panel promptText.`
+        );
+      }
+
+      if (!isCoverPage && activeCharacterNames.length > 3) {
+        addFinding(
+          findings,
+          "warning",
+          "panel.active-cast.too-many",
+          `Panel ${panel.panelNumber} names ${activeCharacterNames.length} active characters (${activeCharacterNames.join(
+            ", "
+          )}); keep foreground action to 2-3 characters and move others to background/edge/off-panel/closed-mouth reaction.`
         );
       }
 

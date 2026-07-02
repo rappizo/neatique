@@ -1,10 +1,11 @@
 {
-  "silhouette": "Rounded square silhouette with softened corners and a stable balanced footprint.",
-  "face": "Large dot eyes, calm smile, glossy highlight marks near the upper left side.",
-  "body_language": "Composed, tidy, and quietly authoritative.",
+  "silhouette": "Soft rounded-square, marshmallow-like body with broad flat faces, very softened corners, pure white fill, confident black outline, no arms or hands, and two short connected lower nubs/feet.",
+  "face": "Large black dot eyes, tiny calm smile, no brows, and a fixed pair of glossy highlight marks near the upper left corner.",
+  "body_language": "Composed, tidy, low-balanced, and quietly authoritative; three-quarter, side, and back views must keep the same square volume and rounded rear corner.",
   "do_not_change": [
-    "Keep the rounded-square shape.",
+    "Keep the exact rounded-square model-sheet shape.",
+    "Keep the upper-left gloss marks, dot eyes, tiny smile, no arms, and two lower nubs.",
     "Keep her posture neat and stable.",
-    "Do not make her expression chaotic or exaggerated by default."
+    "Do not make her expression chaotic, severe, limb-like, or exaggerated by default."
   ]
 }
