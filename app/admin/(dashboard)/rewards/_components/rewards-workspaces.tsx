@@ -1,0 +1,515 @@
+import Image from "next/image";
+import Link from "next/link";
+import {
+  adjustCustomerPointsAction,
+  saveFollowEmailSettingsAction,
+  updateMascotRedemptionAction
+} from "@/app/admin/actions";
+import { RatingStars } from "@/components/ui/rating-stars";
+import { FOLLOW_EMAIL_PROCESS_LABELS, FOLLOW_EMAIL_STAGE_LABELS } from "@/lib/follow-emails";
+import { formatDate, formatNumber } from "@/lib/format";
+import type {
+  CustomerRecord,
+  FollowEmailOverviewRecord,
+  MascotRedemptionRecord,
+  MascotRewardRecord,
+  RewardEntryRecord,
+  RyoClaimRecord
+} from "@/lib/types";
+
+export function RewardsStatusNotice({
+  status,
+  label = "Rewards action"
+}: {
+  status?: string;
+  label?: string;
+}) {
+  return status ? <p className="notice">{label} completed: {status}.</p> : null;
+}
+
+export function RewardWorkspaceLinks() {
+  return (
+    <section className="admin-form">
+      <div className="stack-row">
+        <div>
+          <h2>Operational queues</h2>
+          <p className="form-note">
+            RYO completion tracking and mascot redemptions now run in their own focused workspaces.
+          </p>
+        </div>
+        <div className="stack-row">
+          <Link href="/admin/rewards/ryo" className="button button--primary">
+            Open RYO
+          </Link>
+          <Link href="/admin/rewards/redemption" className="button button--secondary">
+            Open Redemption
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function RyoFollowEmailSection({
+  followOverview,
+  customerListLabel,
+  redirectTo = "/admin/rewards/ryo"
+}: {
+  followOverview: FollowEmailOverviewRecord;
+  customerListLabel: string;
+  redirectTo?: string;
+}) {
+  return (
+    <section id="following-email" className="admin-form">
+      <div className="stack-row">
+        <div>
+          <h2>Email Following</h2>
+          <p className="form-note">
+            Automatically follow up with RYO customers after the selected delay. Shortcodes:
+            {" "}
+            <code>[Customer Name]</code>
+            {" "}
+            and
+            {" "}
+            <code>[Customer Email]</code>. These reminders use the Brevo-preferred delivery
+            path and keep RYO customers synced to the Brevo customer list.
+          </p>
+        </div>
+        <div className="stack-row">
+          <span className="pill">{FOLLOW_EMAIL_PROCESS_LABELS.RYO}</span>
+          <span className="pill">{formatNumber(followOverview.totalSentToday)} sent today</span>
+          <span className="pill">Customer list: {customerListLabel}</span>
+        </div>
+      </div>
+      <form action={saveFollowEmailSettingsAction} className="admin-follow-email-form">
+        <input type="hidden" name="processKey" value="RYO" />
+        <input type="hidden" name="redirectTo" value={redirectTo} />
+        <div className="admin-follow-email-form__controls">
+          <label className="admin-table__checkbox-label">
+            <input type="checkbox" name="enabled" defaultChecked={followOverview.enabled} />
+            <span>Enable automatic RYO follow emails</span>
+          </label>
+          <div className="field">
+            <label htmlFor="ryo-delay-minutes">Send after (minutes)</label>
+            <input
+              id="ryo-delay-minutes"
+              name="delayMinutes"
+              type="number"
+              min={1}
+              defaultValue={followOverview.delayMinutes}
+            />
+          </div>
+        </div>
+        <div className="admin-follow-email-grid">
+          {followOverview.templates.map((template) => (
+            <article key={template.stageKey} className="admin-follow-email-card">
+              <div className="stack-row">
+                <strong>{template.stageLabel}</strong>
+                <span className="pill">{formatNumber(template.sentTodayCount)} sent today</span>
+              </div>
+              <div className="field">
+                <label htmlFor={`ryo-subject-${template.stageKey}`}>Subject</label>
+                <input
+                  id={`ryo-subject-${template.stageKey}`}
+                  name={`subject_${template.stageKey}`}
+                  defaultValue={template.subject}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor={`ryo-body-${template.stageKey}`}>Body</label>
+                <textarea
+                  id={`ryo-body-${template.stageKey}`}
+                  name={`body_${template.stageKey}`}
+                  rows={8}
+                  defaultValue={template.bodyText}
+                />
+              </div>
+            </article>
+          ))}
+        </div>
+        <button type="submit" className="button button--primary">
+          Save email following settings
+        </button>
+      </form>
+    </section>
+  );
+}
+
+export function MascotRewardsSection({ mascots }: { mascots: MascotRewardRecord[] }) {
+  return (
+    <section id="mascot-setting" className="admin-form">
+      <div className="stack-row">
+        <div>
+          <h2>Mascot rewards</h2>
+          <p className="form-note">
+            Each mascot should normally stay at 1,000 points. Create more mascots here and open a
+            card to edit the image, SKU, copy, and availability.
+          </p>
+        </div>
+        <Link href="/admin/rewards/mascots/new" className="button button--primary">
+          Create mascot
+        </Link>
+      </div>
+
+      <div className="admin-product-grid admin-product-grid--compact">
+        {mascots.map((mascot) => (
+          <article key={mascot.id} className="admin-product-card">
+            <div className="admin-product-card__media">
+              <Image src={mascot.imageUrl} alt={mascot.name} width={420} height={420} unoptimized />
+            </div>
+            <div className="admin-product-card__body">
+              <div className="product-card__meta">
+                <span>{mascot.sku}</span>
+                <span>{mascot.active ? "ACTIVE" : "INACTIVE"}</span>
+                <span>{formatNumber(mascot.pointsCost)} pts</span>
+              </div>
+              <h3>{mascot.name}</h3>
+              <p>{mascot.description || "No description yet."}</p>
+              <div className="product-card__meta">
+                <span>{formatNumber(mascot.redemptionCount ?? 0)} redemptions</span>
+              </div>
+              <div className="stack-row">
+                <Link href={`/admin/rewards/mascots/${mascot.id}`} className="button button--primary">
+                  Edit
+                </Link>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function ManualPointAdjustmentSection({ customers }: { customers: CustomerRecord[] }) {
+  return (
+    <section id="point-adjustment" className="admin-table admin-table--scroll">
+      <h2>Manual point adjustment</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Customer selector</th>
+            <th>Email input</th>
+            <th>Current balance</th>
+            <th>Adjust by</th>
+            <th>Note</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <form id="manual-points-adjustment" action={adjustCustomerPointsAction}>
+                <select id="customerId" name="customerId">
+                  <option value="">Select an existing customer</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.email}
+                    </option>
+                  ))}
+                </select>
+              </form>
+            </td>
+            <td>
+              <input
+                form="manual-points-adjustment"
+                id="customerEmail"
+                name="customerEmail"
+                type="email"
+                placeholder="or enter customer email"
+              />
+            </td>
+            <td>
+              <span className="admin-table__empty">
+                Select a customer or enter an existing customer email, then apply a positive or negative point update.
+              </span>
+            </td>
+            <td>
+              <input form="manual-points-adjustment" id="points" name="points" type="number" required />
+            </td>
+            <td>
+              <textarea
+                className="admin-table__textarea"
+                form="manual-points-adjustment"
+                id="note"
+                name="note"
+                defaultValue="Manual loyalty adjustment"
+              />
+            </td>
+            <td className="admin-table__actions">
+              <button type="submit" className="button button--primary" form="manual-points-adjustment">
+                Apply adjustment
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+export function RyoApprovalQueueSection({
+  ryoClaims
+}: {
+  ryoClaims: RyoClaimRecord[];
+}) {
+  return (
+    <section id="ryo" className="admin-table admin-table--scroll">
+      <h2>RYO completion log</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Submitted</th>
+            <th>Platform / Order</th>
+            <th>Customer</th>
+            <th>Product</th>
+            <th>Rating</th>
+            <th>Comment</th>
+            <th>Proof</th>
+            <th>Status</th>
+            <th>Points earned</th>
+            <th>Follow Email Sent</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ryoClaims.length > 0 ? (
+            ryoClaims.map((claim) => {
+              const statusLabel = claim.rewardGranted
+                ? "Completed"
+                : claim.completedAt
+                  ? "Completed before auto-award"
+                  : "In progress";
+              const statusClassName = claim.rewardGranted
+                ? "admin-table__status-badge admin-table__status-badge--success"
+                : "admin-table__status-badge admin-table__status-badge--warning";
+              const latestFollowEmail = claim.followEmails[0] ?? null;
+
+              return (
+                <tr key={claim.id}>
+                  <td>{formatDate(claim.completedAt ?? claim.createdAt)}</td>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      <strong>{claim.platformLabel}</strong>
+                      <span>{claim.orderId}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      <strong>{claim.name}</strong>
+                      <span>{claim.email}</span>
+                      <span className={claim.brevoContact ? "form-note" : "admin-table__empty"}>
+                        {claim.brevoContact
+                          ? `Brevo synced to ${claim.brevoContact.listName || `list ${claim.brevoContact.brevoListId ?? "unknown"}`} on ${formatDate(claim.brevoContact.lastSyncedAt)}`
+                          : "Brevo customer sync pending"}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    {claim.purchasedProduct ? (
+                      claim.purchasedProduct
+                    ) : (
+                      <span className="admin-table__empty">Not submitted yet</span>
+                    )}
+                  </td>
+                  <td>
+                    {claim.reviewRating ? (
+                      <RatingStars rating={claim.reviewRating} size="sm" />
+                    ) : (
+                      <span className="admin-table__empty">No rating</span>
+                    )}
+                  </td>
+                  <td className="admin-table__clip">
+                    {claim.commentText ? claim.commentText : <span className="admin-table__empty">No comment yet.</span>}
+                  </td>
+                  <td>
+                    {claim.screenshotName ? (
+                      <Link
+                        href={`/api/ryo-claims/${claim.id}/image`}
+                        target="_blank"
+                        className="link-inline"
+                      >
+                        View image
+                      </Link>
+                    ) : (
+                      <span className="admin-table__empty">No image</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className={statusClassName}>{statusLabel}</span>
+                  </td>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      {claim.rewardGranted ? (
+                        <>
+                          <span className="pill">{formatNumber(claim.pointsAwarded)} pts added</span>
+                          <span>{formatDate(claim.rewardGrantedAt)}</span>
+                        </>
+                      ) : claim.completedAt ? (
+                        <span className="admin-table__empty">No automatic award recorded</span>
+                      ) : (
+                        <span className="admin-table__empty">Not earned yet</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      <span className={claim.brevoContact ? "pill" : "admin-table__empty"}>
+                        {claim.brevoContact ? "Brevo customer ready" : "Brevo sync pending"}
+                      </span>
+                      {latestFollowEmail ? (
+                        <details className="admin-follow-email-log">
+                          <summary>Follow email sent</summary>
+                          <div className="admin-table__cell-stack">
+                            {claim.followEmails.map((emailLog) => (
+                              <div key={emailLog.id} className="admin-table__cell-stack">
+                                <span className="pill">{FOLLOW_EMAIL_STAGE_LABELS[emailLog.stageKey]}</span>
+                                <strong>{emailLog.subject}</strong>
+                                <span>{formatDate(emailLog.createdAt)}</span>
+                                <p>{emailLog.bodyText}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      ) : (
+                        <span className="admin-table__empty">No follow email sent</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="admin-table__clip">
+                    {claim.adminNote ? claim.adminNote : <span className="admin-table__empty">No note</span>}
+                  </td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td colSpan={11}>No RYO registrations yet.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+export function RedemptionRequestsSection({
+  redemptions,
+  redirectTo = "/admin/rewards/redemption"
+}: {
+  redemptions: MascotRedemptionRecord[];
+  redirectTo?: string;
+}) {
+  return (
+    <section id="redemption" className="admin-table admin-table--scroll">
+      <h2>Redemption requests</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Submitted</th>
+            <th>Mascot</th>
+            <th>Customer</th>
+            <th>Shipping address</th>
+            <th>Points spent</th>
+            <th>Status</th>
+            <th>Note</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {redemptions.length > 0 ? (
+            redemptions.map((redemption) => {
+              const formId = `mascot-redemption-${redemption.id}`;
+
+              return (
+                <tr key={redemption.id}>
+                  <td>{formatDate(redemption.createdAt)}</td>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      <strong>{redemption.mascotName}</strong>
+                      <span>{redemption.mascotSku}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      <strong>{redemption.fullName}</strong>
+                      <span>{redemption.email}</span>
+                    </div>
+                  </td>
+                  <td className="admin-table__clip">
+                    {[redemption.address1, redemption.address2, redemption.city, redemption.state, redemption.postalCode]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </td>
+                  <td>{formatNumber(redemption.pointsSpent)}</td>
+                  <td>
+                    <label className="admin-table__checkbox-label">
+                      <input
+                        type="checkbox"
+                        name="fulfilled"
+                        defaultChecked={redemption.status === "FULFILLED"}
+                        form={formId}
+                      />
+                      <span>{redemption.status}</span>
+                    </label>
+                  </td>
+                  <td>
+                    <textarea
+                      className="admin-table__textarea"
+                      name="adminNote"
+                      defaultValue={redemption.adminNote || ""}
+                      form={formId}
+                    />
+                  </td>
+                  <td className="admin-table__actions">
+                    <form id={formId} action={updateMascotRedemptionAction}>
+                      <input type="hidden" name="id" value={redemption.id} />
+                      <input type="hidden" name="redirectTo" value={redirectTo} />
+                    </form>
+                    <button type="submit" className="button button--primary" form={formId}>
+                      Save
+                    </button>
+                  </td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td colSpan={8}>No mascot redemption requests yet.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+export function RewardsLedgerSection({ rewards }: { rewards: RewardEntryRecord[] }) {
+  return (
+    <section id="rewards-ledger" className="admin-table">
+      <h2>Rewards ledger</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Type</th>
+            <th>Points</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rewards.map((reward) => (
+            <tr key={reward.id}>
+              <td>{formatDate(reward.createdAt)}</td>
+              <td>{reward.customerEmail}</td>
+              <td>{reward.type}</td>
+              <td>{formatNumber(reward.points)}</td>
+              <td>{reward.note || "No note"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}

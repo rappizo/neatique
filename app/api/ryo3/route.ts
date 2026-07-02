@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { createCustomerSession } from "@/lib/customer-auth";
 import { prisma } from "@/lib/db";
 import { getOrderMatchPlatform, isHighRating } from "@/lib/order-match";
 import { compressOmbScreenshot } from "@/lib/omb-screenshot";
@@ -27,6 +28,22 @@ export async function POST(request: Request) {
   }
 
   if (claim.completedAt) {
+    if (!claim.rewardGranted) {
+      const completionResult = await completeRyoClaimSubmission({
+        claimId: claim.id
+      });
+
+      if (completionResult.status === "completed") {
+        await createCustomerSession(completionResult.customerId).catch((error) => {
+          console.error("RYO customer session creation failed:", error);
+        });
+        revalidatePath("/admin/rewards");
+        revalidatePath("/admin/rewards/ryo");
+        revalidatePath("/account");
+        revalidatePath("/rd");
+      }
+    }
+
     return NextResponse.redirect(new URL(`/ryo2/thank-you?claim=${claim.id}`, request.url), 303);
   }
 
@@ -79,6 +96,15 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/ryo2?error=claim", request.url), 303);
   }
 
+  if (completionResult.status === "completed") {
+    await createCustomerSession(completionResult.customerId).catch((error) => {
+      console.error("RYO customer session creation failed:", error);
+    });
+  }
+
   revalidatePath("/admin/rewards");
+  revalidatePath("/admin/rewards/ryo");
+  revalidatePath("/account");
+  revalidatePath("/rd");
   return NextResponse.redirect(new URL(`/ryo2/thank-you?claim=${claim.id}`, request.url), 303);
 }

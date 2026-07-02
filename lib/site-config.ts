@@ -50,11 +50,11 @@ export const siteConfig = {
       href: "/admin/rewards",
       label: "Points & Rewards",
       children: [
-        { href: "/admin/rewards#ryo", label: "RYO" },
-        { href: "/admin/rewards#redemption", label: "Redemption" },
+        { href: "/admin/rewards/ryo", label: "RYO" },
+        { href: "/admin/rewards/redemption", label: "Redemption" },
         { href: "/admin/rewards#point-adjustment", label: "Point Adjustment" },
         { href: "/admin/rewards#mascot-setting", label: "Mascot Setting" },
-        { href: "/admin/rewards#following-email", label: "Following Email" },
+        { href: "/admin/rewards/ryo#following-email", label: "Following Email" },
         { href: "/admin/rewards#rewards-ledger", label: "Rewards Ledger" }
       ]
     },

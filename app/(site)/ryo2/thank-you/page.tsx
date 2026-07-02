@@ -12,11 +12,11 @@ export default function RyoThankYouPage() {
       <div className="container">
         <div className="page-hero om-thank-you">
           <p className="eyebrow">Thank you</p>
-          <h1>Your order registration has been submitted for review.</h1>
+          <h1>Your order registration is complete, and your 500 points are in.</h1>
           <p>
-            Our team will review your RYO submission within 24 hours. Once it is approved, we will
-            email your registered address to confirm that the points were added, and then you can
-            go to the mascot redemption page to claim your reward.
+            We added the RYO reward points to your Neatique account automatically. Complete the
+            TikTok follow screenshot upload too, and your balance can reach 1,000 points for a
+            mascot redemption.
           </p>
           <div className="stack-row">
             <ButtonLink href="/mascot" variant="primary">

@@ -437,6 +437,7 @@ model Customer {
   rewards           RewardEntry[]
   mascotRedemptions MascotRedemption[]
   ryoClaims         RyoClaim[]
+  tiktokFollowRewards TikTokFollowReward[]
   reviews           ProductReview[]
   sessions          CustomerSession[]
   createdAt         DateTime           @default(now())
@@ -663,6 +664,27 @@ model RyoClaim {
   @@index([email, createdAt])
   @@index([completedAt, createdAt])
   @@index([rewardGranted])
+}
+
+model TikTokFollowReward {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  fullName           String
+  tiktokUsername     String?
+  screenshotName     String
+  screenshotMimeType String
+  screenshotBase64   String
+  screenshotBytes    Int
+  customerId         String
+  pointsAwarded      Int      @default(500)
+  rewardGranted      Boolean  @default(true)
+  rewardGrantedAt    DateTime @default(now())
+  customer           Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([customerId, createdAt])
+  @@index([rewardGranted, createdAt])
 }
 
 model CustomerSession {

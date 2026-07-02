@@ -4566,10 +4566,14 @@ main {
   gap: 16px;
 }
 
+.mascot-story-card--wide {
+  grid-column: 1 / -1;
+}
+
 .mascot-qr {
   display: grid;
   place-items: center;
-  max-width: 280px;
+  width: min(100%, 320px);
   padding: 16px;
   border-radius: 28px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(252, 241, 237, 0.88));
@@ -4580,6 +4584,50 @@ main {
   width: 100%;
   height: auto;
   border-radius: 20px;
+}
+
+.mascot-follow-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.mascot-follow-panel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(237, 115, 97, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.mascot-follow-panel h3 {
+  margin: 0;
+  font-family: Baskerville, "Palatino Linotype", serif;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  color: var(--ink);
+}
+
+.mascot-follow-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.mascot-follow-form {
+  gap: 16px;
+}
+
+.mascot-follow-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.mascot-follow-form__submit {
+  width: fit-content;
 }
 
 .admin-product-grid--compact {
@@ -6373,6 +6421,7 @@ main {
   .brand-manifesto,
   .philosophy-band__hero,
   .comic-mascot-feature,
+  .mascot-follow-layout,
   .ritual-spotlight__hero,
   .ingredient-story-grid,
   .home-cta,
@@ -6644,6 +6693,10 @@ main {
   }
 
   .omb-claim-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .mascot-follow-form__grid {
     grid-template-columns: 1fr;
   }
 

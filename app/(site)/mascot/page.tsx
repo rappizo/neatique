@@ -1,56 +1,126 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { TikTokFollowUploadForm } from "@/components/mascot/tiktok-follow-upload-form";
 import { ButtonLink } from "@/components/ui/button-link";
+import { getCurrentCustomer } from "@/lib/customer-auth";
 import { formatNumber } from "@/lib/format";
 import { getActiveMascotRewards } from "@/lib/queries";
 import { getMascotPromoQrImageUrl, MASCOT_REDEMPTION_POINTS, RYO_REWARD_POINTS } from "@/lib/mascot-program";
+
+type MascotPageProps = {
+  searchParams: Promise<{
+    follow?: string;
+    followError?: string;
+  }>;
+};
 
 export const metadata: Metadata = {
   title: "Mascot Rewards",
   description: "Learn how to earn points and redeem Neatique mascot rewards."
 };
 
-export default async function MascotPage() {
-  const mascots = await getActiveMascotRewards();
+function getFollowUploadErrorMessage(error?: string) {
+  switch (error) {
+    case "missing":
+      return "Please enter your name and email before uploading the screenshot.";
+    case "email":
+      return "Please enter a valid email so we can add the points to the right account.";
+    case "image-required":
+      return "Please upload a screenshot showing that you followed Neatique on TikTok.";
+    case "image-size":
+      return "That screenshot is too large. Please upload a smaller image.";
+    case "image-type":
+      return "Please upload a PNG, JPG, WebP, or AVIF image.";
+    case "failed":
+      return "We could not save the screenshot. Please try again.";
+    default:
+      return null;
+  }
+}
+
+export default async function MascotPage({ searchParams }: MascotPageProps) {
+  const [mascots, customer, params] = await Promise.all([
+    getActiveMascotRewards(),
+    getCurrentCustomer(),
+    searchParams
+  ]);
   const qrImageUrl = getMascotPromoQrImageUrl();
+  const customerName = customer
+    ? [customer.firstName, customer.lastName].filter(Boolean).join(" ")
+    : "";
+  const followErrorMessage = getFollowUploadErrorMessage(params.followError);
 
   return (
     <section className="section">
       <div className="container">
         <div className="page-hero">
           <p className="eyebrow">Mascot Rewards</p>
-          <h1>Collect points, then trade {formatNumber(MASCOT_REDEMPTION_POINTS)} of them for a mascot.</h1>
+          <h1>Earn 1,000 points and redeem a Neatique mascot.</h1>
           <p>
-            Neatique points are not checkout cash. They are saved for mascot rewards so customers
-            can earn something playful after supporting the brand.
+            Two simple actions can unlock your reward: <strong>upload your TikTok follow screenshot
+            for {formatNumber(RYO_REWARD_POINTS)} points</strong>, then <strong>complete RYO for
+            another {formatNumber(RYO_REWARD_POINTS)} points</strong>. Once your balance reaches{" "}
+            <strong>{formatNumber(MASCOT_REDEMPTION_POINTS)} points</strong>, choose your favorite
+            mascot and redeem it.
           </p>
           <div className="page-hero__stats">
-            <span className="pill">{formatNumber(RYO_REWARD_POINTS)} points for TikTok follow confirmation</span>
-            <span className="pill">{formatNumber(RYO_REWARD_POINTS)} points for order registration</span>
+            <span className="pill">{formatNumber(RYO_REWARD_POINTS)} points for TikTok follow screenshot</span>
+            <span className="pill">{formatNumber(RYO_REWARD_POINTS)} points when RYO is completed</span>
             <span className="pill">{formatNumber(MASCOT_REDEMPTION_POINTS)} points per mascot</span>
           </div>
         </div>
 
         <section className="story-sections section--tight">
-          <article className="admin-form mascot-story-card">
+          <article className="admin-form mascot-story-card mascot-story-card--wide">
             <p className="eyebrow">Way 1</p>
-            <h2>Follow our TikTok and confirm it with the team to receive 500 points.</h2>
+            <h2>Follow Neatique on TikTok, upload the screenshot, and get 500 points automatically.</h2>
             <p>
-              Scan the code, follow Neatique on TikTok, then reach out in TikTok so the team can
-              confirm the follow and manually credit your account with points.
+              Scan the QR code, follow us on TikTok, then upload a screenshot here. The upload
+              creates or updates your Neatique account and adds <strong>500 points</strong> right
+              away. One follow reward is available per email.
             </p>
-            <div className="mascot-qr">
-              <Image src={qrImageUrl} alt="Neatique TikTok QR code" width={360} height={360} unoptimized />
+
+            {params.follow === "awarded" ? (
+              <p className="notice">
+                <strong>500 points added.</strong> Your TikTok follow reward is now in your
+                Neatique account.
+              </p>
+            ) : null}
+            {params.follow === "duplicate" ? (
+              <p className="notice">
+                This email has already received the TikTok follow reward. You can keep collecting
+                points through RYO.
+              </p>
+            ) : null}
+            {followErrorMessage ? <p className="notice notice--warning">{followErrorMessage}</p> : null}
+
+            <div className="mascot-follow-layout">
+              <div className="mascot-qr">
+                <Image src={qrImageUrl} alt="Neatique TikTok QR code" width={360} height={360} unoptimized />
+              </div>
+              <div className="mascot-follow-panel">
+                <p className="eyebrow">Screenshot upload</p>
+                <h3>Show us the follow, then watch your balance move.</h3>
+                <p>
+                  Use the same email you want to use for mascot redemption. If you are already
+                  signed in, we will attach the points to your current account.
+                </p>
+                <TikTokFollowUploadForm
+                  customerName={customerName}
+                  customerEmail={customer?.email || ""}
+                />
+              </div>
             </div>
           </article>
 
-          <article className="admin-form mascot-story-card">
+          <article className="admin-form mascot-story-card mascot-story-card--wide">
             <p className="eyebrow">Way 2</p>
-            <h2>Purchase a product and register the order through RYO to receive another 500 points.</h2>
+            <h2>Complete RYO after purchase and get another 500 points automatically.</h2>
             <p>
               After your purchase, open the Register Your Order flow, verify the order, and submit
-              the short registration. Once our team reviews and approves it, the reward points are
-              added to your account so you can move toward a mascot redemption.
+              the short registration. As soon as the RYO flow is complete, <strong>500 points are
+              added to your account</strong>. Finish both actions and you will have enough points
+              for one mascot.
             </p>
             <div className="stack-row">
               <ButtonLink href="/ryo" variant="primary">
@@ -66,7 +136,7 @@ export default async function MascotPage() {
         <section className="section section--tight">
           <div className="section-heading">
             <p className="section-heading__eyebrow">Redeem catalog</p>
-            <h2>Choose the mascot you want once your balance reaches 1,000 points.</h2>
+            <h2>Pick the mascot you want once your balance reaches 1,000 points.</h2>
           </div>
 
           <div className="mascot-grid">

@@ -1366,7 +1366,7 @@ export async function updateMascotRedemptionAction(formData: FormData) {
   await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
-  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/rewards";
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/rewards/redemption";
 
   if (!id) {
     redirect(buildRewardsRedirect("missing-redemption", redirectTo));
@@ -1385,6 +1385,7 @@ export async function updateMascotRedemptionAction(formData: FormData) {
   });
 
   revalidatePath("/admin/rewards");
+  revalidatePath("/admin/rewards/redemption");
   redirect(buildRewardsRedirect("redemption-updated", redirectTo));
 }
 
@@ -1392,7 +1393,7 @@ export async function approveRyoClaimRewardAction(formData: FormData) {
   await requireFullAdminSession();
 
   const id = toPlainString(formData.get("id"));
-  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/rewards";
+  const redirectTo = toPlainString(formData.get("redirectTo")) || "/admin/rewards/ryo";
   const adminNote = toPlainString(formData.get("adminNote")) || null;
 
   if (!id) {
@@ -1405,6 +1406,7 @@ export async function approveRyoClaimRewardAction(formData: FormData) {
   });
 
   revalidatePath("/admin/rewards");
+  revalidatePath("/admin/rewards/ryo");
   revalidatePath("/account");
   revalidatePath("/rd");
 
@@ -2344,6 +2346,7 @@ export async function saveFollowEmailSettingsAction(formData: FormData) {
   revalidateSettingsCaches({ email: true });
   revalidatePath("/admin/omb-claims");
   revalidatePath("/admin/rewards");
+  revalidatePath("/admin/rewards/ryo");
   redirect(
     processKey === "OMB"
       ? buildOmbClaimRedirect("follow-email-settings-saved", redirectTo)
