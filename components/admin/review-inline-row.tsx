@@ -117,6 +117,12 @@ export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlin
         <input className="admin-table__input" name="displayName" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
       </td>
       <td>
+        <div className="admin-table__cell-stack">
+          <strong>{review.personaName || "No User Image"}</strong>
+          {review.personaSlug ? <span className="form-note">{review.personaSlug}</span> : null}
+        </div>
+      </td>
+      <td>
         <div className="admin-table__rating-cell">
           <input
             className="admin-table__input admin-table__input--xs"

@@ -1,4 +1,8 @@
 import { siteConfig } from "@/lib/site-config";
+import {
+  formatReviewPersonaForPrompt,
+  type ReviewPersonaForGeneration
+} from "@/lib/review-personas";
 
 const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL || "https://api.openai.com/v1";
 const DEFAULT_OPENAI_REVIEW_MODEL =
@@ -32,6 +36,7 @@ export type ReviewReferenceExample = {
 };
 
 export type GeneratedAiReviewDraft = {
+  personaSlug: string;
   displayName: string;
   rating: number;
   title: string;
@@ -44,6 +49,7 @@ type GenerateAiReviewDraftsInput = {
   existingReviews: ExistingReviewContext[];
   referenceReviews?: ReviewReferenceExample[];
   requiredRatings?: number[];
+  personas?: ReviewPersonaForGeneration[];
 };
 
 const reviewFirstNames = [
@@ -183,6 +189,14 @@ function buildReferenceSummary(reviews: ReviewReferenceExample[]) {
     .join("\n\n");
 }
 
+function buildPersonaSummary(personas: ReviewPersonaForGeneration[]) {
+  if (personas.length === 0) {
+    return "No buyer personas were supplied.";
+  }
+
+  return personas.map(formatReviewPersonaForPrompt).join("\n\n");
+}
+
 function buildFallbackFullName(index: number) {
   const firstName = reviewFirstNames[index % reviewFirstNames.length];
   const lastName = reviewLastNames[(index * 7 + 5) % reviewLastNames.length];
@@ -228,22 +242,30 @@ function normalizeDisplayName(value: unknown, index: number) {
     .join(" ");
 }
 
-function normalizeGeneratedDraft(draft: any, index: number): GeneratedAiReviewDraft | null {
+function normalizeGeneratedDraft(
+  draft: any,
+  index: number,
+  personas: ReviewPersonaForGeneration[]
+): GeneratedAiReviewDraft | null {
   if (!draft || typeof draft !== "object") {
     return null;
   }
 
-  const displayName = normalizeDisplayName(draft.displayName, index);
+  const rawPersonaSlug = typeof draft.personaSlug === "string" ? draft.personaSlug.trim() : "";
+  const expectedPersona = personas[index] ?? personas.find((persona) => persona.slug === rawPersonaSlug);
+  const personaSlug = expectedPersona?.slug ?? rawPersonaSlug;
+  const displayName = expectedPersona?.fullName ?? normalizeDisplayName(draft.displayName, index);
   const title = typeof draft.title === "string" ? draft.title.trim() : "";
   const content = typeof draft.content === "string" ? draft.content.replace(/\s+\n/g, "\n").trim() : "";
   const ratingNumber =
     typeof draft.rating === "number" ? Math.round(draft.rating) : Number.parseInt(String(draft.rating || ""), 10);
 
-  if (!displayName || !title || !content || !Number.isFinite(ratingNumber)) {
+  if (!personaSlug || !displayName || !title || !content || !Number.isFinite(ratingNumber)) {
     return null;
   }
 
   return {
+    personaSlug,
     displayName,
     rating: Math.max(1, Math.min(5, ratingNumber)),
     title: title.slice(0, 120),
@@ -265,6 +287,8 @@ async function generateAiReviewBatch(
 
   const referenceReviews = input.referenceReviews ?? [];
   const hasReferenceReviews = referenceReviews.length > 0;
+  const personas = input.personas ?? [];
+  const hasPersonas = personas.length > 0;
   const normalizedRequiredRatings =
     requiredRatings.length === quantity
       ? requiredRatings.map((rating) => Math.max(1, Math.min(5, Math.round(rating))))
@@ -281,12 +305,13 @@ async function generateAiReviewBatch(
           type: "object",
           additionalProperties: false,
           properties: {
+            personaSlug: { type: "string", minLength: 8, maxLength: 90 },
             displayName: { type: "string", minLength: 5, maxLength: 40 },
             rating: { type: "integer", minimum: 1, maximum: 5 },
             title: { type: "string", minLength: 4, maxLength: 110 },
             content: { type: "string", minLength: 18, maxLength: 1400 }
           },
-          required: ["displayName", "rating", "title", "content"]
+          required: ["personaSlug", "displayName", "rating", "title", "content"]
         }
       }
     },
@@ -310,7 +335,9 @@ async function generateAiReviewBatch(
               text: [
                 "You create internal review drafts for ecommerce moderation.",
                 "Return only valid JSON matching the schema.",
-                "Every review must feel like it was written by a different person.",
+                "Every review must be written from the assigned buyer persona.",
+                "Use the supplied persona full name as the displayName. Do not invent, shorten, or swap names.",
+                "Each persona includes one randomly assigned review length target: short, medium, or long. Follow that target closely.",
                 "Vary sentence openings, rhythm, length, vocabulary, tone, and structure.",
                 "Avoid repetitive openings such as 'I have been using', 'First impression', 'Short version', 'Routine note', and 'Honestly'.",
                 "Do not copy phrases from reference reviews or existing reviews.",
@@ -332,6 +359,9 @@ async function generateAiReviewBatch(
                 "Product context:",
                 buildProductSummary(input.product),
                 "",
+                "Buyer personas to simulate, in exact review order:",
+                buildPersonaSummary(personas),
+                "",
                 "Existing reviews to avoid echoing too closely:",
                 buildExistingReviewSummary(input.existingReviews),
                 "",
@@ -348,13 +378,24 @@ async function generateAiReviewBatch(
                   : "No drafts have been generated yet in this run.",
                 "",
                 "Generation requirements:",
+                hasPersonas
+                  ? "- Generate exactly one review for each persona above, in the same order. The output personaSlug must match that persona."
+                  : "- No persona records were supplied, so use one direct-generated placeholder voice per review.",
+                hasPersonas
+                  ? "- Make the review sound like that woman's job, routine, budget, product preference, skin type, personality, and writing habit."
+                  : "- Vary each direct-generated voice as much as possible.",
+                hasPersonas
+                  ? "- Follow each persona's Review length target exactly. This target was randomly assigned when the persona was selected."
+                  : "- Use a realistic random mix of short, medium, and longer reviews.",
+                hasPersonas
+                  ? "- Use each persona's full name as displayName exactly as supplied."
+                  : "- Every display name must be a full human name.",
                 normalizedRequiredRatings.length > 0
                   ? `- Use these exact star ratings in this exact review order: ${normalizedRequiredRatings.join(", ")}.`
                   : "- Choose realistic ratings naturally.",
                 normalizedRequiredRatings.length > 0
                   ? "- Match the emotional tone and detail level to each requested rating so the content feels believable for that score."
                   : "- Match the emotional tone and detail level to the rating you choose.",
-                "- Use a realistic mix of short, medium, and longer reviews.",
                 hasReferenceReviews
                   ? "- Match the uploaded reference file closely in tone, sentence length, title/body pattern, punctuation feel, and rating balance without copying wording."
                   : "- No reference file is being used, so create your own mix of varied, natural-sounding customer styles from scratch.",
@@ -411,7 +452,7 @@ async function generateAiReviewBatch(
 
   const drafts = rows
     .map((row, index) => {
-      const normalized = normalizeGeneratedDraft(row, previousDrafts.length + index);
+      const normalized = normalizeGeneratedDraft(row, index, personas);
       if (!normalized) {
         return null;
       }
@@ -442,8 +483,12 @@ export async function generateAiReviewDrafts(
 
   for (let offset = 0; offset < totalQuantity; offset += batchSize) {
     const currentBatchSize = Math.min(batchSize, totalQuantity - offset);
+    const batchInput = {
+      ...input,
+      personas: input.personas?.slice(offset, offset + currentBatchSize)
+    };
     const batchDrafts = await generateAiReviewBatch(
-      input,
+      batchInput,
       currentBatchSize,
       drafts,
       requiredRatings.slice(offset, offset + currentBatchSize)

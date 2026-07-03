@@ -100,12 +100,12 @@ enum ComicPromptRunStatus {
 }
 
 model Product {
-  id                  String          @id @default(cuid())
-  productCode         String?         @unique
+  id                  String            @id @default(cuid())
+  productCode         String?           @unique
   productShortName    String?
   amazonAsin          String?
   name                String
-  slug                String          @unique
+  slug                String            @unique
   tagline             String
   category            String
   shortDescription    String
@@ -113,20 +113,20 @@ model Product {
   details             String
   imageUrl            String
   galleryImages       String?
-  featured            Boolean         @default(false)
-  status              ProductStatus   @default(DRAFT)
-  inventory           Int             @default(0)
+  featured            Boolean           @default(false)
+  status              ProductStatus     @default(DRAFT)
+  inventory           Int               @default(0)
   priceCents          Int
   compareAtPriceCents Int?
-  currency            String          @default("USD")
-  pointsReward        Int             @default(0)
+  currency            String            @default("USD")
+  pointsReward        Int               @default(0)
   stripePriceId       String?
   orderItems          OrderItem[]
   reviews             ProductReview[]
   posts               Post[]
   comicProductLock    ComicProductLock?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@index([status, featured, createdAt])
 }
@@ -267,32 +267,32 @@ model ComicChapter {
 }
 
 model ComicEpisode {
-  id                 String              @id @default(cuid())
-  episodeNumber      Int                 @unique
-  slug               String
-  title              String
-  summary            String
-  outline            String
-  script             String
-  panelPlan          String
-  promptPack         String
-  requiredReferences String
-  coverImageUrl      String?
-  coverImageAlt      String?
-  storyType          String              @default("MAIN")
+  id                        String              @id @default(cuid())
+  episodeNumber             Int                 @unique
+  slug                      String
+  title                     String
+  summary                   String
+  outline                   String
+  script                    String
+  panelPlan                 String
+  promptPack                String
+  requiredReferences        String
+  coverImageUrl             String?
+  coverImageAlt             String?
+  storyType                 String              @default("MAIN")
   extraStoryParentEpisodeId String?
-  extraStoryPlacementOrder  Int          @default(0)
-  published          Boolean             @default(false)
-  publishedAt        DateTime?
-  sortOrder          Int                 @default(0)
-  chapterId          String
-  chapter            ComicChapter        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  extraStoryParentEpisode ComicEpisode?  @relation("ComicExtraStoryPlacement", fields: [extraStoryParentEpisodeId], references: [id], onDelete: SetNull)
-  extraStories       ComicEpisode[]      @relation("ComicExtraStoryPlacement")
-  assets             ComicEpisodeAsset[]
-  promptRuns         ComicPromptRun[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  extraStoryPlacementOrder  Int                 @default(0)
+  published                 Boolean             @default(false)
+  publishedAt               DateTime?
+  sortOrder                 Int                 @default(0)
+  chapterId                 String
+  chapter                   ComicChapter        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  extraStoryParentEpisode   ComicEpisode?       @relation("ComicExtraStoryPlacement", fields: [extraStoryParentEpisodeId], references: [id], onDelete: SetNull)
+  extraStories              ComicEpisode[]      @relation("ComicExtraStoryPlacement")
+  assets                    ComicEpisodeAsset[]
+  promptRuns                ComicPromptRun[]
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
 
   @@unique([chapterId, slug])
   @@index([chapterId, episodeNumber])
@@ -423,25 +423,64 @@ model ComicImageCreation {
 }
 
 model Customer {
-  id                String             @id @default(cuid())
-  email             String             @unique
-  firstName         String?
-  lastName          String?
-  passwordHash      String?
-  passwordSetAt     DateTime?
-  lastLoginAt       DateTime?
-  marketingOptIn    Boolean            @default(false)
-  loyaltyPoints     Int                @default(0)
-  totalSpentCents   Int                @default(0)
-  orders            Order[]
-  rewards           RewardEntry[]
-  mascotRedemptions MascotRedemption[]
-  ryoClaims         RyoClaim[]
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  firstName           String?
+  lastName            String?
+  passwordHash        String?
+  passwordSetAt       DateTime?
+  lastLoginAt         DateTime?
+  marketingOptIn      Boolean              @default(false)
+  loyaltyPoints       Int                  @default(0)
+  totalSpentCents     Int                  @default(0)
+  orders              Order[]
+  rewards             RewardEntry[]
+  mascotRedemptions   MascotRedemption[]
+  ryoClaims           RyoClaim[]
   tiktokFollowRewards TikTokFollowReward[]
-  reviews           ProductReview[]
-  sessions          CustomerSession[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  reviews             ProductReview[]
+  sessions            CustomerSession[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model ReviewPersona {
+  id                 String          @id @default(cuid())
+  slug               String          @unique
+  fullName           String
+  age                Int
+  ageRange           String
+  ethnicity          String
+  occupation         String
+  incomeLevel        String
+  location           String
+  personality        String
+  bodyType           String
+  skinType           String
+  skinConcern        String
+  lifestyle          String
+  shoppingMotivation String
+  priceSensitivity   String
+  productPreference  String
+  writingStyle       String
+  reviewTone         String
+  routineLevel       String
+  socialChannel      String
+  lifeStage          String
+  tags               String
+  notes              String
+  lifeImagePrompt    String?
+  lifeImageUrl       String?
+  active             Boolean         @default(true)
+  sortOrder          Int             @default(0)
+  reviews            ProductReview[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([active, sortOrder, createdAt])
+  @@index([ageRange])
+  @@index([incomeLevel])
+  @@index([ethnicity])
 }
 
 model MascotReward {
@@ -460,28 +499,53 @@ model MascotReward {
 }
 
 model MascotRedemption {
-  id          String                 @id @default(cuid())
-  pointsSpent Int
-  status      MascotRedemptionStatus @default(REQUESTED)
-  email       String
-  fullName    String
-  address1    String
-  address2    String?
-  city        String
-  state       String
-  postalCode  String
-  country     String                 @default("US")
-  adminNote   String?
-  fulfilledAt DateTime?
-  customerId  String
-  mascotId    String
-  customer    Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  mascot      MascotReward           @relation(fields: [mascotId], references: [id], onDelete: Cascade)
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
+  id              String                      @id @default(cuid())
+  pointsSpent     Int
+  status          MascotRedemptionStatus      @default(REQUESTED)
+  email           String
+  fullName        String
+  address1        String
+  address2        String?
+  city            String
+  state           String
+  postalCode      String
+  country         String                      @default("US")
+  shippingCarrier ShippingCarrier?
+  trackingNumber  String?
+  shippedAt       DateTime?
+  adminNote       String?
+  fulfilledAt     DateTime?
+  customerId      String
+  mascotId        String
+  customer        Customer                    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  mascot          MascotReward                @relation(fields: [mascotId], references: [id], onDelete: Cascade)
+  emailLogs       MascotRedemptionEmailLog[]
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
+  @@index([shippingCarrier])
+}
+
+model MascotRedemptionEmailLog {
+  id                String           @id @default(cuid())
+  eventType         String
+  recipientEmail    String
+  recipientName     String?
+  subject           String
+  bodyText          String
+  deliveryStatus    String
+  deliveryProvider  String?
+  deliveryMessageId String?
+  errorReason       String?
+  redemptionId      String
+  redemption        MascotRedemption @relation(fields: [redemptionId], references: [id], onDelete: Cascade)
+  createdAt         DateTime         @default(now())
+
+  @@index([redemptionId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([recipientEmail, createdAt])
 }
 
 model EmailContact {
@@ -698,29 +762,32 @@ model CustomerSession {
 }
 
 model ProductReview {
-  id               String       @id @default(cuid())
+  id               String         @id @default(cuid())
   rating           Int
   title            String
   content          String
   displayName      String
-  reviewDate       DateTime     @default(now())
-  status           ReviewStatus @default(PENDING)
-  verifiedPurchase Boolean      @default(false)
+  reviewDate       DateTime       @default(now())
+  status           ReviewStatus   @default(PENDING)
+  verifiedPurchase Boolean        @default(false)
   adminNotes       String?
-  source           String       @default("CUSTOMER")
+  source           String         @default("CUSTOMER")
   productId        String
   customerId       String?
   orderId          String?
+  personaId        String?
   publishedAt      DateTime?
-  product          Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  customer         Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  order            Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer         Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  persona          ReviewPersona? @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@index([productId, reviewDate])
   @@index([productId, status, reviewDate])
   @@index([customerId, reviewDate])
+  @@index([personaId, reviewDate])
   @@index([status, reviewDate])
 }
 
@@ -882,25 +949,25 @@ model MailboxReplyExample {
 }
 
 model FinancePaymentDetail {
-  id                 String   @id @default(cuid())
-  paymentDate        DateTime @default(now())
-  paymentStage       String   @default("预付款")
-  accountType        String   @default("公账")
-  lingxingContractNo String?
-  sku                String
-  productName        String
-  unit               String   @default("瓶")
-  quantity           Decimal  @default(0) @db.Decimal(18, 4)
-  unitPriceYuan      Decimal  @default(0) @db.Decimal(18, 4)
-  totalAmountYuan    Decimal  @default(0) @db.Decimal(18, 2)
-  paymentAmountYuan  Decimal  @default(0) @db.Decimal(18, 2)
-  sourceFileName     String?
-  paymentProofName   String?
+  id                   String   @id @default(cuid())
+  paymentDate          DateTime @default(now())
+  paymentStage         String   @default("预付款")
+  accountType          String   @default("公账")
+  lingxingContractNo   String?
+  sku                  String
+  productName          String
+  unit                 String   @default("瓶")
+  quantity             Decimal  @default(0) @db.Decimal(18, 4)
+  unitPriceYuan        Decimal  @default(0) @db.Decimal(18, 4)
+  totalAmountYuan      Decimal  @default(0) @db.Decimal(18, 2)
+  paymentAmountYuan    Decimal  @default(0) @db.Decimal(18, 2)
+  sourceFileName       String?
+  paymentProofName     String?
   paymentProofMimeType String?
-  paymentProofBase64 String?
-  paymentProofBytes  Int?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  paymentProofBase64   String?
+  paymentProofBytes    Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@index([paymentDate])
   @@index([paymentStage, paymentDate])

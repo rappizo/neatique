@@ -111,6 +111,9 @@ export default async function AdminProductReviewsPage({
         <Link href="/admin/reviews" className="button button--secondary">
           Back to Products
         </Link>
+        <Link href="/admin/reviews/personas" className="button button--secondary">
+          Manage User Images
+        </Link>
         <Link href={`/shop/${product.slug}`} className="button button--ghost">
           View Product Page
         </Link>
@@ -210,8 +213,8 @@ export default async function AdminProductReviewsPage({
             <h2>AI review generator</h2>
             <p className="form-note">
               Create pending AI review drafts for this product, then approve them one by one or in
-              bulk. Choose whether the model should create varied reviews from scratch, or stay
-              closer to the tone and structure in your uploaded review examples.
+              bulk. The model now writes from named User Image profiles, with optional reference
+              files used only as extra tone guidance.
             </p>
           </div>
           <div className="stack-row">
@@ -247,7 +250,7 @@ export default async function AdminProductReviewsPage({
                     value="direct"
                     defaultChecked
                   />
-                  <span>Direct generate</span>
+                  <span>User Image generate</span>
                 </label>
                 <label className="choice-pill">
                   <input
@@ -315,12 +318,12 @@ export default async function AdminProductReviewsPage({
           </div>
 
           <p className="form-note">
-            Direct generate creates product-related reviews in a wide mix of styles with no file
-            required. Reference review file uses your uploaded CSV, XLSX, or XLS examples as the
+            User Image generate assigns named buyer profiles to this product and drafts one review
+            from each selected profile. Reference review file uses your uploaded CSV, XLSX, or XLS examples as the
             style source. Supported reference columns: review title, review body/content, rating,
             and reviewer name. If you upload 20 examples and generate 40 drafts, the AI will keep
             rotating through those examples as style references without copying wording, and
-            generated reviewer names will stay as full names instead of initials. AI-generated
+            generated reviewer names will stay aligned to the selected User Images. AI-generated
             drafts are added as pending and marked verified by default. If you fill any star-count
             boxes, the total across 5-star to 1-star must exactly match the draft quantity. The
             selected review date window is used to write stronger randomized review dates across the
@@ -410,6 +413,7 @@ export default async function AdminProductReviewsPage({
                 </th>
                     <th>Review Date</th>
                     <th>Display Name</th>
+                    <th>User Image</th>
                     <th>Rating</th>
                     <th>Status</th>
                     <th>Source</th>

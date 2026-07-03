@@ -23,6 +23,7 @@ export const siteConfig = {
         { href: "/admin/products", label: "All Products" },
         { href: "/admin/products/new", label: "Add Product" },
         { href: "/admin/reviews", label: "Product Reviews" },
+        { href: "/admin/reviews/personas", label: "Review User Images" },
         { href: "/admin/coupons", label: "Coupons by Product" }
       ]
     },

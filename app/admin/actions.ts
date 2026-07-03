@@ -61,7 +61,12 @@ import {
 import { generateAiReviewDrafts, getOpenAiReviewSettings } from "@/lib/openai-reviews";
 import { getDefaultProductImageReferenceAsset } from "@/lib/product-media";
 import { parseReviewReferenceFile } from "@/lib/review-reference-file";
+import { selectReviewPersonasForGeneration } from "@/lib/review-personas";
 import { approveRyoClaimReward } from "@/lib/ryo-claims";
+import {
+  MascotRedemptionUpdateError,
+  updateMascotRedemptionWithShipping
+} from "@/lib/mascot-redemption-shipping";
 import type {
   CouponDiscountType,
   EmailAudienceType,
@@ -117,6 +122,42 @@ function buildReviewRedirect(status: string, redirectTo?: string, productSlug?: 
   params.set("status", status);
   const nextQuery = params.toString();
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+function buildReviewPersonaRedirect(status: string) {
+  return `/admin/reviews/personas?status=${encodeURIComponent(status)}`;
+}
+
+function toAgeRange(age: number) {
+  if (age <= 24) {
+    return "21-24";
+  }
+
+  if (age <= 29) {
+    return "25-29";
+  }
+
+  if (age <= 34) {
+    return "30-34";
+  }
+
+  if (age <= 39) {
+    return "35-39";
+  }
+
+  if (age <= 44) {
+    return "40-44";
+  }
+
+  if (age <= 49) {
+    return "45-49";
+  }
+
+  if (age <= 54) {
+    return "50-54";
+  }
+
+  return "55-64";
 }
 
 function buildCouponRedirect(status: string, couponId?: string) {
@@ -1372,20 +1413,41 @@ export async function updateMascotRedemptionAction(formData: FormData) {
     redirect(buildRewardsRedirect("missing-redemption", redirectTo));
   }
 
-  const fulfilled = toBool(formData.get("fulfilled"));
+  const status = toPlainString(formData.get("status")) || "REQUESTED";
+  const shippingCarrier = toPlainString(formData.get("shippingCarrier")) || null;
+  const trackingNumber = toPlainString(formData.get("trackingNumber")) || null;
   const adminNote = toPlainString(formData.get("adminNote")) || null;
 
-  await prisma.mascotRedemption.update({
-    where: { id },
-    data: {
-      status: fulfilled ? "FULFILLED" : "REQUESTED",
-      fulfilledAt: fulfilled ? new Date() : null,
+  let result: Awaited<ReturnType<typeof updateMascotRedemptionWithShipping>>;
+
+  try {
+    result = await updateMascotRedemptionWithShipping({
+      id,
+      status,
+      shippingCarrier,
+      trackingNumber,
       adminNote
+    });
+  } catch (error) {
+    if (error instanceof MascotRedemptionUpdateError) {
+      redirect(buildRewardsRedirect(error.code, redirectTo));
     }
-  });
+
+    throw error;
+  }
 
   revalidatePath("/admin/rewards");
   revalidatePath("/admin/rewards/redemption");
+  revalidatePath("/account");
+
+  if (result.emailLog?.deliveryStatus === "SENT") {
+    redirect(buildRewardsRedirect("redemption-shipped-email-sent", redirectTo));
+  }
+
+  if (result.emailLog?.deliveryStatus === "FAILED") {
+    redirect(buildRewardsRedirect("redemption-shipped-email-failed", redirectTo));
+  }
+
   redirect(buildRewardsRedirect("redemption-updated", redirectTo));
 }
 
@@ -1621,6 +1683,131 @@ export async function bulkModerateReviewsAction(formData: FormData) {
   );
 }
 
+export async function createReviewPersonaAction(formData: FormData) {
+  await requireFullAdminSession();
+
+  const fullName = toPlainString(formData.get("fullName"));
+  const age = Math.max(18, Math.min(85, toInt(formData.get("age"), 32)));
+  const ageRange = toPlainString(formData.get("ageRange")) || toAgeRange(age);
+  const ethnicity = toPlainString(formData.get("ethnicity"));
+  const occupation = toPlainString(formData.get("occupation"));
+  const incomeLevel = toPlainString(formData.get("incomeLevel"));
+  const location = toPlainString(formData.get("location"));
+  const personality = toPlainString(formData.get("personality"));
+  const bodyType = toPlainString(formData.get("bodyType"));
+  const skinType = toPlainString(formData.get("skinType"));
+  const skinConcern = toPlainString(formData.get("skinConcern"));
+  const lifestyle = toPlainString(formData.get("lifestyle"));
+  const shoppingMotivation = toPlainString(formData.get("shoppingMotivation"));
+  const priceSensitivity = toPlainString(formData.get("priceSensitivity"));
+  const productPreference = toPlainString(formData.get("productPreference"));
+  const writingStyle = toPlainString(formData.get("writingStyle"));
+  const reviewTone = toPlainString(formData.get("reviewTone"));
+  const routineLevel = toPlainString(formData.get("routineLevel"));
+  const socialChannel = toPlainString(formData.get("socialChannel"));
+  const lifeStage = toPlainString(formData.get("lifeStage"));
+  const rawTags = normalizeMultilineValue(formData.get("tags"));
+  const notes = normalizeMultilineValue(formData.get("notes"));
+  const lifeImagePrompt = normalizeMultilineValue(formData.get("lifeImagePrompt"));
+  const lifeImageUrl = toPlainString(formData.get("lifeImageUrl")) || null;
+
+  const requiredValues = [
+    fullName,
+    ethnicity,
+    occupation,
+    incomeLevel,
+    location,
+    personality,
+    bodyType,
+    skinType,
+    skinConcern,
+    lifestyle,
+    shoppingMotivation,
+    priceSensitivity,
+    productPreference,
+    writingStyle,
+    reviewTone,
+    routineLevel,
+    socialChannel,
+    lifeStage
+  ];
+
+  if (requiredValues.some((value) => !value)) {
+    redirect(buildReviewPersonaRedirect("missing-fields"));
+  }
+
+  const baseSlug = `custom-${slugify(fullName) || "review-persona"}`;
+  const existingCount = await prisma.reviewPersona.count({
+    where: {
+      slug: {
+        startsWith: baseSlug
+      }
+    }
+  });
+  const slug = existingCount > 0 ? `${baseSlug}-${existingCount + 1}` : baseSlug;
+  const existingTotal = await prisma.reviewPersona.count();
+  const tags = Array.from(
+    new Set(
+      [
+        ageRange,
+        ethnicity,
+        occupation,
+        incomeLevel,
+        skinType,
+        skinConcern,
+        personality,
+        writingStyle,
+        reviewTone,
+        productPreference,
+        ...rawTags.split(/\r?\n|,/)
+      ]
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    )
+  );
+
+  await prisma.reviewPersona.create({
+    data: {
+      slug,
+      fullName,
+      age,
+      ageRange,
+      ethnicity,
+      occupation,
+      incomeLevel,
+      location,
+      personality,
+      bodyType,
+      skinType,
+      skinConcern,
+      lifestyle,
+      shoppingMotivation,
+      priceSensitivity,
+      productPreference,
+      writingStyle,
+      reviewTone,
+      routineLevel,
+      socialChannel,
+      lifeStage,
+      tags: tags.join("\n"),
+      notes: notes || `${fullName} writes with a ${reviewTone} tone and a ${writingStyle} habit.`,
+      lifeImagePrompt:
+        lifeImagePrompt ||
+        [
+          `Lifestyle photo brief for ${fullName}.`,
+          `${age}-year-old ${ethnicity.toLowerCase()} woman, ${bodyType}, ${occupation}, based around ${location}.`,
+          `Candid everyday skincare moment connected to ${lifestyle}. Natural window light, modest styling, no medical imagery.`
+        ].join(" "),
+      lifeImageUrl,
+      active: true,
+      sortOrder: existingTotal + 1
+    }
+  });
+
+  revalidatePath("/admin/reviews/personas");
+  redirect(buildReviewPersonaRedirect("persona-created"));
+}
+
 export async function generateAiReviewsAction(formData: FormData) {
   await requireFullAdminSession();
 
@@ -1685,7 +1872,7 @@ export async function generateAiReviewsAction(formData: FormData) {
   const existingReviews = await prisma.productReview.findMany({
     where: { productId: product.id },
     orderBy: [{ reviewDate: "desc" }, { createdAt: "desc" }],
-    take: 20,
+    take: 60,
     select: {
       rating: true,
       title: true,
@@ -1693,6 +1880,8 @@ export async function generateAiReviewsAction(formData: FormData) {
       displayName: true
     }
   });
+  const personas = await selectReviewPersonasForGeneration(product.id, quantity);
+  const personaBySlug = new Map(personas.map((persona) => [persona.slug, persona]));
 
   try {
     const drafts = await generateAiReviewDrafts({
@@ -1700,26 +1889,37 @@ export async function generateAiReviewsAction(formData: FormData) {
       quantity,
       existingReviews,
       referenceReviews,
-      requiredRatings: ratingPlanResult?.ratings || undefined
+      requiredRatings: ratingPlanResult?.ratings || undefined,
+      personas
     });
 
     const reviewDates = createRandomReviewDates(quantity, reviewDateRange.start, reviewDateRange.end);
 
     for (const [index, draft] of drafts.entries()) {
       const createdAt = reviewDates[index] || new Date();
+      const persona = personaBySlug.get(draft.personaSlug) ?? personas[index] ?? null;
       await prisma.productReview.create({
         data: {
           productId: product.id,
+          personaId: persona?.id ?? null,
           rating: draft.rating,
           title: draft.title,
           content: draft.content,
-          displayName: draft.displayName,
+          displayName: persona?.fullName ?? draft.displayName,
           reviewDate: createdAt,
           status: "PENDING",
           verifiedPurchase: true,
-          adminNotes: referenceReviews.length
-            ? `AI generated with ${referenceReviews.length} uploaded reference reviews.`
-            : "AI generated directly from product context, with no reference file.",
+          adminNotes: [
+            persona
+              ? `AI generated from User Image persona: ${persona.fullName} (${persona.slug}).`
+              : "AI generated without a linked User Image persona.",
+            persona?.reviewLength
+              ? `Random review length target: ${persona.reviewLength}.`
+              : "No review length target was assigned.",
+            referenceReviews.length
+              ? `Used ${referenceReviews.length} uploaded reference reviews for style guidance.`
+              : "Generated directly from product context, with no reference file."
+          ].join(" "),
           source: "AI_GENERATED",
           createdAt
         }
@@ -1731,6 +1931,7 @@ export async function generateAiReviewsAction(formData: FormData) {
 
   revalidatePath("/admin/reviews");
   revalidatePath(`/admin/reviews/${product.slug}`);
+  revalidatePath("/admin/reviews/personas");
   redirect(buildReviewRedirect("ai-generated", redirectTo, product.slug));
 }
 

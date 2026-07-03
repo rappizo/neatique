@@ -30,6 +30,11 @@ export default async function AdminReviewsPage({ searchParams }: AdminReviewsPag
           more reviews with a CSV that belongs only to that product, or generate AI drafts from
           scratch or from your own Excel examples.
         </p>
+        <div className="stack-row">
+          <Link href="/admin/reviews/personas" className="button button--secondary">
+            Manage User Images
+          </Link>
+        </div>
       </section>
 
       <div className="admin-product-grid">

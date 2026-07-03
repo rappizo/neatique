@@ -372,6 +372,9 @@ export type MascotRedemptionRecord = {
   state: string;
   postalCode: string;
   country: string;
+  shippingCarrier: ShippingCarrier | null;
+  trackingNumber: string | null;
+  shippedAt: Date | null;
   adminNote: string | null;
   fulfilledAt: Date | null;
   customerId: string;
@@ -380,8 +383,53 @@ export type MascotRedemptionRecord = {
   mascotName: string;
   mascotSku: string;
   mascotImageUrl: string;
+  tiktokFollowProof: MascotRedemptionTikTokProofRecord | null;
+  ryoProofs: MascotRedemptionRyoProofRecord[];
+  emailLogs: MascotRedemptionEmailLogRecord[];
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type MascotRedemptionTikTokProofRecord = {
+  id: string;
+  email: string;
+  fullName: string;
+  tiktokUsername: string | null;
+  screenshotName: string;
+  screenshotBytes: number;
+  pointsAwarded: number;
+  rewardGranted: boolean;
+  rewardGrantedAt: Date | null;
+  createdAt: Date;
+};
+
+export type MascotRedemptionRyoProofRecord = {
+  id: string;
+  platformLabel: string;
+  orderId: string;
+  reviewRating: number | null;
+  screenshotName: string | null;
+  screenshotBytes: number | null;
+  pointsAwarded: number;
+  rewardGranted: boolean;
+  rewardGrantedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+};
+
+export type MascotRedemptionEmailLogRecord = {
+  id: string;
+  eventType: string;
+  recipientEmail: string;
+  recipientName: string | null;
+  subject: string;
+  bodyText: string;
+  deliveryStatus: OrderEmailDeliveryStatus;
+  deliveryProvider: string | null;
+  deliveryMessageId: string | null;
+  errorReason: string | null;
+  redemptionId: string;
+  createdAt: Date;
 };
 
 export type ProductReviewRecord = {
@@ -401,9 +449,71 @@ export type ProductReviewRecord = {
   customerId: string | null;
   customerEmail: string | null;
   orderId: string | null;
+  personaId?: string | null;
+  personaName?: string | null;
+  personaSlug?: string | null;
   publishedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type ReviewPersonaRecentReviewRecord = {
+  id: string;
+  productName: string;
+  productSlug: string;
+  rating: number;
+  title: string;
+  content: string;
+  status: ReviewStatus;
+  reviewDate: Date;
+};
+
+export type ReviewPersonaRecord = {
+  id: string;
+  slug: string;
+  fullName: string;
+  age: number;
+  ageRange: string;
+  ethnicity: string;
+  occupation: string;
+  incomeLevel: string;
+  location: string;
+  personality: string;
+  bodyType: string;
+  skinType: string;
+  skinConcern: string;
+  lifestyle: string;
+  shoppingMotivation: string;
+  priceSensitivity: string;
+  productPreference: string;
+  writingStyle: string;
+  reviewTone: string;
+  routineLevel: string;
+  socialChannel: string;
+  lifeStage: string;
+  tags: string[];
+  notes: string;
+  lifeImagePrompt: string | null;
+  lifeImageUrl: string | null;
+  active: boolean;
+  sortOrder: number;
+  reviewCount: number;
+  recentReviews: ReviewPersonaRecentReviewRecord[];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type AdminReviewPersonaPageRecord = {
+  personas: ReviewPersonaRecord[];
+  totalCount: number;
+  activeCount: number;
+  defaultCount: number;
+  reviewCount: number;
+  currentPage: number;
+  perPage: number;
+  pageCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
 };
 
 export type AdminReviewProductSummary = {

@@ -24,8 +24,8 @@ export default async function AdminRedemptionRewardsPage({
         <p className="eyebrow">Points & Rewards / Redemption</p>
         <h1>Process mascot redemption requests without the rest of the rewards console.</h1>
         <p>
-          This page only loads mascot redemption requests, shipping details, fulfillment status,
-          points spent, and internal notes.
+          This page only loads mascot redemption requests, TikTok/RYO verification proof, shipping
+          details, fulfillment status, shipment email logs, points spent, and internal notes.
         </p>
       </div>
 

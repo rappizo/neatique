@@ -8,6 +8,11 @@ import {
 import { RatingStars } from "@/components/ui/rating-stars";
 import { FOLLOW_EMAIL_PROCESS_LABELS, FOLLOW_EMAIL_STAGE_LABELS } from "@/lib/follow-emails";
 import { formatDate, formatNumber } from "@/lib/format";
+import {
+  formatShippingCarrierLabel,
+  formatTrackingNumbers,
+  shippingCarrierOptions
+} from "@/lib/order-shipping";
 import type {
   CustomerRecord,
   FollowEmailOverviewRecord,
@@ -552,9 +557,11 @@ export function RedemptionRequestsSection({
             <th>Submitted</th>
             <th>Mascot</th>
             <th>Customer</th>
-            <th>Shipping address</th>
-            <th>Points spent</th>
-            <th>Status</th>
+            <th>Verification proof</th>
+            <th>Ship to</th>
+            <th>Points / Status</th>
+            <th>Fulfillment</th>
+            <th>Email sent</th>
             <th>Note</th>
             <th>Action</th>
           </tr>
@@ -577,6 +584,66 @@ export function RedemptionRequestsSection({
                     <div className="admin-table__cell-stack">
                       <strong>{redemption.fullName}</strong>
                       <span>{redemption.email}</span>
+                      <span className="form-note">Account: {redemption.customerEmail}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="admin-table__cell-stack">
+                      <div className="admin-redemption-proof">
+                        <strong>TK Follow</strong>
+                        {redemption.tiktokFollowProof ? (
+                          <>
+                            <Link
+                              href={`/api/tiktok-follow-rewards/${redemption.tiktokFollowProof.id}/image`}
+                              target="_blank"
+                              className="link-inline"
+                            >
+                              View screenshot
+                            </Link>
+                            <span className={redemption.tiktokFollowProof.rewardGranted ? "pill" : "admin-table__empty"}>
+                              {redemption.tiktokFollowProof.rewardGranted
+                                ? `${formatNumber(redemption.tiktokFollowProof.pointsAwarded)} pts granted`
+                                : "Points not granted"}
+                            </span>
+                            <span className="admin-table__empty">
+                              {formatDate(redemption.tiktokFollowProof.createdAt)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="admin-table__empty">No TK screenshot</span>
+                        )}
+                      </div>
+                      <div className="admin-redemption-proof">
+                        <strong>RYO</strong>
+                        {redemption.ryoProofs.length > 0 ? (
+                          redemption.ryoProofs.map((proof) => (
+                            <div key={proof.id} className="admin-table__cell-stack">
+                              <span>
+                                {proof.platformLabel} {proof.orderId}
+                              </span>
+                              {proof.reviewRating ? <RatingStars rating={proof.reviewRating} size="sm" /> : null}
+                              {proof.screenshotName ? (
+                                <Link
+                                  href={`/api/ryo-claims/${proof.id}/image`}
+                                  target="_blank"
+                                  className="link-inline"
+                                >
+                                  View RYO screenshot
+                                </Link>
+                              ) : (
+                                <span className="admin-table__empty">No RYO screenshot</span>
+                              )}
+                              <span className={proof.rewardGranted ? "pill" : "admin-table__empty"}>
+                                {proof.rewardGranted
+                                  ? `${formatNumber(proof.pointsAwarded)} pts granted`
+                                  : "Points not granted"}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="admin-table__empty">No completed RYO</span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="admin-table__clip">
@@ -584,17 +651,97 @@ export function RedemptionRequestsSection({
                       .filter(Boolean)
                       .join(", ")}
                   </td>
-                  <td>{formatNumber(redemption.pointsSpent)}</td>
                   <td>
-                    <label className="admin-table__checkbox-label">
+                    <div className="admin-table__cell-stack">
+                      <strong>-{formatNumber(redemption.pointsSpent)} pts</strong>
+                      <span
+                        className={
+                          redemption.status === "FULFILLED"
+                            ? "admin-table__status-badge admin-table__status-badge--success"
+                            : redemption.status === "CANCELLED"
+                              ? "admin-table__status-badge admin-table__status-badge--danger"
+                              : "admin-table__status-badge admin-table__status-badge--warning"
+                        }
+                      >
+                        {redemption.status}
+                      </span>
+                      {redemption.fulfilledAt ? <span>{formatDate(redemption.fulfilledAt)}</span> : null}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="admin-table__cell-stack admin-redemption-shipping-fields">
+                      <select
+                        className="admin-table__select"
+                        name="status"
+                        defaultValue={redemption.status}
+                        form={formId}
+                      >
+                        <option value="REQUESTED">Requested</option>
+                        <option value="FULFILLED">Fulfilled / shipped</option>
+                        <option value="CANCELLED">Cancelled</option>
+                      </select>
+                      <select
+                        className="admin-table__select"
+                        name="shippingCarrier"
+                        defaultValue={redemption.shippingCarrier || ""}
+                        form={formId}
+                      >
+                        <option value="">Select carrier</option>
+                        {shippingCarrierOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                       <input
-                        type="checkbox"
-                        name="fulfilled"
-                        defaultChecked={redemption.status === "FULFILLED"}
+                        className="admin-table__input"
+                        name="trackingNumber"
+                        defaultValue={redemption.trackingNumber || ""}
+                        placeholder="Tracking number"
                         form={formId}
                       />
-                      <span>{redemption.status}</span>
-                    </label>
+                      {redemption.shippingCarrier && redemption.trackingNumber ? (
+                        <span className="form-note">
+                          {formatShippingCarrierLabel(redemption.shippingCarrier)}{" "}
+                          {formatTrackingNumbers(redemption.trackingNumber)}
+                        </span>
+                      ) : (
+                        <span className="admin-table__empty">Add carrier + tracking before fulfillment</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    {redemption.emailLogs.length > 0 ? (
+                      <details className="admin-follow-email-log">
+                        <summary>{formatNumber(redemption.emailLogs.length)} emails</summary>
+                        <div className="admin-table__cell-stack">
+                          {redemption.emailLogs.map((emailLog) => (
+                            <div key={emailLog.id} className="admin-table__cell-stack admin-reward-ledger-item">
+                              <div className="stack-row">
+                                <span
+                                  className={
+                                    emailLog.deliveryStatus === "SENT"
+                                      ? "admin-table__status-badge admin-table__status-badge--success"
+                                      : "admin-table__status-badge admin-table__status-badge--danger"
+                                  }
+                                >
+                                  {emailLog.deliveryStatus}
+                                </span>
+                                <span>{formatDate(emailLog.createdAt)}</span>
+                              </div>
+                              <strong>{emailLog.subject}</strong>
+                              <span>{emailLog.recipientEmail}</span>
+                              {emailLog.errorReason ? (
+                                <span className="admin-table__empty">{emailLog.errorReason}</span>
+                              ) : null}
+                              <p>{emailLog.bodyText}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : (
+                      <span className="admin-table__empty">No shipment email yet</span>
+                    )}
                   </td>
                   <td>
                     <textarea
@@ -618,7 +765,7 @@ export function RedemptionRequestsSection({
             })
           ) : (
             <tr>
-              <td colSpan={8}>No mascot redemption requests yet.</td>
+              <td colSpan={10}>No mascot redemption requests yet.</td>
             </tr>
           )}
         </tbody>

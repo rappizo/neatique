@@ -181,6 +181,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                   <th>Mascot</th>
                   <th>Date</th>
                   <th>Status</th>
+                  <th>Shipping</th>
                   <th>Points</th>
                 </tr>
               </thead>
@@ -191,12 +192,24 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                       <td>{redemption.mascotName}</td>
                       <td>{formatDate(redemption.createdAt)}</td>
                       <td>{redemption.status}</td>
+                      <td>
+                        {redemption.shippingCarrier && redemption.trackingNumber ? (
+                          <div className="account-order-shipments">
+                            <small>
+                              {formatShippingCarrierLabel(redemption.shippingCarrier)}{" "}
+                              {redemption.trackingNumber}
+                            </small>
+                          </div>
+                        ) : (
+                          "Verification pending"
+                        )}
+                      </td>
                       <td>-{redemption.pointsSpent}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4}>No mascot redemptions yet. Once your balance reaches 1,000 points, you can redeem on /rd.</td>
+                    <td colSpan={5}>No mascot redemptions yet. Once your balance reaches 1,000 points, you can redeem on /rd.</td>
                   </tr>
                 )}
               </tbody>

@@ -25,8 +25,11 @@ import type {
   FollowEmailProcessKey,
   FormSubmissionRecord,
   FormSubmissionSummaryRecord,
+  MascotRedemptionEmailLogRecord,
   MascotRedemptionRecord,
+  MascotRedemptionRyoProofRecord,
   MascotRewardRecord,
+  MascotRedemptionTikTokProofRecord,
   OmbClaimRecord,
   OrderEmailEventKey,
   OrderEmailLogRecord,
@@ -566,7 +569,60 @@ function mapMascotReward(mascot: any): MascotRewardRecord {
   };
 }
 
+function mapMascotRedemptionEmailLog(log: any): MascotRedemptionEmailLogRecord {
+  return {
+    id: log.id,
+    eventType: log.eventType,
+    recipientEmail: log.recipientEmail,
+    recipientName: log.recipientName ?? null,
+    subject: log.subject,
+    bodyText: log.bodyText,
+    deliveryStatus: log.deliveryStatus === "FAILED" ? "FAILED" : "SENT",
+    deliveryProvider: log.deliveryProvider ?? null,
+    deliveryMessageId: log.deliveryMessageId ?? null,
+    errorReason: log.errorReason ?? null,
+    redemptionId: log.redemptionId,
+    createdAt: new Date(log.createdAt)
+  };
+}
+
+function mapMascotRedemptionTikTokProof(proof: any): MascotRedemptionTikTokProofRecord {
+  return {
+    id: proof.id,
+    email: proof.email,
+    fullName: proof.fullName,
+    tiktokUsername: proof.tiktokUsername ?? null,
+    screenshotName: proof.screenshotName,
+    screenshotBytes: proof.screenshotBytes,
+    pointsAwarded: proof.pointsAwarded,
+    rewardGranted: proof.rewardGranted,
+    rewardGrantedAt: proof.rewardGrantedAt ? new Date(proof.rewardGrantedAt) : null,
+    createdAt: new Date(proof.createdAt)
+  };
+}
+
+function mapMascotRedemptionRyoProof(proof: any): MascotRedemptionRyoProofRecord {
+  return {
+    id: proof.id,
+    platformLabel: proof.platformLabel,
+    orderId: proof.orderId,
+    reviewRating: proof.reviewRating ?? null,
+    screenshotName: proof.screenshotName ?? null,
+    screenshotBytes: proof.screenshotBytes ?? null,
+    pointsAwarded: proof.pointsAwarded,
+    rewardGranted: proof.rewardGranted,
+    rewardGrantedAt: proof.rewardGrantedAt ? new Date(proof.rewardGrantedAt) : null,
+    completedAt: proof.completedAt ? new Date(proof.completedAt) : null,
+    createdAt: new Date(proof.createdAt)
+  };
+}
+
 function mapMascotRedemption(redemption: any): MascotRedemptionRecord {
+  const tiktokFollowProof = redemption.customer?.tiktokFollowRewards?.[0] ?? null;
+  const ryoProofs = Array.isArray(redemption.customer?.ryoClaims)
+    ? redemption.customer.ryoClaims
+    : [];
+
   return {
     id: redemption.id,
     pointsSpent: redemption.pointsSpent,
@@ -579,6 +635,9 @@ function mapMascotRedemption(redemption: any): MascotRedemptionRecord {
     state: redemption.state,
     postalCode: redemption.postalCode,
     country: redemption.country,
+    shippingCarrier: redemption.shippingCarrier ?? null,
+    trackingNumber: redemption.trackingNumber ?? null,
+    shippedAt: redemption.shippedAt ? new Date(redemption.shippedAt) : null,
     adminNote: redemption.adminNote ?? null,
     fulfilledAt: redemption.fulfilledAt ? new Date(redemption.fulfilledAt) : null,
     customerId: redemption.customerId,
@@ -587,6 +646,11 @@ function mapMascotRedemption(redemption: any): MascotRedemptionRecord {
     mascotName: redemption.mascot?.name ?? "Mascot",
     mascotSku: redemption.mascot?.sku ?? "",
     mascotImageUrl: redemption.mascot?.imageUrl ?? "",
+    tiktokFollowProof: tiktokFollowProof ? mapMascotRedemptionTikTokProof(tiktokFollowProof) : null,
+    ryoProofs: ryoProofs.map(mapMascotRedemptionRyoProof),
+    emailLogs: Array.isArray(redemption.emailLogs)
+      ? redemption.emailLogs.map(mapMascotRedemptionEmailLog)
+      : [],
     createdAt: new Date(redemption.createdAt),
     updatedAt: new Date(redemption.updatedAt)
   };
@@ -612,6 +676,9 @@ function mapReview(review: any): ProductReviewRecord {
     customerId: review.customerId ?? null,
     customerEmail: review.customer?.email ?? null,
     orderId: review.orderId ?? null,
+    personaId: review.personaId ?? null,
+    personaName: review.persona?.fullName ?? null,
+    personaSlug: review.persona?.slug ?? null,
     publishedAt: review.publishedAt ? new Date(review.publishedAt) : null,
     createdAt: new Date(review.createdAt),
     updatedAt: new Date(review.updatedAt)
@@ -1668,7 +1735,24 @@ export async function getMascotRedemptions(limit = 50) {
         await prisma.mascotRedemption.findMany({
           include: {
             mascot: true,
-            customer: true
+            customer: {
+              include: {
+                tiktokFollowRewards: {
+                  orderBy: [{ createdAt: "desc" }]
+                },
+                ryoClaims: {
+                  where: {
+                    completedAt: {
+                      not: null
+                    }
+                  },
+                  orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }]
+                }
+              }
+            },
+            emailLogs: {
+              orderBy: [{ createdAt: "desc" }]
+            }
           },
           orderBy: [{ createdAt: "desc" }],
           take: limit
@@ -1769,7 +1853,8 @@ export async function getPublishedReviewsByProductId(productId: string) {
           },
           include: {
             product: true,
-            customer: true
+            customer: true,
+            persona: true
           },
           orderBy: [{ reviewDate: "desc" }, { publishedAt: "desc" }, { createdAt: "desc" }]
         })
@@ -1791,7 +1876,8 @@ export async function getPublishedReviewById(id: string) {
         },
         include: {
           product: true,
-          customer: true
+          customer: true,
+          persona: true
         }
       });
 
@@ -1809,7 +1895,8 @@ export async function getAllReviews() {
         await prisma.productReview.findMany({
           include: {
             product: true,
-            customer: true
+            customer: true,
+            persona: true
           },
           orderBy: [{ reviewDate: "desc" }, { createdAt: "desc" }]
         })
@@ -2062,7 +2149,8 @@ export async function getAdminReviewPageByProductSlug(slug: string, page = 1, pa
           where: { productId: product.id },
           include: {
             product: true,
-            customer: true
+            customer: true,
+            persona: true
           },
           orderBy: [{ reviewDate: "desc" }, { createdAt: "desc" }],
           skip: (currentPage - 1) * pageSize,
@@ -2461,7 +2549,24 @@ export async function getCustomerAccountById(customerId: string) {
           mascotRedemptions: {
             include: {
               mascot: true,
-              customer: true
+              customer: {
+                include: {
+                  tiktokFollowRewards: {
+                    orderBy: [{ createdAt: "desc" }]
+                  },
+                  ryoClaims: {
+                    where: {
+                      completedAt: {
+                        not: null
+                      }
+                    },
+                    orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }]
+                  }
+                }
+              },
+              emailLogs: {
+                orderBy: [{ createdAt: "desc" }]
+              }
             },
             orderBy: {
               createdAt: "desc"

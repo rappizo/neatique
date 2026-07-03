@@ -12,10 +12,11 @@ export default function RedeemMascotSuccessPage() {
       <div className="container">
         <div className="page-hero om-thank-you">
           <p className="eyebrow">Redeem submitted</p>
-          <h1>Your mascot redemption request is in. We will review it and ship it soon.</h1>
+          <h1>Your mascot redemption request is in. We will verify it before shipping.</h1>
           <p>
-            Your points were reserved successfully. Our team can now process the shipping details
-            you submitted for the mascot reward.
+            Your points were reserved successfully. Our team will confirm that your TikTok following
+            screenshot and RYO flow are valid, then prepare your mascot shipment. Once it ships, we
+            will email you the carrier and tracking number.
           </p>
           <div className="stack-row">
             <ButtonLink href="/account" variant="primary">
