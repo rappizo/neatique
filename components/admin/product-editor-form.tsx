@@ -91,7 +91,7 @@ export function ProductEditorForm({ action, mode, product }: ProductEditorFormPr
               id="amazonAsin"
               name="amazonAsin"
               defaultValue={product?.amazonAsin ?? ""}
-              placeholder="Used for the Amazon review link"
+              placeholder="Used for Amazon product and review links"
             />
           </div>
           <div className="field">

@@ -87,6 +87,11 @@ function StoryBody({ body }: { body: string | string[] }) {
   );
 }
 
+function buildAmazonProductUrl(asin: string | null) {
+  const normalizedAsin = String(asin || "").trim();
+  return normalizedAsin ? `https://www.amazon.com/dp/${encodeURIComponent(normalizedAsin)}` : null;
+}
+
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
@@ -469,6 +474,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const isPdrnCream = product.slug === "pdrn-cream";
   const isPdrnSerum = product.slug === "pdrn-serum";
   const isNadSerum = product.slug === "nad-collagen-peptide-serum";
+  const amazonProductUrl = buildAmazonProductUrl(product.amazonAsin);
   const seoDescription =
     product.slug === "bee-venom-body-cream"
       ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
@@ -562,21 +568,33 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
               <span className="pill">Easy morning and night layering</span>
               {story.heroLabel ? <span className="pill">{story.heroLabel}</span> : null}
             </div>
-            <form action={addToCartAction} className="checkout-form">
-              <input type="hidden" name="productId" value={product.id} />
-              <input type="hidden" name="redirectTo" value="/cart?status=added" />
-              <div className="field">
-                <label htmlFor="quantity">Quantity</label>
-                <select id="quantity" name="quantity" defaultValue="1">
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                </select>
-              </div>
-              <button type="submit" className="button button--primary">
-                Add to cart
-              </button>
-            </form>
+            <div className="product-detail__purchase-actions">
+              <form action={addToCartAction} className="checkout-form product-detail__cart-form">
+                <input type="hidden" name="productId" value={product.id} />
+                <input type="hidden" name="redirectTo" value="/cart?status=added" />
+                <div className="field">
+                  <label htmlFor="quantity">Quantity</label>
+                  <select id="quantity" name="quantity" defaultValue="1">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                  </select>
+                </div>
+                <button type="submit" className="button button--primary">
+                  Add to cart
+                </button>
+              </form>
+              {amazonProductUrl ? (
+                <a
+                  href={amazonProductUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="button button--amazon"
+                >
+                  Buy on Amazon
+                </a>
+              ) : null}
+            </div>
             <ul className="detail-list">
               {product.details.split("\n").map((detail) => (
                 <li key={detail}>{detail}</li>
