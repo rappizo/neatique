@@ -167,10 +167,10 @@ function buildExistingReviewSummary(reviews: ExistingReviewContext[]) {
   }
 
   return reviews
-    .slice(0, 16)
+    .slice(0, 30)
     .map(
       (review, index) =>
-        `${index + 1}. ${review.displayName} | ${review.rating} stars | ${review.title}\n${review.content.slice(0, 280)}`
+        `${index + 1}. ${review.displayName} | ${review.rating} stars | ${review.title}\n${review.content.slice(0, 220)}`
     )
     .join("\n\n");
 }
@@ -309,7 +309,7 @@ async function generateAiReviewBatch(
             displayName: { type: "string", minLength: 5, maxLength: 40 },
             rating: { type: "integer", minimum: 1, maximum: 5 },
             title: { type: "string", minLength: 4, maxLength: 110 },
-            content: { type: "string", minLength: 18, maxLength: 1400 }
+            content: { type: "string", minLength: 18, maxLength: 1800 }
           },
           required: ["personaSlug", "displayName", "rating", "title", "content"]
         }
@@ -337,9 +337,10 @@ async function generateAiReviewBatch(
                 "Return only valid JSON matching the schema.",
                 "Every review must be written from the assigned buyer persona.",
                 "Use the supplied persona full name as the displayName. Do not invent, shorten, or swap names.",
-                "Each persona includes one randomly assigned review length target: short, medium, or long. Follow that target closely.",
+                "Each persona includes randomly assigned review guidance: length target, review angle, review structure, detail focus, and phrasing guide. Follow those closely.",
                 "Vary sentence openings, rhythm, length, vocabulary, tone, and structure.",
                 "Avoid repetitive openings such as 'I have been using', 'First impression', 'Short version', 'Routine note', and 'Honestly'.",
+                "Do not reuse the same title shape or first-sentence shape across reviews in the same batch.",
                 "Do not copy phrases from reference reviews or existing reviews.",
                 "Reviewer names must be full names only, with a first name and last name. Do not use initials, abbreviations, or shortened last names.",
                 "Keep claims cosmetic and experience-based. Avoid medical claims, diagnosis language, cure language, or guaranteed outcomes.",
@@ -388,6 +389,9 @@ async function generateAiReviewBatch(
                   ? "- Follow each persona's Review length target exactly. This target was randomly assigned when the persona was selected."
                   : "- Use a realistic random mix of short, medium, and longer reviews.",
                 hasPersonas
+                  ? "- Anchor the content to that persona's Review angle, Review structure, Detail focus, and Phrasing guide so repeated personas can still produce different review shapes."
+                  : "- Assign each direct-generated review a different angle, structure, detail focus, and phrasing pattern.",
+                hasPersonas
                   ? "- Use each persona's full name as displayName exactly as supplied."
                   : "- Every display name must be a full human name.",
                 normalizedRequiredRatings.length > 0
@@ -404,6 +408,7 @@ async function generateAiReviewBatch(
                   : "- Build each review from the product context rather than trying to imitate any outside sample.",
                 "- Without a reference file, skew naturally positive with mostly 4-5 star reviews and an occasional 3-star review.",
                 "- The title should look like a real review heading, not a marketing headline.",
+                "- Do not repeat an exact review title, opening phrase, or sentence frame from the existing reviews above.",
                 "- The body should read like a customer comment, not like a blog post or ad.",
                 "- No markdown, no bullet points, no emojis, no hashtags, no all-caps titles.",
                 "- Every display name must be a full human name like 'Olivia Parker' or 'Emma Brooks'. No initials such as 'Emma R.' or single names."

@@ -1916,6 +1916,12 @@ export async function generateAiReviewsAction(formData: FormData) {
             persona?.reviewLength
               ? `Random review length target: ${persona.reviewLength}.`
               : "No review length target was assigned.",
+            persona?.reviewAngle
+              ? `Random review angle: ${persona.reviewAngle}; detail focus: ${persona.reviewDetailFocus}.`
+              : "No review angle was assigned.",
+            persona?.reviewStructure
+              ? `Random review structure: ${persona.reviewStructure}.`
+              : "No review structure was assigned.",
             referenceReviews.length
               ? `Used ${referenceReviews.length} uploaded reference reviews for style guidance.`
               : "Generated directly from product context, with no reference file."
