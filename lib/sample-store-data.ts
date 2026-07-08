@@ -130,7 +130,7 @@ const baseProducts: BaseProduct[] = [
     id: "prod_pdrn_cleanser",
     productCode: "0011",
     productShortName: "PDRN Cleanser",
-    amazonAsin: null,
+    amazonAsin: "B0H2M9CMJH",
     name: "PDRN Pink 99% + Niacinamide Whip Cleanser",
     slug: "pdrn-cleanser",
     tagline:
