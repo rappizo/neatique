@@ -139,6 +139,9 @@ function mapProductRecord(product: any, reviewCount: number, averageRating: numb
     productCode: product.productCode ?? "",
     productShortName: product.productShortName ?? null,
     amazonAsin: product.amazonAsin ?? null,
+    gtin: product.gtin ?? null,
+    mpn: product.mpn ?? null,
+    identifierExists: product.identifierExists ?? null,
     name: product.name,
     slug: product.slug,
     tagline: product.tagline,
@@ -146,6 +149,14 @@ function mapProductRecord(product: any, reviewCount: number, averageRating: numb
     shortDescription: product.shortDescription,
     description: product.description,
     details: product.details,
+    netContent: product.netContent ?? null,
+    ingredients: product.ingredients ?? null,
+    directions: product.directions ?? null,
+    warnings: product.warnings ?? null,
+    countryOfOrigin: product.countryOfOrigin ?? null,
+    seoTitle: product.seoTitle ?? null,
+    seoDescription: product.seoDescription ?? null,
+    priceValidUntil: product.priceValidUntil ? new Date(product.priceValidUntil) : null,
     imageUrl: product.imageUrl,
     galleryImages: parseGalleryImages(product.galleryImages),
     featured: product.featured,
@@ -965,6 +976,27 @@ export async function getActiveProducts() {
     [],
     { allowFallbackOnDatabaseError: true }
   );
+}
+
+export async function getActiveProductsForMerchantFeed() {
+  if (!hasValidPostgresDatabaseUrl()) {
+    return [];
+  }
+
+  return (
+    await prisma.product.findMany({
+      where: { status: "ACTIVE" },
+      include: {
+        reviews: {
+          where: {
+            status: "PUBLISHED",
+            source: { not: SYNTHETIC_REVIEW_SOURCE }
+          }
+        }
+      },
+      orderBy: [{ featured: "desc" }, { createdAt: "desc" }]
+    })
+  ).map(mapProduct);
 }
 
 export async function getProductBySlug(slug: string) {

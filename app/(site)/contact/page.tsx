@@ -48,7 +48,7 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
           </p>
           <div className="page-hero__stats">
             <span className="pill">{siteConfig.supportEmail}</span>
-            <span className="pill">{siteConfig.phone}</span>
+            {siteConfig.phone ? <span className="pill">{siteConfig.phone}</span> : null}
             <span className="pill">US region support</span>
           </div>
         </div>
@@ -69,8 +69,8 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
             </p>
             <div className="site-footer__contact">
               <span>{siteConfig.supportEmail}</span>
-              <span>{siteConfig.phone}</span>
-              <span>Monday to Friday, 9 AM to 6 PM PT</span>
+              {siteConfig.phone ? <span>{siteConfig.phone}</span> : null}
+              <span>Support is handled by email and the contact form.</span>
             </div>
           </div>
           <div className="contact-card">

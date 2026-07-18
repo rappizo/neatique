@@ -12,6 +12,7 @@ import { getFeaturedProducts, getPublishedPosts } from "@/lib/queries";
 import { toAbsoluteUrl } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
 import { buildSiteImageUrl } from "@/lib/site-media";
+import { merchantReturnPolicy, merchantShippingService } from "@/lib/commerce-schema";
 import {
   getSubscribeCouponDescription,
   SUBSCRIBE_COUPON_CODE,
@@ -206,15 +207,24 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "Organization",
+        "@type": "OnlineStore",
         "@id": `${siteConfig.url}/#organization`,
         name: siteConfig.title,
         url: siteConfig.url,
         description: homePageDescription,
         email: siteConfig.supportEmail,
-        telephone: siteConfig.phone,
         areaServed: "US",
-        image: toAbsoluteUrl(homeImages.signature.src)
+        image: toAbsoluteUrl(homeImages.signature.src),
+        logo: `${siteConfig.url}/icon.svg`,
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer service",
+          email: siteConfig.supportEmail,
+          availableLanguage: "English",
+          areaServed: "US"
+        },
+        hasMerchantReturnPolicy: merchantReturnPolicy,
+        hasShippingService: merchantShippingService
       },
       {
         "@type": "WebSite",

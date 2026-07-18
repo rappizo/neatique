@@ -15,9 +15,17 @@ import { getCurrentCustomer } from "@/lib/customer-auth";
 import { formatCurrency } from "@/lib/format";
 import { isLocalProductMediaUrl } from "@/lib/media-url";
 import { noIndexRobots } from "@/lib/seo";
+import { AnalyticsEvent } from "@/components/analytics/analytics-event";
+import { toGoogleAnalyticsItem } from "@/lib/analytics";
 
 type CartPageProps = {
-  searchParams: Promise<{ status?: string; error?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    error?: string;
+    added_product_id?: string;
+    added_quantity?: string;
+    ga_event_id?: string;
+  }>;
 };
 
 export const metadata: Metadata = {
@@ -36,10 +44,34 @@ export default async function CartPage({ searchParams }: CartPageProps) {
     getCurrentCustomer(),
     searchParams
   ]);
+  const analyticsItems = lines.map((line) => toGoogleAnalyticsItem(line.product, line.quantity));
+  const addedLine = lines.find((line) => line.product.id === params.added_product_id);
+  const addedQuantity = Math.max(1, Number(params.added_quantity || 1) || 1);
 
   return (
     <section className="section">
       <div className="container">
+        {analyticsItems.length > 0 ? (
+          <AnalyticsEvent
+            eventName="view_cart"
+            params={{
+              currency: lines[0]?.product.currency || "USD",
+              value: discountedSubtotalCents / 100,
+              items: analyticsItems
+            }}
+          />
+        ) : null}
+        {params.status === "added" && addedLine && params.ga_event_id ? (
+          <AnalyticsEvent
+            eventName="add_to_cart"
+            params={{
+              currency: addedLine.product.currency,
+              value: (addedLine.product.priceCents * addedQuantity) / 100,
+              items: [toGoogleAnalyticsItem(addedLine.product, addedQuantity)]
+            }}
+            dedupeKey={`add_to_cart:${params.ga_event_id}`}
+          />
+        ) : null}
         <div className="page-hero">
           <p className="eyebrow">Cart</p>
           <h1>Your skincare picks, ready for checkout.</h1>

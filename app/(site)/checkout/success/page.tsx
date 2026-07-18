@@ -1,11 +1,28 @@
 import { ClearCartOnLoad } from "@/components/cart/clear-cart-on-load";
 import { ButtonLink } from "@/components/ui/button-link";
+import { AnalyticsEvent } from "@/components/analytics/analytics-event";
+import { getPurchaseAnalytics } from "@/lib/purchase-analytics";
 
-export default function CheckoutSuccessPage() {
+type CheckoutSuccessPageProps = {
+  searchParams: Promise<{ session_id?: string }>;
+};
+
+export default async function CheckoutSuccessPage({ searchParams }: CheckoutSuccessPageProps) {
+  const { session_id: sessionId } = await searchParams;
+  const purchase = sessionId ? await getPurchaseAnalytics(sessionId).catch(() => null) : null;
+
   return (
     <section className="section">
       <div className="container empty-state">
         <ClearCartOnLoad />
+        {purchase ? (
+          <AnalyticsEvent
+            eventName="purchase"
+            params={purchase.params}
+            dedupeKey={`purchase:${purchase.transactionId}`}
+            dedupeStorage="local"
+          />
+        ) : null}
         <p className="eyebrow">Checkout complete</p>
         <h1>Your order has been received.</h1>
         <p>

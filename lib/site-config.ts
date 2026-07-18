@@ -6,12 +6,13 @@ export const siteConfig = {
     "Bright, comforting skincare essentials crafted for smooth texture, hydration, and everyday glow.",
   accentColor: "#ed7361",
   supportEmail: "support@neatiquebeauty.com",
-  phone: "+1 (213) 555-0148",
+  phone: null,
   nav: [
     { href: "/", label: "Home" },
     { href: "/shop", label: "Shop" },
     { href: "/comic", label: "Comic" },
     { href: "/beauty-tips", label: "Beauty Tips" },
+    { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" }
   ],
   adminNav: [
@@ -116,6 +117,7 @@ export const siteConfig = {
       { href: "/shop/snail-mucin-serum", label: "Snail Mucin Serum" }
     ],
     discover: [
+      { href: "/about", label: "About Neatique" },
       { href: "/comic", label: "Comic" },
       { href: "/beauty-tips", label: "Beauty Tips" },
       { href: "/mascot", label: "Mascot Rewards" },

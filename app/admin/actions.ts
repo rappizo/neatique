@@ -117,6 +117,30 @@ function buildProductPriceData(formData: FormData) {
   };
 }
 
+function buildProductMerchantData(formData: FormData) {
+  const rawPriceValidUntil = toPlainString(formData.get("priceValidUntil"));
+  const rawIdentifierExists = toPlainString(formData.get("identifierExists"));
+  const priceValidUntil = rawPriceValidUntil
+    ? new Date(`${rawPriceValidUntil}T23:59:59.999Z`)
+    : null;
+
+  return {
+    gtin: toPlainString(formData.get("gtin")) || null,
+    mpn: toPlainString(formData.get("mpn")) || null,
+    identifierExists:
+      rawIdentifierExists === "yes" ? true : rawIdentifierExists === "no" ? false : null,
+    netContent: toPlainString(formData.get("netContent")) || null,
+    ingredients: normalizeMultilineValue(formData.get("ingredients")) || null,
+    directions: normalizeMultilineValue(formData.get("directions")) || null,
+    warnings: normalizeMultilineValue(formData.get("warnings")) || null,
+    countryOfOrigin: toPlainString(formData.get("countryOfOrigin")).toUpperCase() || null,
+    seoTitle: toPlainString(formData.get("seoTitle")) || null,
+    seoDescription: toPlainString(formData.get("seoDescription")) || null,
+    priceValidUntil:
+      priceValidUntil && !Number.isNaN(priceValidUntil.getTime()) ? priceValidUntil : null
+  };
+}
+
 function buildReviewRedirect(status: string, redirectTo?: string, productSlug?: string) {
   const basePath = redirectTo || (productSlug ? `/admin/reviews/${productSlug}` : "/admin/reviews");
   const [pathname, queryString = ""] = basePath.split("?");
@@ -588,6 +612,7 @@ export async function createProductAction(formData: FormData) {
 
   await ensureProductCodes();
   const prices = buildProductPriceData(formData);
+  const merchantData = buildProductMerchantData(formData);
   const productCode = await getNextProductCode();
 
   const product = await prisma.product.create({
@@ -595,6 +620,7 @@ export async function createProductAction(formData: FormData) {
       productCode,
       productShortName: toPlainString(formData.get("productShortName")) || null,
       amazonAsin: toPlainString(formData.get("amazonAsin")) || null,
+      ...merchantData,
       name: toPlainString(formData.get("name")),
       slug: toPlainString(formData.get("slug")),
       tagline: toPlainString(formData.get("tagline")),
@@ -631,12 +657,14 @@ export async function updateProductAction(formData: FormData) {
     }
   });
   const prices = buildProductPriceData(formData);
+  const merchantData = buildProductMerchantData(formData);
 
   const product = await prisma.product.update({
     where: { id },
     data: {
       productShortName: toPlainString(formData.get("productShortName")) || null,
       amazonAsin: toPlainString(formData.get("amazonAsin")) || null,
+      ...merchantData,
       name: toPlainString(formData.get("name")),
       slug: toPlainString(formData.get("slug")),
       tagline: toPlainString(formData.get("tagline")),

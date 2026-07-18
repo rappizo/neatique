@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -20,11 +21,13 @@ import { toInt, toPlainString } from "@/lib/utils";
 export async function addToCartAction(formData: FormData) {
   const productId = toPlainString(formData.get("productId"));
   const quantity = toInt(formData.get("quantity"), 1);
-  const redirectTo = toPlainString(formData.get("redirectTo")) || "/cart?status=added";
 
   await addCartItem(productId, quantity);
   revalidatePath("/cart");
-  redirect(redirectTo);
+  const eventId = randomUUID();
+  redirect(
+    `/cart?status=added&added_product_id=${encodeURIComponent(productId)}&added_quantity=${Math.max(1, Math.min(10, quantity))}&ga_event_id=${eventId}`
+  );
 }
 
 export async function updateCartItemAction(formData: FormData) {
@@ -98,5 +101,5 @@ export async function beginCheckoutConfirmationAction(formData: FormData) {
   }
 
   revalidatePath("/cart");
-  redirect("/checkout/confirmation");
+  redirect(`/checkout/confirmation?ga_event_id=${randomUUID()}`);
 }

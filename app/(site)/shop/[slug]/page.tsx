@@ -4,6 +4,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { submitProductReviewAction } from "@/app/(site)/account/actions";
 import { addToCartAction } from "@/app/(site)/cart/actions";
+import { AnalyticsEvent } from "@/components/analytics/analytics-event";
+import { TrackedExternalLink } from "@/components/analytics/tracked-external-link";
 import { ProductCustomerVoiceSlider } from "@/components/product/product-customer-voice-slider";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { ProductReviewsShowcase } from "@/components/product/product-reviews-showcase";
@@ -17,7 +19,6 @@ import {
   pdrnCreamEditorialSections,
   pdrnCreamHighlightCards,
   pdrnCreamRoutineContent,
-  pdrnCreamSeo,
   pdrnCreamTextureGallery
 } from "@/lib/pdrn-cream-page";
 import {
@@ -27,19 +28,23 @@ import {
   pdrnSerumGallery,
   pdrnSerumHeroCards,
   pdrnSerumIngredientCards,
-  pdrnSerumSeo
 } from "@/lib/pdrn-serum-page";
 import { getProductStory } from "@/lib/product-content";
+import { getProductSeo } from "@/lib/product-seo";
+import { toGoogleAnalyticsItem } from "@/lib/analytics";
+import {
+  buildProductOfferSchema,
+  buildVerifiedProductIdentifiers,
+  merchantReturnPolicy
+} from "@/lib/commerce-schema";
 import { nadSerumCustomerVoiceVideos } from "@/lib/nad-serum-page";
 import {
   getCustomerAccountById,
   getProductBySlug,
   getPublishedReviewsByProductId
 } from "@/lib/queries";
-import { nt16SerumSeo } from "@/lib/nt16-serum-page";
 import { toAbsoluteUrl } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
-import { tnv3SerumSeo } from "@/lib/tnv3-serum-page";
 import { isLocalProductMediaUrl } from "@/lib/media-url";
 
 type ProductPageProps = {
@@ -103,82 +108,8 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   }
 
   const absoluteImageUrl = toAbsoluteUrl(product.imageUrl);
-  const title =
-    product.slug === "bee-venom-body-cream"
-      ? "Bee Venom Body Cream | Moisturizing Cream for Dry Rough Areas"
-      :
-    product.slug === "nad-face-cream"
-      ? "8+ NAD+ Face Cream | Multi-Active Care for Tired-Looking Skin"
-      :
-    product.slug === "pdrn-cleanser"
-      ? "PDRN Pink 99% + Niacinamide Whip Cleanser | Soft Daily Cleanser"
-      :
-    product.slug === "nt16-niacinamide-tranexamic-serum"
-      ? nt16SerumSeo.title
-      : 
-    product.slug === "nad-collagen-peptide-serum"
-      ? "NAD+ Collagen Peptide Serum | 8AM Glow + 8PM Recharge Care"
-      :
-    product.slug === "pdrn-serum"
-      ? pdrnSerumSeo.title
-      :
-    product.slug === "pdrn-cream"
-      ? pdrnCreamSeo.title
-      : product.slug === "tnv3-tranexamic-nicotinamide-serum"
-        ? tnv3SerumSeo.title
-        : product.name;
-  const description =
-    product.slug === "bee-venom-body-cream"
-      ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
-      :
-    product.slug === "nad-face-cream"
-      ? "Shop Neatique 8+ NAD+ Face Cream, a rich yet lightweight multi-active cream for dry, dull, tired-looking skin on the face, neck, jawline, and targeted dry-looking areas."
-      :
-    product.slug === "pdrn-cleanser"
-      ? "Shop Neatique PDRN Pink 99% + Niacinamide Whip Cleanser, a creamy pink foam cleanser for daily buildup, excess oil, sunscreen residue, and makeup residue without a tight, stripped finish."
-      :
-    product.slug === "nt16-niacinamide-tranexamic-serum"
-      ? nt16SerumSeo.description
-      : 
-    product.slug === "nad-collagen-peptide-serum"
-      ? "Shop Neatique NAD+ Collagen Peptide Serum, a layer-friendly peptide serum with NAD+, collagen peptides, niacinamide, and hyaluronic acid for smooth, plump-looking hydration from morning to night."
-      :
-    product.slug === "pdrn-serum"
-      ? pdrnSerumSeo.description
-      :
-    product.slug === "pdrn-cream"
-      ? pdrnCreamSeo.description
-      : product.slug === "tnv3-tranexamic-nicotinamide-serum"
-        ? tnv3SerumSeo.description
-        : product.shortDescription;
-
-  if (product.slug === "nt16-niacinamide-tranexamic-serum") {
-    return {
-      title,
-      description,
-      keywords: nt16SerumSeo.keywords,
-      alternates: {
-        canonical: `/shop/${product.slug}`
-      },
-      openGraph: {
-        title: `${title} | ${siteConfig.title}`,
-        description,
-        url: `${siteConfig.url}/shop/${product.slug}`,
-        images: [
-          {
-            url: absoluteImageUrl,
-            alt: product.name
-          }
-        ]
-      },
-      twitter: {
-        card: "summary_large_image",
-        title: `${title} | ${siteConfig.title}`,
-        description,
-        images: [absoluteImageUrl]
-      }
-    };
-  }
+  const seo = getProductSeo(product);
+  const { title, description } = seo;
 
   if (product.slug === "bee-venom-body-cream") {
     return {
@@ -295,7 +226,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     return {
       title,
       description,
-      keywords: pdrnCreamSeo.keywords,
+      keywords: [seo.primaryKeyword, ...seo.secondaryKeywords],
       alternates: {
         canonical: `/shop/${product.slug}`
       },
@@ -323,7 +254,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     return {
       title,
       description,
-      keywords: pdrnSerumSeo.keywords,
+      keywords: [seo.primaryKeyword, ...seo.secondaryKeywords],
       alternates: {
         canonical: `/shop/${product.slug}`
       },
@@ -388,7 +319,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     return {
       title,
       description,
-      keywords: tnv3SerumSeo.keywords,
+      keywords: [seo.primaryKeyword, ...seo.secondaryKeywords],
       alternates: {
         canonical: `/shop/${product.slug}`
       },
@@ -415,13 +346,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   return {
     title,
     description,
-    keywords: [
-      product.name,
-      `${product.category} skincare`,
-      `${product.name} review`,
-      `buy ${product.name}`,
-      `${siteConfig.name} ${product.category}`
-    ],
+    keywords: [seo.primaryKeyword, ...seo.secondaryKeywords],
     alternates: {
       canonical: `/shop/${product.slug}`
     },
@@ -475,50 +400,45 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const isPdrnSerum = product.slug === "pdrn-serum";
   const isNadSerum = product.slug === "nad-collagen-peptide-serum";
   const amazonProductUrl = buildAmazonProductUrl(product.amazonAsin);
-  const seoDescription =
-    product.slug === "bee-venom-body-cream"
-      ? "Shop Neatique Bee Venom Body Cream, a bee venom and hyaluronic acid moisturizing body cream for dry, rough areas on arms, legs, neck, and shoulders with a smooth non-greasy finish."
-      : product.slug === "nad-face-cream"
-      ? "Shop Neatique 8+ NAD+ Face Cream, a rich yet lightweight multi-active cream for dry, dull, tired-looking skin on the face, neck, jawline, and targeted dry-looking areas."
-      : product.slug === "pdrn-cleanser"
-      ? "Shop Neatique PDRN Pink 99% + Niacinamide Whip Cleanser, a creamy pink foam cleanser for daily buildup, excess oil, sunscreen residue, and makeup residue without a tight, stripped finish."
-      : product.slug === "pdrn-cream"
-      ? pdrnCreamSeo.description
-      : product.slug === "pdrn-serum"
-        ? pdrnSerumSeo.description
-      : product.slug === "tnv3-tranexamic-nicotinamide-serum"
-        ? tnv3SerumSeo.description
-        : product.slug === "nt16-niacinamide-tranexamic-serum"
-          ? nt16SerumSeo.description
-          : product.shortDescription;
+  const seoDescription = getProductSeo(product).description;
+  const analyticsItem = toGoogleAnalyticsItem(product);
+  const verifiedIdentifiers = buildVerifiedProductIdentifiers(product);
+  const verifiedProductFacts = [
+    product.netContent ? ["Net content", product.netContent] : null,
+    product.countryOfOrigin ? ["Country of origin", product.countryOfOrigin] : null,
+    product.ingredients ? ["Full ingredient list (INCI)", product.ingredients] : null,
+    product.directions ? ["Directions", product.directions] : null,
+    product.warnings ? ["Warnings", product.warnings] : null
+  ].filter((fact): fact is string[] => Boolean(fact));
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    description: seoDescription,
-    sku: product.productCode,
-    image: displayGallery.slice(0, 8).map((image) => new URL(image, siteConfig.url).toString()),
-    brand: {
-      "@type": "Brand",
-      name: siteConfig.name
-    },
-    offers: {
-      "@type": "Offer",
-      url: `${siteConfig.url}/shop/${product.slug}`,
-      priceCurrency: product.currency,
-      price: (product.priceCents / 100).toFixed(2),
-      availability:
-        product.inventory > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
-    },
-    ...(reviews.length > 0 && product.averageRating
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: Number(product.averageRating.toFixed(1)),
-            reviewCount: reviews.length
-          }
-        }
-      : {})
+    "@graph": [
+      {
+        "@type": "Product",
+        "@id": `${siteConfig.url}/shop/${product.slug}#product`,
+        name: product.name,
+        description: seoDescription,
+        sku: product.productCode,
+        image: displayGallery.slice(0, 8).map((image) => new URL(image, siteConfig.url).toString()),
+        brand: {
+          "@type": "Brand",
+          name: siteConfig.name
+        },
+        ...verifiedIdentifiers,
+        ...(product.netContent ? { size: product.netContent } : {}),
+        offers: buildProductOfferSchema(product),
+        ...(reviews.length > 0 && product.averageRating
+          ? {
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: Number(product.averageRating.toFixed(1)),
+                reviewCount: reviews.length
+              }
+            }
+          : {})
+      },
+      merchantReturnPolicy
+    ]
   };
 
   return (
@@ -527,6 +447,15 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+        <AnalyticsEvent
+          eventName="view_item"
+          params={{
+            currency: product.currency,
+            value: product.priceCents / 100,
+            items: [analyticsItem]
+          }}
+          dedupeKey={`view_item:${product.id}`}
         />
         <div className="product-detail">
           <ProductGallery images={displayGallery} alt={product.name} />
@@ -571,7 +500,6 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
             <div className="product-detail__purchase-actions">
               <form action={addToCartAction} className="checkout-form product-detail__cart-form">
                 <input type="hidden" name="productId" value={product.id} />
-                <input type="hidden" name="redirectTo" value="/cart?status=added" />
                 <div className="field">
                   <label htmlFor="quantity">Quantity</label>
                   <select id="quantity" name="quantity" defaultValue="1">
@@ -585,14 +513,16 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                 </button>
               </form>
               {amazonProductUrl ? (
-                <a
+                <TrackedExternalLink
                   href={amazonProductUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="button button--amazon"
+                  eventName="select_external_marketplace"
+                  item={analyticsItem}
                 >
                   Buy on Amazon
-                </a>
+                </TrackedExternalLink>
               ) : null}
             </div>
             <ul className="detail-list">
@@ -612,6 +542,38 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
         </div>
 
         <div className="product-page-stack">
+          <section className="product-page-section">
+            <div className="section-heading">
+              <p className="section-heading__eyebrow">Delivery & returns</p>
+              <h2>Free mainland U.S. shipping and a 30-day return window.</h2>
+              <p>
+                Paid orders are typically processed within one business day. Eligible direct
+                website purchases can request return support within 30 days of delivery.
+              </p>
+            </div>
+            <div className="stack-row">
+              <ButtonLink href="/shipping-policy" variant="secondary">Shipping policy</ButtonLink>
+              <ButtonLink href="/return-policy" variant="ghost">Return policy</ButtonLink>
+            </div>
+          </section>
+
+          {verifiedProductFacts.length > 0 ? (
+            <section className="product-page-section">
+              <div className="section-heading">
+                <p className="section-heading__eyebrow">Verified product information</p>
+                <h2>Packaging facts for this product.</h2>
+              </div>
+              <dl className="detail-list">
+                {verifiedProductFacts.map(([label, value]) => (
+                  <div key={label}>
+                    <dt><strong>{label}</strong></dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
+
           {isNadSerum ? (
             <ProductCustomerVoiceSlider
               eyebrow="TikTok routine"

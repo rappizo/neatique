@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { trackGoogleAnalyticsEvent } from "@/components/analytics/analytics-event";
 
 export type ProductCustomerVoiceVideo = {
   id: string;
@@ -87,6 +88,13 @@ export function ProductCustomerVoiceSlider({
             target="_blank"
             rel="noreferrer"
             className="link-inline"
+            onClick={() => trackGoogleAnalyticsEvent("select_external_social", {
+              platform: "TikTok",
+              creator: activeVideo.creator,
+              video_id: activeVideo.id,
+              link_url: `https://www.tiktok.com/${activeVideo.creator}/video/${activeVideo.id}`,
+              outbound: true
+            })}
           >
             Watch on TikTok
           </a>

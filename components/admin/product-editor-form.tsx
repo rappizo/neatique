@@ -95,6 +95,43 @@ export function ProductEditorForm({ action, mode, product }: ProductEditorFormPr
             />
           </div>
           <div className="field">
+            <label htmlFor="gtin">GTIN / UPC / EAN</label>
+            <input
+              id="gtin"
+              name="gtin"
+              inputMode="numeric"
+              defaultValue={product?.gtin ?? ""}
+              placeholder="Manufacturer-assigned barcode only"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="mpn">Manufacturer part number</label>
+            <input
+              id="mpn"
+              name="mpn"
+              defaultValue={product?.mpn ?? ""}
+              placeholder="Do not use an invented identifier"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="identifierExists">Manufacturer identifier status</label>
+            <select
+              id="identifierExists"
+              name="identifierExists"
+              defaultValue={
+                product?.identifierExists === true
+                  ? "yes"
+                  : product?.identifierExists === false
+                    ? "no"
+                    : "unknown"
+              }
+            >
+              <option value="unknown">Unknown — omit from feed</option>
+              <option value="yes">Verified identifiers exist</option>
+              <option value="no">Manufacturer confirms none exist</option>
+            </select>
+          </div>
+          <div className="field">
             <label htmlFor="slug">Slug</label>
             <input id="slug" name="slug" defaultValue={product?.slug ?? ""} required />
           </div>
@@ -169,6 +206,15 @@ export function ProductEditorForm({ action, mode, product }: ProductEditorFormPr
             />
           </div>
           <div className="field">
+            <label htmlFor="priceValidUntil">Sale price valid until</label>
+            <input
+              id="priceValidUntil"
+              name="priceValidUntil"
+              type="date"
+              defaultValue={product?.priceValidUntil?.toISOString().slice(0, 10) ?? ""}
+            />
+          </div>
+          <div className="field">
             <label htmlFor="status">Status</label>
             <select id="status" name="status" defaultValue={product?.status ?? "DRAFT"}>
               <option value="ACTIVE">ACTIVE</option>
@@ -200,6 +246,69 @@ export function ProductEditorForm({ action, mode, product }: ProductEditorFormPr
         <div className="field">
           <label htmlFor="details">Detail bullets</label>
           <textarea id="details" name="details" defaultValue={product?.details ?? ""} required />
+        </div>
+
+        <div className="admin-form__grid">
+          <div className="field">
+            <label htmlFor="netContent">Net content</label>
+            <input
+              id="netContent"
+              name="netContent"
+              defaultValue={product?.netContent ?? ""}
+              placeholder="Example: 1.69 fl oz / 50 mL"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="countryOfOrigin">Country of origin</label>
+            <input
+              id="countryOfOrigin"
+              name="countryOfOrigin"
+              defaultValue={product?.countryOfOrigin ?? ""}
+              placeholder="ISO country code, for example KR or US"
+            />
+          </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="ingredients">Full INCI ingredients</label>
+          <textarea
+            id="ingredients"
+            name="ingredients"
+            defaultValue={product?.ingredients ?? ""}
+            placeholder="Enter the complete packaging INCI list; do not enter only hero ingredients."
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="directions">Directions</label>
+          <textarea id="directions" name="directions" defaultValue={product?.directions ?? ""} />
+        </div>
+
+        <div className="field">
+          <label htmlFor="warnings">Warnings and precautions</label>
+          <textarea id="warnings" name="warnings" defaultValue={product?.warnings ?? ""} />
+        </div>
+
+        <div className="field">
+          <label htmlFor="seoTitle">SEO title override</label>
+          <input
+            id="seoTitle"
+            name="seoTitle"
+            defaultValue={product?.seoTitle ?? ""}
+            maxLength={70}
+            placeholder="Leave blank to use the verified product SEO map"
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="seoDescription">SEO description override</label>
+          <textarea
+            id="seoDescription"
+            name="seoDescription"
+            defaultValue={product?.seoDescription ?? ""}
+            maxLength={180}
+            placeholder="Leave blank to use the verified product SEO map"
+          />
         </div>
 
         <div className="field">

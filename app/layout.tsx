@@ -4,7 +4,7 @@ import "@/app/globals.css";
 import { siteConfig } from "@/lib/site-config";
 import { defaultOgImage } from "@/lib/seo";
 
-const GOOGLE_TAG_ID = "G-WRS7GSKT5T";
+const GOOGLE_TAG_ID = process.env.NEXT_PUBLIC_GOOGLE_TAG_ID?.trim() || "G-WRS7GSKT5T";
 const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 
 export const metadata: Metadata = {

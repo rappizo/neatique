@@ -85,7 +85,7 @@ P3 增长验证与运营机制
 | P0-06 | 接入能力已完成，外部待办 | 支持通过 `GOOGLE_SITE_VERIFICATION` 注入 Google 验证标记 | 配置验证值或 DNS 验证 Domain Property，提交 sitemap，并保存 Search Console 基线 |
 | P0-07 | 本地回归通过，生产待办 | TypeScript、96 项自动化测试、ESLint、Next.js production build 与 function trace guard 已通过 | 部署后执行首页、Shop、12 个商品、14 篇文章和 noindex 页面回归 |
 
-> 当前结论：P0 代码改造已经完成；在生产数据库迁移、Vercel 永久域名跳转、Search Console 验证及上线回归全部通过前，P0 总状态保持“待验收”，不进入 P1。
+> 当前结论（2026-07-18 更新）：P0 代码与生产迁移已经完成；站点负责人已确认 Vercel 域名跳转问题处理完毕并已提交 sitemap，因此进入 P1。Search Console 基线与持续索引观察仍作为外部验收项保留。
 
 ### P0 涉及的主要代码
 
@@ -130,6 +130,23 @@ P3 增长验证与运营机制
 | P1-06 | Merchant Center | 建立 Google Merchant Center；从商品数据库生成 Feed；开启免费商品列表；配置配送、税费和退货政策 | 商品 Feed、Merchant Center 账户 | 12 个在售商品成功同步；无影响投放/免费列表的严重拒登问题 |
 | P1-07 | 品牌信任页面 | 新增 `/about`；核实或删除 `+1 (213) 555-0148`；补充真实公司主体、品牌故事、配方理念、客服和生产/质量信息 | About 页面、联系方式检查表 | 页面所有身份、联系方式、测试、认证和生产信息均可验证 |
 | P1-08 | 索引迁移观察 | 在 Search Console 检查 Google-selected canonical、旧 URL 和新商品页；对重点页面请求重新抓取 | 迁移观察记录 | Google-selected canonical 与声明版本一致；旧 URL 展示量持续下降 |
+
+### P1 实施状态（2026-07-18）
+
+| ID | 当前状态 | 已完成 | 上线/外部待办 |
+| --- | --- | --- | --- |
+| P1-01 | 代码已完成，待线上数据验收 | GA4 已覆盖 `view_item`、`select_item`、`add_to_cart`、`view_cart`、`begin_checkout`、`purchase`、优惠券与 Amazon/TikTok/Walmart 外链；购买事件以订单号或 Stripe Session 去重 | 部署后在 GA4 DebugView 完成一次完整测试订单，核对收入、税费、币种及事件去重 |
+| P1-02 | 代码已完成 | 为 12 个在售商品建立独立 title、description、主关键词和次关键词映射；后台支持经核实后的 SEO 覆盖值 | 部署后抽查生产 HTML，结合 Search Console 查询数据持续微调，不批量改写承诺 |
+| P1-03 | 系统能力已完成，商品事实待补 | 后台新增容量、完整 INCI、使用方法、注意事项、产地、GTIN、MPN 与价格有效期字段；页面只展示已填写的核实信息；配送与退货信息已可见 | 按 12 个实物包装/供应商资料逐项录入；不得凭商品名猜测容量、完整配方、来源、产地或认证 |
+| P1-04 | 代码已完成，待 Rich Results 验收 | Product Schema 已增加 `itemCondition`、免费配送、处理时间、30 天退货政策、价格有效期与经过校验的 GTIN/MPN；真实评论规则沿用 P0 | 部署后用 Rich Results Test 验证 12 个商品页；补录商品事实后再次验证 |
+| P1-05 | 核心代码已完成，外部身份信息待补 | 首页已改为 `OnlineStore`，包含真实站点 logo、支持邮箱、配送和退货政策；虚假电话号码已删除 | 只有在能核实后才补充公司主体、官方社交主页 `sameAs` 和完整会员计划 Schema |
+| P1-06 | Feed 已完成，Merchant Center 待接入 | 新增数据库驱动的 Google Merchant XML Feed；仅在校验通过时输出 GTIN，`identifier_exists=no` 必须由后台明确确认 | 在 Merchant Center 添加 Feed URL，配置税费/配送/退货并开启免费商品；处理诊断拒登 |
+| P1-07 | 核心页面已完成，主体资料待补 | 新增 `/about`；导航、Footer 和 sitemap 已接入；删除 `+1 (213) 555-0148` 和未经核实的客服时段 | 由负责人提供可公开验证的公司主体、品牌沿革、生产和质量资料后再扩写，不添加无法证明的陈述 |
+| P1-08 | 外部待办 | canonical、sitemap 和旧 URL 治理能力已在 P0 上线 | 在 Search Console 记录 Google-selected canonical、旧 URL 趋势、商品结果和新错误，持续观察至少 28 天 |
+
+Google Merchant Feed 地址：`https://www.neatiquebeauty.com/google-merchant.xml`
+
+> 当前结论：P1 站内代码改造已完成主要部分，但 P1 总状态仍为“待外部与真实商品数据验收”。Merchant Center 接入、12 个商品包装事实、GA4 DebugView、Rich Results Test 与 Search Console 观察完成前，不标记 P1 全部完成。
 
 ### P1 完成门槛
 

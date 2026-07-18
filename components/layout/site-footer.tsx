@@ -14,7 +14,7 @@ export function SiteFooter() {
           </p>
           <div className="site-footer__contact">
             <span>{siteConfig.supportEmail}</span>
-            <span>{siteConfig.phone}</span>
+            {siteConfig.phone ? <span>{siteConfig.phone}</span> : null}
             <span>Ships within the United States</span>
           </div>
         </div>

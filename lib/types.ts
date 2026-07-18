@@ -60,6 +60,9 @@ export type ProductRecord = {
   productCode: string;
   productShortName: string | null;
   amazonAsin: string | null;
+  gtin?: string | null;
+  mpn?: string | null;
+  identifierExists?: boolean | null;
   name: string;
   slug: string;
   tagline: string;
@@ -67,6 +70,14 @@ export type ProductRecord = {
   shortDescription: string;
   description: string;
   details: string;
+  netContent?: string | null;
+  ingredients?: string | null;
+  directions?: string | null;
+  warnings?: string | null;
+  countryOfOrigin?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  priceValidUntil?: Date | null;
   imageUrl: string;
   galleryImages: string[];
   featured: boolean;

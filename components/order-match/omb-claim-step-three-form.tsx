@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { trackGoogleAnalyticsEvent } from "@/components/analytics/analytics-event";
 import type { OrderMatchPlatform } from "@/lib/order-match";
 import {
   isFreshOmbClaimProgressSnapshot,
@@ -176,6 +177,11 @@ export function OmbClaimStepThreeForm({
     }
 
     if (destinationUrl) {
+      trackGoogleAnalyticsEvent("select_external_marketplace", {
+        platform: platformLabel,
+        link_url: destinationUrl,
+        outbound: true
+      });
       window.open(destinationUrl, "_blank", "noopener,noreferrer");
     }
   }

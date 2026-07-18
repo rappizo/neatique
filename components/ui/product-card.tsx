@@ -1,10 +1,11 @@
 import Image from "next/image";
-import Link from "next/link";
 import { formatCurrency, getSavingsCents } from "@/lib/format";
+import { toGoogleAnalyticsItem } from "@/lib/analytics";
 import { isLocalProductMediaUrl } from "@/lib/media-url";
 import type { ProductRecord } from "@/lib/types";
 import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { RatingStars } from "@/components/ui/rating-stars";
+import { TrackedProductLink } from "@/components/analytics/tracked-product-link";
 
 type ProductCardProps = {
   product: ProductRecord;
@@ -12,10 +13,19 @@ type ProductCardProps = {
 
 export function ProductCard({ product }: ProductCardProps) {
   const savingsCents = getSavingsCents(product.compareAtPriceCents, product.priceCents);
+  const analyticsItem = toGoogleAnalyticsItem(product, 1, {
+    item_list_id: "product_collection",
+    item_list_name: "Product collection"
+  });
 
   return (
     <article className="product-card">
-      <Link href={`/shop/${product.slug}`} className="product-card__image-link" aria-label={product.name}>
+      <TrackedProductLink
+        href={`/shop/${product.slug}`}
+        item={analyticsItem}
+        className="product-card__image-link"
+        aria-label={product.name}
+      >
         <div className="product-card__image-wrap">
           <Image
             src={product.imageUrl}
@@ -29,7 +39,7 @@ export function ProductCard({ product }: ProductCardProps) {
           />
           <AiGeneratedPersonBadge src={product.imageUrl} />
         </div>
-      </Link>
+      </TrackedProductLink>
       <div className="product-card__content">
         <div className="product-card__meta">
           <span>{product.category}</span>
@@ -59,7 +69,9 @@ export function ProductCard({ product }: ProductCardProps) {
               </span>
             ) : null}
           </div>
-          <Link href={`/shop/${product.slug}`}>View details</Link>
+          <TrackedProductLink href={`/shop/${product.slug}`} item={analyticsItem}>
+            View details
+          </TrackedProductLink>
         </div>
       </div>
     </article>

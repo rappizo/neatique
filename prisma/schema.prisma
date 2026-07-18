@@ -104,6 +104,9 @@ model Product {
   productCode         String?           @unique
   productShortName    String?
   amazonAsin          String?
+  gtin                String?
+  mpn                 String?
+  identifierExists    Boolean?
   name                String
   slug                String            @unique
   tagline             String
@@ -111,6 +114,14 @@ model Product {
   shortDescription    String
   description         String
   details             String
+  netContent          String?
+  ingredients         String?
+  directions          String?
+  warnings            String?
+  countryOfOrigin     String?
+  seoTitle            String?
+  seoDescription      String?
+  priceValidUntil     DateTime?
   imageUrl            String
   galleryImages       String?
   featured            Boolean           @default(false)

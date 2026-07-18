@@ -7,9 +7,11 @@ import { getCheckoutDraft } from "@/lib/checkout-draft";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { formatCouponValue } from "@/lib/coupons";
 import { formatCurrency } from "@/lib/format";
+import { AnalyticsEvent } from "@/components/analytics/analytics-event";
+import { toGoogleAnalyticsItem } from "@/lib/analytics";
 
 type CheckoutConfirmationPageProps = {
-  searchParams: Promise<{ error?: string; status?: string }>;
+  searchParams: Promise<{ error?: string; status?: string; ga_event_id?: string }>;
 };
 
 export const metadata: Metadata = {
@@ -38,6 +40,18 @@ export default async function CheckoutConfirmationPage({
   return (
     <section className="section">
       <div className="container">
+        {params.ga_event_id ? (
+          <AnalyticsEvent
+            eventName="begin_checkout"
+            params={{
+              currency: lines[0]?.product.currency || "USD",
+              value: discountedSubtotalCents / 100,
+              coupon: appliedCoupons.map((coupon) => coupon.code).join(",") || undefined,
+              items: lines.map((line) => toGoogleAnalyticsItem(line.product, line.quantity))
+            }}
+            dedupeKey={`begin_checkout:${params.ga_event_id}`}
+          />
+        ) : null}
         <div className="page-hero">
           <p className="eyebrow">Order Confirmation</p>
           <h1>Review your order details before you enter secure payment.</h1>
