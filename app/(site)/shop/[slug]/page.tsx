@@ -1001,7 +1001,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
                               height={imageHeight}
                               sizes="(max-width: 720px) 100vw, (max-width: 1080px) 92vw, 44vw"
                               quality={75}
-                              unoptimized={isLocalProductMediaUrl(image.src)}
+                              unoptimized={
+                                isLocalProductMediaUrl(image.src) ||
+                                image.src.startsWith("/product-description/")
+                              }
                               className="story-home-section__image"
                             />
                             <AiGeneratedPersonBadge src={image.src} />
