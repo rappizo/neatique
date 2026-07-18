@@ -52,6 +52,9 @@ const nextConfig: NextConfig = {
         pathname: "/products/**"
       },
       {
+        pathname: "/posts/**"
+      },
+      {
         pathname: "/comic-reference/**"
       }
     ],

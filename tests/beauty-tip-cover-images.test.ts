@@ -78,3 +78,9 @@ test("product pages reuse the homepage three-column post cards for related guide
   );
   assert.match(pageSource, /<PostCard key=\{post\.id\} post=\{post\} \/>/);
 });
+
+test("Next Image allows optimized Beauty Tips assets from the posts directory", () => {
+  const nextConfigSource = readFileSync(path.join(process.cwd(), "next.config.ts"), "utf8");
+
+  assert.match(nextConfigSource, /pathname:\s*"\/posts\/\*\*"/);
+});
