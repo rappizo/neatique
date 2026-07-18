@@ -26,6 +26,8 @@ function extractErrorMessage(payload: unknown, fallback: string) {
 
 export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlineRowProps) {
   const [displayName, setDisplayName] = useState(review.displayName);
+  const [purchaseChannel, setPurchaseChannel] = useState(review.purchaseChannel ?? "");
+  const [reviewImageUrl, setReviewImageUrl] = useState(review.reviewImageUrl ?? "");
   const [rating, setRating] = useState(String(review.rating));
   const [status, setStatus] = useState<ReviewStatus>(review.status);
   const [verifiedPurchase, setVerifiedPurchase] = useState(review.verifiedPurchase);
@@ -58,6 +60,8 @@ export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlin
             title,
             content,
             displayName,
+            purchaseChannel,
+            reviewImageUrl,
             reviewDate,
             status,
             verifiedPurchase,
@@ -119,24 +123,47 @@ export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlin
         <input className="admin-table__input" name="displayName" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
       </td>
       <td>
+        <input
+          className="admin-table__input"
+          name="purchaseChannel"
+          value={purchaseChannel}
+          onChange={(event) => setPurchaseChannel(event.target.value)}
+          placeholder="Not provided"
+        />
+      </td>
+      <td>
+        <input
+          className="admin-table__input"
+          name="reviewImageUrl"
+          type="url"
+          value={reviewImageUrl}
+          onChange={(event) => setReviewImageUrl(event.target.value)}
+          placeholder="https://..."
+        />
+      </td>
+      <td>
         <div className="admin-table__cell-stack">
           <strong>{review.personaName || "No User Image"}</strong>
           {review.personaSlug ? <span className="form-note">{review.personaSlug}</span> : null}
         </div>
       </td>
       <td>
-        <div className="admin-table__rating-cell">
-          <input
-            className="admin-table__input admin-table__input--xs"
-            name="rating"
-            type="number"
-            min="1"
-            max="5"
-            value={rating}
-            onChange={(event) => setRating(event.target.value)}
-          />
-          <RatingStars rating={Math.max(1, Math.min(5, Number.parseInt(rating, 10) || review.rating))} size="sm" />
-        </div>
+        {review.hasRating ? (
+          <div className="admin-table__rating-cell">
+            <input
+              className="admin-table__input admin-table__input--xs"
+              name="rating"
+              type="number"
+              min="1"
+              max="5"
+              value={rating}
+              onChange={(event) => setRating(event.target.value)}
+            />
+            <RatingStars rating={Math.max(1, Math.min(5, Number.parseInt(rating, 10) || review.rating))} size="sm" />
+          </div>
+        ) : (
+          <span className="pill">Not provided</span>
+        )}
       </td>
       <td>
         <select className="admin-table__select" name="status" value={status} onChange={(event) => setStatus(event.target.value as ReviewStatus)}>

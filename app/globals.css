@@ -3030,6 +3030,28 @@ main {
   margin: 0;
 }
 
+.review-card__image-wrap,
+.review-detail-card__image-wrap {
+  display: block;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(252, 243, 240, 0.92);
+}
+
+.review-card__image,
+.review-detail-card__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 520px;
+  object-fit: cover;
+}
+
+.review-card__image {
+  aspect-ratio: 4 / 3;
+}
+
 .review-card__meta {
   display: flex;
   flex-wrap: wrap;

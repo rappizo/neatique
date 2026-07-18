@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import { INCENTIVIZED_REVIEW_LABEL } from "@/lib/incentivized-review-plan";
 import { getPublishedReviewById } from "@/lib/queries";
 import { getReviewPath, getReviewUrl } from "@/lib/review-links";
+import { isAdminUploadedReview } from "@/lib/review-upload";
 import { defaultOgImage } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
 
@@ -84,20 +85,27 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
             <div className="review-detail-card__hero">
               <div className="review-detail-card__copy">
                 <p className="eyebrow">Customer review</p>
-                <h1>{review.title}</h1>
+                <h1>
+                  {isAdminUploadedReview(review.source)
+                    ? `Review from ${review.displayName}`
+                    : review.title}
+                </h1>
                 <p>
                   Shared for <Link href={productPath}>{productName}</Link>
                 </p>
               </div>
-              <div className="review-detail-card__rating">
-                <RatingStars rating={review.rating} size="lg" />
-                <span>{review.rating}/5</span>
-              </div>
+              {review.hasRating ? (
+                <div className="review-detail-card__rating">
+                  <RatingStars rating={review.rating} size="lg" />
+                  <span>{review.rating}/5</span>
+                </div>
+              ) : null}
             </div>
 
             <div className="review-detail-card__meta">
               <span>{review.displayName}</span>
               <span>{formatDate(review.reviewDate)}</span>
+              {review.purchaseChannel ? <span>Purchased via {review.purchaseChannel}</span> : null}
               {review.verifiedPurchase ? <span>Verified purchase</span> : null}
               {review.incentivizedReview ? (
                 <span className="review-disclosure-badge">{INCENTIVIZED_REVIEW_LABEL}</span>
@@ -106,6 +114,17 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
 
             <div className="review-detail-card__body">
               <p>{review.content}</p>
+              {review.reviewImageUrl ? (
+                <div className="review-detail-card__image-wrap">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    className="review-detail-card__image"
+                    src={review.reviewImageUrl}
+                    alt={`Review shared by ${review.displayName}`}
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              ) : null}
             </div>
           </article>
         </div>

@@ -229,13 +229,14 @@ function mapProduct(product: any): ProductRecord {
           review.status === "PUBLISHED" && !isSyntheticReviewSource(review.source)
       )
     : [];
-  const reviewCount = publishedReviews.length;
+  const ratedReviews = publishedReviews.filter((review: any) => review.hasRating !== false);
   const averageRating =
-    reviewCount > 0
-      ? publishedReviews.reduce((sum: number, review: any) => sum + review.rating, 0) / reviewCount
+    ratedReviews.length > 0
+      ? ratedReviews.reduce((sum: number, review: any) => sum + review.rating, 0) /
+        ratedReviews.length
       : null;
 
-  return mapProductRecord(product, reviewCount, averageRating);
+  return mapProductRecord(product, ratedReviews.length, averageRating);
 }
 
 function parseStoredSecondaryKeywords(value: string | null | undefined) {
@@ -700,6 +701,9 @@ function mapReview(review: any): ProductReviewRecord {
     title: review.title,
     content: review.content,
     displayName: review.displayName,
+    purchaseChannel: review.purchaseChannel ?? null,
+    reviewImageUrl: review.reviewImageUrl ?? null,
+    hasRating: review.hasRating ?? true,
     reviewDate: new Date(reviewDateSource),
     status: review.status,
     verifiedPurchase: review.verifiedPurchase,
@@ -1996,9 +2000,14 @@ export async function getAdminReviewProducts() {
 
     return fallbackProducts.map<AdminReviewProductSummary>((product) => {
       const bucket = statusSummary.get(product.id);
+      const ratedReviewCount = fallbackReviews.filter(
+        (review) =>
+          review.productId === product.id && review.status === "PUBLISHED" && review.hasRating
+      ).length;
 
       return {
         id: product.id,
+        productCode: product.productCode,
         name: product.name,
         slug: product.slug,
         imageUrl: product.imageUrl,
@@ -2006,6 +2015,7 @@ export async function getAdminReviewProducts() {
         status: product.status,
         shortDescription: product.shortDescription,
         averageRating: product.averageRating ?? null,
+        ratedReviewCount,
         totalReviewCount: bucket?.totalReviewCount ?? product.reviewCount ?? 0,
         publishedReviewCount: bucket?.publishedReviewCount ?? product.reviewCount ?? 0,
         pendingReviewCount: bucket?.pendingReviewCount ?? 0,
@@ -2051,7 +2061,7 @@ export async function getAdminReviewProducts() {
         prisma.productReview.groupBy({
           by: ["productId"],
           orderBy: { productId: "asc" },
-          where: { status: "PUBLISHED" },
+          where: { status: "PUBLISHED", hasRating: true },
           _count: { id: true },
           _avg: { rating: true }
         })
@@ -2103,9 +2113,11 @@ export async function getAdminReviewProducts() {
       return products.map<AdminReviewProductSummary>((product) => {
         const bucket = statusSummary.get(product.id);
         const published = publishedSummary.get(product.id);
+        const publishedCount = published?._count as { id?: number } | undefined;
 
         return {
           id: product.id,
+          productCode: product.productCode ?? "",
           name: product.name,
           slug: product.slug,
           imageUrl: product.imageUrl,
@@ -2113,6 +2125,7 @@ export async function getAdminReviewProducts() {
           status: product.status,
           shortDescription: product.shortDescription,
           averageRating: published?._avg?.rating ?? null,
+          ratedReviewCount: publishedCount?.id ?? 0,
           totalReviewCount: bucket?.totalReviewCount ?? 0,
           publishedReviewCount: bucket?.publishedReviewCount ?? 0,
           pendingReviewCount: bucket?.pendingReviewCount ?? 0,
@@ -2197,7 +2210,8 @@ export async function getAdminReviewPageByProductSlug(slug: string, page = 1, pa
         prisma.productReview.aggregate({
           where: {
             productId: product.id,
-            status: "PUBLISHED"
+            status: "PUBLISHED",
+            hasRating: true
           },
           _count: { id: true },
           _avg: { rating: true }
@@ -2244,7 +2258,11 @@ export async function getAdminReviewPageByProductSlug(slug: string, page = 1, pa
       ).map(mapReview);
 
       return {
-        product: mapProductRecord(product, publishedReviewCount, publishedAggregate._avg?.rating ?? null),
+        product: mapProductRecord(
+          product,
+          publishedAggregate._count.id,
+          publishedAggregate._avg?.rating ?? null
+        ),
         reviews,
         totalReviewCount,
         publishedReviewCount,

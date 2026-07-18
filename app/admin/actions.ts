@@ -71,6 +71,12 @@ import {
   isSyntheticReviewSource,
   SYNTHETIC_REVIEW_SOURCE
 } from "@/lib/review-compliance";
+import {
+  ADMIN_UPLOADED_REVIEW_INTERNAL_RATING,
+  ADMIN_UPLOADED_REVIEW_SOURCE,
+  ADMIN_UPLOADED_REVIEW_TITLE,
+  normalizeReviewImageUrl
+} from "@/lib/review-upload";
 import { approveRyoClaimReward } from "@/lib/ryo-claims";
 import {
   MascotRedemptionUpdateError,
@@ -1495,6 +1501,8 @@ export async function updateReviewAction(formData: FormData) {
       title: toPlainString(formData.get("title")),
       content: toPlainString(formData.get("content")),
       displayName: toPlainString(formData.get("displayName")),
+      purchaseChannel: toPlainString(formData.get("purchaseChannel")) || null,
+      reviewImageUrl: toPlainString(formData.get("reviewImageUrl")) || null,
       reviewDate: nextReviewDate ?? existingReview?.reviewDate ?? new Date(),
       status: compliantStatus,
       verifiedPurchase,
@@ -1704,6 +1712,63 @@ export async function generateAiReviewsAction(formData: FormData) {
   redirect(buildReviewRedirect("ai-reviews-disabled", redirectTo, productSlug));
 }
 
+export async function uploadReviewAction(formData: FormData) {
+  await requireFullAdminSession();
+
+  const productId = toPlainString(formData.get("productId"));
+  const displayName = toPlainString(formData.get("displayName"));
+  const purchaseChannel = toPlainString(formData.get("purchaseChannel"));
+  const content = toPlainString(formData.get("content"));
+  const imageUrlResult = normalizeReviewImageUrl(
+    toPlainString(formData.get("reviewImageUrl"))
+  );
+
+  if (!productId || !displayName || !purchaseChannel || !content) {
+    redirect(buildReviewRedirect("upload-missing-fields"));
+  }
+
+  if (!imageUrlResult.valid) {
+    redirect(buildReviewRedirect("upload-invalid-image-url"));
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: {
+      id: true,
+      slug: true,
+      productCode: true
+    }
+  });
+
+  if (!product?.productCode) {
+    redirect(buildReviewRedirect("upload-sku-not-found"));
+  }
+
+  const now = new Date();
+  await prisma.productReview.create({
+    data: {
+      productId: product.id,
+      rating: ADMIN_UPLOADED_REVIEW_INTERNAL_RATING,
+      title: ADMIN_UPLOADED_REVIEW_TITLE,
+      content,
+      displayName,
+      purchaseChannel,
+      reviewImageUrl: imageUrlResult.value,
+      hasRating: false,
+      verifiedPurchase: false,
+      reviewDate: now,
+      status: "PUBLISHED",
+      publishedAt: now,
+      source: ADMIN_UPLOADED_REVIEW_SOURCE
+    }
+  });
+
+  revalidatePath("/admin/reviews");
+  revalidatePath(`/admin/reviews/${product.slug}`);
+  refreshStorefront([product.slug]);
+  redirect(buildReviewRedirect("uploaded"));
+}
+
 export async function bulkImportReviewsAction(formData: FormData) {
   await requireFullAdminSession();
 
@@ -1735,6 +1800,8 @@ export async function bulkImportReviewsAction(formData: FormData) {
   const contentIndex = headerMap.get("content");
   const statusIndex = headerMap.get("status");
   const reviewDateIndex = headerMap.get("reviewdate");
+  const purchaseChannelIndex = headerMap.get("purchasechannel");
+  const reviewImageUrlIndex = headerMap.get("reviewimageurl");
   const incentivizedReviewIndex = headerMap.get("incentivizedreview");
 
   if (
@@ -1766,6 +1833,9 @@ export async function bulkImportReviewsAction(formData: FormData) {
     const parsedReviewDate = parseReviewDateInput(
       reviewDateIndex !== undefined ? row[reviewDateIndex] : undefined
     );
+    const importedImageUrl = normalizeReviewImageUrl(
+      reviewImageUrlIndex !== undefined ? row[reviewImageUrlIndex] : undefined
+    );
 
     if (!product) {
       continue;
@@ -1783,9 +1853,13 @@ export async function bulkImportReviewsAction(formData: FormData) {
         productId: product.id,
         customerId: customer?.id ?? null,
         rating: toInt(row[ratingIndex], 5),
+        hasRating: Boolean(row[ratingIndex]?.trim()),
         title: row[titleIndex] || "",
         content: row[contentIndex] || "",
         displayName: row[displayNameIndex] || customer?.email || "Verified customer",
+        purchaseChannel:
+          purchaseChannelIndex !== undefined ? row[purchaseChannelIndex] || null : null,
+        reviewImageUrl: importedImageUrl.valid ? importedImageUrl.value : null,
         // Imported rows cannot be represented as verified purchases without a
         // traceable order relation. They may still be published as unverified reviews.
         verifiedPurchase: false,

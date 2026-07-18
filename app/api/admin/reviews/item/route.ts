@@ -8,6 +8,7 @@ import {
   isSyntheticReviewSource
 } from "@/lib/review-compliance";
 import type { ReviewStatus } from "@/lib/types";
+import { normalizeReviewImageUrl } from "@/lib/review-upload";
 
 function parseReviewStatus(value: string | undefined): ReviewStatus {
   const normalized = (value || "").trim().toUpperCase();
@@ -57,6 +58,8 @@ export async function POST(request: Request) {
       title?: string;
       content?: string;
       displayName?: string;
+      purchaseChannel?: string;
+      reviewImageUrl?: string;
       reviewDate?: string;
       status?: string;
       verifiedPurchase?: boolean;
@@ -66,9 +69,14 @@ export async function POST(request: Request) {
 
     const id = (body.id || "").trim();
     const productSlug = (body.productSlug || "").trim();
+    const imageUrlResult = normalizeReviewImageUrl(body.reviewImageUrl);
 
     if (!id || !productSlug) {
       return NextResponse.json({ error: "Missing review id or product slug." }, { status: 400 });
+    }
+
+    if (!imageUrlResult.valid) {
+      return NextResponse.json({ error: "Review image URL is invalid." }, { status: 400 });
     }
 
     if (body.intent === "delete") {
@@ -144,6 +152,8 @@ export async function POST(request: Request) {
         title: (body.title || "").trim(),
         content: (body.content || "").trim(),
         displayName: (body.displayName || "").trim(),
+        purchaseChannel: (body.purchaseChannel || "").trim() || null,
+        reviewImageUrl: imageUrlResult.value,
         reviewDate: nextReviewDate ?? existingReview?.reviewDate ?? new Date(),
         status: compliantStatus,
         verifiedPurchase,

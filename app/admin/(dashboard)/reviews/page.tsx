@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { RatingStars } from "@/components/ui/rating-stars";
+import { uploadReviewAction } from "@/app/admin/actions";
 import { getAdminReviewProducts } from "@/lib/queries";
 
 type AdminReviewsPageProps = {
@@ -9,6 +10,16 @@ type AdminReviewsPageProps = {
 
 export default async function AdminReviewsPage({ searchParams }: AdminReviewsPageProps) {
   const [products, params] = await Promise.all([getAdminReviewProducts(), searchParams]);
+  const statusMessage =
+    params.status === "uploaded"
+      ? "Review uploaded and published on the selected SKU."
+      : params.status === "upload-missing-fields"
+        ? "Username, SKU, purchase channel, and review content are required."
+        : params.status === "upload-invalid-image-url"
+          ? "Review image link must be a valid http:// or https:// URL."
+          : params.status === "upload-sku-not-found"
+            ? "The selected SKU could not be found."
+            : null;
 
   return (
     <div className="admin-page">
@@ -23,9 +34,9 @@ export default async function AdminReviewsPage({ searchParams }: AdminReviewsPag
 
       {params.status ? (
         <p className="notice">
-          {params.status === "ai-reviews-disabled"
+          {statusMessage || (params.status === "ai-reviews-disabled"
             ? "Synthetic review generation and persona creation are disabled."
-            : `Review action completed: ${params.status}.`}
+            : `Review action completed: ${params.status}.`)}
         </p>
       ) : null}
 
@@ -38,6 +49,82 @@ export default async function AdminReviewsPage({ searchParams }: AdminReviewsPag
         </p>
       </section>
 
+      <section className="admin-form admin-review-upload">
+        <div>
+          <p className="eyebrow">Upload Review</p>
+          <h2>Publish a review under an existing SKU</h2>
+          <p className="form-note">
+            The review is published immediately on the product page linked to the selected SKU.
+            Uploaded reviews are not labeled as verified purchases.
+          </p>
+        </div>
+
+        <form action={uploadReviewAction}>
+          <div className="admin-form__grid">
+            <div className="field">
+              <label htmlFor="review-display-name">Username</label>
+              <input
+                id="review-display-name"
+                name="displayName"
+                type="text"
+                maxLength={100}
+                required
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="review-product-id">SKU</label>
+              <select id="review-product-id" name="productId" defaultValue="" required>
+                <option value="" disabled>
+                  Select an existing SKU
+                </option>
+                {products
+                  .filter((product) => product.productCode)
+                  .map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.productCode} — {product.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="review-purchase-channel">Purchase channel</label>
+              <input
+                id="review-purchase-channel"
+                name="purchaseChannel"
+                type="text"
+                maxLength={120}
+                placeholder="Amazon, TikTok Shop, website..."
+                required
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="review-image-url">Review image link (optional)</label>
+              <input
+                id="review-image-url"
+                name="reviewImageUrl"
+                type="url"
+                maxLength={2048}
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="review-content">Review content</label>
+            <textarea id="review-content" name="content" maxLength={5000} required />
+          </div>
+
+          <div className="stack-row">
+            <button type="submit" className="button button--primary">
+              Upload Review
+            </button>
+          </div>
+        </form>
+      </section>
+
       <div className="admin-product-grid">
         {products.map((product) => (
           <article key={product.id} className="admin-product-card">
@@ -47,6 +134,7 @@ export default async function AdminReviewsPage({ searchParams }: AdminReviewsPag
 
             <div className="admin-product-card__body">
               <div className="product-card__meta">
+                <span>SKU {product.productCode || "Not assigned"}</span>
                 <span>{product.category}</span>
                 <span>{product.status}</span>
               </div>
@@ -64,7 +152,7 @@ export default async function AdminReviewsPage({ searchParams }: AdminReviewsPag
                 {product.averageRating ? (
                   <RatingStars
                     rating={product.averageRating}
-                    reviewCount={product.publishedReviewCount}
+                    reviewCount={product.ratedReviewCount}
                     size="sm"
                     showCount
                   />

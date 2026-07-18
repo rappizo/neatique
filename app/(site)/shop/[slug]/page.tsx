@@ -388,6 +388,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     getPublishedReviewsByProductId(product.id),
     getPublishedPosts()
   ]);
+  const ratedReviewCount = reviews.filter((review) => review.hasRating).length;
 
   const story = getProductStory(product.slug);
   const storyDetailImages = story.detailImages ?? [];
@@ -431,12 +432,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
         ...verifiedIdentifiers,
         ...(product.netContent ? { size: product.netContent } : {}),
         offers: buildProductOfferSchema(product),
-        ...(reviews.length > 0 && product.averageRating
+        ...(ratedReviewCount > 0 && product.averageRating
           ? {
               aggregateRating: {
                 "@type": "AggregateRating",
                 ratingValue: Number(product.averageRating.toFixed(1)),
-                reviewCount: reviews.length
+                reviewCount: ratedReviewCount
               }
             }
           : {})
@@ -492,7 +493,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <div className="product-detail__rating">
               <RatingStars
                 rating={product.averageRating}
-                reviewCount={product.reviewCount}
+                reviewCount={ratedReviewCount}
                 showCount
                 size="md"
               />
@@ -1023,8 +1024,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
               <p className="section-heading__eyebrow">Product reviews</p>
               <h2>What customers are saying about this formula.</h2>
               <p className="section-heading__description">
-                Reviews are published after purchase so new shoppers can browse real feedback with
-                confidence.
+                Reviews are linked to the matching product SKU, with the purchase channel shown
+                whenever it was supplied with the feedback.
               </p>
             </div>
 

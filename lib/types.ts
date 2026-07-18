@@ -456,6 +456,9 @@ export type ProductReviewRecord = {
   title: string;
   content: string;
   displayName: string;
+  purchaseChannel: string | null;
+  reviewImageUrl: string | null;
+  hasRating: boolean;
   reviewDate: Date;
   status: ReviewStatus;
   verifiedPurchase: boolean;
@@ -537,6 +540,7 @@ export type AdminReviewPersonaPageRecord = {
 
 export type AdminReviewProductSummary = {
   id: string;
+  productCode: string;
   name: string;
   slug: string;
   imageUrl: string;
@@ -544,6 +548,7 @@ export type AdminReviewProductSummary = {
   status: ProductStatus;
   shortDescription: string;
   averageRating: number | null;
+  ratedReviewCount: number;
   totalReviewCount: number;
   publishedReviewCount: number;
   pendingReviewCount: number;

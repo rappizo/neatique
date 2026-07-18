@@ -15,7 +15,7 @@ type AdminProductReviewsPageProps = {
 
 const pageSize = 50;
 const csvColumns =
-  "displayName,email,rating,title,content,reviewDate,status,incentivizedReview";
+  "displayName,email,rating,title,content,purchaseChannel,reviewImageUrl,reviewDate,status,incentivizedReview";
 
 function buildPageHref(slug: string, page: number) {
   return `/admin/reviews/${slug}?page=${page}`;
@@ -255,6 +255,8 @@ export default async function AdminProductReviewsPage({
                 </th>
                     <th>Review Date</th>
                     <th>Display Name</th>
+                    <th>Purchase Channel</th>
+                    <th>Review Image URL</th>
                     <th>User Image</th>
                     <th>Rating</th>
                     <th>Status</th>

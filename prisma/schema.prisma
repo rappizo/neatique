@@ -785,6 +785,9 @@ model ProductReview {
   title            String
   content          String
   displayName      String
+  purchaseChannel String?
+  reviewImageUrl  String?
+  hasRating       Boolean        @default(true)
   reviewDate       DateTime       @default(now())
   status           ReviewStatus   @default(PENDING)
   verifiedPurchase Boolean        @default(false)
