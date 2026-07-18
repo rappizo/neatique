@@ -846,21 +846,9 @@ async function main() {
     }
   });
 
-  for (const product of storedProducts) {
-    const sampleReviews = buildSampleReviews(product);
-
-    await prisma.productReview.deleteMany({
-      where: {
-        productId: product.id
-      }
-    });
-
-    for (let index = 0; index < sampleReviews.length; index += 100) {
-      await prisma.productReview.createMany({
-        data: sampleReviews.slice(index, index + 100)
-      });
-    }
-  }
+  // Reviews are intentionally not seeded. Public social proof must come from
+  // traceable customer submissions or a separately audited import.
+  void storedProducts;
 }
 
 main()

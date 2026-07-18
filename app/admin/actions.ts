@@ -1,6 +1,5 @@
 "use server";
 
-import { randomInt } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
@@ -58,10 +57,13 @@ import {
   runPostExternalLinkAudit,
   savePostExternalLinkAudit
 } from "@/lib/post-link-audit";
-import { generateAiReviewDrafts, getOpenAiReviewSettings } from "@/lib/openai-reviews";
 import { getDefaultProductImageReferenceAsset } from "@/lib/product-media";
-import { parseReviewReferenceFile } from "@/lib/review-reference-file";
-import { selectReviewPersonasForGeneration } from "@/lib/review-personas";
+import {
+  canMarkReviewAsVerified,
+  getCompliantReviewStatus,
+  isSyntheticReviewSource,
+  SYNTHETIC_REVIEW_SOURCE
+} from "@/lib/review-compliance";
 import { approveRyoClaimReward } from "@/lib/ryo-claims";
 import {
   MascotRedemptionUpdateError,
@@ -122,42 +124,6 @@ function buildReviewRedirect(status: string, redirectTo?: string, productSlug?: 
   params.set("status", status);
   const nextQuery = params.toString();
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
-}
-
-function buildReviewPersonaRedirect(status: string) {
-  return `/admin/reviews/personas?status=${encodeURIComponent(status)}`;
-}
-
-function toAgeRange(age: number) {
-  if (age <= 24) {
-    return "21-24";
-  }
-
-  if (age <= 29) {
-    return "25-29";
-  }
-
-  if (age <= 34) {
-    return "30-34";
-  }
-
-  if (age <= 39) {
-    return "35-39";
-  }
-
-  if (age <= 44) {
-    return "40-44";
-  }
-
-  if (age <= 49) {
-    return "45-49";
-  }
-
-  if (age <= 54) {
-    return "50-54";
-  }
-
-  return "55-64";
 }
 
 function buildCouponRedirect(status: string, couponId?: string) {
@@ -588,11 +554,6 @@ function parseReviewStatus(value: string | undefined): ReviewStatus {
   return "PUBLISHED";
 }
 
-function parseCsvBoolean(value: string | undefined) {
-  const normalized = (value || "").trim().toLowerCase();
-  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "y";
-}
-
 function parseReviewDateInput(value: string | undefined | null) {
   const raw = (value || "").trim();
   if (!raw) {
@@ -602,91 +563,6 @@ function parseReviewDateInput(value: string | undefined | null) {
   const normalized = raw.length === 10 ? `${raw}T12:00:00.000Z` : raw;
   const parsed = new Date(normalized);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function parseAiReviewQuantity(value: FormDataEntryValue | null) {
-  return Math.max(1, Math.min(100, toInt(value, 10)));
-}
-
-function parseAiReviewStarCount(value: FormDataEntryValue | null) {
-  return Math.max(0, Math.min(100, toInt(value, 0)));
-}
-
-function shuffleNumbers(values: number[]) {
-  const copy = [...values];
-
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const swapIndex = randomInt(index + 1);
-    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
-  }
-
-  return copy;
-}
-
-function buildAiReviewRatingPlan(formData: FormData, quantity: number) {
-  const distribution = [
-    { rating: 5, count: parseAiReviewStarCount(formData.get("ratingCount5")) },
-    { rating: 4, count: parseAiReviewStarCount(formData.get("ratingCount4")) },
-    { rating: 3, count: parseAiReviewStarCount(formData.get("ratingCount3")) },
-    { rating: 2, count: parseAiReviewStarCount(formData.get("ratingCount2")) },
-    { rating: 1, count: parseAiReviewStarCount(formData.get("ratingCount1")) }
-  ];
-
-  const explicitTotal = distribution.reduce((sum, item) => sum + item.count, 0);
-
-  if (explicitTotal === 0) {
-    return null;
-  }
-
-  if (explicitTotal !== quantity) {
-    return { error: "mismatch", ratings: [] as number[] };
-  }
-
-  const ratings = distribution.flatMap((item) => Array.from({ length: item.count }, () => item.rating));
-  return { error: null, ratings: shuffleNumbers(ratings) };
-}
-
-function parseAiReviewDateRange(formData: FormData) {
-  const today = new Date();
-  const defaultEnd = new Date(
-    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999)
-  );
-  const defaultStart = new Date(defaultEnd.getTime() - 180 * 24 * 60 * 60 * 1000);
-  const rawStart = toPlainString(formData.get("reviewDateStart"));
-  const rawEnd = toPlainString(formData.get("reviewDateEnd"));
-  const start = rawStart
-    ? new Date(`${rawStart}T00:00:00.000Z`)
-    : defaultStart;
-  const end = rawEnd
-    ? new Date(`${rawEnd}T23:59:59.999Z`)
-    : defaultEnd;
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return null;
-  }
-
-  if (end.getTime() < start.getTime()) {
-    return null;
-  }
-
-  return { start, end };
-}
-
-function createRandomReviewDates(quantity: number, start: Date, end: Date) {
-  const startTime = start.getTime();
-  const endTime = end.getTime();
-  const span = Math.max(1, endTime - startTime + 1);
-  const timestamps = new Set<number>();
-
-  while (timestamps.size < quantity) {
-    const offset = randomInt(span);
-    timestamps.add(startTime + offset);
-  }
-
-  return shuffleNumbers(Array.from(timestamps)).map((timestamp, index) => {
-    const base = new Date(timestamp);
-    return new Date(base.getTime() + index);
-  });
 }
 
 export async function loginAction(formData: FormData) {
@@ -1517,9 +1393,18 @@ export async function updateReviewAction(formData: FormData) {
     where: { id },
     select: {
       reviewDate: true,
-      publishedAt: true
+      publishedAt: true,
+      source: true,
+      orderId: true
     }
   });
+  const compliantStatus = getCompliantReviewStatus(existingReview?.source, nextStatus);
+  const verifiedPurchase =
+    toBool(formData.get("verifiedPurchase")) &&
+    canMarkReviewAsVerified({
+      source: existingReview?.source,
+      orderId: existingReview?.orderId
+    });
 
   await prisma.productReview.update({
     where: { id },
@@ -1529,11 +1414,11 @@ export async function updateReviewAction(formData: FormData) {
       content: toPlainString(formData.get("content")),
       displayName: toPlainString(formData.get("displayName")),
       reviewDate: nextReviewDate ?? existingReview?.reviewDate ?? new Date(),
-      status: nextStatus,
-      verifiedPurchase: toBool(formData.get("verifiedPurchase")),
+      status: compliantStatus,
+      verifiedPurchase,
       adminNotes: toPlainString(formData.get("adminNotes")) || null,
       publishedAt:
-        nextStatus === "PUBLISHED"
+        compliantStatus === "PUBLISHED"
           ? existingReview?.publishedAt ?? nextReviewDate ?? new Date()
           : null
     }
@@ -1580,9 +1465,28 @@ export async function approveReviewAction(formData: FormData) {
   const existingReview = await prisma.productReview.findUnique({
     where: { id },
     select: {
-      publishedAt: true
+      publishedAt: true,
+      source: true
     }
   });
+
+  if (isSyntheticReviewSource(existingReview?.source)) {
+    await prisma.productReview.update({
+      where: { id },
+      data: {
+        status: "HIDDEN",
+        verifiedPurchase: false,
+        publishedAt: null
+      }
+    });
+
+    revalidatePath("/admin/reviews");
+    if (productSlug) {
+      revalidatePath(`/admin/reviews/${productSlug}`);
+    }
+    refreshStorefront(productSlug ? [productSlug] : []);
+    redirect(buildReviewRedirect("synthetic-review-blocked", redirectTo, productSlug));
+  }
 
   await prisma.productReview.update({
     where: { id },
@@ -1620,23 +1524,41 @@ export async function bulkModerateReviewsAction(formData: FormData) {
   }
 
   if (intent === "approve") {
-    await prisma.productReview.updateMany({
-      where: {
-        id: {
-          in: reviewIds
+    await prisma.$transaction([
+      prisma.productReview.updateMany({
+        where: {
+          id: {
+            in: reviewIds
+          },
+          source: { not: SYNTHETIC_REVIEW_SOURCE }
+        },
+        data: {
+          status: "PUBLISHED",
+          publishedAt: new Date()
         }
-      },
-      data: {
-        status: "PUBLISHED",
-        publishedAt: new Date()
-      }
-    });
+      }),
+      prisma.productReview.updateMany({
+        where: {
+          id: {
+            in: reviewIds
+          },
+          source: SYNTHETIC_REVIEW_SOURCE
+        },
+        data: {
+          status: "HIDDEN",
+          verifiedPurchase: false,
+          publishedAt: null
+        }
+      })
+    ]);
   } else if (intent === "mark-verified") {
     await prisma.productReview.updateMany({
       where: {
         id: {
           in: reviewIds
-        }
+        },
+        source: { not: SYNTHETIC_REVIEW_SOURCE },
+        orderId: { not: null }
       },
       data: {
         verifiedPurchase: true
@@ -1685,260 +1607,18 @@ export async function bulkModerateReviewsAction(formData: FormData) {
 
 export async function createReviewPersonaAction(formData: FormData) {
   await requireFullAdminSession();
-
-  const fullName = toPlainString(formData.get("fullName"));
-  const age = Math.max(18, Math.min(85, toInt(formData.get("age"), 32)));
-  const ageRange = toPlainString(formData.get("ageRange")) || toAgeRange(age);
-  const ethnicity = toPlainString(formData.get("ethnicity"));
-  const occupation = toPlainString(formData.get("occupation"));
-  const incomeLevel = toPlainString(formData.get("incomeLevel"));
-  const location = toPlainString(formData.get("location"));
-  const personality = toPlainString(formData.get("personality"));
-  const bodyType = toPlainString(formData.get("bodyType"));
-  const skinType = toPlainString(formData.get("skinType"));
-  const skinConcern = toPlainString(formData.get("skinConcern"));
-  const lifestyle = toPlainString(formData.get("lifestyle"));
-  const shoppingMotivation = toPlainString(formData.get("shoppingMotivation"));
-  const priceSensitivity = toPlainString(formData.get("priceSensitivity"));
-  const productPreference = toPlainString(formData.get("productPreference"));
-  const writingStyle = toPlainString(formData.get("writingStyle"));
-  const reviewTone = toPlainString(formData.get("reviewTone"));
-  const routineLevel = toPlainString(formData.get("routineLevel"));
-  const socialChannel = toPlainString(formData.get("socialChannel"));
-  const lifeStage = toPlainString(formData.get("lifeStage"));
-  const rawTags = normalizeMultilineValue(formData.get("tags"));
-  const notes = normalizeMultilineValue(formData.get("notes"));
-  const lifeImagePrompt = normalizeMultilineValue(formData.get("lifeImagePrompt"));
-  const lifeImageUrl = toPlainString(formData.get("lifeImageUrl")) || null;
-
-  const requiredValues = [
-    fullName,
-    ethnicity,
-    occupation,
-    incomeLevel,
-    location,
-    personality,
-    bodyType,
-    skinType,
-    skinConcern,
-    lifestyle,
-    shoppingMotivation,
-    priceSensitivity,
-    productPreference,
-    writingStyle,
-    reviewTone,
-    routineLevel,
-    socialChannel,
-    lifeStage
-  ];
-
-  if (requiredValues.some((value) => !value)) {
-    redirect(buildReviewPersonaRedirect("missing-fields"));
-  }
-
-  const baseSlug = `custom-${slugify(fullName) || "review-persona"}`;
-  const existingCount = await prisma.reviewPersona.count({
-    where: {
-      slug: {
-        startsWith: baseSlug
-      }
-    }
-  });
-  const slug = existingCount > 0 ? `${baseSlug}-${existingCount + 1}` : baseSlug;
-  const existingTotal = await prisma.reviewPersona.count();
-  const tags = Array.from(
-    new Set(
-      [
-        ageRange,
-        ethnicity,
-        occupation,
-        incomeLevel,
-        skinType,
-        skinConcern,
-        personality,
-        writingStyle,
-        reviewTone,
-        productPreference,
-        ...rawTags.split(/\r?\n|,/)
-      ]
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-    )
-  );
-
-  await prisma.reviewPersona.create({
-    data: {
-      slug,
-      fullName,
-      age,
-      ageRange,
-      ethnicity,
-      occupation,
-      incomeLevel,
-      location,
-      personality,
-      bodyType,
-      skinType,
-      skinConcern,
-      lifestyle,
-      shoppingMotivation,
-      priceSensitivity,
-      productPreference,
-      writingStyle,
-      reviewTone,
-      routineLevel,
-      socialChannel,
-      lifeStage,
-      tags: tags.join("\n"),
-      notes: notes || `${fullName} writes with a ${reviewTone} tone and a ${writingStyle} habit.`,
-      lifeImagePrompt:
-        lifeImagePrompt ||
-        [
-          `Lifestyle photo brief for ${fullName}.`,
-          `${age}-year-old ${ethnicity.toLowerCase()} woman, ${bodyType}, ${occupation}, based around ${location}.`,
-          `Candid everyday skincare moment connected to ${lifestyle}. Natural window light, modest styling, no medical imagery.`
-        ].join(" "),
-      lifeImageUrl,
-      active: true,
-      sortOrder: existingTotal + 1
-    }
-  });
-
-  revalidatePath("/admin/reviews/personas");
-  redirect(buildReviewPersonaRedirect("persona-created"));
+  void formData;
+  redirect("/admin/reviews?status=ai-reviews-disabled");
 }
 
 export async function generateAiReviewsAction(formData: FormData) {
   await requireFullAdminSession();
 
+  // Synthetic consumer reviews are disabled. Keep the server-side guard even if
+  // a stale admin client still submits the former generator form.
   const productSlug = toPlainString(formData.get("productSlug"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
-  const quantity = parseAiReviewQuantity(formData.get("quantity"));
-  const ratingPlanResult = buildAiReviewRatingPlan(formData, quantity);
-  const reviewDateRange = parseAiReviewDateRange(formData);
-  const generationMode = toPlainString(formData.get("generationMode")) === "reference" ? "reference" : "direct";
-  const referenceFile = formData.get("referenceFile");
-  const openAiSettings = getOpenAiReviewSettings();
-
-  if (ratingPlanResult?.error === "mismatch") {
-    redirect(buildReviewRedirect("rating-distribution-mismatch", redirectTo, productSlug));
-  }
-
-  if (!reviewDateRange) {
-    redirect(buildReviewRedirect("invalid-date-range", redirectTo, productSlug));
-  }
-
-  if (!openAiSettings.ready) {
-    redirect(buildReviewRedirect("ai-not-configured", redirectTo, productSlug));
-  }
-
-  const product = await prisma.product.findUnique({
-    where: { slug: productSlug },
-    select: {
-      id: true,
-      productCode: true,
-      productShortName: true,
-      name: true,
-      slug: true,
-      tagline: true,
-      category: true,
-      shortDescription: true,
-      description: true,
-      details: true
-    }
-  });
-
-  if (!product) {
-    redirect(buildReviewRedirect("missing-product", redirectTo, productSlug));
-  }
-
-  const hasUploadedReferenceFile =
-    referenceFile &&
-    typeof referenceFile !== "string" &&
-    typeof referenceFile.name === "string" &&
-    referenceFile.name.trim().length > 0;
-
-  if (generationMode === "reference" && !hasUploadedReferenceFile) {
-    redirect(buildReviewRedirect("missing-reference-file", redirectTo, productSlug));
-  }
-
-  const referenceReviews =
-    generationMode === "reference" ? await parseReviewReferenceFile(referenceFile) : [];
-
-  if (generationMode === "reference" && hasUploadedReferenceFile && referenceReviews.length === 0) {
-    redirect(buildReviewRedirect("invalid-reference-file", redirectTo, productSlug));
-  }
-
-  const existingReviews = await prisma.productReview.findMany({
-    where: { productId: product.id },
-    orderBy: [{ reviewDate: "desc" }, { createdAt: "desc" }],
-    take: 60,
-    select: {
-      rating: true,
-      title: true,
-      content: true,
-      displayName: true
-    }
-  });
-  const personas = await selectReviewPersonasForGeneration(product.id, quantity);
-  const personaBySlug = new Map(personas.map((persona) => [persona.slug, persona]));
-
-  try {
-    const drafts = await generateAiReviewDrafts({
-      product,
-      quantity,
-      existingReviews,
-      referenceReviews,
-      requiredRatings: ratingPlanResult?.ratings || undefined,
-      personas
-    });
-
-    const reviewDates = createRandomReviewDates(quantity, reviewDateRange.start, reviewDateRange.end);
-
-    for (const [index, draft] of drafts.entries()) {
-      const createdAt = reviewDates[index] || new Date();
-      const persona = personaBySlug.get(draft.personaSlug) ?? personas[index] ?? null;
-      await prisma.productReview.create({
-        data: {
-          productId: product.id,
-          personaId: persona?.id ?? null,
-          rating: draft.rating,
-          title: draft.title,
-          content: draft.content,
-          displayName: persona?.fullName ?? draft.displayName,
-          reviewDate: createdAt,
-          status: "PENDING",
-          verifiedPurchase: true,
-          adminNotes: [
-            persona
-              ? `AI generated from User Image persona: ${persona.fullName} (${persona.slug}).`
-              : "AI generated without a linked User Image persona.",
-            persona?.reviewLength
-              ? `Random review length target: ${persona.reviewLength}.`
-              : "No review length target was assigned.",
-            persona?.reviewAngle
-              ? `Random review angle: ${persona.reviewAngle}; detail focus: ${persona.reviewDetailFocus}.`
-              : "No review angle was assigned.",
-            persona?.reviewStructure
-              ? `Random review structure: ${persona.reviewStructure}.`
-              : "No review structure was assigned.",
-            referenceReviews.length
-              ? `Used ${referenceReviews.length} uploaded reference reviews for style guidance.`
-              : "Generated directly from product context, with no reference file."
-          ].join(" "),
-          source: "AI_GENERATED",
-          createdAt
-        }
-      });
-    }
-  } catch {
-    redirect(buildReviewRedirect("ai-failed", redirectTo, product.slug));
-  }
-
-  revalidatePath("/admin/reviews");
-  revalidatePath(`/admin/reviews/${product.slug}`);
-  revalidatePath("/admin/reviews/personas");
-  redirect(buildReviewRedirect("ai-generated", redirectTo, product.slug));
+  redirect(buildReviewRedirect("ai-reviews-disabled", redirectTo, productSlug));
 }
 
 export async function bulkImportReviewsAction(formData: FormData) {
@@ -1970,7 +1650,6 @@ export async function bulkImportReviewsAction(formData: FormData) {
   const ratingIndex = headerMap.get("rating");
   const titleIndex = headerMap.get("title");
   const contentIndex = headerMap.get("content");
-  const verifiedPurchaseIndex = headerMap.get("verifiedpurchase");
   const statusIndex = headerMap.get("status");
   const reviewDateIndex = headerMap.get("reviewdate");
 
@@ -2023,10 +1702,9 @@ export async function bulkImportReviewsAction(formData: FormData) {
         title: row[titleIndex] || "",
         content: row[contentIndex] || "",
         displayName: row[displayNameIndex] || customer?.email || "Verified customer",
-        verifiedPurchase:
-          verifiedPurchaseIndex !== undefined
-            ? parseCsvBoolean(row[verifiedPurchaseIndex])
-            : true,
+        // Imported rows cannot be represented as verified purchases without a
+        // traceable order relation. They may still be published as unverified reviews.
+        verifiedPurchase: false,
         reviewDate: parsedReviewDate ?? new Date(),
         status: nextStatus,
         publishedAt: nextStatus === "PUBLISHED" ? parsedReviewDate ?? new Date() : null,

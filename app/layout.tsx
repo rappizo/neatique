@@ -5,6 +5,7 @@ import { siteConfig } from "@/lib/site-config";
 import { defaultOgImage } from "@/lib/seo";
 
 const GOOGLE_TAG_ID = "G-WRS7GSKT5T";
+const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -34,6 +35,11 @@ export const metadata: Metadata = {
     icon: "/icon.svg",
     shortcut: "/icon.svg"
   },
+  verification: GOOGLE_SITE_VERIFICATION
+    ? {
+        google: GOOGLE_SITE_VERIFICATION
+      }
+    : undefined,
   robots: {
     index: true,
     follow: true,

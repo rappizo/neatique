@@ -16,25 +16,26 @@ export default async function AdminReviewsPage({ searchParams }: AdminReviewsPag
         <p className="eyebrow">Reviews</p>
         <h1>Open a product to manage its reviews.</h1>
         <p>
-          Start from the product card, then review that product&apos;s comments with pagination, editing,
-          CSV import tools, and the AI review generator inside its own workspace.
+          Start from the product card, then review authentic customer feedback with pagination,
+          moderation, and audited CSV import tools inside its own workspace.
         </p>
       </div>
 
-      {params.status ? <p className="notice">Review action completed: {params.status}.</p> : null}
+      {params.status ? (
+        <p className="notice">
+          {params.status === "ai-reviews-disabled"
+            ? "Synthetic review generation and persona creation are disabled."
+            : `Review action completed: ${params.status}.`}
+        </p>
+      ) : null}
 
       <section className="admin-form">
         <h2>Review workflow</h2>
         <p className="form-note">
           Step 1: choose a product. Step 2: edit or moderate reviews 50 at a time. Step 3: import
-          more reviews with a CSV that belongs only to that product, or generate AI drafts from
-          scratch or from your own Excel examples.
+          documented customer feedback with a CSV that belongs only to that product. Imported
+          reviews remain unverified unless they are linked to a real order.
         </p>
-        <div className="stack-row">
-          <Link href="/admin/reviews/personas" className="button button--secondary">
-            Manage User Images
-          </Link>
-        </div>
       </section>
 
       <div className="admin-product-grid">

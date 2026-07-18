@@ -9,6 +9,7 @@ import {
 } from "@/lib/brevo";
 import { EMAIL_SETTINGS_CACHE_TAG, STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
 import { prisma } from "@/lib/db";
+import { siteConfig } from "@/lib/site-config";
 import {
   getSubscribeCouponDescription,
   SUBSCRIBE_COUPON_CODE,
@@ -570,7 +571,7 @@ export async function sendCustomerPasswordResetEmail(input: {
         <p>Hi ${name}, we created a new temporary password for your Neatique account.</p>
         <p><strong>Login email:</strong> ${input.email}</p>
         <p><strong>Temporary password:</strong> ${input.password}</p>
-        <p>Sign in at <a href="https://neatiquebeauty.com/account/login" style="color:#ed7361">neatiquebeauty.com/account/login</a>, then update your password from the account center.</p>
+        <p>Sign in at <a href="${siteConfig.url}/account/login" style="color:#ed7361">neatiquebeauty.com/account/login</a>, then update your password from the account center.</p>
       </div>
     `
   });
@@ -657,12 +658,12 @@ export async function sendRyoRewardApprovedEmail(input: {
   return sendConfiguredEmail({
     to: input.email,
     subject: "Your Neatique order registration points are ready",
-    text: `Hi ${name}, your Register Your Order flow is complete and we added ${input.points} points to your Neatique account. Visit https://neatiquebeauty.com/rd to redeem your mascot once your balance is ready.`,
+    text: `Hi ${name}, your Register Your Order flow is complete and we added ${input.points} points to your Neatique account. Visit ${siteConfig.url}/rd to redeem your mascot once your balance is ready.`,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
         <h2 style="font-family:Georgia,serif;color:#ed7361">Your RYO points are ready</h2>
         <p>Hi ${name}, your order registration is complete and we added <strong>${input.points} points</strong> to your Neatique account.</p>
-        <p>You can now visit <a href="https://neatiquebeauty.com/rd" style="color:#ed7361">neatiquebeauty.com/rd</a> to redeem your mascot once your balance is ready.</p>
+        <p>You can now visit <a href="${siteConfig.url}/rd" style="color:#ed7361">neatiquebeauty.com/rd</a> to redeem your mascot once your balance is ready.</p>
         <p>Thank you for supporting Neatique.</p>
       </div>
     `
@@ -679,12 +680,12 @@ export async function sendTikTokFollowRewardEmail(input: {
   return sendConfiguredEmail({
     to: input.email,
     subject: "Your TikTok follow reward points are ready",
-    text: `Hi ${name}, thanks for following Neatique on TikTok. We added ${input.points} points to your Neatique account. Visit https://neatiquebeauty.com/rd when your balance reaches 1,000 points to redeem a mascot.`,
+    text: `Hi ${name}, thanks for following Neatique on TikTok. We added ${input.points} points to your Neatique account. Visit ${siteConfig.url}/rd when your balance reaches 1,000 points to redeem a mascot.`,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
         <h2 style="font-family:Georgia,serif;color:#ed7361">Your TikTok follow reward is in</h2>
         <p>Hi ${name}, thank you for following Neatique on TikTok. We added <strong>${input.points} points</strong> to your Neatique account.</p>
-        <p>Once your balance reaches <strong>1,000 points</strong>, visit <a href="https://neatiquebeauty.com/rd" style="color:#ed7361">neatiquebeauty.com/rd</a> to redeem your mascot.</p>
+        <p>Once your balance reaches <strong>1,000 points</strong>, visit <a href="${siteConfig.url}/rd" style="color:#ed7361">neatiquebeauty.com/rd</a> to redeem your mascot.</p>
         <p>Thank you for supporting Neatique.</p>
       </div>
     `

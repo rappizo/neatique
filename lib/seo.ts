@@ -1,5 +1,15 @@
+import type { Metadata } from "next";
 import { buildSiteImageUrl } from "@/lib/site-media";
 import { siteConfig } from "@/lib/site-config";
+
+export const noIndexRobots: NonNullable<Metadata["robots"]> = {
+  index: false,
+  follow: true,
+  googleBot: {
+    index: false,
+    follow: true
+  }
+};
 
 export const defaultOgImage = {
   url: buildSiteImageUrl("home", "Signature Brand Campaign.png"),

@@ -1,6 +1,6 @@
 export const siteConfig = {
   name: "Neatique",
-  url: "https://neatiquebeauty.com",
+  url: "https://www.neatiquebeauty.com",
   title: "Neatique Beauty",
   description:
     "Bright, comforting skincare essentials crafted for smooth texture, hydration, and everyday glow.",
@@ -23,7 +23,6 @@ export const siteConfig = {
         { href: "/admin/products", label: "All Products" },
         { href: "/admin/products/new", label: "Add Product" },
         { href: "/admin/reviews", label: "Product Reviews" },
-        { href: "/admin/reviews/personas", label: "Review User Images" },
         { href: "/admin/coupons", label: "Coupons by Product" }
       ]
     },

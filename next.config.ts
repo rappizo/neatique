@@ -1,6 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "neatiquebeauty.com"
+          }
+        ],
+        destination: "https://www.neatiquebeauty.com/:path*",
+        permanent: true
+      }
+    ];
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb"

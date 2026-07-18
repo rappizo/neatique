@@ -14,6 +14,7 @@ import { formatCouponValue } from "@/lib/coupons";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { formatCurrency } from "@/lib/format";
 import { isLocalProductMediaUrl } from "@/lib/media-url";
+import { noIndexRobots } from "@/lib/seo";
 
 type CartPageProps = {
   searchParams: Promise<{ status?: string; error?: string }>;
@@ -21,7 +22,8 @@ type CartPageProps = {
 
 export const metadata: Metadata = {
   title: "Cart",
-  description: "Review your Neatique selections and continue to checkout."
+  description: "Review your Neatique selections and continue to checkout.",
+  robots: noIndexRobots
 };
 
 export default async function CartPage({ searchParams }: CartPageProps) {

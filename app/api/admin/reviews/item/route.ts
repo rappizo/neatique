@@ -2,6 +2,11 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
+import {
+  canMarkReviewAsVerified,
+  getCompliantReviewStatus,
+  isSyntheticReviewSource
+} from "@/lib/review-compliance";
 import type { ReviewStatus } from "@/lib/types";
 
 function parseReviewStatus(value: string | undefined): ReviewStatus {
@@ -78,9 +83,27 @@ export async function POST(request: Request) {
       const existingReview = await prisma.productReview.findUnique({
         where: { id },
         select: {
-          publishedAt: true
+          publishedAt: true,
+          source: true
         }
       });
+
+      if (isSyntheticReviewSource(existingReview?.source)) {
+        await prisma.productReview.update({
+          where: { id },
+          data: {
+            status: "HIDDEN",
+            verifiedPurchase: false,
+            publishedAt: null
+          }
+        });
+
+        refreshReviewPaths(productSlug);
+        return NextResponse.json(
+          { error: "Synthetic consumer reviews cannot be published." },
+          { status: 409 }
+        );
+      }
 
       await prisma.productReview.update({
         where: { id },
@@ -100,9 +123,18 @@ export async function POST(request: Request) {
       where: { id },
       select: {
         reviewDate: true,
-        publishedAt: true
+        publishedAt: true,
+        source: true,
+        orderId: true
       }
     });
+    const compliantStatus = getCompliantReviewStatus(existingReview?.source, nextStatus);
+    const verifiedPurchase =
+      Boolean(body.verifiedPurchase) &&
+      canMarkReviewAsVerified({
+        source: existingReview?.source,
+        orderId: existingReview?.orderId
+      });
 
     await prisma.productReview.update({
       where: { id },
@@ -112,11 +144,11 @@ export async function POST(request: Request) {
         content: (body.content || "").trim(),
         displayName: (body.displayName || "").trim(),
         reviewDate: nextReviewDate ?? existingReview?.reviewDate ?? new Date(),
-        status: nextStatus,
-        verifiedPurchase: Boolean(body.verifiedPurchase),
+        status: compliantStatus,
+        verifiedPurchase,
         adminNotes: (body.adminNotes || "").trim() || null,
         publishedAt:
-          nextStatus === "PUBLISHED"
+          compliantStatus === "PUBLISHED"
             ? existingReview?.publishedAt ?? nextReviewDate ?? new Date()
             : null
       }

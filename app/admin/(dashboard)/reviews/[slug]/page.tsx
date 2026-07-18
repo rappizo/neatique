@@ -1,16 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { ReviewBulkActionButton } from "@/components/admin/review-bulk-action-button";
 import { ReviewBulkSelectToggle } from "@/components/admin/review-bulk-select-toggle";
 import { ReviewInlineRow } from "@/components/admin/review-inline-row";
 import { RatingStars } from "@/components/ui/rating-stars";
-import {
-  bulkImportReviewsAction,
-  generateAiReviewsAction
-} from "@/app/admin/actions";
-import { getOpenAiReviewSettings } from "@/lib/openai-reviews";
+import { bulkImportReviewsAction } from "@/app/admin/actions";
 import { getAdminReviewPageByProductSlug } from "@/lib/queries";
 
 type AdminProductReviewsPageProps = {
@@ -19,18 +14,10 @@ type AdminProductReviewsPageProps = {
 };
 
 const pageSize = 50;
-const csvColumns = "displayName,email,rating,title,content,reviewDate,verifiedPurchase,status";
+const csvColumns = "displayName,email,rating,title,content,reviewDate,status";
 
 function buildPageHref(slug: string, page: number) {
   return `/admin/reviews/${slug}?page=${page}`;
-}
-
-function toDefaultAiStartDate() {
-  return new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
-
-function toDefaultAiEndDate() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 export default async function AdminProductReviewsPage({
@@ -38,7 +25,6 @@ export default async function AdminProductReviewsPage({
   searchParams
 }: AdminProductReviewsPageProps) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
-  const openAiSettings = getOpenAiReviewSettings();
   const requestedPage = Number.parseInt(query.page || "1", 10);
   const reviewPage = await getAdminReviewPageByProductSlug(
     slug,
@@ -64,9 +50,6 @@ export default async function AdminProductReviewsPage({
   const toReview = Math.min(currentPage * pageSize, totalReviewCount);
   const redirectTo = buildPageHref(product.slug, currentPage);
   const bulkModerationFormId = `review-bulk-moderation-${product.id}`;
-  const aiGeneratedDraftCount = reviews.filter(
-    (review) => review.source === "AI_GENERATED" && review.status === "PENDING"
-  ).length;
   const statusMessage =
     query.status === "bulk-deleted"
       ? "Selected reviews were deleted."
@@ -78,23 +61,13 @@ export default async function AdminProductReviewsPage({
             ? "Selected reviews were marked as not verified."
         : query.status === "approved"
           ? "Review approved."
-          : query.status === "rating-distribution-mismatch"
-            ? "The 5-star through 1-star counts must add up exactly to the total draft quantity."
-            : query.status === "invalid-date-range"
-              ? "Choose a valid review date range with an end date on or after the start date."
+          : query.status === "synthetic-review-blocked"
+            ? "Synthetic reviews cannot be published and were moved to hidden."
+            : query.status === "ai-reviews-disabled"
+              ? "Synthetic consumer review generation is disabled."
           : query.status === "no-selection"
             ? "Select at least one review before using a bulk action."
-            : query.status === "ai-generated"
-              ? "AI review drafts were generated and placed into the pending list."
-            : query.status === "ai-failed"
-                ? "AI review generation failed. Please try again in a moment."
-                : query.status === "missing-reference-file"
-                  ? "Choose a reference review file, or switch the generator to Direct generate."
-                : query.status === "invalid-reference-file"
-                  ? "The uploaded reference file could not be read. Use a CSV, XLSX, or XLS file with title and body columns."
-                  : query.status === "ai-not-configured"
-                    ? "OpenAI is not configured for AI review generation."
-                    : null;
+            : null;
 
   return (
     <div className="admin-page">
@@ -110,9 +83,6 @@ export default async function AdminProductReviewsPage({
       <div className="stack-row">
         <Link href="/admin/reviews" className="button button--secondary">
           Back to Products
-        </Link>
-        <Link href="/admin/reviews/personas" className="button button--secondary">
-          Manage User Images
         </Link>
         <Link href={`/shop/${product.slug}`} className="button button--ghost">
           View Product Page
@@ -170,11 +140,6 @@ export default async function AdminProductReviewsPage({
               )}
             </div>
 
-            <div className="stack-row">
-              <span className="pill">{openAiSettings.model}</span>
-              <span className="pill">{aiGeneratedDraftCount} AI drafts on this page</span>
-            </div>
-
             <form action={bulkImportReviewsAction} encType="multipart/form-data" className="admin-form">
               <input type="hidden" name="productSlug" value={product.slug} />
               <input type="hidden" name="redirectTo" value={redirectTo} />
@@ -188,8 +153,8 @@ export default async function AdminProductReviewsPage({
                 />
               </div>
               <p className="form-note">
-                CSV columns: <code>{csvColumns}</code>. Imported reviews default to verified unless
-                the file explicitly sets <code>verifiedPurchase</code> to a false-style value.
+                CSV columns: <code>{csvColumns}</code>. Imported reviews remain unverified unless a
+                traceable completed order is linked through the customer review workflow.
               </p>
               <div className="stack-row">
                 <button type="submit" className="button button--primary">
@@ -208,136 +173,12 @@ export default async function AdminProductReviewsPage({
       </section>
 
       <section className="admin-form">
-        <div className="admin-review-pagination">
-          <div>
-            <h2>AI review generator</h2>
-            <p className="form-note">
-              Create pending AI review drafts for this product, then approve them one by one or in
-              bulk. The model now writes from named User Image profiles, with optional reference
-              files used only as extra tone guidance.
-            </p>
-          </div>
-          <div className="stack-row">
-            <span className="pill">Product fixed: {product.name}</span>
-            <span className="pill">Model {openAiSettings.model}</span>
-          </div>
-        </div>
-
-        <form action={generateAiReviewsAction} encType="multipart/form-data" className="admin-form">
-          <input type="hidden" name="productSlug" value={product.slug} />
-          <input type="hidden" name="redirectTo" value={redirectTo} />
-
-          <div className="admin-form__grid">
-            <div className="field">
-              <label htmlFor={`aiQuantity-${product.id}`}>How many drafts to generate</label>
-              <input
-                id={`aiQuantity-${product.id}`}
-                name="quantity"
-                type="number"
-                min="1"
-                max="100"
-                defaultValue="10"
-                required
-              />
-            </div>
-            <fieldset className="field">
-              <legend>Generation mode</legend>
-              <div className="stack-row stack-row--wrap">
-                <label className="choice-pill">
-                  <input
-                    type="radio"
-                    name="generationMode"
-                    value="direct"
-                    defaultChecked
-                  />
-                  <span>User Image generate</span>
-                </label>
-                <label className="choice-pill">
-                  <input
-                    type="radio"
-                    name="generationMode"
-                    value="reference"
-                  />
-                  <span>Reference review file</span>
-                </label>
-              </div>
-            </fieldset>
-            <div className="field">
-              <label htmlFor={`referenceFile-${product.id}`}>Reference review file</label>
-              <input
-                id={`referenceFile-${product.id}`}
-                name="referenceFile"
-                type="file"
-                accept=".csv,.xlsx,.xls"
-              />
-            </div>
-          </div>
-
-          <div className="admin-form__grid">
-            <div className="field">
-              <label htmlFor={`ratingCount5-${product.id}`}>5-star count</label>
-              <input id={`ratingCount5-${product.id}`} name="ratingCount5" type="number" min="0" max="100" defaultValue="0" />
-            </div>
-            <div className="field">
-              <label htmlFor={`ratingCount4-${product.id}`}>4-star count</label>
-              <input id={`ratingCount4-${product.id}`} name="ratingCount4" type="number" min="0" max="100" defaultValue="0" />
-            </div>
-            <div className="field">
-              <label htmlFor={`ratingCount3-${product.id}`}>3-star count</label>
-              <input id={`ratingCount3-${product.id}`} name="ratingCount3" type="number" min="0" max="100" defaultValue="0" />
-            </div>
-            <div className="field">
-              <label htmlFor={`ratingCount2-${product.id}`}>2-star count</label>
-              <input id={`ratingCount2-${product.id}`} name="ratingCount2" type="number" min="0" max="100" defaultValue="0" />
-            </div>
-            <div className="field">
-              <label htmlFor={`ratingCount1-${product.id}`}>1-star count</label>
-              <input id={`ratingCount1-${product.id}`} name="ratingCount1" type="number" min="0" max="100" defaultValue="0" />
-            </div>
-          </div>
-
-          <div className="admin-form__grid">
-            <div className="field">
-              <label htmlFor={`reviewDateStart-${product.id}`}>Review date start</label>
-              <input
-                id={`reviewDateStart-${product.id}`}
-                name="reviewDateStart"
-                type="date"
-                defaultValue={toDefaultAiStartDate()}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`reviewDateEnd-${product.id}`}>Review date end</label>
-              <input
-                id={`reviewDateEnd-${product.id}`}
-                name="reviewDateEnd"
-                type="date"
-                defaultValue={toDefaultAiEndDate()}
-              />
-            </div>
-          </div>
-
-          <p className="form-note">
-            User Image generate assigns named buyer profiles to this product and drafts one review
-            from each selected profile. Reference review file uses your uploaded CSV, XLSX, or XLS examples as the
-            style source. Supported reference columns: review title, review body/content, rating,
-            and reviewer name. If you upload 20 examples and generate 40 drafts, the AI will keep
-            rotating through those examples as style references without copying wording, and
-            generated reviewer names will stay aligned to the selected User Images. AI-generated
-            drafts are added as pending and marked verified by default. If you fill any star-count
-            boxes, the total across 5-star to 1-star must exactly match the draft quantity. The
-            selected review date window is used to write stronger randomized review dates across the
-            full range rather than clustering them near one day.
-          </p>
-
-          <PendingSubmitButton
-            idleLabel="Generate AI review drafts"
-            pendingLabel="Generating AI review drafts..."
-            modalTitle="Generating product review drafts"
-            modalDescription="New pending reviews are being created now. This can take a little while while the model builds multiple different voices and lengths."
-            disabled={!openAiSettings.ready}
-          />
-        </form>
+        <h2>Review compliance</h2>
+        <p className="form-note">
+          Synthetic consumer review generation is disabled. Publish only authentic customer
+          feedback, and use the Verified Purchase label only when the review is linked to a
+          traceable completed order.
+        </p>
       </section>
 
       <section className="admin-form">

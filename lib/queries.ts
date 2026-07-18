@@ -58,6 +58,7 @@ import { prisma } from "@/lib/db";
 import { getOpenAiEmailSettings } from "@/lib/openai-email";
 import { getAiPostAutomationOverview as loadAiPostAutomationOverview } from "@/lib/ai-post-automation";
 import { getOpenAiPostSettings } from "@/lib/openai-posts";
+import { isSyntheticReviewSource, SYNTHETIC_REVIEW_SOURCE } from "@/lib/review-compliance";
 import { getFollowEmailOverview as buildFollowEmailOverview } from "@/lib/follow-emails";
 import {
   buildOrderEmailOverview,
@@ -207,7 +208,10 @@ function buildReviewStatusSummary<T extends { productId: string; status: string 
 
 function mapProduct(product: any): ProductRecord {
   const publishedReviews = Array.isArray(product.reviews)
-    ? product.reviews.filter((review: any) => review.status === "PUBLISHED")
+    ? product.reviews.filter(
+        (review: any) =>
+          review.status === "PUBLISHED" && !isSyntheticReviewSource(review.source)
+      )
     : [];
   const reviewCount = publishedReviews.length;
   const averageRating =
@@ -850,7 +854,12 @@ const getFeaturedProductsFromDatabase = unstable_cache(
           status: "ACTIVE"
         },
         include: {
-          reviews: true
+          reviews: {
+            where: {
+              status: "PUBLISHED",
+              source: { not: SYNTHETIC_REVIEW_SOURCE }
+            }
+          }
         },
         orderBy: [{ createdAt: "desc" }],
         take: limit
@@ -866,7 +875,12 @@ const getActiveProductsFromDatabase = unstable_cache(
       await prisma.product.findMany({
         where: { status: "ACTIVE" },
         include: {
-          reviews: true
+          reviews: {
+            where: {
+              status: "PUBLISHED",
+              source: { not: SYNTHETIC_REVIEW_SOURCE }
+            }
+          }
         },
         orderBy: [{ featured: "desc" }, { createdAt: "desc" }]
       })
@@ -880,7 +894,12 @@ const getProductBySlugFromDatabase = unstable_cache(
     const product = await prisma.product.findUnique({
       where: { slug },
       include: {
-        reviews: true
+        reviews: {
+          where: {
+            status: "PUBLISHED",
+            source: { not: SYNTHETIC_REVIEW_SOURCE }
+          }
+        }
       }
     });
 
@@ -962,7 +981,12 @@ export async function getProductById(id: string) {
       const product = await prisma.product.findUnique({
         where: { id },
         include: {
-          reviews: true
+          reviews: {
+            where: {
+              status: "PUBLISHED",
+              source: { not: SYNTHETIC_REVIEW_SOURCE }
+            }
+          }
         }
       });
 
@@ -1849,7 +1873,8 @@ export async function getPublishedReviewsByProductId(productId: string) {
         await prisma.productReview.findMany({
           where: {
             productId,
-            status: "PUBLISHED"
+            status: "PUBLISHED",
+            source: { not: SYNTHETIC_REVIEW_SOURCE }
           },
           include: {
             product: true,
@@ -1872,7 +1897,8 @@ export async function getPublishedReviewById(id: string) {
       const review = await prisma.productReview.findFirst({
         where: {
           id,
-          status: "PUBLISHED"
+          status: "PUBLISHED",
+          source: { not: SYNTHETIC_REVIEW_SOURCE }
         },
         include: {
           product: true,

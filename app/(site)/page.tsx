@@ -9,6 +9,7 @@ import { ProductCard } from "@/components/ui/product-card";
 import { ResponsiveSitePicture } from "@/components/ui/responsive-site-picture";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { getFeaturedProducts, getPublishedPosts } from "@/lib/queries";
+import { toAbsoluteUrl } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
 import { buildSiteImageUrl } from "@/lib/site-media";
 import {
@@ -213,7 +214,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         email: siteConfig.supportEmail,
         telephone: siteConfig.phone,
         areaServed: "US",
-        image: `${siteConfig.url}${homeImages.signature.src}`
+        image: toAbsoluteUrl(homeImages.signature.src)
       },
       {
         "@type": "WebSite",
@@ -237,7 +238,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         about: {
           "@id": `${siteConfig.url}/#organization`
         },
-        primaryImageOfPage: `${siteConfig.url}${homeImages.signature.src}`
+        primaryImageOfPage: toAbsoluteUrl(homeImages.signature.src)
       },
       {
         "@type": "ItemList",

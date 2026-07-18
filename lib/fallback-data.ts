@@ -12,11 +12,14 @@ import { getDefaultProductImageUrl, getLocalProductGallery } from "@/lib/product
 import {
   samplePosts,
   sampleProducts,
-  sampleReviews,
   sampleStoreSettings
 } from "@/lib/sample-store-data";
 
-export const fallbackProducts: ProductRecord[] = sampleProducts;
+export const fallbackProducts: ProductRecord[] = sampleProducts.map((product) => ({
+  ...product,
+  reviewCount: 0,
+  averageRating: null
+}));
 
 export const fallbackPosts: BeautyPostRecord[] = samplePosts;
 
@@ -275,7 +278,8 @@ export const fallbackRewards: RewardEntryRecord[] = [
   }
 ];
 
-export const fallbackReviews: ProductReviewRecord[] = sampleReviews;
+// Public fallbacks must never manufacture social proof when the database is unavailable.
+export const fallbackReviews: ProductReviewRecord[] = [];
 
 export const fallbackSettings: StoreSettingsRecord = sampleStoreSettings;
 

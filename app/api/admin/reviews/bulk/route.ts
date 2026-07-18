@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { isFullAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
+import { SYNTHETIC_REVIEW_SOURCE } from "@/lib/review-compliance";
 
 function refreshReviewPaths(productSlug: string) {
   revalidatePath("/admin/reviews");
@@ -38,23 +39,41 @@ export async function POST(request: Request) {
     }
 
     if (intent === "approve") {
-      await prisma.productReview.updateMany({
-        where: {
-          id: {
-            in: reviewIds
+      await prisma.$transaction([
+        prisma.productReview.updateMany({
+          where: {
+            id: {
+              in: reviewIds
+            },
+            source: { not: SYNTHETIC_REVIEW_SOURCE }
+          },
+          data: {
+            status: "PUBLISHED",
+            publishedAt: new Date()
           }
-        },
-        data: {
-          status: "PUBLISHED",
-          publishedAt: new Date()
-        }
-      });
+        }),
+        prisma.productReview.updateMany({
+          where: {
+            id: {
+              in: reviewIds
+            },
+            source: SYNTHETIC_REVIEW_SOURCE
+          },
+          data: {
+            status: "HIDDEN",
+            verifiedPurchase: false,
+            publishedAt: null
+          }
+        })
+      ]);
     } else if (intent === "mark-verified") {
       await prisma.productReview.updateMany({
         where: {
           id: {
             in: reviewIds
-          }
+          },
+          source: { not: SYNTHETIC_REVIEW_SOURCE },
+          orderId: { not: null }
         },
         data: {
           verifiedPurchase: true
