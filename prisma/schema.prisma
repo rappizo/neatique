@@ -788,6 +788,7 @@ model ProductReview {
   reviewDate       DateTime       @default(now())
   status           ReviewStatus   @default(PENDING)
   verifiedPurchase Boolean        @default(false)
+  incentivizedReview Boolean      @default(false)
   adminNotes       String?
   source           String         @default("CUSTOMER")
   productId        String

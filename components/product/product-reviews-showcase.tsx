@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { formatDate } from "@/lib/format";
+import { INCENTIVIZED_REVIEW_LABEL } from "@/lib/incentivized-review-plan";
 import { getReviewPath } from "@/lib/review-links";
 import type { ProductReviewRecord } from "@/lib/types";
 
@@ -55,6 +56,9 @@ export function ProductReviewsShowcase({
             <div className="review-card__meta">
               <strong>{review.displayName}</strong>
               {review.verifiedPurchase ? <span>Verified purchase</span> : null}
+              {review.incentivizedReview ? (
+                <span className="review-disclosure-badge">{INCENTIVIZED_REVIEW_LABEL}</span>
+              ) : null}
               <time dateTime={new Date(review.reviewDate).toISOString()}>{formatDate(review.reviewDate)}</time>
             </div>
             <RatingStars rating={review.rating} size="sm" />

@@ -703,6 +703,7 @@ function mapReview(review: any): ProductReviewRecord {
     reviewDate: new Date(reviewDateSource),
     status: review.status,
     verifiedPurchase: review.verifiedPurchase,
+    incentivizedReview: review.incentivizedReview ?? false,
     adminNotes: review.adminNotes ?? null,
     source: review.source,
     productId: review.productId,

@@ -57,7 +57,8 @@ export async function GET(_request: Request, { params }: ReviewExportRouteProps)
       content: true,
       rating: true,
       reviewDate: true,
-      displayName: true
+      displayName: true,
+      incentivizedReview: true
     }
   });
 
@@ -67,6 +68,7 @@ export async function GET(_request: Request, { params }: ReviewExportRouteProps)
     "Review Rating",
     "Review Created Date",
     "Review User Name",
+    "Incentivized Review",
     "Review Link"
   ];
 
@@ -77,6 +79,7 @@ export async function GET(_request: Request, { params }: ReviewExportRouteProps)
       review.rating,
       formatCsvDate(review.reviewDate),
       review.displayName,
+      review.incentivizedReview ? "Yes" : "No",
       getReviewUrl(review.id)
     ]
       .map((value) => escapeCsvValue(value))

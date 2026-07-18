@@ -29,6 +29,7 @@ export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlin
   const [rating, setRating] = useState(String(review.rating));
   const [status, setStatus] = useState<ReviewStatus>(review.status);
   const [verifiedPurchase, setVerifiedPurchase] = useState(review.verifiedPurchase);
+  const [incentivizedReview, setIncentivizedReview] = useState(review.incentivizedReview);
   const [title, setTitle] = useState(review.title);
   const [content, setContent] = useState(review.content);
   const [adminNotes, setAdminNotes] = useState(review.adminNotes ?? "");
@@ -60,6 +61,7 @@ export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlin
             reviewDate,
             status,
             verifiedPurchase,
+            incentivizedReview,
             adminNotes
           })
         });
@@ -155,6 +157,17 @@ export function ReviewInlineRow({ review, productSlug, bulkFormId }: ReviewInlin
             onChange={(event) => setVerifiedPurchase(event.target.checked)}
           />
           <span>Verified</span>
+        </label>
+      </td>
+      <td>
+        <label className="admin-table__checkbox-label">
+          <input
+            type="checkbox"
+            name="incentivizedReview"
+            checked={incentivizedReview}
+            onChange={(event) => setIncentivizedReview(event.target.checked)}
+          />
+          <span>Incentivized</span>
         </label>
       </td>
       <td>

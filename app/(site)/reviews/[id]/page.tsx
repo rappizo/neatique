@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { formatDate } from "@/lib/format";
+import { INCENTIVIZED_REVIEW_LABEL } from "@/lib/incentivized-review-plan";
 import { getPublishedReviewById } from "@/lib/queries";
 import { getReviewPath, getReviewUrl } from "@/lib/review-links";
 import { defaultOgImage } from "@/lib/seo";
@@ -98,6 +99,9 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
               <span>{review.displayName}</span>
               <span>{formatDate(review.reviewDate)}</span>
               {review.verifiedPurchase ? <span>Verified purchase</span> : null}
+              {review.incentivizedReview ? (
+                <span className="review-disclosure-badge">{INCENTIVIZED_REVIEW_LABEL}</span>
+              ) : null}
             </div>
 
             <div className="review-detail-card__body">

@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       reviewDate?: string;
       status?: string;
       verifiedPurchase?: boolean;
+      incentivizedReview?: boolean;
       adminNotes?: string;
     };
 
@@ -146,6 +147,7 @@ export async function POST(request: Request) {
         reviewDate: nextReviewDate ?? existingReview?.reviewDate ?? new Date(),
         status: compliantStatus,
         verifiedPurchase,
+        incentivizedReview: Boolean(body.incentivizedReview),
         adminNotes: (body.adminNotes || "").trim() || null,
         publishedAt:
           compliantStatus === "PUBLISHED"

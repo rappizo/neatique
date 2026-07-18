@@ -179,6 +179,10 @@ function buildReviewRedirect(status: string, redirectTo?: string, productSlug?: 
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
 }
 
+function parseCsvBoolean(value: string | undefined) {
+  return ["1", "true", "yes", "y", "on"].includes((value ?? "").trim().toLowerCase());
+}
+
 function buildCouponRedirect(status: string, couponId?: string) {
   const basePath = couponId ? `/admin/coupons/${couponId}` : "/admin/coupons";
   const separator = basePath.includes("?") ? "&" : "?";
@@ -1494,6 +1498,7 @@ export async function updateReviewAction(formData: FormData) {
       reviewDate: nextReviewDate ?? existingReview?.reviewDate ?? new Date(),
       status: compliantStatus,
       verifiedPurchase,
+      incentivizedReview: toBool(formData.get("incentivizedReview")),
       adminNotes: toPlainString(formData.get("adminNotes")) || null,
       publishedAt:
         compliantStatus === "PUBLISHED"
@@ -1730,6 +1735,7 @@ export async function bulkImportReviewsAction(formData: FormData) {
   const contentIndex = headerMap.get("content");
   const statusIndex = headerMap.get("status");
   const reviewDateIndex = headerMap.get("reviewdate");
+  const incentivizedReviewIndex = headerMap.get("incentivizedreview");
 
   if (
     displayNameIndex === undefined ||
@@ -1783,6 +1789,10 @@ export async function bulkImportReviewsAction(formData: FormData) {
         // Imported rows cannot be represented as verified purchases without a
         // traceable order relation. They may still be published as unverified reviews.
         verifiedPurchase: false,
+        incentivizedReview:
+          incentivizedReviewIndex !== undefined
+            ? parseCsvBoolean(row[incentivizedReviewIndex])
+            : false,
         reviewDate: parsedReviewDate ?? new Date(),
         status: nextStatus,
         publishedAt: nextStatus === "PUBLISHED" ? parsedReviewDate ?? new Date() : null,

@@ -3038,6 +3038,15 @@ main {
   font-size: 0.9rem;
 }
 
+.review-disclosure-badge {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: rgba(237, 115, 97, 0.12);
+  color: var(--brand-deep);
+  font-weight: 700;
+}
+
 .review-detail-shell {
   width: min(900px, 100%);
   display: grid;

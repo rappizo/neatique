@@ -992,6 +992,7 @@ function buildProductReviews(product: BaseProduct): ProductReviewRecord[] {
       reviewDate,
       status: "PUBLISHED",
       verifiedPurchase: index % 4 !== 0,
+      incentivizedReview: false,
       adminNotes: null,
       source: "ADMIN_IMPORT",
       productId: product.id,

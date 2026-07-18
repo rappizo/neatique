@@ -459,6 +459,7 @@ export type ProductReviewRecord = {
   reviewDate: Date;
   status: ReviewStatus;
   verifiedPurchase: boolean;
+  incentivizedReview: boolean;
   adminNotes: string | null;
   source: string;
   productId: string;
