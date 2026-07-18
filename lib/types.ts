@@ -279,6 +279,8 @@ export type OrderRecord = {
   notes: string | null;
   stripeCheckoutId: string | null;
   stripePaymentIntentId: string | null;
+  reviewLink: string | null;
+  reviewTokenCreatedAt: Date | null;
   customerId: string | null;
   createdAt: Date;
   updatedAt: Date;

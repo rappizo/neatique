@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { sendCustomerWelcomeEmail } from "@/lib/email";
 import { sendOrderEventEmailForOrder } from "@/lib/order-emails";
 import { generateTemporaryPassword, hashPassword } from "@/lib/password";
+import { createOrderReviewToken } from "@/lib/order-review";
 import { stripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -218,6 +219,8 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
           stripeCheckoutId: checkoutId,
           stripePaymentIntentId:
             typeof session.payment_intent === "string" ? session.payment_intent : null,
+          reviewToken: createOrderReviewToken(),
+          reviewTokenCreatedAt: new Date(),
           shippingName: customerName || null,
           shippingAddress1: shippingAddress.line1,
           shippingAddress2: shippingAddress.line2,

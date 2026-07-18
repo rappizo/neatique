@@ -58,6 +58,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
               <th>Status</th>
               <th>Fulfillment</th>
               <th>Items</th>
+              <th>Review Link</th>
               <th>Logs</th>
               <th>Actions</th>
             </tr>

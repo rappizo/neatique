@@ -604,6 +604,8 @@ model Order {
   couponId              String?
   stripeCheckoutId      String?            @unique
   stripePaymentIntentId String?
+  reviewToken           String?            @unique
+  reviewTokenCreatedAt  DateTime?
   shippingName          String?
   shippingAddress1      String?
   shippingAddress2      String?
@@ -811,6 +813,7 @@ model ProductReview {
   @@index([customerId, reviewDate])
   @@index([personaId, reviewDate])
   @@index([status, reviewDate])
+  @@unique([orderId, productId])
 }
 
 model StoreSetting {

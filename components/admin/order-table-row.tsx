@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import Image from "next/image";
+import { CopyTextButton } from "@/components/admin/copy-text-button";
 import { formatCurrency, formatDate, formatTime } from "@/lib/format";
 import {
   deriveShipmentsFromLegacy,
@@ -318,6 +319,8 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
   const hasActiveAction = isPending || Boolean(activeAction);
   const canCancel = !hasActiveAction && !isCancelled && !isRefunded;
   const canRefund = !hasActiveAction && !isRefunded && Boolean(order.stripePaymentIntentId);
+  const canUseReviewLink =
+    (status === "PAID" || status === "FULFILLED") && Boolean(order.reviewLink);
   const saveButtonLabel =
     activeAction === "save"
       ? "Updating shipment..."
@@ -381,6 +384,25 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
           </div>
         </td>
         <td>
+          {canUseReviewLink && order.reviewLink ? (
+            <div className="admin-table__cell-stack admin-order-review-link__actions">
+              <CopyTextButton
+                text={order.reviewLink}
+                label="Copy review link"
+                copiedLabel="Link copied"
+                className="button button--secondary"
+              />
+              <a href={order.reviewLink} target="_blank" rel="noreferrer" className="link-inline">
+                Open review page
+              </a>
+            </div>
+          ) : (
+            <span className="form-note">
+              {status === "PENDING" ? "Available after payment" : "Not available"}
+            </span>
+          )}
+        </td>
+        <td>
           <div className="admin-table__cell-stack">
             <span>{activityLogs.length}</span>
             <span className="form-note">recent updates</span>
@@ -400,7 +422,7 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
       </tr>
       {expanded ? (
         <tr>
-          <td colSpan={8}>
+          <td colSpan={9}>
             <div className="admin-order-row__details">
               <div className="admin-order-row__detail-grid">
                 <section className="admin-card">
@@ -474,6 +496,41 @@ export function OrderTableRow({ order }: OrderTableRowProps) {
                   ))}
                 </ul>
               </section>
+
+              {canUseReviewLink && order.reviewLink ? (
+                <section className="admin-card admin-order-review-link">
+                  <div>
+                    <p className="eyebrow">No-login customer review</p>
+                    <h3>Verified review link</h3>
+                    <p className="form-note">
+                      Send this private link to the customer. It only permits reviews for products
+                      purchased in order {order.orderNumber}.
+                    </p>
+                  </div>
+                  <div className="admin-order-review-link__value">
+                    <input
+                      type="text"
+                      value={order.reviewLink}
+                      readOnly
+                      aria-label={`Review link for ${order.orderNumber}`}
+                    />
+                    <CopyTextButton
+                      text={order.reviewLink}
+                      label="Copy link"
+                      copiedLabel="Copied"
+                      className="button button--primary"
+                    />
+                    <a
+                      href={order.reviewLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="button button--secondary"
+                    >
+                      Preview
+                    </a>
+                  </div>
+                </section>
+              ) : null}
 
               <div className="admin-order-row__detail-grid">
                 <section className="admin-card admin-order-row__control-card">

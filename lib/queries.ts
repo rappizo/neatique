@@ -78,6 +78,11 @@ import {
 } from "@/lib/form-submissions";
 import { getDefaultMascotRewards } from "@/lib/mascot-program";
 import {
+  buildOrderReviewUrl,
+  ensureOrderReviewToken,
+  isOrderReviewEligibleStatus
+} from "@/lib/order-review";
+import {
   fallbackCustomers,
   fallbackDashboardSummary,
   fallbackOrders,
@@ -499,6 +504,10 @@ function mapOrder(order: any): OrderRecord {
     notes: order.notes ?? null,
     stripeCheckoutId: order.stripeCheckoutId ?? null,
     stripePaymentIntentId: order.stripePaymentIntentId ?? null,
+    reviewLink: order.reviewToken ? buildOrderReviewUrl(order.reviewToken) : null,
+    reviewTokenCreatedAt: order.reviewTokenCreatedAt
+      ? new Date(order.reviewTokenCreatedAt)
+      : null,
     customerId: order.customerId ?? null,
     createdAt: new Date(order.createdAt),
     updatedAt: new Date(order.updatedAt),
@@ -1253,6 +1262,26 @@ export async function getOrders(page = 1, pageSize = 50) {
           skip: (currentPage - 1) * pageSize,
           take: pageSize
       });
+      const rowsWithReviewTokens = await Promise.all(
+        rows.map(async (order) => {
+          if (!isOrderReviewEligibleStatus(order.status) || order.reviewToken) {
+            return order;
+          }
+
+          const reviewAccess = await ensureOrderReviewToken({
+            id: order.id,
+            status: order.status,
+            reviewToken: order.reviewToken,
+            reviewTokenCreatedAt: order.reviewTokenCreatedAt
+          });
+
+          return {
+            ...order,
+            reviewToken: reviewAccess.reviewToken,
+            reviewTokenCreatedAt: reviewAccess.reviewTokenCreatedAt
+          };
+        })
+      );
       const recentEmailLogs = recentEmailLogRows.map(mapOrderEmailLog);
       const emailCounts = recentEmailLogs.reduce<Partial<Record<OrderEmailEventKey, { sent: number; failed: number }>>>(
         (accumulator, log) => {
@@ -1271,7 +1300,7 @@ export async function getOrders(page = 1, pageSize = 50) {
       );
 
       return {
-        orders: rows.map(mapOrder),
+        orders: rowsWithReviewTokens.map(mapOrder),
         totalCount,
         currentPage,
         totalPages,
