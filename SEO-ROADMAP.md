@@ -181,16 +181,16 @@ Google Merchant Feed 地址：`https://www.neatiquebeauty.com/google-merchant.xm
 
 | ID | 当前状态 | 已完成 | 上线/外部待办 |
 | --- | --- | --- | --- |
-| P2-01 | 代码已完成，待生产验收 | 新增 Collections 目录及 PDRN、Snail Mucin、Uneven-Tone Serums、Dry-Skin Hydration 四个独立集合页；每页包含选择逻辑、产品差异、步骤、FAQ、商品与文章 | 部署后逐页检查移动端、canonical、索引和真实商品资料一致性 |
-| P2-02 | 代码已完成 | Header、Footer、Shop、Beauty Tips、集合、商品和文章形成可见主题路径；商品页反链集合和指南，文章反链集合、商品及相关文章 | 结合 Search Console 抓取与点击深度报告观察是否仍有孤立 URL |
-| P2-03 | 审计与处理代码已完成 | 完成 14 篇生产文章库存表；12 篇保留，2 篇合并；重复 PDRN serum 页和薄 Snail routine 页撤下并永久 308；2 篇独立薄内容在页面层扩充 | 12 篇保留文章仍需逐篇具名人工事实核查，详见 `P2-CONTENT-INVENTORY.md` |
-| P2-04 | 模板与发布保护已完成 | 新增真实作者、作者类型/URL、审核者、审核时间、审核状态；显示日期、摘要、来源、相关内容和免责声明；Article Schema 同步；AI 自动发布被强制关闭 | 负责人安排真实编辑逐篇审核并录入姓名/资料页；未核实前不伪造 reviewer |
-| P2-05 | 代码已完成 | 产品、文章、评论使用独立 tag cache 与 1 小时兜底；更新时按 tag 失效；Header 账户/购物车与商品评论资格改为私有 no-store API，不再读取公共页面主体 cookies | 部署后确认首页、商品和文章构建为静态/ISR 输出，后台更新可正确刷新 |
-| P2-06 | 代码优化完成，真实用户数据待验收 | TikTok iframe 改为用户点击后加载；文章图片恢复 Next 图片优化；加入 AVIF/WebP；Header 数量区域预留宽度；GA4 上报 Web Vitals | 上线积累至少 28 天真实用户第 75 百分位数据；未取得足够样本前不宣称达到 LCP/INP/CLS 门槛 |
-| P2-07 | 基础代码完成，素材治理待续 | 文章图片有固定比例/宽高与响应式 sizes；补齐 3 篇缺失 alt；SVG 保持安全直出，其余支持 AVIF/WebP；商品图已有响应式尺寸与可抓取媒体路由 | 后台逐项核对商品图片文件名、包装角度和 alt；缺少真实多角度素材的商品等待负责人提供原图 |
-| P2-08 | 代码已完成，待 Rich Results 验收 | 集合、Shop、Beauty Tips、商品和文章输出可见 Breadcrumb，并使用同一数据生成 canonical `BreadcrumbList` | 部署后使用 Rich Results Test 抽查四类页面并在 Search Console 观察增强结果 |
+| P2-01 | 已上线并通过生产验收 | 新增 Collections 目录及 PDRN、Snail Mucin、Uneven-Tone Serums、Dry-Skin Hydration 四个独立集合页；每页包含选择逻辑、产品差异、步骤、FAQ、商品与文章；生产页的 H1 与 canonical 均唯一 | 继续在 Search Console 观察索引，并定期核对真实商品资料一致性 |
+| P2-02 | 已上线并通过生产验收 | Header、Footer、Shop、Beauty Tips、集合、商品和文章形成可见主题路径；商品页反链集合和指南，文章反链集合、商品及相关文章 | 结合 Search Console 抓取与点击深度报告观察是否仍有孤立 URL |
+| P2-03 | 审计与合并已上线 | 完成 14 篇生产文章库存表；12 篇保留，2 篇合并；重复 PDRN serum 页和薄 Snail routine 页撤下并永久 308；2 篇独立薄内容在页面层扩充；生产 sitemap 已排除旧 URL | 12 篇保留文章仍需逐篇具名人工事实核查，详见 `P2-CONTENT-INVENTORY.md` |
+| P2-04 | 模板与发布保护已上线 | 新增真实作者、作者类型/URL、审核者、审核时间、审核状态；显示日期、摘要、来源、相关内容和免责声明；Article Schema 同步；AI 自动发布被强制关闭 | 负责人安排真实编辑逐篇审核并录入姓名/资料页；未核实前不伪造 reviewer |
+| P2-05 | 已上线并通过生产验收 | 产品、文章、评论使用独立 tag cache 与 1 小时兜底；更新时按 tag 失效；Header 账户/购物车与商品评论资格改为私有 no-store API，不再读取公共页面主体 cookies；生产构建确认为静态/ISR | 后台更新内容后继续抽查 tag 刷新是否符合预期 |
+| P2-06 | 代码已上线，真实用户数据待验收 | TikTok iframe 改为用户点击后加载；文章图片恢复 Next 图片优化；加入 AVIF/WebP；Header 数量区域预留宽度；GA4 上报 Web Vitals；生产初始 HTML 已确认无 TikTok iframe | 上线积累至少 28 天真实用户第 75 百分位数据；未取得足够样本前不宣称达到 LCP/INP/CLS 门槛 |
+| P2-07 | 基础代码已上线，素材治理待续 | 文章图片有固定比例/宽高与响应式 sizes；补齐 3 篇缺失 alt；SVG 保持安全直出，其余支持 AVIF/WebP；商品图已有响应式尺寸与可抓取媒体路由 | 后台逐项核对商品图片文件名、包装角度和 alt；缺少真实多角度素材的商品等待负责人提供原图 |
+| P2-08 | 已上线并通过站内输出验收 | 集合、Shop、Beauty Tips、商品和文章输出可见 Breadcrumb，并使用同一数据生成 canonical `BreadcrumbList`；生产 JSON-LD 已确认可解析 | 使用 Rich Results Test 抽查四类页面并在 Search Console 观察增强结果 |
 
-> 当前结论：P2 站内代码改造已覆盖全部八项；生产 migration、线上回归、12 篇保留文章的具名人工审核、图片素材核对和 28 天真实 CWV 数据完成前，P2 总状态保持“待验收”，不提前进入 P3。
+> 当前结论：P2 站内代码、生产 migration 与线上回归已经完成；12 篇保留文章的具名人工审核、图片素材核对、Rich Results 外部抽查和 28 天真实 CWV 数据仍需持续验收。在这些人工与时间窗口事项完成前，不提前进入 P3。
 
 ### P2 内容处理原则
 
