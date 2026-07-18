@@ -16,6 +16,7 @@ function buildParams(input: {
   shippingCents: number;
   taxCents: number;
   coupon?: string | null;
+  orderNumber?: string | null;
   items: GoogleAnalyticsItem[];
 }): PurchaseAnalytics {
   return {
@@ -28,6 +29,7 @@ function buildParams(input: {
       tax: input.taxCents / 100,
       shipping: input.shippingCents / 100,
       coupon: input.coupon || undefined,
+      order_number: input.orderNumber || undefined,
       items: input.items
     }
   };
@@ -55,13 +57,14 @@ export async function getPurchaseAnalytics(sessionId: string): Promise<PurchaseA
 
   if (order?.status === "PAID") {
     return buildParams({
-      transactionId: order.orderNumber,
+      transactionId: normalizedSessionId,
       currency: order.currency,
       subtotalCents: order.subtotalCents,
       discountCents: order.discountCents,
       shippingCents: order.shippingCents,
       taxCents: order.taxCents,
       coupon: order.couponCode,
+      orderNumber: order.orderNumber,
       items: order.items.map((item) => ({
         item_id: item.product?.productCode || item.productId || item.id,
         item_name: item.name,

@@ -135,7 +135,7 @@ P3 增长验证与运营机制
 
 | ID | 当前状态 | 已完成 | 上线/外部待办 |
 | --- | --- | --- | --- |
-| P1-01 | 代码已完成，待线上数据验收 | GA4 已覆盖 `view_item`、`select_item`、`add_to_cart`、`view_cart`、`begin_checkout`、`purchase`、优惠券与 Amazon/TikTok/Walmart 外链；购买事件以订单号或 Stripe Session 去重 | 部署后在 GA4 DebugView 完成一次完整测试订单，核对收入、税费、币种及事件去重 |
+| P1-01 | 代码已完成，待线上数据验收 | GA4 已覆盖 `view_item`、`select_item`、`add_to_cart`、`view_cart`、`begin_checkout`、`purchase`、优惠券与 Amazon/TikTok/Walmart 外链；购买事件以不可变的 Stripe Checkout Session 去重，并附带站内订单号 | 部署后在 GA4 DebugView 完成一次完整测试订单，核对收入、税费、币种及事件去重 |
 | P1-02 | 代码已完成 | 为 12 个在售商品建立独立 title、description、主关键词和次关键词映射；后台支持经核实后的 SEO 覆盖值 | 部署后抽查生产 HTML，结合 Search Console 查询数据持续微调，不批量改写承诺 |
 | P1-03 | 系统能力已完成，商品事实待补 | 后台新增容量、完整 INCI、使用方法、注意事项、产地、GTIN、MPN 与价格有效期字段；页面只展示已填写的核实信息；配送与退货信息已可见 | 按 12 个实物包装/供应商资料逐项录入；不得凭商品名猜测容量、完整配方、来源、产地或认证 |
 | P1-04 | 代码已完成，待 Rich Results 验收 | Product Schema 已增加 `itemCondition`、免费配送、处理时间、30 天退货政策、价格有效期与经过校验的 GTIN/MPN；真实评论规则沿用 P0 | 部署后用 Rich Results Test 验证 12 个商品页；补录商品事实后再次验证 |
