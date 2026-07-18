@@ -723,21 +723,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
 
         <div className="product-page-stack">
-          <section className="product-page-section product-page-section--centered product-delivery-section">
-            <div className="section-heading">
-              <p className="section-heading__eyebrow">Delivery & returns</p>
-              <h2>Free mainland U.S. shipping and a 30-day return window.</h2>
-              <p>
-                Paid orders are typically processed within one business day. Eligible direct
-                website purchases can request return support within 30 days of delivery.
-              </p>
-            </div>
-            <div className="stack-row product-delivery-section__actions">
-              <ButtonLink href="/shipping-policy" variant="secondary">Shipping policy</ButtonLink>
-              <ButtonLink href="/return-policy" variant="ghost">Return policy</ButtonLink>
-            </div>
-          </section>
-
           <ProductContentFlow
             slots={{
               "visual-story": (

@@ -1628,7 +1628,6 @@ main {
   line-height: 1.72;
 }
 
-.product-delivery-section__actions,
 .product-discovery-intro__actions {
   justify-content: center;
 }
@@ -2417,6 +2416,14 @@ main {
 .product-routine-cards .detail-list,
 .product-transparency-grid .detail-list {
   text-align: left;
+}
+
+.product-transparency-shipping {
+  text-align: center;
+}
+
+.product-transparency-shipping .stack-row {
+  justify-content: center;
 }
 
 .product-discovery-intro {

@@ -1,4 +1,5 @@
 import { ProductCard } from "@/components/ui/product-card";
+import { ButtonLink } from "@/components/ui/button-link";
 import { siteConfig } from "@/lib/site-config";
 import {
   buildProductFaqs,
@@ -121,7 +122,7 @@ export function ProductTransparencySection({ product }: ProductSectionProps) {
           they can be copied from packaging or manufacturing documentation.
         </p>
       </div>
-      <div className="cards-3 product-transparency-grid">
+      <div className="cards-2 product-transparency-grid">
         <article className="panel">
           <h3>Identity & origin</h3>
           <ul className="detail-list">
@@ -161,6 +162,22 @@ export function ProductTransparencySection({ product }: ProductSectionProps) {
             </p>
           ) : null}
           <p>Patch test before broader use. Stop use if irritation develops.</p>
+        </article>
+        <article className="panel product-transparency-shipping">
+          <h3>Shipping & returns</h3>
+          <p>
+            Mainland U.S. shipping is free. Paid orders are typically processed within one
+            business day, and eligible direct website purchases can request return support within
+            30 days of delivery.
+          </p>
+          <div className="stack-row">
+            <ButtonLink href="/shipping-policy" variant="secondary">
+              Shipping policy
+            </ButtonLink>
+            <ButtonLink href="/return-policy" variant="ghost">
+              Return policy
+            </ButtonLink>
+          </div>
         </article>
       </div>
       <article className="panel product-inci-panel product-inci-panel--centered">
