@@ -400,6 +400,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const storyCopySections = story.sections.slice(storyDetailImages.length);
   const gallery = product.galleryImages.length > 0 ? product.galleryImages : story.gallery;
   const displayGallery = gallery.length > 0 ? gallery : [product.imageUrl];
+  const structuredProductImages = Array.from(
+    new Set([...displayGallery, ...storyDetailImages.map((image) => image.src)])
+  )
+    .slice(0, 12)
+    .map((image) => new URL(image, siteConfig.url).toString());
   const productCollections = getCollectionsForProduct(product.slug);
   const relatedGuideSlugs = new Set(productCollections.flatMap((collection) => collection.guideSlugs));
   const relatedGuides = allPosts.filter((post) => relatedGuideSlugs.has(post.slug)).slice(0, 3);
@@ -432,7 +437,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         name: product.name,
         description: seoDescription,
         sku: product.productCode,
-        image: displayGallery.slice(0, 8).map((image) => new URL(image, siteConfig.url).toString()),
+        image: structuredProductImages,
         brand: {
           "@type": "Brand",
           name: siteConfig.name
@@ -985,7 +990,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                             <h3>{section.title}</h3>
                             <StoryBody body={section.body} />
                           </div>
-                          <div
+                          <figure
                             className="story-home-section__media"
                             style={mediaStyle}
                           >
@@ -1000,7 +1005,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
                               className="story-home-section__image"
                             />
                             <AiGeneratedPersonBadge src={image.src} />
-                          </div>
+                            {image.caption ? (
+                              <figcaption className="story-home-section__caption">
+                                {image.caption}
+                              </figcaption>
+                            ) : null}
+                          </figure>
                         </article>
                       );
                     })}

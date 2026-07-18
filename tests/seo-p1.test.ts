@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { existsSync, statSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import sitemap from "@/app/sitemap";
 import { toGoogleAnalyticsItem } from "@/lib/analytics";
@@ -13,6 +15,7 @@ import {
   selectRelatedProducts
 } from "@/lib/product-transparency";
 import { getCollectionsForProduct } from "@/lib/collections";
+import { getProductStory } from "@/lib/product-content";
 
 test("all 12 products have unique search titles and descriptions", () => {
   const entries = Object.values(PRODUCT_SEO_BY_SLUG);
@@ -121,6 +124,34 @@ test("every product page can show four unique related products", () => {
     assert.equal(relatedProducts.length, 4);
     assert.equal(new Set(relatedProducts.map((candidate) => candidate.slug)).size, 4);
     assert.equal(relatedProducts.some((candidate) => candidate.slug === product.slug), false);
+  }
+});
+
+test("standard product stories include optimized visual description assets", () => {
+  const standardVisualSlugs = [
+    "kit9-niacinamide-turmeric-kojic-acid-serum",
+    "bee-venom-body-cream",
+    "nad-collagen-peptide-serum",
+    "nt16-niacinamide-tranexamic-serum",
+    "tnv3-tranexamic-nicotinamide-serum",
+    "at13-arbutin-tranexamic-cream",
+    "snail-mucin-cream",
+    "snail-mucin-serum"
+  ];
+
+  for (const slug of standardVisualSlugs) {
+    const story = getProductStory(slug);
+    const images = story.detailImages || [];
+
+    assert.equal(images.length, 5);
+    assert.match(images[0].src, /^\/product-description\/.+\.webp$/);
+    assert.ok(images[0].alt.length >= 50);
+    assert.match(images[0].caption || "", /ingredient-inspired/i);
+    assert.equal(new Set(images.map((image) => image.alt)).size, images.length);
+
+    const generatedAssetPath = path.join(process.cwd(), "public", images[0].src.slice(1));
+    assert.equal(existsSync(generatedAssetPath), true);
+    assert.ok(statSync(generatedAssetPath).size < 150_000);
   }
 });
 

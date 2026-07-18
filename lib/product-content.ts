@@ -9,12 +9,115 @@ export type ProductStorySection = {
 type ProductStoryImage = {
   src: string;
   alt: string;
+  caption?: string;
   width?: number;
   height?: number;
   aspectRatio?: string;
   mediaWidth?: string;
   maxHeight?: string;
 };
+
+const generatedProductStoryImages: Record<string, ProductStoryImage> = {
+  "kit9-niacinamide-turmeric-kojic-acid-serum": {
+    src: "/product-description/kit9-niacinamide-turmeric-kojic-acid-serum/niacinamide-turmeric-kojic-acid-serum-texture.webp",
+    alt: "Ingredient-inspired golden serum texture with turmeric for Neatique KIT9+ Niacinamide, Turmeric and Kojic Acid Serum",
+    caption: "An ingredient-inspired visualization of KIT9+'s lightweight golden serum texture.",
+    width: 1600,
+    height: 1200,
+    aspectRatio: "4 / 3",
+    mediaWidth: "680px",
+    maxHeight: "560px"
+  },
+  "bee-venom-body-cream": {
+    src: "/product-description/bee-venom-body-cream/bee-venom-body-cream-rich-texture.webp",
+    alt: "Ingredient-inspired rich cream texture with warm amber glass for Neatique Bee Venom Body Cream",
+    caption: "An ingredient-inspired visualization of the body cream's rich, smooth texture.",
+    width: 1600,
+    height: 1200,
+    aspectRatio: "4 / 3",
+    mediaWidth: "680px",
+    maxHeight: "560px"
+  },
+  "nad-collagen-peptide-serum": {
+    src: "/product-description/nad-collagen-peptide-serum/nad-collagen-peptide-serum-lightweight-texture.webp",
+    alt: "Ingredient-inspired clear water-gel texture and peptide-like ribbons for Neatique NAD+ Collagen Peptide Serum",
+    caption: "An ingredient-inspired visualization of the serum's lightweight water-gel feel.",
+    width: 1600,
+    height: 1200,
+    aspectRatio: "4 / 3",
+    mediaWidth: "680px",
+    maxHeight: "560px"
+  },
+  "nt16-niacinamide-tranexamic-serum": {
+    src: "/product-description/nt16-niacinamide-tranexamic-serum/niacinamide-tranexamic-acid-serum-texture.webp",
+    alt: "Ingredient-inspired clear serum sweep for Neatique NT16 Niacinamide and Tranexamic Acid Serum",
+    caption: "An ingredient-inspired visualization of NT16's clear, fast-layering serum texture.",
+    width: 1600,
+    height: 1200,
+    aspectRatio: "4 / 3",
+    mediaWidth: "680px",
+    maxHeight: "560px"
+  },
+  "tnv3-tranexamic-nicotinamide-serum": {
+    src: "/product-description/tnv3-tranexamic-nicotinamide-serum/tranexamic-acid-vitamin-c-serum-texture.webp",
+    alt: "Ingredient-inspired clear serum and warm amber accent for Neatique Tranexamic Acid and Vitamin C Serum",
+    caption: "An ingredient-inspired visualization of TNV3's lightweight serum texture.",
+    width: 1600,
+    height: 1200,
+    aspectRatio: "4 / 3",
+    mediaWidth: "680px",
+    maxHeight: "560px"
+  },
+  "at13-arbutin-tranexamic-cream": {
+    src: "/product-description/at13-arbutin-tranexamic-cream/arbutin-tranexamic-acid-cream-texture.webp",
+    alt: "Ingredient-inspired silky cream texture for Neatique AT13 Arbutin and Tranexamic Acid Cream",
+    caption: "An ingredient-inspired visualization of AT13's silky moisturizer texture.",
+    width: 1600,
+    height: 1200,
+    aspectRatio: "4 / 3",
+    mediaWidth: "680px",
+    maxHeight: "560px"
+  },
+  "snail-mucin-cream": {
+    src: "/product-description/snail-mucin-cream/snail-mucin-cream-cushiony-texture.webp",
+    alt: "Ingredient-inspired pearlescent cushiony texture for Neatique Snail Mucin Cream",
+    caption: "An ingredient-inspired visualization of the cream's cushiony, dewy texture.",
+    width: 1600,
+    height: 1200,
+    aspectRatio: "4 / 3",
+    mediaWidth: "680px",
+    maxHeight: "560px"
+  },
+  "snail-mucin-serum": {
+    src: "/product-description/snail-mucin-serum/96-percent-snail-mucin-serum-dewy-texture.webp",
+    alt: "Ingredient-inspired clear dewy texture for Neatique 96% Snail Mucin Serum",
+    caption: "An ingredient-inspired visualization of the serum's lightweight, dewy texture.",
+    width: 1600,
+    height: 1200,
+    aspectRatio: "4 / 3",
+    mediaWidth: "680px",
+    maxHeight: "560px"
+  }
+};
+
+const supportingImageAltTopics = [
+  "product packaging and formula presentation",
+  "texture and finish details",
+  "key ingredient and routine information",
+  "application and skincare pairing details"
+];
+
+function buildStandardDetailImages(slug: string, productName: string) {
+  const generatedImage = generatedProductStoryImages[slug];
+  const supportingImages = getLocalProductGallery(slug)
+    .slice(1, 5)
+    .map((src, index) => ({
+      src,
+      alt: `${productName} ${supportingImageAltTopics[index]}`
+    }));
+
+  return generatedImage ? [generatedImage, ...supportingImages] : supportingImages;
+}
 
 type ProductStoryIcon = {
   label: string;
@@ -36,10 +139,18 @@ const pdrnCleanserGallery = Array.from({ length: 9 }, (_, index) =>
 );
 const pdrnCleanserDetailImages = Array.from({ length: 6 }, (_, index) => {
   const fileName = `TK${String(index + 2).padStart(2, "0")}.png`;
+  const altTopics = [
+    "pink whip cleanser packaging and creamy texture",
+    "dense foam texture and rinse-off cleansing step",
+    "PDRN Pink 99% and niacinamide formula overview",
+    "daily cleansing and fresh-looking finish details",
+    "morning and evening cleanser routine order",
+    "complete cleanser, serum and cream PDRN routine"
+  ];
 
   return {
     src: buildProductMediaUrl(pdrnCleanserFolder, fileName),
-    alt: `Neatique PDRN Pink 99% + Niacinamide Whip Cleanser detail image ${index + 1}`
+    alt: `Neatique PDRN Pink 99% + Niacinamide Whip Cleanser ${altTopics[index]}`
   };
 });
 const nadFaceCreamFolder = "HH081 NAD+ Cream";
@@ -49,10 +160,16 @@ const nadFaceCreamGallery = [
 ];
 const nadFaceCreamDetailImages = Array.from({ length: 4 }, (_, index) => {
   const fileName = `d${index + 1}.png`;
+  const altTopics = [
+    "multi-active face cream formula and packaging",
+    "NAD+, niacinamide and hydration ingredient overview",
+    "rich cream texture with a lightweight-looking finish",
+    "morning and evening moisturizer routine details"
+  ];
 
   return {
     src: buildProductMediaUrl(nadFaceCreamFolder, fileName),
-    alt: `Neatique 8+ NAD+ Face Cream detail image ${index + 1}`,
+    alt: `Neatique 8+ NAD+ Face Cream ${altTopics[index]}`,
     width: 1448,
     height: 1086,
     aspectRatio: "4 / 3",
@@ -251,6 +368,10 @@ export const productStories: Record<string, ProductStory> = {
   "kit9-niacinamide-turmeric-kojic-acid-serum": {
     gallery: getLocalProductGallery("kit9-niacinamide-turmeric-kojic-acid-serum"),
     heroLabel: "HH074 KIT9+ Serum",
+    detailImages: buildStandardDetailImages(
+      "kit9-niacinamide-turmeric-kojic-acid-serum",
+      "Neatique KIT9+ Niacinamide, Turmeric and Kojic Acid Serum"
+    ),
     sections: [
       {
         title: "1. What It Is",
@@ -307,6 +428,10 @@ export const productStories: Record<string, ProductStory> = {
   "bee-venom-body-cream": {
     gallery: getLocalProductGallery("bee-venom-body-cream"),
     heroLabel: "HH049 Bee Venom Body Cream",
+    detailImages: buildStandardDetailImages(
+      "bee-venom-body-cream",
+      "Neatique Bee Venom Body Cream"
+    ),
     sections: [
       {
         title: "1. What It Is",
@@ -363,6 +488,10 @@ export const productStories: Record<string, ProductStory> = {
   "nad-collagen-peptide-serum": {
     gallery: getLocalProductGallery("nad-collagen-peptide-serum"),
     heroLabel: "HH076 NAD+ Collagen Peptide Serum",
+    detailImages: buildStandardDetailImages(
+      "nad-collagen-peptide-serum",
+      "Neatique NAD+ Collagen Peptide Serum"
+    ),
     sections: [
       {
         title: "1. What It Is",
@@ -419,6 +548,10 @@ export const productStories: Record<string, ProductStory> = {
   "nt16-niacinamide-tranexamic-serum": {
     gallery: getLocalProductGallery("nt16-niacinamide-tranexamic-serum"),
     heroLabel: "HH067 NT16 11% Niacinamide + 5% Tranexamic Serum",
+    detailImages: buildStandardDetailImages(
+      "nt16-niacinamide-tranexamic-serum",
+      "Neatique NT16 Niacinamide and Tranexamic Acid Serum"
+    ),
     sections: [
       {
         title: "1. What It Is",
@@ -475,6 +608,10 @@ export const productStories: Record<string, ProductStory> = {
   "tnv3-tranexamic-nicotinamide-serum": {
     gallery: getLocalProductGallery("tnv3-tranexamic-nicotinamide-serum"),
     heroLabel: "HH060 TNV3 10% Tranexamic Acid + 2% Nicotinamide Secrum",
+    detailImages: buildStandardDetailImages(
+      "tnv3-tranexamic-nicotinamide-serum",
+      "Neatique TNV3 Tranexamic Acid, Nicotinamide and Vitamin C Serum"
+    ),
     sections: [
       {
         title: "1. What It Is",
@@ -531,6 +668,10 @@ export const productStories: Record<string, ProductStory> = {
   "at13-arbutin-tranexamic-cream": {
     gallery: getLocalProductGallery("at13-arbutin-tranexamic-cream"),
     heroLabel: "HH061 AT13 8% Arbutin + 5% Tranexamic Cream",
+    detailImages: buildStandardDetailImages(
+      "at13-arbutin-tranexamic-cream",
+      "Neatique AT13 Arbutin and Tranexamic Acid Cream"
+    ),
     sections: [
       {
         title: "1. What It Is",
@@ -699,6 +840,10 @@ export const productStories: Record<string, ProductStory> = {
   "snail-mucin-cream": {
     gallery: getLocalProductGallery("snail-mucin-cream"),
     heroLabel: "HH069 SC93 Snail Mucin Cream",
+    detailImages: buildStandardDetailImages(
+      "snail-mucin-cream",
+      "Neatique Snail Mucin Cream"
+    ),
     sections: [
       {
         title: "1. What It Is",
@@ -755,6 +900,10 @@ export const productStories: Record<string, ProductStory> = {
   "snail-mucin-serum": {
     gallery: getLocalProductGallery("snail-mucin-serum"),
     heroLabel: "HH068 SE96 Snail Mucin Serum",
+    detailImages: buildStandardDetailImages(
+      "snail-mucin-serum",
+      "Neatique 96% Snail Mucin Serum"
+    ),
     sections: [
       {
         title: "1. What It Is",
