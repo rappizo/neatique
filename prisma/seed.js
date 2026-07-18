@@ -377,8 +377,9 @@ const posts = [
       "A beginner-friendly breakdown of PDRN, its role in modern routines, and how to use it alongside hydrators and barrier creams.",
     category: "Ingredient Guide",
     readTime: 5,
-    coverImageUrl: buildSiteMediaUrl("blog", "PDRN Guide.png"),
-    coverImageAlt: "Editorial skincare image introducing PDRN ingredients and routine layering.",
+    coverImageUrl: "/posts/pdrn-skincare-guide-neatique-serum-cream.webp",
+    coverImageAlt:
+      "Neatique PDRN serum and PDRN cream arranged with hydrating textures on a blush stone vanity.",
     content:
       "PDRN has quickly become one of the most talked-about skin support ingredients in advanced routines. In topical skincare, people reach for PDRN-focused formulas when they want a routine that feels restorative, modern, and glow-forward.\n\nThe easiest way to use PDRN is by layering it after cleansing and before moisturizer. A serum gives quick hydration and slip, while a cream helps hold moisture in place.\n\nFor dry or tired-looking skin, pairing a PDRN serum with a richer cream can create a soft, supported finish. If your skin is easily overwhelmed, keep the rest of the routine simple and focus on hydration, barrier support, and sunscreen during the day.",
     seoTitle: "What Is PDRN Skincare? Benefits, Texture, and Routine Tips",
@@ -402,8 +403,9 @@ const posts = [
       "Use snail mucin to create a calm, cushiony routine that focuses on hydration, bounce, and visible comfort.",
     category: "Routine Tips",
     readTime: 4,
-    coverImageUrl: buildSiteMediaUrl("blog", "Snail Routine.png"),
-    coverImageAlt: "Snail mucin skincare routine editorial image with serum and cream styling.",
+    coverImageUrl: "/posts/snail-mucin-routine-neatique-serum-cream.webp",
+    coverImageAlt:
+      "Neatique 96% snail mucin serum and 93% snail mucin cream in a warm hydration routine setting.",
     content:
       "Snail mucin routines are loved for their comforting, replenishing feel. If your skin often feels tight or flaky, start with a gentle cleanser, then apply a hydrating serum while the skin is still slightly damp.\n\nFollow with a cream that helps seal in moisture and reduce that dry, stretched feeling. During the day, finish with a sunscreen you enjoy wearing.\n\nAt night, you can keep the same steps and apply a slightly fuller layer of cream for extra comfort. The goal is consistency, not complexity.",
     seoTitle: "Snail Mucin Routine for Dry Skin: A Simple Layering Guide",
@@ -427,8 +429,9 @@ const posts = [
       "Not sure how to layer a serum and cream? Here is the easiest way to decide based on texture and skin goals.",
     category: "Skin School",
     readTime: 3,
-    coverImageUrl: "/posts/serum-vs-cream.svg",
-    coverImageAlt: "Minimal editorial image comparing serum and cream layering order.",
+    coverImageUrl: "/posts/serum-before-cream-neatique-routine.webp",
+    coverImageAlt:
+      "Neatique NAD+ serum and face cream with serum and cream textures illustrating routine order.",
     content:
       "Serums usually go on first because they are lighter and designed to sit closer to the skin. Creams come after, creating a more comforting outer layer.\n\nIf your skin feels dehydrated, a serum can bring slip and lightweight moisture, while a cream helps the routine last longer. When in doubt, go from thinnest to richest texture.",
     seoTitle: "Serum vs Cream: The Best Layering Order for Healthy-Looking Skin",

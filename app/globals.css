@@ -2434,18 +2434,8 @@ main {
   box-shadow: var(--shadow);
 }
 
-.product-related-guides-section .article-related-guides {
+.product-related-guides-grid {
   width: 100%;
-  max-width: 960px;
-  margin-right: auto;
-  margin-left: auto;
-}
-
-.product-related-guides-section .article-related-guides ul {
-  justify-items: center;
-  padding: 0;
-  list-style: none;
-  text-align: center;
 }
 
 .product-content-flow .product-editorial__copy,

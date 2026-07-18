@@ -20,6 +20,7 @@ import {
 import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { ButtonLink } from "@/components/ui/button-link";
+import { PostCard } from "@/components/ui/post-card";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { formatCurrency, formatDate, getSavingsCents } from "@/lib/format";
 import {
@@ -1105,19 +1106,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
                         pairing and routine decisions.
                       </p>
                     </div>
-                    <div className="article-related-guides">
-                      <ul>
-                        {relatedGuides.map((post) => (
-                          <li key={post.id}>
-                            <ButtonLink
-                              href={`/beauty-tips/${post.slug}`}
-                              variant="ghost"
-                            >
-                              {post.title}
-                            </ButtonLink>
-                          </li>
-                        ))}
-                      </ul>
+                    <div className="post-grid post-grid--home-featured product-related-guides-grid">
+                      {relatedGuides.map((post) => (
+                        <PostCard key={post.id} post={post} />
+                      ))}
                     </div>
                   </section>
                 ) : null
