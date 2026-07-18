@@ -6,10 +6,17 @@ import { addToCartAction } from "@/app/(site)/cart/actions";
 import { AnalyticsEvent } from "@/components/analytics/analytics-event";
 import { TrackedExternalLink } from "@/components/analytics/tracked-external-link";
 import { ProductCustomerVoiceSlider } from "@/components/product/product-customer-voice-slider";
+import { ProductContentFlow } from "@/components/product/product-content-flow";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { ProductReviewsShowcase } from "@/components/product/product-reviews-showcase";
 import { ProductReviewSubmission } from "@/components/product/product-review-submission";
-import { ProductTransparencySections } from "@/components/product/product-transparency-sections";
+import {
+  ProductFaqSection,
+  ProductRelatedProductsSection,
+  ProductRoutineSection,
+  ProductTextureVideoSection,
+  ProductTransparencySection
+} from "@/components/product/product-transparency-sections";
 import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -97,6 +104,142 @@ function StoryBody({ body }: { body: string | string[] }) {
         <p key={paragraph}>{paragraph}</p>
       ))}
     </div>
+  );
+}
+
+type ProductStory = ReturnType<typeof getProductStory>;
+
+function ProductVisualStory({ story }: { story: ProductStory }) {
+  const detailImages = story.detailImages ?? [];
+  const visualSections = story.sections.slice(0, detailImages.length);
+
+  if (detailImages.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="product-page-section product-page-section--centered product-detail-story-section product-visual-story-section">
+      <div className="section-heading">
+        <p className="section-heading__eyebrow">Formula & texture</p>
+        <h2>See the formula, texture and routine fit at a glance.</h2>
+        <p className="section-heading__description">
+          Product visuals and concise guidance make each key detail easier to understand before
+          you choose a routine step.
+        </p>
+      </div>
+      <div className="story-home-sections">
+        {detailImages.map((image, index) => {
+          const section = visualSections[index];
+
+          if (!section) {
+            return null;
+          }
+
+          const detailLabel = section.eyebrow ?? "Key highlight";
+          const imageWidth = image.width ?? 1344;
+          const imageHeight = image.height ?? 2016;
+          const requestedMediaWidth = image.mediaWidth ?? "466.67px";
+          const mediaWidth = `min(${requestedMediaWidth}, 560px)`;
+          const mediaStyle: CSSProperties = {
+            aspectRatio: image.aspectRatio ?? "2 / 3",
+            height: "auto",
+            justifySelf: "center",
+            maxHeight: image.maxHeight ?? "700px",
+            maxWidth: mediaWidth,
+            width: "100%"
+          };
+          const sectionStyle = {
+            "--story-detail-media-width": mediaWidth
+          } as CSSProperties;
+
+          return (
+            <article
+              key={`${section.title}-${image.src}`}
+              className={`story-home-section ${
+                index % 2 === 1 ? "story-home-section--reverse" : ""
+              }`}
+              style={sectionStyle}
+            >
+              <div className="story-home-section__copy">
+                <span className="story-home-section__eyebrow">{detailLabel}</span>
+                <h3>{section.title}</h3>
+                <StoryBody body={section.body} />
+              </div>
+              <figure className="story-home-section__media" style={mediaStyle}>
+                <Image
+                  src={image.src}
+                  alt={image.alt}
+                  width={imageWidth}
+                  height={imageHeight}
+                  sizes="(max-width: 720px) 100vw, (max-width: 1080px) 92vw, 44vw"
+                  quality={75}
+                  unoptimized={
+                    isLocalProductMediaUrl(image.src) ||
+                    image.src.startsWith("/product-description/")
+                  }
+                  className="story-home-section__image"
+                />
+                <AiGeneratedPersonBadge src={image.src} />
+                {image.caption ? (
+                  <figcaption className="story-home-section__caption">
+                    {image.caption}
+                  </figcaption>
+                ) : null}
+              </figure>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ProductDetailsStory({ story }: { story: ProductStory }) {
+  const detailImages = story.detailImages ?? [];
+  const detailSections =
+    detailImages.length > 0 ? story.sections.slice(detailImages.length) : story.sections;
+  const iconHighlights = story.iconHighlights ?? [];
+
+  if (detailSections.length === 0 && iconHighlights.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="product-page-section product-page-section--centered product-detail-copy-section">
+      <div className="section-heading">
+        <p className="section-heading__eyebrow">Product details</p>
+        <h2>Everything you may want to know before adding it to your routine.</h2>
+        <p className="section-heading__description">
+          Review the formula story, intended skin feel, use guidance and packaging details in one
+          clear place.
+        </p>
+      </div>
+      <div className="story-home-wrap">
+        {iconHighlights.length > 0 ? (
+          <div className="story-icon-grid">
+            {iconHighlights.map((highlight) => (
+              <article key={highlight.title} className="story-icon-card">
+                <span className="story-icon-card__mark">{highlight.label}</span>
+                <div>
+                  <h3>{highlight.title}</h3>
+                  <p>{highlight.body}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {detailSections.length > 0 ? (
+          <div className="story-copy-grid">
+            {detailSections.map((section) => (
+              <article key={section.title} className="story-copy-card">
+                <h3>{section.title}</h3>
+                <StoryBody body={section.body} />
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -395,9 +538,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const story = getProductStory(product.slug);
   const storyDetailImages = story.detailImages ?? [];
-  const storyIconHighlights = story.iconHighlights ?? [];
-  const storyVisualSections = story.sections.slice(0, storyDetailImages.length);
-  const storyCopySections = story.sections.slice(storyDetailImages.length);
   const gallery = product.galleryImages.length > 0 ? product.galleryImages : story.gallery;
   const displayGallery = gallery.length > 0 ? gallery : [product.imageUrl];
   const structuredProductImages = Array.from(
@@ -583,7 +723,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
 
         <div className="product-page-stack">
-          <section className="product-page-section">
+          <section className="product-page-section product-page-section--centered product-delivery-section">
             <div className="section-heading">
               <p className="section-heading__eyebrow">Delivery & returns</p>
               <h2>Free mainland U.S. shipping and a 30-day return window.</h2>
@@ -592,46 +732,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 website purchases can request return support within 30 days of delivery.
               </p>
             </div>
-            <div className="stack-row">
+            <div className="stack-row product-delivery-section__actions">
               <ButtonLink href="/shipping-policy" variant="secondary">Shipping policy</ButtonLink>
               <ButtonLink href="/return-policy" variant="ghost">Return policy</ButtonLink>
             </div>
           </section>
 
-          <ProductTransparencySections
-            product={product}
-            relatedProducts={relatedProducts}
-            showFaq={!isPdrnSerum}
-          />
-
-          {productCollections.length > 0 ? (
-            <section className="product-page-section">
-              <div className="section-heading">
-                <p className="section-heading__eyebrow">Keep exploring</p>
-                <h2>Compare this product in its routine context.</h2>
-                <p>Use the collection guide to compare textures, routine order and related formulas before adding another step.</p>
-              </div>
-              <div className="cards-3">
-                {productCollections.map((collection) => (
-                  <article key={collection.slug} className="panel">
-                    <h3>{collection.shortTitle}</h3>
-                    <p>{collection.description}</p>
-                    <ButtonLink href={`/collections/${collection.slug}`} variant="secondary">View collection</ButtonLink>
-                  </article>
-                ))}
-              </div>
-              {relatedGuides.length > 0 ? (
-                <div className="article-related-guides">
-                  <h3>Related routine guides</h3>
-                  <ul>
-                    {relatedGuides.map((post) => (
-                      <li key={post.id}><ButtonLink href={`/beauty-tips/${post.slug}`} variant="ghost">{post.title}</ButtonLink></li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </section>
-          ) : null}
+          <ProductContentFlow
+            slots={{
+              "visual-story": (
+                <>
+                  <ProductTextureVideoSection product={product} />
 
           {isNadSerum ? (
             <ProductCustomerVoiceSlider
@@ -906,162 +1017,127 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 </div>
               </section>
 
-              <section className="product-page-section" id="faq">
-                <div className="section-heading">
-                  <p className="section-heading__eyebrow">FAQ</p>
-                  <h2>Answers to the search questions shoppers ask before choosing a PDRN serum.</h2>
-                  <p className="section-heading__description">
-                    These are written to match real shopping questions while keeping the page
-                    useful, natural, and easy for Google to understand.
-                  </p>
-                </div>
-                <div className="story-sections">
-                  {pdrnSerumFaqs.map((faq) => (
-                    <article key={faq.question} className="panel">
-                      <h3>{faq.question}</h3>
-                      <p>{faq.answer}</p>
-                    </article>
-                  ))}
-                </div>
-              </section>
             </>
           ) : null}
 
-          {!isPdrnCream && !isPdrnSerum && story.sections.length > 0 ? (
-            <section className="product-page-section product-detail-story-section">
-              <div className="section-heading">
-                <p className="section-heading__eyebrow">Product details</p>
-                <h2>Everything you may want to know before adding it to your routine.</h2>
-                <p className="section-heading__description">
-                  Browse the formula story, texture, finish, and easy layering notes before you
-                  head to cart.
-                </p>
-              </div>
-              {storyDetailImages.length ? (
-                <div className="story-home-wrap">
-                  {storyIconHighlights.length ? (
-                    <div className="story-icon-grid">
-                      {storyIconHighlights.map((highlight) => (
-                        <article key={highlight.title} className="story-icon-card">
-                          <span className="story-icon-card__mark">{highlight.label}</span>
-                          <div>
-                            <h3>{highlight.title}</h3>
-                            <p>{highlight.body}</p>
-                          </div>
+                  <ProductVisualStory story={story} />
+                </>
+              ),
+              "product-details": <ProductDetailsStory story={story} />,
+              routine: <ProductRoutineSection product={product} />,
+              faq: (
+                <ProductFaqSection
+                  product={product}
+                  faqs={isPdrnSerum ? pdrnSerumFaqs : undefined}
+                />
+              ),
+              "collection-exploration":
+                productCollections.length > 0 ? (
+                  <section className="product-page-section product-page-section--centered product-collection-exploration">
+                    <div className="section-heading">
+                      <p className="section-heading__eyebrow">Keep exploring</p>
+                      <h2>Compare this formula in its wider routine context.</h2>
+                      <p className="section-heading__description">
+                        Use the collection guides to compare textures, routine order and related
+                        formulas before adding another step.
+                      </p>
+                    </div>
+                    <div className="cards-3">
+                      {productCollections.map((collection) => (
+                        <article key={collection.slug} className="panel">
+                          <h3>{collection.shortTitle}</h3>
+                          <p>{collection.description}</p>
+                          <ButtonLink
+                            href={`/collections/${collection.slug}`}
+                            variant="secondary"
+                          >
+                            View collection
+                          </ButtonLink>
                         </article>
                       ))}
                     </div>
-                  ) : null}
-
-                  <div className="story-home-sections">
-                    {storyDetailImages.map((image, index) => {
-                      const section = storyVisualSections[index];
-
-                      if (!section) {
-                        return null;
-                      }
-
-                      const detailLabel = section.eyebrow ?? (index < 5 ? "Key highlight" : "Formula story");
-                      const imageWidth = image.width ?? 1344;
-                      const imageHeight = image.height ?? 2016;
-                      const mediaWidth = image.mediaWidth ?? "466.67px";
-                      const mediaStyle: CSSProperties = {
-                        aspectRatio: image.aspectRatio ?? "2 / 3",
-                        height: "auto",
-                        justifySelf: "center",
-                        maxHeight: image.maxHeight ?? "700px",
-                        maxWidth: mediaWidth,
-                        width: "100%"
-                      };
-                      const sectionStyle = {
-                        "--story-detail-media-width": mediaWidth
-                      } as CSSProperties;
-
-                      return (
-                        <article
-                          key={`${section.title}-${image.src}`}
-                          className={`story-home-section ${
-                            index % 2 === 1 ? "story-home-section--reverse" : ""
-                          }`}
-                          style={sectionStyle}
-                        >
-                          <div className="story-home-section__copy">
-                            <span className="story-home-section__eyebrow">{detailLabel}</span>
-                            <h3>{section.title}</h3>
-                            <StoryBody body={section.body} />
-                          </div>
-                          <figure
-                            className="story-home-section__media"
-                            style={mediaStyle}
-                          >
-                            <Image
-                              src={image.src}
-                              alt={image.alt}
-                              width={imageWidth}
-                              height={imageHeight}
-                              sizes="(max-width: 720px) 100vw, (max-width: 1080px) 92vw, 44vw"
-                              quality={75}
-                              unoptimized={
-                                isLocalProductMediaUrl(image.src) ||
-                                image.src.startsWith("/product-description/")
-                              }
-                              className="story-home-section__image"
-                            />
-                            <AiGeneratedPersonBadge src={image.src} />
-                            {image.caption ? (
-                              <figcaption className="story-home-section__caption">
-                                {image.caption}
-                              </figcaption>
-                            ) : null}
-                          </figure>
-                        </article>
-                      );
-                    })}
+                  </section>
+                ) : null,
+              transparency: <ProductTransparencySection product={product} />,
+              reviews: (
+                <section
+                  id="reviews"
+                  className="product-page-section product-page-section--centered"
+                >
+                  <div className="section-heading">
+                    <p className="section-heading__eyebrow">Product reviews</p>
+                    <h2>What customers are saying about this formula.</h2>
+                    <p className="section-heading__description">
+                      Reviews are linked to the matching product SKU, with the purchase channel
+                      shown whenever it was supplied with the feedback.
+                    </p>
                   </div>
-
-                  {storyCopySections.length ? (
-                    <div className="story-copy-grid">
-                      {storyCopySections.map((section) => {
-                        return (
-                          <article key={section.title} className="story-copy-card">
-                            <h3>{section.title}</h3>
-                            <StoryBody body={section.body} />
-                          </article>
-                        );
-                      })}
+                  <div className="review-stack">
+                    <ProductReviewsShowcase
+                      reviews={reviews}
+                      averageRating={product.averageRating}
+                    />
+                    <Suspense fallback={null}>
+                      <ProductReviewSubmission
+                        productId={product.id}
+                        productSlug={product.slug}
+                      />
+                    </Suspense>
+                  </div>
+                </section>
+              ),
+              "discovery-intro": (
+                <section className="product-page-section product-page-section--centered product-discovery-intro">
+                  <div className="section-heading">
+                    <p className="section-heading__eyebrow">Keep exploring</p>
+                    <h2>Continue with products and guidance chosen for this formula.</h2>
+                    <p className="section-heading__description">
+                      Explore a small set of related products first, then use the routine guides
+                      when you want more context before adding another layer.
+                    </p>
+                  </div>
+                  <div className="stack-row product-discovery-intro__actions">
+                    <ButtonLink href="/shop" variant="secondary">
+                      Explore all products
+                    </ButtonLink>
+                    <ButtonLink href="/collections" variant="ghost">
+                      Browse collections
+                    </ButtonLink>
+                  </div>
+                </section>
+              ),
+              "related-products": (
+                <ProductRelatedProductsSection relatedProducts={relatedProducts} />
+              ),
+              "related-guides":
+                relatedGuides.length > 0 ? (
+                  <section className="product-page-section product-page-section--centered product-related-guides-section">
+                    <div className="section-heading">
+                      <p className="section-heading__eyebrow">Related routine guides</p>
+                      <h2>Learn how to place this product in a simpler routine.</h2>
+                      <p className="section-heading__description">
+                        Read the most relevant Neatique guides for application order, texture
+                        pairing and routine decisions.
+                      </p>
                     </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="story-sections">
-                  {story.sections.map((section) => (
-                    <article key={section.title} className="panel">
-                      <h3>{section.title}</h3>
-                      <StoryBody body={section.body} />
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-          ) : null}
-
-          <section id="reviews" className="product-page-section">
-            <div className="section-heading">
-              <p className="section-heading__eyebrow">Product reviews</p>
-              <h2>What customers are saying about this formula.</h2>
-              <p className="section-heading__description">
-                Reviews are linked to the matching product SKU, with the purchase channel shown
-                whenever it was supplied with the feedback.
-              </p>
-            </div>
-
-            <div className="review-stack">
-              <ProductReviewsShowcase reviews={reviews} averageRating={product.averageRating} />
-              <Suspense fallback={null}>
-                <ProductReviewSubmission productId={product.id} productSlug={product.slug} />
-              </Suspense>
-            </div>
-          </section>
+                    <div className="article-related-guides">
+                      <ul>
+                        {relatedGuides.map((post) => (
+                          <li key={post.id}>
+                            <ButtonLink
+                              href={`/beauty-tips/${post.slug}`}
+                              variant="ghost"
+                            >
+                              {post.title}
+                            </ButtonLink>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </section>
+                ) : null
+            }}
+          />
         </div>
       </div>
     </section>
