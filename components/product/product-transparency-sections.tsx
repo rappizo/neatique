@@ -119,7 +119,7 @@ export function ProductTransparencySections({
             <h2>Choose by texture, routine step and use intent.</h2>
             <p>Compare a small set of related Neatique formulas instead of stacking overlapping products.</p>
           </div>
-          <div className="product-grid">
+          <div className="product-grid product-grid--related">
             {relatedProducts.map((relatedProduct) => (
               <ProductCard key={relatedProduct.id} product={relatedProduct} />
             ))}

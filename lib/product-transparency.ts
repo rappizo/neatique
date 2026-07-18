@@ -18,6 +18,39 @@ export function splitProductFacts(value: string | null | undefined) {
     .filter(Boolean);
 }
 
+function getProductRoutineType(category: string) {
+  const normalizedCategory = category.toLowerCase();
+
+  if (normalizedCategory.includes("serum")) return "serum";
+  if (normalizedCategory.includes("cream") || normalizedCategory.includes("moisturizer")) return "cream";
+  if (normalizedCategory.includes("cleanser")) return "cleanser";
+  return normalizedCategory;
+}
+
+export function selectRelatedProducts(
+  product: Pick<ProductRecord, "slug" | "category">,
+  allProducts: ProductRecord[],
+  directlyRelatedSlugs: ReadonlySet<string>,
+  limit = 4
+) {
+  const routineType = getProductRoutineType(product.category);
+
+  return allProducts
+    .filter((candidate) => candidate.slug !== product.slug)
+    .map((candidate, index) => ({
+      candidate,
+      index,
+      priority: directlyRelatedSlugs.has(candidate.slug)
+        ? 0
+        : getProductRoutineType(candidate.category) === routineType
+          ? 1
+          : 2
+    }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .slice(0, Math.max(0, limit))
+    .map(({ candidate }) => candidate);
+}
+
 export function buildProductRoutine(product: Pick<ProductRecord, "name" | "category" | "directions">) {
   const category = product.category.toLowerCase();
   const isCleanser = category.includes("cleanser");

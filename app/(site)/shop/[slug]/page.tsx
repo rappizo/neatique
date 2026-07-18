@@ -32,6 +32,7 @@ import {
 } from "@/lib/pdrn-serum-page";
 import { getProductStory } from "@/lib/product-content";
 import { getProductSeo } from "@/lib/product-seo";
+import { selectRelatedProducts } from "@/lib/product-transparency";
 import { toGoogleAnalyticsItem } from "@/lib/analytics";
 import {
   buildProductOfferSchema,
@@ -409,9 +410,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     ])
   );
   relatedProductSlugs.delete(product.slug);
-  const relatedProducts = allProducts
-    .filter((candidate) => relatedProductSlugs.has(candidate.slug))
-    .slice(0, 3);
+  const relatedProducts = selectRelatedProducts(product, allProducts, relatedProductSlugs, 4);
   const savingsCents = getSavingsCents(product.compareAtPriceCents, product.priceCents);
   const activePriceValidUntil =
     product.priceValidUntil && product.priceValidUntil.getTime() > Date.now()

@@ -9,8 +9,10 @@ import { isValidGtin, normalizeGtin } from "@/lib/product-identifiers";
 import {
   buildProductFaqs,
   buildProductRoutine,
-  formatProductOrigin
+  formatProductOrigin,
+  selectRelatedProducts
 } from "@/lib/product-transparency";
+import { getCollectionsForProduct } from "@/lib/collections";
 
 test("all 12 products have unique search titles and descriptions", () => {
   const entries = Object.values(PRODUCT_SEO_BY_SLUG);
@@ -103,6 +105,23 @@ test("product transparency uses the confirmed PRC origin and supplies AM/PM guid
   assert.equal(routine.am.length, 3);
   assert.equal(routine.pm.length, 3);
   assert.ok(faqs.some((faq) => faq.question.includes("patch test") || faq.answer.includes("Patch test")));
+});
+
+test("every product page can show four unique related products", () => {
+  for (const product of fallbackProducts) {
+    const relatedSlugs = new Set(
+      getCollectionsForProduct(product.slug).flatMap((collection) => [
+        ...collection.productSlugs,
+        ...(collection.contextProductSlugs || [])
+      ])
+    );
+    relatedSlugs.delete(product.slug);
+    const relatedProducts = selectRelatedProducts(product, fallbackProducts, relatedSlugs, 4);
+
+    assert.equal(relatedProducts.length, 4);
+    assert.equal(new Set(relatedProducts.map((candidate) => candidate.slug)).size, 4);
+    assert.equal(relatedProducts.some((candidate) => candidate.slug === product.slug), false);
+  }
 });
 
 test("about page is included in the canonical sitemap", async () => {
