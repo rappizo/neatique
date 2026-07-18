@@ -4,6 +4,9 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { getPublishedPosts } from "@/lib/queries";
 import { defaultOgImage } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
+import { Breadcrumbs } from "@/components/seo/breadcrumbs";
+import { COLLECTIONS } from "@/lib/collections";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Beauty Tips",
@@ -41,6 +44,7 @@ export default async function BeautyTipsPage() {
   return (
     <section className="section">
       <div className="container">
+        <Breadcrumbs items={[{ name: "Home", href: "/" }, { name: "Beauty Tips", href: "/beauty-tips" }]} />
         <div className="page-hero">
           <p className="eyebrow">Beauty Tips</p>
           <h1>Skincare reads made to feel simple, clear, and genuinely helpful.</h1>
@@ -53,6 +57,16 @@ export default async function BeautyTipsPage() {
             <span className="pill">Routine tips</span>
             <span className="pill">Ingredient stories</span>
           </div>
+        </div>
+
+        <div className="section collection-directory collection-directory--compact">
+          {COLLECTIONS.map((collection) => (
+            <article key={collection.slug} className="panel collection-directory__card">
+              <h2>{collection.shortTitle}</h2>
+              <p>Browse product comparisons and routine order for {collection.primaryKeyword}.</p>
+              <Link href={`/collections/${collection.slug}`} className="link-inline">Open topic collection</Link>
+            </article>
+          ))}
         </div>
 
         <div className="section">

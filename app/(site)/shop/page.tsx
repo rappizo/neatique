@@ -4,6 +4,9 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { getActiveProducts } from "@/lib/queries";
 import { defaultOgImage } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
+import Link from "next/link";
+import { COLLECTIONS } from "@/lib/collections";
+import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 
 export const metadata: Metadata = {
   title: "Shop",
@@ -40,6 +43,7 @@ export default async function ShopPage() {
   return (
     <section className="section">
       <div className="container">
+        <Breadcrumbs items={[{ name: "Home", href: "/" }, { name: "Shop", href: "/shop" }]} />
         <div className="page-hero">
           <p className="eyebrow">Shop Neatique</p>
           <h1>Skincare made to feel soft, elegant, and easy to love every day.</h1>
@@ -52,6 +56,17 @@ export default async function ShopPage() {
             <span className="pill">United States only</span>
             <span className="pill">Glow-focused routines</span>
           </div>
+        </div>
+        <div className="section collection-directory collection-directory--compact">
+          {COLLECTIONS.map((collection) => (
+            <article key={collection.slug} className="panel collection-directory__card">
+              <h2>{collection.shortTitle}</h2>
+              <p>{collection.description}</p>
+              <Link href={`/collections/${collection.slug}`} className="link-inline">
+                Compare this collection
+              </Link>
+            </article>
+          ))}
         </div>
         <div className="section">
           <SectionHeading

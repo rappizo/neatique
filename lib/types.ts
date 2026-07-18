@@ -110,6 +110,13 @@ export type BeautyPostRecord = {
   seoTitle: string;
   seoDescription: string;
   aiGenerated: boolean;
+  authorName?: string | null;
+  authorType?: "Person" | "Organization" | null;
+  authorUrl?: string | null;
+  reviewerName?: string | null;
+  reviewerUrl?: string | null;
+  editorialReviewed?: boolean;
+  reviewedAt?: Date | null;
   focusKeyword: string | null;
   secondaryKeywords: string[];
   imagePrompt: string | null;

@@ -206,7 +206,7 @@ export async function runAiPostAutomation(
     };
   }
 
-  if (!settings.autoPublish && input.trigger === "cron") {
+  if (input.trigger === "cron") {
     const existingDraft = await prisma.post.findFirst({
       where: {
         aiGenerated: true,
@@ -288,7 +288,7 @@ export async function runAiPostAutomation(
       : await generateSeoPostImageWithAi(draft.imagePrompt);
     const postId = randomUUID();
     const now = new Date();
-    const published = settings.autoPublish;
+    const published = false;
     const storedCoverImage = await storePostCoverImage({
       postId,
       slug: uniqueSlug,

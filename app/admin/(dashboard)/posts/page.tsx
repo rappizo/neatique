@@ -27,7 +27,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   "ai-failed-failed": "AI post generation failed. Review the latest status card for the exact OpenAI or database error.",
   "ai-skipped-not-due": "The next scheduled run is not due yet.",
   "ai-skipped-draft-pending": "An unpublished AI draft already exists, so the automation skipped creating another one.",
-  "external-links-validated": "External links were checked and the latest report is ready below."
+  "external-links-validated": "External links were checked and the latest report is ready below.",
+  "review-required": "AI-assisted posts require a named reviewer, review date, and completed editorial review before publication."
 };
 
 export default async function AdminPostsPage({ searchParams }: AdminPostsPageProps) {
@@ -61,9 +62,7 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
           <p className="eyebrow">Automation status</p>
           <h3>{automation.enabled ? "Automation is active" : "Automation is paused"}</h3>
           <p>
-            {automation.autoPublish
-              ? `A new AI post will publish every ${automation.cadenceDays} day(s) when the cycle is due.`
-              : `A new AI draft will be created every ${automation.cadenceDays} day(s) when the cycle is due.`}
+            A new AI draft will be created every {automation.cadenceDays} day(s) when the cycle is due.
           </p>
           <div className="stack-row">
             <span className="pill">{automation.model ? `Text ${automation.model}` : "No text model"}</span>
@@ -120,14 +119,10 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
                 required
               />
             </div>
-            <label className="field field--checkbox">
-              <input
-                type="checkbox"
-                name="ai_post_auto_publish"
-                defaultChecked={automation.autoPublish}
-              />
-              Publish automatically when a run succeeds
-            </label>
+            <div className="field">
+              <label>Publishing safeguard</label>
+              <p className="form-note">AI output always remains a draft until a named reviewer completes editorial review.</p>
+            </div>
             <label className="field field--checkbox">
               <input
                 type="checkbox"
@@ -149,7 +144,7 @@ export default async function AdminPostsPage({ searchParams }: AdminPostsPagePro
             <h2>Generate the next AI post now</h2>
             <p className="form-note">
               The system will pick the next product in the rotation, generate the article and cover
-              image, then create a draft or publish it based on your automation settings.
+              image, then save it as a draft for factual and editorial review.
             </p>
           </div>
           <div className="stack-row">

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { HomeBannerSlider } from "@/components/home/home-banner-slider";
 import { OmbClaimResumeCard } from "@/components/order-match/omb-claim-resume-card";
 import { SocialProofSliderDeferred } from "@/components/home/social-proof-slider-deferred";
+import { SubscribeResultModal } from "@/components/home/subscribe-result-modal";
 import { PostCard } from "@/components/ui/post-card";
 import { ProductCard } from "@/components/ui/product-card";
 import { ResponsiveSitePicture } from "@/components/ui/responsive-site-picture";
@@ -192,15 +194,10 @@ export const metadata: Metadata = {
   }
 };
 
-type HomePageProps = {
-  searchParams: Promise<{ subscribed?: string; subscribe_error?: string }>;
-};
-
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const [products, posts, params] = await Promise.all([
+export default async function HomePage() {
+  const [products, posts] = await Promise.all([
     getFeaturedProducts(3),
-    getPublishedPosts(3),
-    searchParams
+    getPublishedPosts(3)
   ]);
 
   const structuredData = {
@@ -604,56 +601,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
       </section>
 
-      {params.subscribe_error === "email" ? (
-        <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="subscribe-error-title">
-          <div className="success-modal__backdrop" />
-          <div className="success-modal__panel">
-            <p className="eyebrow">Subscription saved</p>
-            <h2 id="subscribe-error-title">We saved your signup, but the email has not gone out yet.</h2>
-            <p>
-              Your subscription was recorded, but the coupon email could not be delivered right
-              now. Please try again shortly or contact the team if you keep seeing this.
-            </p>
-            <Link href="/" className="button button--primary">
-              Close
-            </Link>
-          </div>
-        </div>
-      ) : null}
-
-      {params.subscribe_error === "invalid" ? (
-        <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="subscribe-invalid-title">
-          <div className="success-modal__backdrop" />
-          <div className="success-modal__panel">
-            <p className="eyebrow">Check your email</p>
-            <h2 id="subscribe-invalid-title">Please enter a valid email address.</h2>
-            <p>
-              We could not save the subscription because the email format looked incomplete. Please
-              try again with a full email address.
-            </p>
-            <Link href="/#subscribe-offer" className="button button--primary">
-              Try again
-            </Link>
-          </div>
-        </div>
-      ) : null}
-
-      {params.subscribed === "1" ? (
-        <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="subscribe-success-title">
-          <div className="success-modal__backdrop" />
-          <div className="success-modal__panel">
-            <p className="eyebrow">Check your inbox</p>
-            <h2 id="subscribe-success-title">Your welcome offer is on the way.</h2>
-            <p>
-              We just sent {SUBSCRIBE_COUPON_CODE} to your email. Please check your inbox, and if
-              you do not see it in a minute or two, take a quick look in spam or promotions.
-            </p>
-            <Link href="/" className="button button--primary">
-              Continue browsing
-            </Link>
-          </div>
-        </div>
-      ) : null}
+      <Suspense fallback={null}>
+        <SubscribeResultModal />
+      </Suspense>
     </>
   );
 }

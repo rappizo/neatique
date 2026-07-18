@@ -39,6 +39,7 @@ const videos = [
 export function SocialProofSlider() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [playerEnabled, setPlayerEnabled] = useState(false);
 
   useEffect(() => {
     if (paused) {
@@ -82,14 +83,28 @@ export function SocialProofSlider() {
 
       <div className="social-proof__player">
         <div className="social-proof__embed">
-          <iframe
-            key={activeVideo.id}
-            src={`https://www.tiktok.com/player/v1/${activeVideo.id}`}
-            title={activeVideo.title}
-            allow="fullscreen"
-            allowFullScreen
-            loading="lazy"
-          />
+          {playerEnabled ? (
+            <iframe
+              key={activeVideo.id}
+              src={`https://www.tiktok.com/player/v1/${activeVideo.id}`}
+              title={activeVideo.title}
+              allow="fullscreen"
+              allowFullScreen
+              loading="lazy"
+            />
+          ) : (
+            <button
+              type="button"
+              className="social-proof__load-player"
+              onClick={() => {
+                setPlayerEnabled(true);
+                trackGoogleAnalyticsEvent("play_embedded_video", { platform: "TikTok", video_id: activeVideo.id });
+              }}
+            >
+              <strong>Load TikTok video</strong>
+              <span>Third-party media loads only after you choose to play it.</span>
+            </button>
+          )}
         </div>
         <div className="social-proof__meta">
           <strong>{activeVideo.creator}</strong>

@@ -1,15 +1,9 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/site-config";
-import { getCartItems } from "@/lib/cart";
-import { getCurrentCustomer } from "@/lib/customer-auth";
 import { Logo } from "@/components/brand/logo";
-import { ButtonLink } from "@/components/ui/button-link";
+import { SiteHeaderActions } from "@/components/layout/site-header-actions";
 
-export async function SiteHeader() {
-  const [customer, cartItems] = await Promise.all([getCurrentCustomer(), getCartItems()]);
-  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const accountHref = customer ? "/account" : "/account/login";
-
+export function SiteHeader() {
   return (
     <>
       <div className="announcement-bar">
@@ -38,14 +32,7 @@ export async function SiteHeader() {
               </Link>
             ))}
           </nav>
-          <div className="site-header__actions">
-            <Link href={accountHref} className="site-header__text-link">
-              My Account
-            </Link>
-            <ButtonLink href="/cart" variant="primary">
-              Cart{cartCount > 0 ? ` (${cartCount})` : ""}
-            </ButtonLink>
-          </div>
+          <SiteHeaderActions />
         </div>
       </header>
     </>

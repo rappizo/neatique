@@ -50,7 +50,12 @@ import {
   fetchBrevoLists,
   getBrevoSettings
 } from "@/lib/brevo";
-import { STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
+import {
+  PUBLIC_POSTS_CACHE_TAG,
+  PUBLIC_PRODUCTS_CACHE_TAG,
+  PUBLIC_REVIEWS_CACHE_TAG,
+  STORE_SETTINGS_CACHE_TAG
+} from "@/lib/cache-tags";
 import { expireCouponsIfNeeded } from "@/lib/coupon-expiration";
 import { parseStoredCouponProductCodes } from "@/lib/coupons";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
@@ -83,7 +88,7 @@ import {
   fallbackSettings
 } from "@/lib/fallback-data";
 
-const PUBLIC_CONTENT_REVALIDATE_SECONDS = 60;
+const PUBLIC_CONTENT_REVALIDATE_SECONDS = 60 * 60;
 const OMB_UNSUBMITTED_PRODUCT_FILTER = "__NOT_SUBMITTED__";
 
 function parseGalleryImages(value: string | null | undefined) {
@@ -284,6 +289,14 @@ function mapPost(post: any): BeautyPostRecord {
     seoTitle: post.seoTitle,
     seoDescription: post.seoDescription,
     aiGenerated: Boolean(post.aiGenerated),
+    authorName: post.authorName ?? null,
+    authorType:
+      post.authorType === "Person" || post.authorType === "Organization" ? post.authorType : null,
+    authorUrl: post.authorUrl ?? null,
+    reviewerName: post.reviewerName ?? null,
+    reviewerUrl: post.reviewerUrl ?? null,
+    editorialReviewed: Boolean(post.editorialReviewed),
+    reviewedAt: post.reviewedAt ? new Date(post.reviewedAt) : null,
     focusKeyword: post.focusKeyword ?? null,
     secondaryKeywords: parseStoredSecondaryKeywords(post.secondaryKeywords),
     imagePrompt: post.imagePrompt ?? null,
@@ -314,6 +327,13 @@ const postSelect = {
   seoTitle: true,
   seoDescription: true,
   aiGenerated: true,
+  authorName: true,
+  authorType: true,
+  authorUrl: true,
+  reviewerName: true,
+  reviewerUrl: true,
+  editorialReviewed: true,
+  reviewedAt: true,
   focusKeyword: true,
   secondaryKeywords: true,
   imagePrompt: true,
@@ -877,7 +897,7 @@ const getFeaturedProductsFromDatabase = unstable_cache(
       })
     ).map(mapProduct),
   ["featured-products"],
-  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS, tags: [PUBLIC_PRODUCTS_CACHE_TAG] }
 );
 
 const getActiveProductsFromDatabase = unstable_cache(
@@ -897,7 +917,7 @@ const getActiveProductsFromDatabase = unstable_cache(
       })
     ).map(mapProduct),
   ["active-products"],
-  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS, tags: [PUBLIC_PRODUCTS_CACHE_TAG] }
 );
 
 const getProductBySlugFromDatabase = unstable_cache(
@@ -917,7 +937,7 @@ const getProductBySlugFromDatabase = unstable_cache(
     return product ? mapProduct(product) : null;
   },
   ["product-by-slug"],
-  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS, tags: [PUBLIC_PRODUCTS_CACHE_TAG] }
 );
 
 const getPublishedPostsFromDatabase = unstable_cache(
@@ -931,7 +951,7 @@ const getPublishedPostsFromDatabase = unstable_cache(
       })
     ).map(mapPost),
   ["published-posts"],
-  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS, tags: [PUBLIC_POSTS_CACHE_TAG] }
 );
 
 const getPostBySlugFromDatabase = unstable_cache(
@@ -944,7 +964,28 @@ const getPostBySlugFromDatabase = unstable_cache(
     return post ? mapPost(post) : null;
   },
   ["post-by-slug"],
-  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS }
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS, tags: [PUBLIC_POSTS_CACHE_TAG] }
+);
+
+const getPublishedReviewsFromDatabase = unstable_cache(
+  async (productId: string) =>
+    (
+      await prisma.productReview.findMany({
+        where: {
+          productId,
+          status: "PUBLISHED",
+          source: { not: SYNTHETIC_REVIEW_SOURCE }
+        },
+        include: {
+          product: true,
+          customer: true,
+          persona: true
+        },
+        orderBy: [{ reviewDate: "desc" }, { publishedAt: "desc" }, { createdAt: "desc" }]
+      })
+    ).map(mapReview),
+  ["published-product-reviews"],
+  { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS, tags: [PUBLIC_REVIEWS_CACHE_TAG] }
 );
 
 export async function getFeaturedProducts(limit = 4) {
@@ -1900,22 +1941,7 @@ export async function getFollowEmailOverview(processKey: FollowEmailProcessKey) 
 
 export async function getPublishedReviewsByProductId(productId: string) {
   return withFallback(
-    async () =>
-      (
-        await prisma.productReview.findMany({
-          where: {
-            productId,
-            status: "PUBLISHED",
-            source: { not: SYNTHETIC_REVIEW_SOURCE }
-          },
-          include: {
-            product: true,
-            customer: true,
-            persona: true
-          },
-          orderBy: [{ reviewDate: "desc" }, { publishedAt: "desc" }, { createdAt: "desc" }]
-        })
-      ).map(mapReview),
+    async () => getPublishedReviewsFromDatabase(productId),
     fallbackReviews
       .filter((review) => review.productId === productId && review.status === "PUBLISHED")
       .sort((left, right) => right.reviewDate.getTime() - left.reviewDate.getTime()),

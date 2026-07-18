@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import type { CSSProperties } from "react";
+import { Suspense, type CSSProperties } from "react";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { submitProductReviewAction } from "@/app/(site)/account/actions";
 import { addToCartAction } from "@/app/(site)/cart/actions";
 import { AnalyticsEvent } from "@/components/analytics/analytics-event";
 import { TrackedExternalLink } from "@/components/analytics/tracked-external-link";
 import { ProductCustomerVoiceSlider } from "@/components/product/product-customer-voice-slider";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { ProductReviewsShowcase } from "@/components/product/product-reviews-showcase";
+import { ProductReviewSubmission } from "@/components/product/product-review-submission";
+import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { RatingStars } from "@/components/ui/rating-stars";
-import { getCurrentCustomerId } from "@/lib/customer-auth";
 import { formatCurrency, getSavingsCents } from "@/lib/format";
 import {
   pdrnCreamCustomerVoiceVideos,
@@ -39,18 +39,24 @@ import {
 } from "@/lib/commerce-schema";
 import { nadSerumCustomerVoiceVideos } from "@/lib/nad-serum-page";
 import {
-  getCustomerAccountById,
+  getActiveProducts,
   getProductBySlug,
+  getPublishedPosts,
   getPublishedReviewsByProductId
 } from "@/lib/queries";
 import { toAbsoluteUrl } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
 import { isLocalProductMediaUrl } from "@/lib/media-url";
+import { getCollectionsForProduct } from "@/lib/collections";
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ review?: string; error?: string }>;
 };
+
+export async function generateStaticParams() {
+  const products = await getActiveProducts();
+  return products.map((product) => ({ slug: product.slug }));
+}
 
 type LandingImageProps = {
   src: string;
@@ -370,21 +376,17 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   };
 }
 
-export default async function ProductPage({ params, searchParams }: ProductPageProps) {
+export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
-  const [product, customerId, query] = await Promise.all([
-    getProductBySlug(slug),
-    getCurrentCustomerId(),
-    searchParams
-  ]);
+  const product = await getProductBySlug(slug);
 
   if (!product) {
     notFound();
   }
 
-  const [reviews, account] = await Promise.all([
+  const [reviews, allPosts] = await Promise.all([
     getPublishedReviewsByProductId(product.id),
-    customerId ? getCustomerAccountById(customerId) : Promise.resolve(null)
+    getPublishedPosts()
   ]);
 
   const story = getProductStory(product.slug);
@@ -394,7 +396,9 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const storyCopySections = story.sections.slice(storyDetailImages.length);
   const gallery = product.galleryImages.length > 0 ? product.galleryImages : story.gallery;
   const displayGallery = gallery.length > 0 ? gallery : [product.imageUrl];
-  const canReview = Boolean(account?.purchasedProductIds.includes(product.id));
+  const productCollections = getCollectionsForProduct(product.slug);
+  const relatedGuideSlugs = new Set(productCollections.flatMap((collection) => collection.guideSlugs));
+  const relatedGuides = allPosts.filter((post) => relatedGuideSlugs.has(post.slug)).slice(0, 3);
   const savingsCents = getSavingsCents(product.compareAtPriceCents, product.priceCents);
   const isPdrnCream = product.slug === "pdrn-cream";
   const isPdrnSerum = product.slug === "pdrn-serum";
@@ -444,6 +448,13 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   return (
     <section className="section section--product">
       <div className="container">
+        <Breadcrumbs
+          items={[
+            { name: "Home", href: "/" },
+            { name: "Shop", href: "/shop" },
+            { name: product.name, href: `/shop/${product.slug}` }
+          ]}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
@@ -571,6 +582,35 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                   </div>
                 ))}
               </dl>
+            </section>
+          ) : null}
+
+          {productCollections.length > 0 ? (
+            <section className="product-page-section">
+              <div className="section-heading">
+                <p className="section-heading__eyebrow">Keep exploring</p>
+                <h2>Compare this product in its routine context.</h2>
+                <p>Use the collection guide to compare textures, routine order and related formulas before adding another step.</p>
+              </div>
+              <div className="cards-3">
+                {productCollections.map((collection) => (
+                  <article key={collection.slug} className="panel">
+                    <h3>{collection.shortTitle}</h3>
+                    <p>{collection.description}</p>
+                    <ButtonLink href={`/collections/${collection.slug}`} variant="secondary">View collection</ButtonLink>
+                  </article>
+                ))}
+              </div>
+              {relatedGuides.length > 0 ? (
+                <div className="article-related-guides">
+                  <h3>Related routine guides</h3>
+                  <ul>
+                    {relatedGuides.map((post) => (
+                      <li key={post.id}><ButtonLink href={`/beauty-tips/${post.slug}`} variant="ghost">{post.title}</ButtonLink></li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
@@ -988,50 +1028,11 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
               </p>
             </div>
 
-            {query.review === "submitted" ? (
-              <p className="notice">Your review was submitted and is waiting for approval.</p>
-            ) : null}
-            {query.error === "review-not-eligible" ? (
-              <p className="notice">
-                Only customers with a completed purchase can review this product.
-              </p>
-            ) : null}
-
             <div className="review-stack">
               <ProductReviewsShowcase reviews={reviews} averageRating={product.averageRating} />
-
-              <section className="admin-form review-form-panel">
-                <h2>Leave a review</h2>
-                {canReview ? (
-                  <form action={submitProductReviewAction}>
-                    <input type="hidden" name="productId" value={product.id} />
-                    <input type="hidden" name="productSlug" value={product.slug} />
-                    <div className="field">
-                      <label htmlFor="rating">Rating</label>
-                      <select id="rating" name="rating" defaultValue="5">
-                        <option value="5">5</option>
-                        <option value="4">4</option>
-                        <option value="3">3</option>
-                        <option value="2">2</option>
-                        <option value="1">1</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label htmlFor="title">Review title</label>
-                      <input id="title" name="title" required />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="content">Your review</label>
-                      <textarea id="content" name="content" required />
-                    </div>
-                    <button type="submit" className="button button--primary">
-                      Submit review
-                    </button>
-                  </form>
-                ) : (
-                  <p>Review submission becomes available after you complete a purchase.</p>
-                )}
-              </section>
+              <Suspense fallback={null}>
+                <ProductReviewSubmission productId={product.id} productSlug={product.slug} />
+              </Suspense>
             </div>
           </section>
         </div>

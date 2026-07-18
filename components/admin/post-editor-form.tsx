@@ -198,6 +198,48 @@ export function PostEditorForm({
           </label>
         </div>
 
+        <section className="admin-card">
+          <p className="eyebrow">Editorial trust</p>
+          <h2>Record real authorship and review.</h2>
+          <p className="form-note">
+            Do not enter a person or review date unless they actually wrote or checked this article.
+            AI-assisted posts cannot be newly published without a named reviewer and completed review date.
+          </p>
+          <div className="admin-form__grid">
+            <div className="field">
+              <label htmlFor="authorType">Author type</label>
+              <select id="authorType" name="authorType" defaultValue={post?.authorType || "Organization"}>
+                <option value="Organization">Organization</option>
+                <option value="Person">Person</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="authorName">Author name</label>
+              <input id="authorName" name="authorName" defaultValue={post?.authorName || ""} placeholder="Leave blank to use Neatique Beauty Editorial Team" />
+            </div>
+            <div className="field">
+              <label htmlFor="authorUrl">Author profile URL</label>
+              <input id="authorUrl" name="authorUrl" type="url" defaultValue={post?.authorUrl || ""} placeholder="Verified profile URL only" />
+            </div>
+            <div className="field">
+              <label htmlFor="reviewerName">Reviewer name</label>
+              <input id="reviewerName" name="reviewerName" defaultValue={post?.reviewerName || ""} />
+            </div>
+            <div className="field">
+              <label htmlFor="reviewerUrl">Reviewer profile URL</label>
+              <input id="reviewerUrl" name="reviewerUrl" type="url" defaultValue={post?.reviewerUrl || ""} />
+            </div>
+            <div className="field">
+              <label htmlFor="reviewedAt">Reviewed at</label>
+              <input id="reviewedAt" name="reviewedAt" type="datetime-local" defaultValue={toDateTimeLocalValue(post?.reviewedAt)} />
+            </div>
+            <label className="field field--checkbox">
+              <input type="checkbox" name="editorialReviewed" defaultChecked={post?.editorialReviewed ?? false} />
+              Editorial review completed
+            </label>
+          </div>
+        </section>
+
         <div className="field">
           <label htmlFor="excerpt">Excerpt</label>
           <textarea id="excerpt" name="excerpt" defaultValue={post?.excerpt || ""} required />

@@ -20,7 +20,7 @@ export function PostCard({ post }: PostCardProps) {
             className="post-card__image"
             sizes="(max-width: 720px) 100vw, (max-width: 1080px) 50vw, 31vw"
             quality={75}
-            unoptimized
+            unoptimized={post.coverImageUrl.toLowerCase().endsWith(".svg")}
           />
           <AiGeneratedPersonBadge src={post.coverImageUrl} />
         </div>

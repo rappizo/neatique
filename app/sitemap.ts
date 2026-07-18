@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { siteConfig } from "@/lib/site-config";
 import { getActiveProducts, getPublishedPosts } from "@/lib/queries";
+import { COLLECTIONS } from "@/lib/collections";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [products, posts] = await Promise.all([getActiveProducts(), getPublishedPosts()]);
@@ -25,6 +26,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${siteConfig.url}/about`,
       changeFrequency: "monthly",
       priority: 0.75
+    },
+    {
+      url: `${siteConfig.url}/collections`,
+      changeFrequency: "weekly",
+      priority: 0.9
     },
     {
       url: `${siteConfig.url}/contact`,
@@ -60,6 +66,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticRoutes,
+    ...COLLECTIONS.map((collection) => ({
+      url: `${siteConfig.url}/collections/${collection.slug}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.85
+    })),
     ...products.map((product) => ({
       url: `${siteConfig.url}/shop/${product.slug}`,
       lastModified: product.updatedAt,

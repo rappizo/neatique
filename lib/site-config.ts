@@ -10,6 +10,7 @@ export const siteConfig = {
   nav: [
     { href: "/", label: "Home" },
     { href: "/shop", label: "Shop" },
+    { href: "/collections", label: "Collections" },
     { href: "/comic", label: "Comic" },
     { href: "/beauty-tips", label: "Beauty Tips" },
     { href: "/about", label: "About" },
@@ -111,10 +112,11 @@ export const siteConfig = {
   footerLinks: {
     shop: [
       { href: "/shop", label: "All Products" },
-      { href: "/shop/kit9-niacinamide-turmeric-kojic-acid-serum", label: "KIT9+ Serum" },
-      { href: "/shop/at13-arbutin-tranexamic-cream", label: "AT13 Cream" },
-      { href: "/shop/pdrn-cream", label: "PDRN Cream" },
-      { href: "/shop/snail-mucin-serum", label: "Snail Mucin Serum" }
+      { href: "/collections/pdrn-skincare", label: "PDRN Skincare" },
+      { href: "/collections/snail-mucin-skincare", label: "Snail Mucin Skincare" },
+      { href: "/collections/uneven-tone-serums", label: "Uneven-Tone Serums" },
+      { href: "/collections/dry-skin-hydration", label: "Dry-Skin Hydration" },
+      { href: "/shop/kit9-niacinamide-turmeric-kojic-acid-serum", label: "KIT9+ Serum" }
     ],
     discover: [
       { href: "/about", label: "About Neatique" },

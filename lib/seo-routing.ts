@@ -16,6 +16,13 @@ const LEGACY_PAGE_REDIRECTS: Record<string, string> = {
   "3783": "/shipping-policy"
 };
 
+const CONSOLIDATED_CONTENT_REDIRECTS: Record<string, string> = {
+  "/beauty-tips/pdrn-serum-lightweight-repair-serum-routine":
+    "/beauty-tips/pdrn-peptide-serum-guide-smooth-hydrated-skin",
+  "/beauty-tips/snail-mucin-routine-for-dry-skin":
+    "/collections/snail-mucin-skincare"
+};
+
 function isRetiredWordPressPath(pathname: string) {
   return (
     pathname === "/test-campaign" ||
@@ -34,6 +41,13 @@ export function resolveSeoRoute(input: URL): SeoRouteDecision {
 
   const target = new URL(input.toString());
   let shouldRedirect = false;
+
+  const consolidatedDestination = CONSOLIDATED_CONTENT_REDIRECTS[target.pathname];
+  if (consolidatedDestination) {
+    target.pathname = consolidatedDestination;
+    target.search = "";
+    shouldRedirect = true;
+  }
 
   if (target.protocol !== "https:") {
     target.protocol = "https:";

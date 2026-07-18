@@ -28,10 +28,17 @@ import {
   requireFullAdminSession,
   setAdminSession
 } from "@/lib/admin-auth";
-import { EMAIL_SETTINGS_CACHE_TAG, STORE_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
+import {
+  EMAIL_SETTINGS_CACHE_TAG,
+  PUBLIC_POSTS_CACHE_TAG,
+  PUBLIC_PRODUCTS_CACHE_TAG,
+  PUBLIC_REVIEWS_CACHE_TAG,
+  STORE_SETTINGS_CACHE_TAG
+} from "@/lib/cache-tags";
 import { normalizeCouponCode, parseCouponScopeInput, serializeCouponScope } from "@/lib/coupons";
 import { ensureProductCodes, getNextProductCode } from "@/lib/product-codes";
 import { normalizeArticleContent } from "@/lib/article-format";
+import { canPublishPost } from "@/lib/editorial-compliance";
 import { storePostCoverImage } from "@/lib/post-image-storage";
 import {
   buildFollowEmailSettingsEntries,
@@ -89,7 +96,29 @@ function buildPublishedDate(formData: FormData, published: boolean) {
   return rawDate ? new Date(rawDate) : new Date();
 }
 
+function buildPostEditorialData(formData: FormData) {
+  const authorTypeValue = toPlainString(formData.get("authorType"));
+  const reviewedAtValue = toPlainString(formData.get("reviewedAt"));
+  const reviewedAt = reviewedAtValue ? new Date(reviewedAtValue) : null;
+
+  return {
+    authorName: toPlainString(formData.get("authorName")) || null,
+    authorType:
+      authorTypeValue === "Person" || authorTypeValue === "Organization"
+        ? authorTypeValue
+        : null,
+    authorUrl: toPlainString(formData.get("authorUrl")) || null,
+    reviewerName: toPlainString(formData.get("reviewerName")) || null,
+    reviewerUrl: toPlainString(formData.get("reviewerUrl")) || null,
+    editorialReviewed: toBool(formData.get("editorialReviewed")),
+    reviewedAt:
+      reviewedAt && !Number.isNaN(reviewedAt.getTime()) ? reviewedAt : null
+  };
+}
+
 function refreshStorefront(productSlugs: string[] = []) {
+  revalidateTag(PUBLIC_PRODUCTS_CACHE_TAG);
+  revalidateTag(PUBLIC_REVIEWS_CACHE_TAG);
   revalidatePath("/");
   revalidatePath("/shop");
   revalidatePath("/beauty-tips");
@@ -849,6 +878,7 @@ export async function createPostAction(formData: FormData) {
 
   const published = toBool(formData.get("published"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
+  const editorialData = buildPostEditorialData(formData);
 
   await prisma.post.create({
     data: {
@@ -862,11 +892,13 @@ export async function createPostAction(formData: FormData) {
       content: normalizeArticleContent(toPlainString(formData.get("content"))),
       seoTitle: toPlainString(formData.get("seoTitle")),
       seoDescription: toPlainString(formData.get("seoDescription")),
+      ...editorialData,
       published,
       publishedAt: buildPublishedDate(formData, published)
     }
   });
 
+  revalidateTag(PUBLIC_POSTS_CACHE_TAG);
   revalidatePath("/beauty-tips");
   revalidatePath("/admin/posts");
   redirect(buildPostsRedirect("created", redirectTo));
@@ -878,6 +910,21 @@ export async function updatePostAction(formData: FormData) {
   const published = toBool(formData.get("published"));
   const id = toPlainString(formData.get("id"));
   const redirectTo = toPlainString(formData.get("redirectTo"));
+  const editorialData = buildPostEditorialData(formData);
+  const existingPost = await prisma.post.findUnique({
+    where: { id },
+    select: { aiGenerated: true }
+  });
+
+  if (!canPublishPost({
+    aiGenerated: Boolean(existingPost?.aiGenerated),
+    publishing: published,
+    editorialReviewed: editorialData.editorialReviewed,
+    reviewerName: editorialData.reviewerName,
+    reviewedAt: editorialData.reviewedAt
+  })) {
+    redirect(buildPostsRedirect("review-required", redirectTo));
+  }
 
   const updatedPost = await prisma.post.update({
     where: { id },
@@ -892,6 +939,7 @@ export async function updatePostAction(formData: FormData) {
       content: normalizeArticleContent(toPlainString(formData.get("content"))),
       seoTitle: toPlainString(formData.get("seoTitle")),
       seoDescription: toPlainString(formData.get("seoDescription")),
+      ...editorialData,
       published,
       publishedAt: buildPublishedDate(formData, published)
     },
@@ -900,6 +948,7 @@ export async function updatePostAction(formData: FormData) {
     }
   });
 
+  revalidateTag(PUBLIC_POSTS_CACHE_TAG);
   revalidatePath("/beauty-tips");
   revalidatePath("/admin/posts");
   revalidatePath(`/beauty-tips/${updatedPost.slug}`);
@@ -914,6 +963,7 @@ export async function deletePostAction(formData: FormData) {
   const redirectTo = toPlainString(formData.get("redirectTo"));
   await prisma.post.delete({ where: { id } });
 
+  revalidateTag(PUBLIC_POSTS_CACHE_TAG);
   revalidatePath("/beauty-tips");
   revalidatePath("/admin/posts");
   redirect(buildPostsRedirect("deleted", redirectTo));
@@ -1057,7 +1107,7 @@ export async function saveAiPostAutomationSettingsAction(formData: FormData) {
   const settings = [
     ["ai_post_enabled", toBool(formData.get("ai_post_enabled")) ? "true" : "false"],
     ["ai_post_cadence_days", String(Math.max(1, toInt(formData.get("ai_post_cadence_days"), 2)))],
-    ["ai_post_auto_publish", toBool(formData.get("ai_post_auto_publish")) ? "true" : "false"],
+    ["ai_post_auto_publish", "false"],
     [
       "ai_post_include_external_links",
       toBool(formData.get("ai_post_include_external_links")) ? "true" : "false"

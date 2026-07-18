@@ -161,6 +161,13 @@ model Post {
   seoTitle                String
   seoDescription          String
   aiGenerated             Boolean   @default(false)
+  authorName              String?
+  authorType              String?
+  authorUrl               String?
+  reviewerName            String?
+  reviewerUrl             String?
+  editorialReviewed       Boolean   @default(false)
+  reviewedAt              DateTime?
   focusKeyword            String?
   secondaryKeywords       String?
   imagePrompt             String?

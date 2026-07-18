@@ -3,6 +3,7 @@ import Script from "next/script";
 import "@/app/globals.css";
 import { siteConfig } from "@/lib/site-config";
 import { defaultOgImage } from "@/lib/seo";
+import { WebVitalsReporter } from "@/components/analytics/web-vitals-reporter";
 
 const GOOGLE_TAG_ID = process.env.NEXT_PUBLIC_GOOGLE_TAG_ID?.trim() || "G-WRS7GSKT5T";
 const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION?.trim();
@@ -84,6 +85,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             gtag('config', '${GOOGLE_TAG_ID}');
           `}
         </Script>
+        <WebVitalsReporter />
         {children}
       </body>
     </html>

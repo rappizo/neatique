@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PostArticleView } from "@/components/site/post-article-view";
-import { getPostBySlug } from "@/lib/queries";
+import { getPostBySlug, getPublishedPosts } from "@/lib/queries";
 import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
+import { getCollectionsForPost } from "@/lib/collections";
 
 type PostPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateStaticParams() {
+  const posts = await getPublishedPosts();
+  return posts.map((post) => ({ slug: post.slug }));
+}
 
 function coerceIsoDate(value: Date | string | null | undefined, fallback: Date | string) {
   const nextValue = value ?? fallback;
@@ -79,13 +85,26 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
 
 export default async function BeautyTipPostPage({ params }: PostPageProps) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const [post, allPosts] = await Promise.all([getPostBySlug(slug), getPublishedPosts()]);
 
   if (!post || !post.published) {
     notFound();
   }
 
   const publishedAt = post.publishedAt || post.createdAt;
+  const postCollectionSlugs = new Set(getCollectionsForPost(post.slug).map((collection) => collection.slug));
+  const relatedPosts = allPosts
+    .filter((candidate) => {
+      if (candidate.id === post.id) {
+        return false;
+      }
+
+      const candidateCollections = getCollectionsForPost(candidate.slug);
+      return candidateCollections.some((collection) => postCollectionSlugs.has(collection.slug));
+    })
+    .slice(0, 3);
+  const authorName = post.authorName?.trim() || "Neatique Beauty Editorial Team";
+  const authorType = post.authorType === "Person" ? "Person" : "Organization";
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -97,13 +116,25 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
     articleSection: post.category,
     keywords: [post.focusKeyword, ...normalizeKeywords(post.secondaryKeywords)].filter(Boolean).join(", "),
     author: {
-      "@type": "Organization",
-      name: siteConfig.title
+      "@type": authorType,
+      name: authorName,
+      ...(post.authorUrl ? { url: post.authorUrl } : {})
     },
     publisher: {
       "@type": "Organization",
       name: siteConfig.title
     },
+    ...(post.editorialReviewed && post.reviewerName
+      ? {
+          reviewedBy: {
+            "@type": "Person",
+            name: post.reviewerName,
+            ...(post.reviewerUrl ? { url: post.reviewerUrl } : {})
+          }
+        }
+      : {}),
+    citation: post.externalLinks.map((link) => link.url),
+    isAccessibleForFree: true,
     mainEntityOfPage: `${siteConfig.url}/beauty-tips/${post.slug}`
   };
 
@@ -113,7 +144,7 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <PostArticleView post={post} />
+      <PostArticleView post={post} relatedPosts={relatedPosts} />
     </>
   );
 }
