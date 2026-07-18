@@ -9,11 +9,12 @@ import { ProductCustomerVoiceSlider } from "@/components/product/product-custome
 import { ProductGallery } from "@/components/product/product-gallery";
 import { ProductReviewsShowcase } from "@/components/product/product-reviews-showcase";
 import { ProductReviewSubmission } from "@/components/product/product-review-submission";
+import { ProductTransparencySections } from "@/components/product/product-transparency-sections";
 import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { RatingStars } from "@/components/ui/rating-stars";
-import { formatCurrency, getSavingsCents } from "@/lib/format";
+import { formatCurrency, formatDate, getSavingsCents } from "@/lib/format";
 import {
   pdrnCreamCustomerVoiceVideos,
   pdrnCreamEditorialSections,
@@ -384,9 +385,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
-  const [reviews, allPosts] = await Promise.all([
+  const [reviews, allPosts, allProducts] = await Promise.all([
     getPublishedReviewsByProductId(product.id),
-    getPublishedPosts()
+    getPublishedPosts(),
+    getActiveProducts()
   ]);
   const ratedReviewCount = reviews.filter((review) => review.hasRating).length;
 
@@ -400,7 +402,21 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const productCollections = getCollectionsForProduct(product.slug);
   const relatedGuideSlugs = new Set(productCollections.flatMap((collection) => collection.guideSlugs));
   const relatedGuides = allPosts.filter((post) => relatedGuideSlugs.has(post.slug)).slice(0, 3);
+  const relatedProductSlugs = new Set(
+    productCollections.flatMap((collection) => [
+      ...collection.productSlugs,
+      ...(collection.contextProductSlugs || [])
+    ])
+  );
+  relatedProductSlugs.delete(product.slug);
+  const relatedProducts = allProducts
+    .filter((candidate) => relatedProductSlugs.has(candidate.slug))
+    .slice(0, 3);
   const savingsCents = getSavingsCents(product.compareAtPriceCents, product.priceCents);
+  const activePriceValidUntil =
+    product.priceValidUntil && product.priceValidUntil.getTime() > Date.now()
+      ? product.priceValidUntil
+      : null;
   const isPdrnCream = product.slug === "pdrn-cream";
   const isPdrnSerum = product.slug === "pdrn-serum";
   const isNadSerum = product.slug === "nad-collagen-peptide-serum";
@@ -408,13 +424,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const seoDescription = getProductSeo(product).description;
   const analyticsItem = toGoogleAnalyticsItem(product);
   const verifiedIdentifiers = buildVerifiedProductIdentifiers(product);
-  const verifiedProductFacts = [
-    product.netContent ? ["Net content", product.netContent] : null,
-    product.countryOfOrigin ? ["Country of origin", product.countryOfOrigin] : null,
-    product.ingredients ? ["Full ingredient list (INCI)", product.ingredients] : null,
-    product.directions ? ["Directions", product.directions] : null,
-    product.warnings ? ["Warnings", product.warnings] : null
-  ].filter((fact): fact is string[] => Boolean(fact));
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
@@ -429,8 +438,16 @@ export default async function ProductPage({ params }: ProductPageProps) {
           "@type": "Brand",
           name: siteConfig.name
         },
+        manufacturer: {
+          "@type": "Organization",
+          "@id": `${siteConfig.url}/#organization`,
+          name: siteConfig.name
+        },
         ...verifiedIdentifiers,
         ...(product.netContent ? { size: product.netContent } : {}),
+        ...(product.countryOfOrigin === "CN"
+          ? { countryOfOrigin: { "@type": "Country", name: "China" } }
+          : {}),
         offers: buildProductOfferSchema(product),
         ...(ratedReviewCount > 0 && product.averageRating
           ? {
@@ -490,6 +507,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 </span>
               ) : null}
             </div>
+            {activePriceValidUntil ? (
+              <p className="form-note">
+                Current price valid through{" "}
+                <time dateTime={activePriceValidUntil.toISOString()}>
+                  {formatDate(activePriceValidUntil)}
+                </time>.
+              </p>
+            ) : null}
             <div className="product-detail__rating">
               <RatingStars
                 rating={product.averageRating}
@@ -569,22 +594,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </div>
           </section>
 
-          {verifiedProductFacts.length > 0 ? (
-            <section className="product-page-section">
-              <div className="section-heading">
-                <p className="section-heading__eyebrow">Verified product information</p>
-                <h2>Packaging facts for this product.</h2>
-              </div>
-              <dl className="detail-list">
-                {verifiedProductFacts.map(([label, value]) => (
-                  <div key={label}>
-                    <dt><strong>{label}</strong></dt>
-                    <dd>{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ) : null}
+          <ProductTransparencySections
+            product={product}
+            relatedProducts={relatedProducts}
+            showFaq={!isPdrnSerum}
+          />
 
           {productCollections.length > 0 ? (
             <section className="product-page-section">
@@ -888,7 +902,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 </div>
               </section>
 
-              <section className="product-page-section">
+              <section className="product-page-section" id="faq">
                 <div className="section-heading">
                   <p className="section-heading__eyebrow">FAQ</p>
                   <h2>Answers to the search questions shoppers ask before choosing a PDRN serum.</h2>

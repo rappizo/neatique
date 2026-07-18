@@ -100,44 +100,50 @@ enum ComicPromptRunStatus {
 }
 
 model Product {
-  id                  String            @id @default(cuid())
-  productCode         String?           @unique
-  productShortName    String?
-  amazonAsin          String?
-  gtin                String?
-  mpn                 String?
-  identifierExists    Boolean?
-  name                String
-  slug                String            @unique
-  tagline             String
-  category            String
-  shortDescription    String
-  description         String
-  details             String
-  netContent          String?
-  ingredients         String?
-  directions          String?
-  warnings            String?
-  countryOfOrigin     String?
-  seoTitle            String?
-  seoDescription      String?
-  priceValidUntil     DateTime?
-  imageUrl            String
-  galleryImages       String?
-  featured            Boolean           @default(false)
-  status              ProductStatus     @default(DRAFT)
-  inventory           Int               @default(0)
-  priceCents          Int
-  compareAtPriceCents Int?
-  currency            String            @default("USD")
-  pointsReward        Int               @default(0)
-  stripePriceId       String?
-  orderItems          OrderItem[]
-  reviews             ProductReview[]
-  posts               Post[]
-  comicProductLock    ComicProductLock?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  id                   String            @id @default(cuid())
+  productCode          String?           @unique
+  productShortName     String?
+  amazonAsin           String?
+  gtin                 String?
+  mpn                  String?
+  identifierExists     Boolean?
+  name                 String
+  slug                 String            @unique
+  tagline              String
+  category             String
+  shortDescription     String
+  description          String
+  details              String
+  netContent           String?
+  ingredients          String?
+  directions           String?
+  warnings             String?
+  countryOfOrigin      String?
+  keyIngredientDetails String?
+  pdrnSource           String?
+  suitableFor          String?
+  cautionFor           String?
+  batchExpiryInfo      String?
+  textureVideoUrl      String?
+  seoTitle             String?
+  seoDescription       String?
+  priceValidUntil      DateTime?
+  imageUrl             String
+  galleryImages        String?
+  featured             Boolean           @default(false)
+  status               ProductStatus     @default(DRAFT)
+  inventory            Int               @default(0)
+  priceCents           Int
+  compareAtPriceCents  Int?
+  currency             String            @default("USD")
+  pointsReward         Int               @default(0)
+  stripePriceId        String?
+  orderItems           OrderItem[]
+  reviews              ProductReview[]
+  posts                Post[]
+  comicProductLock     ComicProductLock?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   @@index([status, featured, createdAt])
 }

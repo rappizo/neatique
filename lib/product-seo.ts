@@ -16,7 +16,7 @@ export const PRODUCT_SEO_BY_SLUG: Record<string, ProductSeoEntry> = {
     secondaryKeywords: ["PDRN moisturizer", "cream for dehydrated skin", "barrier care cream"]
   },
   "pdrn-serum": {
-    title: "Salmon PDRN Serum with 5 Peptides",
+    title: "PDRN Serum for Hydration & Glow",
     description:
       "Shop Neatique Salmon PDRN Serum with a 5-peptide blend for silky hydration and smoother, firmer, more radiant-looking skin without heaviness.",
     primaryKeyword: "Salmon PDRN serum",
@@ -37,28 +37,28 @@ export const PRODUCT_SEO_BY_SLUG: Record<string, ProductSeoEntry> = {
     secondaryKeywords: ["snail mucin essence serum", "hydrating snail serum", "serum for dehydrated skin"]
   },
   "at13-arbutin-tranexamic-cream": {
-    title: "8% Arbutin + 5% Tranexamic Acid Cream",
+    title: "Arbutin + Tranexamic Acid Cream",
     description:
       "Shop Neatique AT13 Cream with 8% arbutin and 5% tranexamic acid, a silky daily moisturizer for a brighter, more even-looking complexion.",
     primaryKeyword: "arbutin tranexamic acid cream",
     secondaryKeywords: ["8% arbutin cream", "5% tranexamic acid cream", "cream for uneven-looking tone"]
   },
   "tnv3-tranexamic-nicotinamide-serum": {
-    title: "10% Tranexamic Acid Serum + Vitamin C",
+    title: "Tranexamic Acid + Vitamin C Serum",
     description:
       "Shop Neatique TNV3 Serum with 10% tranexamic acid, 2% nicotinamide and vitamin C for uneven-looking tone and post-blemish mark care.",
     primaryKeyword: "10% tranexamic acid serum",
     secondaryKeywords: ["tranexamic acid vitamin C serum", "nicotinamide serum", "serum for post-blemish marks"]
   },
   "nt16-niacinamide-tranexamic-serum": {
-    title: "11% Niacinamide + 5% Tranexamic Serum",
+    title: "Niacinamide + Tranexamic Acid Serum",
     description:
       "Shop Neatique NT16 Serum with 11% niacinamide and 5% tranexamic acid for a smoother surface, refined finish and more even-looking tone.",
     primaryKeyword: "niacinamide tranexamic acid serum",
     secondaryKeywords: ["11% niacinamide serum", "5% tranexamic acid serum", "dark spot serum"]
   },
   "nad-collagen-peptide-serum": {
-    title: "NAD+ Collagen Peptide Serum",
+    title: "NAD+ Peptide Serum for Firm-Looking Skin",
     description:
       "Shop Neatique NAD+ Collagen Peptide Serum with niacinamide and hyaluronic acid for layer-friendly hydration and smoother, firmer-looking skin.",
     primaryKeyword: "NAD+ collagen peptide serum",
@@ -72,7 +72,7 @@ export const PRODUCT_SEO_BY_SLUG: Record<string, ProductSeoEntry> = {
     secondaryKeywords: ["body cream for dry skin", "hyaluronic acid body cream", "body cream for rough areas"]
   },
   "kit9-niacinamide-turmeric-kojic-acid-serum": {
-    title: "Niacinamide, Turmeric + Kojic Acid Serum",
+    title: "Niacinamide + Kojic Acid Serum",
     description:
       "Shop Neatique KIT9+ Serum with 6% niacinamide, 1.5% turmeric and 1.5% kojic acid for refined-looking texture and a more even-looking glow.",
     primaryKeyword: "niacinamide turmeric kojic acid serum",
@@ -86,7 +86,7 @@ export const PRODUCT_SEO_BY_SLUG: Record<string, ProductSeoEntry> = {
     secondaryKeywords: ["niacinamide cleanser", "whip face cleanser", "cleanser without tight feeling"]
   },
   "nad-face-cream": {
-    title: "NAD+ Face Cream with Niacinamide",
+    title: "NAD+ Face Cream for Hydration",
     description:
       "Shop Neatique 8+ NAD+ Face Cream with niacinamide, alpha-arbutin, hyaluronic acid, ceramide and adenosine for hydrated, smoother-looking skin.",
     primaryKeyword: "NAD+ face cream",

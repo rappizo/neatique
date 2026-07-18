@@ -108,28 +108,15 @@ export function ProductEditorForm({ action, mode, product }: ProductEditorFormPr
             <label htmlFor="mpn">Manufacturer part number</label>
             <input
               id="mpn"
-              name="mpn"
-              defaultValue={product?.mpn ?? ""}
-              placeholder="Do not use an invented identifier"
+              value={product?.productCode || "Auto-generated with Product ID"}
+              readOnly
+              disabled
             />
+            <p className="form-note">Neatique SKU and official manufacturer MPN are identical.</p>
           </div>
           <div className="field">
-            <label htmlFor="identifierExists">Manufacturer identifier status</label>
-            <select
-              id="identifierExists"
-              name="identifierExists"
-              defaultValue={
-                product?.identifierExists === true
-                  ? "yes"
-                  : product?.identifierExists === false
-                    ? "no"
-                    : "unknown"
-              }
-            >
-              <option value="unknown">Unknown — omit from feed</option>
-              <option value="yes">Verified identifiers exist</option>
-              <option value="no">Manufacturer confirms none exist</option>
-            </select>
+            <label>Manufacturer identifier status</label>
+            <input value="Verified — SKU is the official MPN" readOnly disabled />
           </div>
           <div className="field">
             <label htmlFor="slug">Slug</label>
@@ -213,6 +200,9 @@ export function ProductEditorForm({ action, mode, product }: ProductEditorFormPr
               type="date"
               defaultValue={product?.priceValidUntil?.toISOString().slice(0, 10) ?? ""}
             />
+            <p className="form-note">
+              Enter only the real advertised-price end date. Leave blank to omit priceValidUntil.
+            </p>
           </div>
           <div className="field">
             <label htmlFor="status">Status</label>
@@ -262,11 +252,72 @@ export function ProductEditorForm({ action, mode, product }: ProductEditorFormPr
             <label htmlFor="countryOfOrigin">Country of origin</label>
             <input
               id="countryOfOrigin"
-              name="countryOfOrigin"
-              defaultValue={product?.countryOfOrigin ?? ""}
-              placeholder="ISO country code, for example KR or US"
+              value="Made in PRC (CN)"
+              readOnly
+              disabled
             />
           </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="keyIngredientDetails">Verified key ingredients and concentrations</label>
+          <textarea
+            id="keyIngredientDetails"
+            name="keyIngredientDetails"
+            defaultValue={product?.keyIngredientDetails ?? ""}
+            placeholder="One verified ingredient or concentration per line. State 'concentration not provided' instead of guessing."
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="pdrnSource">PDRN source and type</label>
+          <input
+            id="pdrnSource"
+            name="pdrnSource"
+            defaultValue={product?.pdrnSource ?? ""}
+            placeholder="Only enter a source confirmed by manufacturing documentation"
+          />
+        </div>
+
+        <div className="admin-form__grid">
+          <div className="field">
+            <label htmlFor="suitableFor">Suitable for</label>
+            <textarea
+              id="suitableFor"
+              name="suitableFor"
+              defaultValue={product?.suitableFor ?? ""}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="cautionFor">Not suitable for / use caution</label>
+            <textarea
+              id="cautionFor"
+              name="cautionFor"
+              defaultValue={product?.cautionFor ?? ""}
+              placeholder="Add only verified restrictions or packaging warnings"
+            />
+          </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="batchExpiryInfo">Batch and shelf-life information</label>
+          <textarea
+            id="batchExpiryInfo"
+            name="batchExpiryInfo"
+            defaultValue={product?.batchExpiryInfo ?? ""}
+            placeholder="Explain where the customer can find lot, expiration or period-after-opening information"
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="textureVideoUrl">Texture / application video URL</label>
+          <input
+            id="textureVideoUrl"
+            name="textureVideoUrl"
+            type="url"
+            defaultValue={product?.textureVideoUrl ?? ""}
+            placeholder="Direct HTTPS MP4 or WebM URL"
+          />
         </div>
 
         <div className="field">

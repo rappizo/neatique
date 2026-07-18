@@ -136,17 +136,17 @@ P3 增长验证与运营机制
 | ID | 当前状态 | 已完成 | 上线/外部待办 |
 | --- | --- | --- | --- |
 | P1-01 | 代码已完成，待线上数据验收 | GA4 已覆盖 `view_item`、`select_item`、`add_to_cart`、`view_cart`、`begin_checkout`、`purchase`、优惠券与 Amazon/TikTok/Walmart 外链；购买事件以不可变的 Stripe Checkout Session 去重，并附带站内订单号 | 部署后在 GA4 DebugView 完成一次完整测试订单，核对收入、税费、币种及事件去重 |
-| P1-02 | 代码已完成 | 为 12 个在售商品建立独立 title、description、主关键词和次关键词映射；后台支持经核实后的 SEO 覆盖值 | 部署后抽查生产 HTML，结合 Search Console 查询数据持续微调，不批量改写承诺 |
-| P1-03 | 系统能力已完成，商品事实待补 | 后台新增容量、完整 INCI、使用方法、注意事项、产地、GTIN、MPN 与价格有效期字段；页面只展示已填写的核实信息；配送与退货信息已可见 | 按 12 个实物包装/供应商资料逐项录入；不得凭商品名猜测容量、完整配方、来源、产地或认证 |
-| P1-04 | 代码已完成，待 Rich Results 验收 | Product Schema 已增加 `itemCondition`、免费配送、处理时间、30 天退货政策、价格有效期与经过校验的 GTIN/MPN；真实评论规则沿用 P0 | 部署后用 Rich Results Test 验证 12 个商品页；补录商品事实后再次验证 |
+| P1-02 | 代码已完成 | 为 12 个在售商品建立“主要成分 + 产品类型 + 使用意图”的独立 title、description、主关键词和次关键词映射；页面标题统一使用较短的 `| Neatique` 品牌后缀；后台支持经核实后的 SEO 覆盖值 | 部署后抽查生产 HTML，结合 Search Console 查询数据持续微调，不批量改写承诺 |
+| P1-03 | 核心透明度已完成，包装资料继续补录 | 制造商已确认 SKU 即正式 MPN，且 12 个商品均为 `Made in PRC`；后台新增容量、完整 INCI、关键成分/浓度、PDRN 来源、适用/谨慎人群、批次/保质期、用法、警告与质地视频字段；商品页新增透明度、AM/PM、patch test、对比、FAQ 和指南入口 | 按实物包装逐项补录完整 INCI、净含量、明确警告及视频；不得凭商品名猜测缺失数据 |
+| P1-04 | 代码已完成，待 Rich Results 验收 | Product Schema 已增加官方 MPN（与 SKU 一致）、`itemCondition`、原产国、免费配送、处理时间、30 天退货政策与真实价格有效期；商品页已有可见 Breadcrumb 和 canonical `BreadcrumbList`；真实评论规则沿用 P0 | 部署后用 Rich Results Test 验证 12 个商品页；只有提供真实促销截止日期后才输出 `priceValidUntil` |
 | P1-05 | 核心代码已完成，外部身份信息待补 | 首页已改为 `OnlineStore`，包含真实站点 logo、支持邮箱、配送和退货政策；虚假电话号码已删除 | 只有在能核实后才补充公司主体、官方社交主页 `sameAs` 和完整会员计划 Schema |
-| P1-06 | Feed 已完成，Merchant Center 待接入 | 新增数据库驱动的 Google Merchant XML Feed；仅在校验通过时输出 GTIN，`identifier_exists=no` 必须由后台明确确认 | 在 Merchant Center 添加 Feed URL，配置税费/配送/退货并开启免费商品；处理诊断拒登 |
+| P1-06 | Feed 已完成，Merchant Center 待接入 | 新增数据库驱动的 Google Merchant XML Feed；每个商品以 Neatique SKU 输出官方 MPN，仅在校验通过时输出 GTIN | 在 Merchant Center 添加 Feed URL，配置税费/配送/退货并开启免费商品；处理诊断拒登 |
 | P1-07 | 核心页面已完成，主体资料待补 | 新增 `/about`；导航、Footer 和 sitemap 已接入；删除 `+1 (213) 555-0148` 和未经核实的客服时段 | 由负责人提供可公开验证的公司主体、品牌沿革、生产和质量资料后再扩写，不添加无法证明的陈述 |
 | P1-08 | 外部待办 | canonical、sitemap 和旧 URL 治理能力已在 P0 上线 | 在 Search Console 记录 Google-selected canonical、旧 URL 趋势、商品结果和新错误，持续观察至少 28 天 |
 
 Google Merchant Feed 地址：`https://www.neatiquebeauty.com/google-merchant.xml`
 
-> 当前结论：P1 站内代码改造已完成主要部分，但 P1 总状态仍为“待外部与真实商品数据验收”。Merchant Center 接入、12 个商品包装事实、GA4 DebugView、Rich Results Test 与 Search Console 观察完成前，不标记 P1 全部完成。
+> 当前结论：P1 站内代码改造及制造商标识/原产地基线已完成主要部分，但 P1 总状态仍为“待外部与剩余包装数据验收”。完整 INCI、净含量、真实促销截止日期、Merchant Center 接入、GA4 DebugView、Rich Results Test 与 Search Console 观察完成前，不标记 P1 全部完成。
 
 ### P1 完成门槛
 

@@ -6,6 +6,11 @@ import { fallbackProducts } from "@/lib/fallback-data";
 import { buildGoogleMerchantFeed } from "@/lib/merchant-feed";
 import { PRODUCT_SEO_BY_SLUG } from "@/lib/product-seo";
 import { isValidGtin, normalizeGtin } from "@/lib/product-identifiers";
+import {
+  buildProductFaqs,
+  buildProductRoutine,
+  formatProductOrigin
+} from "@/lib/product-transparency";
 
 test("all 12 products have unique search titles and descriptions", () => {
   const entries = Object.values(PRODUCT_SEO_BY_SLUG);
@@ -13,7 +18,7 @@ test("all 12 products have unique search titles and descriptions", () => {
   assert.equal(entries.length, 12);
   assert.equal(new Set(entries.map((entry) => entry.title)).size, 12);
   assert.equal(new Set(entries.map((entry) => entry.description)).size, 12);
-  assert.ok(entries.every((entry) => entry.title.length <= 60));
+  assert.ok(entries.every((entry) => `${entry.title} | Neatique`.length <= 60));
   assert.ok(entries.every((entry) => entry.description.length >= 100 && entry.description.length <= 165));
 });
 
@@ -44,7 +49,7 @@ test("merchant feed escapes content and only publishes verified identifiers", ()
     ...fallbackProducts[0],
     name: "Serum & Cream <Set>",
     gtin: "4006381333931",
-    mpn: "NEA-P1",
+    mpn: "SHOULD-NOT-OVERRIDE-SKU",
     identifierExists: true,
     netContent: "50 mL"
   };
@@ -52,7 +57,7 @@ test("merchant feed escapes content and only publishes verified identifiers", ()
 
   assert.match(xml, /xmlns:g="http:\/\/base\.google\.com\/ns\/1\.0"/);
   assert.match(xml, /<g:gtin>4006381333931<\/g:gtin>/);
-  assert.match(xml, /<g:mpn>NEA-P1<\/g:mpn>/);
+  assert.match(xml, new RegExp(`<g:mpn>${product.productCode}<\\/g:mpn>`));
   assert.doesNotMatch(xml, /<g:identifier_exists>no<\/g:identifier_exists>/);
   assert.match(xml, /<g:price>0\.00 USD<\/g:price>/);
 });
@@ -60,6 +65,7 @@ test("merchant feed escapes content and only publishes verified identifiers", ()
 test("merchant feed omits unknown IDs but can explicitly mark manufacturer identifiers absent", () => {
   const product = {
     ...fallbackProducts[0],
+    productCode: "",
     gtin: "not-a-gtin",
     mpn: null,
     identifierExists: false
@@ -69,6 +75,34 @@ test("merchant feed omits unknown IDs but can explicitly mark manufacturer ident
   assert.doesNotMatch(xml, /<g:gtin>/);
   assert.doesNotMatch(xml, /<g:mpn>/);
   assert.match(xml, /<g:identifier_exists>no<\/g:identifier_exists>/);
+});
+
+test("every fallback product keeps the confirmed manufacturer MPN and PRC origin", () => {
+  const xml = buildGoogleMerchantFeed(fallbackProducts);
+
+  for (const product of fallbackProducts) {
+    assert.equal(product.mpn, product.productCode);
+    assert.equal(product.identifierExists, true);
+    assert.equal(product.countryOfOrigin, "CN");
+    assert.match(xml, new RegExp(`<g:id>${product.productCode}<\\/g:id>[\\s\\S]*?<g:mpn>${product.productCode}<\\/g:mpn>`));
+  }
+});
+
+test("product transparency uses the confirmed PRC origin and supplies AM/PM guidance", () => {
+  const product = {
+    ...fallbackProducts[0],
+    countryOfOrigin: "CN",
+    directions: "Apply after serum as the moisturizer step.",
+    suitableFor: "Dry or dehydrated-feeling skin.",
+    cautionFor: null
+  };
+  const routine = buildProductRoutine(product);
+  const faqs = buildProductFaqs(product);
+
+  assert.equal(formatProductOrigin(product.countryOfOrigin), "Made in PRC");
+  assert.equal(routine.am.length, 3);
+  assert.equal(routine.pm.length, 3);
+  assert.ok(faqs.some((faq) => faq.question.includes("patch test") || faq.answer.includes("Patch test")));
 });
 
 test("about page is included in the canonical sitemap", async () => {

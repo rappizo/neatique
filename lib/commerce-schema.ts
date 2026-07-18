@@ -99,7 +99,7 @@ export function buildProductOfferSchema(product: ProductRecord) {
 
 export function buildVerifiedProductIdentifiers(product: ProductRecord) {
   const gtin = isValidGtin(product.gtin) ? normalizeGtin(product.gtin) : null;
-  const mpn = product.mpn?.trim() || null;
+  const mpn = product.productCode?.trim() || null;
 
   return {
     ...(gtin ? { gtin } : {}),

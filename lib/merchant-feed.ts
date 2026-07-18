@@ -24,7 +24,7 @@ function buildProductItem(product: ProductRecord) {
   const seo = getProductSeo(product);
   const url = `${siteConfig.url}/shop/${product.slug}`;
   const gtin = isValidGtin(product.gtin) ? normalizeGtin(product.gtin) : null;
-  const mpn = product.mpn?.trim() || null;
+  const mpn = product.productCode?.trim() || null;
   const images = Array.from(new Set(product.galleryImages.map(absoluteUrl)))
     .filter((image) => image !== absoluteUrl(product.imageUrl))
     .slice(0, 10);
@@ -47,7 +47,9 @@ function buildProductItem(product: ProductRecord) {
     product.netContent ? element("g:size", product.netContent) : "",
     gtin ? element("g:gtin", gtin) : "",
     mpn ? element("g:mpn", mpn) : "",
-    product.identifierExists === false ? element("g:identifier_exists", "no") : "",
+    !gtin && !mpn && product.identifierExists === false
+      ? element("g:identifier_exists", "no")
+      : "",
     "<g:shipping>",
     element("g:country", "US"),
     element("g:service", "Mainland US standard shipping"),

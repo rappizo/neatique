@@ -17,6 +17,11 @@ import {
 
 export const fallbackProducts: ProductRecord[] = sampleProducts.map((product) => ({
   ...product,
+  mpn: product.productCode || null,
+  identifierExists: Boolean(product.productCode),
+  countryOfOrigin: "CN",
+  batchExpiryInfo:
+    "Refer to the lot or batch code and expiration or period-after-opening information printed on the product packaging.",
   reviewCount: 0,
   averageRating: null
 }));

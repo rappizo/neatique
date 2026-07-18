@@ -75,6 +75,12 @@ export type ProductRecord = {
   directions?: string | null;
   warnings?: string | null;
   countryOfOrigin?: string | null;
+  keyIngredientDetails?: string | null;
+  pdrnSource?: string | null;
+  suitableFor?: string | null;
+  cautionFor?: string | null;
+  batchExpiryInfo?: string | null;
+  textureVideoUrl?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
   priceValidUntil?: Date | null;

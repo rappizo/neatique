@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
     default: "Neatique Beauty",
-    template: "%s | Neatique Beauty"
+    template: "%s | Neatique"
   },
   description: siteConfig.description,
   applicationName: siteConfig.title,

@@ -1517,6 +1517,19 @@ main {
   margin-bottom: 0;
 }
 
+.product-inci-panel {
+  margin-top: 0;
+}
+
+.product-texture-video {
+  display: block;
+  width: 100%;
+  max-height: 720px;
+  border-radius: 24px;
+  background: #1d1716;
+  object-fit: contain;
+}
+
 .product-detail__media-wrap {
   display: grid;
   gap: 8px;

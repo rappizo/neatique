@@ -152,23 +152,43 @@ function buildProductPriceData(formData: FormData) {
   };
 }
 
-function buildProductMerchantData(formData: FormData) {
+function normalizeProductVideoUrl(value: FormDataEntryValue | null) {
+  const rawUrl = toPlainString(value);
+
+  if (!rawUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(rawUrl);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildProductMerchantData(formData: FormData, productCode: string) {
   const rawPriceValidUntil = toPlainString(formData.get("priceValidUntil"));
-  const rawIdentifierExists = toPlainString(formData.get("identifierExists"));
   const priceValidUntil = rawPriceValidUntil
     ? new Date(`${rawPriceValidUntil}T23:59:59.999Z`)
     : null;
 
   return {
     gtin: toPlainString(formData.get("gtin")) || null,
-    mpn: toPlainString(formData.get("mpn")) || null,
-    identifierExists:
-      rawIdentifierExists === "yes" ? true : rawIdentifierExists === "no" ? false : null,
+    mpn: productCode,
+    identifierExists: true,
     netContent: toPlainString(formData.get("netContent")) || null,
     ingredients: normalizeMultilineValue(formData.get("ingredients")) || null,
     directions: normalizeMultilineValue(formData.get("directions")) || null,
     warnings: normalizeMultilineValue(formData.get("warnings")) || null,
-    countryOfOrigin: toPlainString(formData.get("countryOfOrigin")).toUpperCase() || null,
+    countryOfOrigin: "CN",
+    keyIngredientDetails:
+      normalizeMultilineValue(formData.get("keyIngredientDetails")) || null,
+    pdrnSource: toPlainString(formData.get("pdrnSource")) || null,
+    suitableFor: normalizeMultilineValue(formData.get("suitableFor")) || null,
+    cautionFor: normalizeMultilineValue(formData.get("cautionFor")) || null,
+    batchExpiryInfo: normalizeMultilineValue(formData.get("batchExpiryInfo")) || null,
+    textureVideoUrl: normalizeProductVideoUrl(formData.get("textureVideoUrl")),
     seoTitle: toPlainString(formData.get("seoTitle")) || null,
     seoDescription: toPlainString(formData.get("seoDescription")) || null,
     priceValidUntil:
@@ -651,8 +671,8 @@ export async function createProductAction(formData: FormData) {
 
   await ensureProductCodes();
   const prices = buildProductPriceData(formData);
-  const merchantData = buildProductMerchantData(formData);
   const productCode = await getNextProductCode();
+  const merchantData = buildProductMerchantData(formData, productCode);
 
   const product = await prisma.product.create({
     data: {
@@ -692,11 +712,12 @@ export async function updateProductAction(formData: FormData) {
   const existingProduct = await prisma.product.findUnique({
     where: { id },
     select: {
-      slug: true
+      slug: true,
+      productCode: true
     }
   });
   const prices = buildProductPriceData(formData);
-  const merchantData = buildProductMerchantData(formData);
+  const merchantData = buildProductMerchantData(formData, existingProduct?.productCode || "");
 
   const product = await prisma.product.update({
     where: { id },
