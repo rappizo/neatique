@@ -1,4 +1,8 @@
-import { buildProductMediaUrl, getLocalProductGallery } from "@/lib/product-media";
+import {
+  buildProductMediaUrl,
+  getLocalProductGallery,
+  getProductMediaFolder
+} from "@/lib/product-media";
 
 export type ProductStorySection = {
   title: string;
@@ -100,6 +104,196 @@ const generatedProductStoryImages: Record<string, ProductStoryImage> = {
   }
 };
 
+type StandardSupportingProductImage = Omit<ProductStoryImage, "src"> & {
+  fileName?: string;
+  publicPath?: string;
+};
+
+const standardSupportingProductImages: Record<string, StandardSupportingProductImage[]> = {
+  "kit9-niacinamide-turmeric-kojic-acid-serum": [
+    {
+      fileName: "3.webp",
+      alt: "Silky golden drops showing the lightweight texture of Neatique KIT9+ serum",
+      caption: "Fluid serum texture made to layer before moisturizer and daytime sunscreen."
+    },
+    {
+      fileName: "1.webp",
+      alt: "Neatique KIT9+ formula visual with 6% niacinamide, 1.5% turmeric and 1.5% kojic acid",
+      caption: "Formula focus: 6% niacinamide, 1.5% turmeric and 1.5% kojic acid."
+    },
+    {
+      fileName: "0.webp",
+      alt: "Neatique KIT9+ niacinamide turmeric and kojic acid serum dropper bottle",
+      caption: "The 30 mL KIT9+ dropper bottle keeps the daily serum easy to recognize."
+    },
+    {
+      fileName: "4.webp",
+      alt: "Golden turmeric-inspired visual for Neatique KIT9+ daily conditioning serum",
+      caption: "Turmeric gives KIT9+ its distinctive golden formula story."
+    }
+  ],
+  "bee-venom-body-cream": [
+    {
+      fileName: "3.webp",
+      alt: "Rich cushiony texture of Neatique Bee Venom Body Cream being lifted from the jar",
+      caption: "A rich, smooth cream texture designed for comfortable body care."
+    },
+    {
+      fileName: "0.webp",
+      alt: "Neatique Bee Venom Body Cream jar with its creamy formula visible",
+      caption: "Bee venom and hyaluronic acid are identified on the current product label."
+    },
+    {
+      fileName: "7.webp",
+      alt: "Neatique Bee Venom Body Cream presented in a warm daily body care setting",
+      caption: "A practical daily cream for areas that feel dry or rough."
+    },
+    {
+      fileName: "8.webp",
+      alt: "Three-step application guide for Neatique Bee Venom Body Cream",
+      caption: "Open, scoop a small amount, then massage over the intended body areas."
+    }
+  ],
+  "nad-collagen-peptide-serum": [
+    {
+      fileName: "4.webp",
+      alt: "Clear lightweight texture of Neatique NAD+ Collagen Peptide Serum from a dropper",
+      caption: "A clear, fluid texture that fits both morning and evening routines."
+    },
+    {
+      fileName: "1.webp",
+      alt: "Gold Neatique 8+ NAD+ Collagen Peptide Serum airless pump bottle",
+      caption: "The 8+ bottle design reflects the serum's simple AM and PM routine concept."
+    },
+    {
+      fileName: "2.webp",
+      alt: "Neatique NAD+ and peptide serum formula presentation with a clear serum drop",
+      caption: "NAD+ and peptides form the central ingredient direction of this daily serum."
+    },
+    {
+      fileName: "Main4.webp",
+      alt: "Neatique NAD+ Collagen Peptide Serum bottle with clear texture and hydrated-looking finish",
+      caption: "The lightweight serum is designed to sit comfortably under cream or sunscreen."
+    }
+  ],
+  "nt16-niacinamide-tranexamic-serum": [
+    {
+      fileName: "01.png",
+      alt: "Neatique NT16 niacinamide and tranexamic acid serum dropper bottle",
+      caption: "NT16 combines its two headline actives in a 30 mL daily serum."
+    },
+    {
+      fileName: "02.jpg",
+      alt: "Neatique NT16 formula visual showing 11% niacinamide and 5% tranexamic acid",
+      caption: "Formula focus: 11% niacinamide plus 5% tranexamic acid."
+    },
+    {
+      fileName: "03.jpg",
+      alt: "Routine goals visual for Neatique NT16 niacinamide and tranexamic acid serum",
+      caption: "NT16 is positioned for routines focused on tone and texture appearance."
+    },
+    {
+      fileName: "06.jpg",
+      alt: "How to apply Neatique NT16 serum after cleansing and before moisturizer",
+      caption: "Apply a few drops after cleansing, then follow with moisturizer and daytime SPF."
+    }
+  ],
+  "tnv3-tranexamic-nicotinamide-serum": [
+    {
+      fileName: "4.png",
+      alt: "Crystal-clear texture of Neatique TNV3 tranexamic acid and vitamin C serum",
+      caption: "A lightweight clear serum texture for easy routine layering."
+    },
+    {
+      fileName: "1.png",
+      alt: "Neatique TNV3 tranexamic acid nicotinamide and vitamin C serum bottle",
+      caption: "The bottle label identifies the three-actives TNV3 formula direction."
+    },
+    {
+      fileName: "7.png",
+      alt: "Neatique TNV3 serum in a calm morning or evening skincare setting",
+      caption: "TNV3 is designed to fit a straightforward daily skincare ritual."
+    },
+    {
+      fileName: "8.png",
+      alt: "Simple daily application steps for Neatique TNV3 serum",
+      caption: "Cleanse, apply two to three drops, then finish with cream and daytime SPF."
+    }
+  ],
+  "at13-arbutin-tranexamic-cream": [
+    {
+      fileName: "06.png",
+      alt: "Silky white texture of Neatique AT13 arbutin and tranexamic acid cream",
+      caption: "A smooth cream texture that works as the moisturizer step."
+    },
+    {
+      fileName: "01.png",
+      alt: "Neatique AT13 cream jar labeled with 8% arbutin and 5% tranexamic acid",
+      caption: "Formula focus: 8% arbutin plus 5% tranexamic acid."
+    },
+    {
+      fileName: "04.png",
+      alt: "Neatique AT13 cream and texture presented for daily moisture care",
+      caption: "The moisturizer format adds comfort to a tone-focused routine."
+    },
+    {
+      fileName: "05.png",
+      alt: "Morning and evening routine visual for Neatique AT13 cream",
+      caption: "Use after serum in the morning or evening; finish daytime routines with SPF."
+    }
+  ],
+  "snail-mucin-cream": [
+    {
+      fileName: "3.png",
+      alt: "Rich stretchy texture of Neatique SC93 Snail Mucin Cream lifted from the jar",
+      caption: "A cushiony cream texture with a soft, silky-looking finish."
+    },
+    {
+      fileName: "4.png",
+      alt: "Neatique SC93 Snail Mucin Cream presented for daily moisture care",
+      caption: "A daily moisturizer format for skin that wants extra comfort."
+    },
+    {
+      fileName: "0.png",
+      alt: "Neatique SC93 Snail Mucin Cream jar with gold application spatula",
+      caption: "The 120 g jar includes a spatula for cleaner, controlled application."
+    },
+    {
+      fileName: "6.png",
+      alt: "Neatique snail mucin serum and cream shown in their two-step routine order",
+      caption: "Layer Snail Mucin Serum first, then seal in moisture with Snail Mucin Cream."
+    }
+  ],
+  "snail-mucin-serum": [
+    {
+      publicPath:
+        "/product-description/snail-mucin-serum/96-percent-snail-mucin-serum-stretch-texture.webp",
+      alt: "Clear elastic texture inspired by Neatique 96% Snail Mucin Serum",
+      caption: "A close-up visualization of the serum's clear, elastic-looking slip.",
+      width: 1536,
+      height: 1024,
+      aspectRatio: "3 / 2",
+      mediaWidth: "680px",
+      maxHeight: "560px"
+    },
+    {
+      fileName: "0.png",
+      alt: "Neatique SE96 96% Snail Mucin Serum pump bottle and carton",
+      caption: "The 120 mL pump bottle clearly identifies the 96% snail mucin formula."
+    },
+    {
+      fileName: "2.png",
+      alt: "Neatique 96% Snail Mucin Serum shown as a lightweight face essence",
+      caption: "The lightweight essence format is designed to sit before moisturizer."
+    },
+    {
+      fileName: "6.png",
+      alt: "Four-step application guide for Neatique 96% Snail Mucin Serum",
+      caption: "Cleanse, apply toner if used, pat in the serum, then seal with moisturizer."
+    }
+  ]
+};
+
 const supportingImageAltTopics = [
   "product packaging and formula presentation",
   "texture and finish details",
@@ -109,12 +303,40 @@ const supportingImageAltTopics = [
 
 function buildStandardDetailImages(slug: string, productName: string) {
   const generatedImage = generatedProductStoryImages[slug];
-  const supportingImages = getLocalProductGallery(slug)
-    .slice(1, 5)
-    .map((src, index) => ({
-      src,
-      alt: `${productName} ${supportingImageAltTopics[index]}`
-    }));
+  const mediaFolder = getProductMediaFolder(slug);
+  const curatedImages = standardSupportingProductImages[slug];
+  const supportingImages = curatedImages
+    ? curatedImages.flatMap((image) => {
+        const src =
+          image.publicPath ??
+          (mediaFolder && image.fileName
+            ? buildProductMediaUrl(mediaFolder, image.fileName)
+            : null);
+
+        if (!src) {
+          return [];
+        }
+
+        return [
+          {
+            src,
+            alt: image.alt,
+            caption: image.caption,
+            width: image.width ?? 1024,
+            height: image.height ?? 1024,
+            aspectRatio: image.aspectRatio ?? "1 / 1",
+            mediaWidth: image.mediaWidth ?? "560px",
+            maxHeight: image.maxHeight ?? "560px"
+          }
+        ];
+      })
+    : getLocalProductGallery(slug)
+        .slice(1, 5)
+        .map((src, index) => ({
+          src,
+          alt: `${productName} ${supportingImageAltTopics[index]}`,
+          caption: `${productName} ${supportingImageAltTopics[index]}.`
+        }));
 
   return generatedImage ? [generatedImage, ...supportingImages] : supportingImages;
 }

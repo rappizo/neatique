@@ -148,6 +148,13 @@ test("standard product stories include optimized visual description assets", () 
     assert.ok(images[0].alt.length >= 50);
     assert.match(images[0].caption || "", /ingredient-inspired/i);
     assert.equal(new Set(images.map((image) => image.alt)).size, images.length);
+    assert.ok(images.every((image) => (image.caption || "").length >= 35));
+
+    const selectedImageUrls = decodeURIComponent(images.map((image) => image.src).join("\n"));
+    assert.doesNotMatch(
+      selectedImageUrls,
+      /HH049 Bee Venom Optimized\/(?:2|4|5|6)\.webp|HH067 NT16[^\n]*\/(?:04|05)\.jpg|HH068 SE96 Snail Mucin Serum\/(?:1|3|4|5|7)\.png|HH069 SC93 Snail Mucin Cream\/5\.png/
+    );
 
     const generatedAssetPath = path.join(process.cwd(), "public", images[0].src.slice(1));
     assert.equal(existsSync(generatedAssetPath), true);
