@@ -103,7 +103,9 @@ export function PostArticleView({
               {updatedAt.getTime() !== publishedAt.getTime() ? <span>Updated {formatDate(updatedAt)}</span> : null}
               <span>{post.readTime} min read</span>
               {post.editorialReviewed && post.reviewerName ? <span>Reviewed by {post.reviewerName}</span> : null}
-              {post.aiGenerated ? <span>AI-assisted draft</span> : null}
+              {post.aiGenerated ? (
+                <span>{post.editorialReviewed ? "AI-assisted · Editorially reviewed" : "AI-assisted draft"}</span>
+              ) : null}
             </div>
             {previewNote ? <p className="form-note">{previewNote}</p> : null}
           </div>

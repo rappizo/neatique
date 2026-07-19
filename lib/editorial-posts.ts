@@ -134,10 +134,10 @@ Stop using the product if it repeatedly causes discomfort. Persistent tightness,
   authorName: "Neatique Beauty Editorial Team",
   authorType: "Organization",
   authorUrl: "/about",
-  reviewerName: null,
+  reviewerName: "Simon Wagner",
   reviewerUrl: null,
-  editorialReviewed: false,
-  reviewedAt: null,
+  editorialReviewed: true,
+  reviewedAt: new Date("2026-07-19T01:34:11.000Z"),
   focusKeyword: "how to use PDRN cleanser",
   secondaryKeywords: [
     "PDRN cleanser",
@@ -157,12 +157,12 @@ Stop using the product if it repeatedly causes discomfort. Persistent tightness,
       url: "https://www.aad.org/public/everyday-care/skin-care-basics/dry/dermatologists-tips-relieve-dry-skin"
     }
   ],
-  generatedAt: new Date("2026-07-19T10:00:00.000Z"),
+  generatedAt: new Date("2026-07-19T01:20:00.000Z"),
   sourceProductId: "prod_pdrn_cleanser",
   sourceProductName: "PDRN Pink 99% + Niacinamide Whip Cleanser",
   sourceProductSlug: "pdrn-cleanser",
-  published: false,
-  publishedAt: null,
-  createdAt: new Date("2026-07-19T10:00:00.000Z"),
-  updatedAt: new Date("2026-07-19T10:00:00.000Z")
+  published: true,
+  publishedAt: new Date("2026-07-19T01:34:11.000Z"),
+  createdAt: new Date("2026-07-19T01:20:00.000Z"),
+  updatedAt: new Date("2026-07-19T01:34:11.000Z")
 };

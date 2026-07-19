@@ -36,9 +36,12 @@ test("the first three-month-plan article follows the editorial and image standar
   const headings = blocks.filter((block) => block.type === "h2");
   const images = extractArticleImages(post.content);
 
-  assert.equal(post.published, false);
+  assert.equal(post.published, true);
   assert.equal(post.aiGenerated, true);
-  assert.equal(post.editorialReviewed, false);
+  assert.equal(post.editorialReviewed, true);
+  assert.equal(post.reviewerName, "Simon Wagner");
+  assert.ok(post.reviewedAt instanceof Date);
+  assert.ok(post.publishedAt instanceof Date);
   assert.ok(headings.length >= 7);
   assert.equal(images.length, 3);
   assert.ok(post.seoTitle.length <= 50);
