@@ -1,4 +1,5 @@
 import { normalizeArticleContent } from "@/lib/article-format";
+import { generateImageWithApiYi, getApiYiImageSettings } from "@/lib/apiyi-images";
 import { siteConfig } from "@/lib/site-config";
 import { slugify } from "@/lib/utils";
 
@@ -73,11 +74,12 @@ function getOpenAiApiKey() {
 
 export function getOpenAiPostSettings() {
   const apiKey = getOpenAiApiKey();
+  const apiYiImageSettings = getApiYiImageSettings();
 
   return {
     ready: Boolean(apiKey),
     model: DEFAULT_OPENAI_POST_MODEL,
-    imageModel: DEFAULT_OPENAI_POST_IMAGE_MODEL,
+    imageModel: apiYiImageSettings.ready ? apiYiImageSettings.model : DEFAULT_OPENAI_POST_IMAGE_MODEL,
     apiKeyConfigured: Boolean(apiKey)
   };
 }
@@ -258,12 +260,12 @@ export async function generateSeoPostDraftWithAi(
     type: "object",
     additionalProperties: false,
     properties: {
-      title: { type: "string", minLength: 18, maxLength: 120 },
+      title: { type: "string", minLength: 18, maxLength: 90 },
       slug: { type: "string", minLength: 12, maxLength: 120 },
-      excerpt: { type: "string", minLength: 80, maxLength: 220 },
+      excerpt: { type: "string", minLength: 140, maxLength: 180 },
       category: { type: "string", minLength: 4, maxLength: 40 },
       readTime: { type: "integer", minimum: 4, maximum: 12 },
-      seoTitle: { type: "string", minLength: 20, maxLength: 70 },
+      seoTitle: { type: "string", minLength: 20, maxLength: 50 },
       seoDescription: { type: "string", minLength: 120, maxLength: 160 },
       focusKeyword: { type: "string", minLength: 8, maxLength: 80 },
       secondaryKeywords: {
@@ -272,7 +274,7 @@ export async function generateSeoPostDraftWithAi(
         maxItems: 6,
         items: { type: "string", minLength: 4, maxLength: 80 }
       },
-      coverImageAlt: { type: "string", minLength: 20, maxLength: 140 },
+      coverImageAlt: { type: "string", minLength: 40, maxLength: 140 },
       imagePrompt: { type: "string", minLength: 40, maxLength: 500 },
       content: { type: "string", minLength: 1200, maxLength: 9000 },
       externalLinks: {
@@ -355,14 +357,19 @@ export async function generateSeoPostDraftWithAi(
                 "Article requirements:",
                 "- Write a real SEO article, not a product description.",
                 "- Focus on one primary keyword and support it with 3 to 6 secondary keywords.",
+                "- Open with a direct answer before background explanation.",
                 "- Use headings that reflect real search intent.",
-                "- Include a short FAQ section in the body when relevant.",
+                "- Follow this section logic when relevant: direct answer, reader problem, practical method or comparison, AM/PM routine, when to simplify, and 3 to 5 FAQs.",
+                "- Answer each section in its first sentence and avoid filler written only to reach a length.",
+                "- Use one descriptive H1 title; the seoTitle must not include the brand because the site adds it automatically.",
                 "- Mention the product naturally and reference its routine fit, texture, and use case.",
+                `- Link naturally to the product with [descriptive anchor text](/shop/${input.product.slug}).`,
                 "- Keep the article original relative to previous posts for this product.",
                 "- Do not mention Google, SEO, rankings, or optimization inside the article.",
                 "- Do not use competitor brand names.",
                 "- Avoid keyword stuffing and keep the tone editorial.",
-                "- The cover image prompt should describe a premium editorial skincare visual with no text on the image."
+                "- The cover image prompt must describe a 16:9 premium editorial skincare visual with no overlay text and must require exact packaging when the product is visible.",
+                "- Cover alt text must describe the visible scene naturally; do not stuff keywords."
               ].join("\n")
             }
           ]
@@ -429,7 +436,7 @@ export async function generateSeoPostDraftWithAi(
     excerpt: normalizedOutput.excerpt.trim(),
     category: normalizedOutput.category.trim(),
     readTime: Math.max(4, Math.min(12, Math.round(normalizedOutput.readTime))),
-    seoTitle: normalizedOutput.seoTitle.trim(),
+    seoTitle: normalizedOutput.seoTitle.trim().replace(/\s*\|\s*Neatique(?: Beauty)?\s*$/i, ""),
     seoDescription: normalizedOutput.seoDescription.trim(),
     focusKeyword: normalizedOutput.focusKeyword.trim(),
     secondaryKeywords: normalizedOutput.secondaryKeywords
@@ -451,6 +458,21 @@ export async function generateSeoPostDraftWithAi(
 }
 
 export async function generateSeoPostImageWithAi(prompt: string): Promise<GeneratedPostImageAsset> {
+  const apiYiImageSettings = getApiYiImageSettings();
+
+  if (apiYiImageSettings.ready) {
+    const image = await generateImageWithApiYi({
+      prompt,
+      aspectRatio: "16:9",
+      imageSize: "2K"
+    });
+
+    return {
+      mimeType: image.mimeType,
+      base64Data: image.data.toString("base64")
+    };
+  }
+
   const apiKey = getOpenAiApiKey();
 
   if (!apiKey) {
@@ -501,6 +523,29 @@ export async function generateSeoPostImageFromProductReferenceWithAi(
   prompt: string,
   referenceImage: PostImageReferenceAsset
 ): Promise<GeneratedPostImageAsset> {
+  const apiYiImageSettings = getApiYiImageSettings();
+
+  if (apiYiImageSettings.ready) {
+    const image = await generateImageWithApiYi({
+      prompt: [
+        prompt,
+        "Use the supplied product image as the binding reference for packaging shape, label placement, brand palette, and product identity.",
+        "Preserve all visible product text exactly and do not invent or rearrange packaging copy."
+      ].join(" "),
+      referenceImages: [{
+        mimeType: referenceImage.mimeType,
+        data: referenceImage.data
+      }],
+      aspectRatio: "16:9",
+      imageSize: "2K"
+    });
+
+    return {
+      mimeType: image.mimeType,
+      base64Data: image.data.toString("base64")
+    };
+  }
+
   const apiKey = getOpenAiApiKey();
 
   if (!apiKey) {

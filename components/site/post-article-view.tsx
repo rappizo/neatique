@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AiGeneratedPersonBadge } from "@/components/ui/ai-generated-person-badge";
-import { parseArticleContent } from "@/lib/article-format";
+import { parseArticleContent, slugifyArticleHeading } from "@/lib/article-format";
 import { formatDate } from "@/lib/format";
 import { defaultOgImage } from "@/lib/seo";
 import type { BeautyPostRecord } from "@/lib/types";
@@ -70,6 +70,9 @@ export function PostArticleView({
   const authorName = post.authorName?.trim() || "Neatique Beauty Editorial Team";
   const collections = getCollectionsForPost(post.slug);
   const enhancements = getArticleEnhancements(post.slug);
+  const tableOfContents = articleBlocks
+    .filter((block): block is Extract<(typeof articleBlocks)[number], { type: "h2" }> => block.type === "h2")
+    .map((block) => ({ id: slugifyArticleHeading(block.text), label: block.text }));
 
   return (
     <section className="section">
@@ -125,9 +128,19 @@ export function PostArticleView({
               <p className="eyebrow">In brief</p>
               <p>{post.excerpt}</p>
             </aside>
+            {tableOfContents.length >= 3 ? (
+              <nav className="article-table-of-contents" aria-label="On this page">
+                <p className="eyebrow">On this page</p>
+                <ol>
+                  {tableOfContents.map((item) => (
+                    <li key={item.id}><a href={`#${item.id}`}>{item.label}</a></li>
+                  ))}
+                </ol>
+              </nav>
+            ) : null}
             {articleBlocks.map((block, index) => {
               if (block.type === "h2") {
-                return <h2 key={`h2-${index}`}>{renderInlineLinks(block.text, `h2-${index}`)}</h2>;
+                return <h2 id={slugifyArticleHeading(block.text)} key={`h2-${index}`}>{renderInlineLinks(block.text, `h2-${index}`)}</h2>;
               }
 
               if (block.type === "h3") {
@@ -143,6 +156,25 @@ export function PostArticleView({
                       </li>
                     ))}
                   </ul>
+                );
+              }
+
+              if (block.type === "image") {
+                return (
+                  <figure className="article-visual" key={`${block.src}-${index}`}>
+                    <div className="article-visual__media">
+                      <Image
+                        src={block.src}
+                        alt={block.alt}
+                        fill
+                        className="article-visual__image"
+                        sizes="(max-width: 720px) 100vw, (max-width: 1200px) 86vw, 1000px"
+                        quality={78}
+                      />
+                      <AiGeneratedPersonBadge src={block.src} />
+                    </div>
+                    {block.caption ? <figcaption>{block.caption}</figcaption> : null}
+                  </figure>
                 );
               }
 

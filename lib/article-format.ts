@@ -1,8 +1,11 @@
 export type ArticleBlock =
   | { type: "h2"; text: string }
   | { type: "h3"; text: string }
+  | { type: "image"; src: string; alt: string; caption: string | null }
   | { type: "list"; items: string[] }
   | { type: "paragraph"; text: string };
+
+const ARTICLE_IMAGE_PATTERN = /^!\[([^\]]+)\]\((\S+?)(?:\s+"([^"]+)")?\)$/;
 
 export function normalizeArticleContent(content: string) {
   const raw = String(content || "");
@@ -84,6 +87,20 @@ export function parseArticleContent(content: string): ArticleBlock[] {
       continue;
     }
 
+    const imageMatch = trimmed.match(ARTICLE_IMAGE_PATTERN);
+
+    if (imageMatch) {
+      flushParagraph();
+      flushList();
+      blocks.push({
+        type: "image",
+        alt: imageMatch[1].trim(),
+        src: imageMatch[2].trim(),
+        caption: imageMatch[3]?.trim() || null
+      });
+      continue;
+    }
+
     flushList();
     paragraphLines.push(trimmed);
   }
@@ -92,4 +109,18 @@ export function parseArticleContent(content: string): ArticleBlock[] {
   flushList();
 
   return blocks;
+}
+
+export function slugifyArticleHeading(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "section";
+}
+
+export function extractArticleImages(content: string) {
+  return parseArticleContent(content)
+    .filter((block): block is Extract<ArticleBlock, { type: "image" }> => block.type === "image")
+    .map(({ src, alt, caption }) => ({ src, alt, caption }));
 }

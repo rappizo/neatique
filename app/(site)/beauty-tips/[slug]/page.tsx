@@ -5,6 +5,7 @@ import { getPostBySlug, getPublishedPosts } from "@/lib/queries";
 import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
 import { getCollectionsForPost } from "@/lib/collections";
+import { extractArticleImages } from "@/lib/article-format";
 
 type PostPageProps = {
   params: Promise<{ slug: string }>;
@@ -105,12 +106,13 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
     .slice(0, 3);
   const authorName = post.authorName?.trim() || "Neatique Beauty Editorial Team";
   const authorType = post.authorType === "Person" ? "Person" : "Organization";
+  const articleImages = extractArticleImages(post.content).map((image) => safeAbsoluteImageUrl(image.src));
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title,
     description: post.seoDescription || post.excerpt,
-    image: [safeAbsoluteImageUrl(post.coverImageUrl)],
+    image: [safeAbsoluteImageUrl(post.coverImageUrl), ...articleImages],
     datePublished: coerceIsoDate(publishedAt, post.createdAt),
     dateModified: coerceIsoDate(post.updatedAt, post.createdAt),
     articleSection: post.category,

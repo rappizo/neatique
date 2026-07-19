@@ -247,6 +247,11 @@ export function PostEditorForm({
 
         <div className="field">
           <label htmlFor="content">Post content</label>
+          <p className="form-note">
+            Use ## for main sections, ### for subheadings, and - for lists. Add an optimized inline
+            image with ![descriptive alt](/posts/article-slug/file.webp &quot;useful caption&quot;).
+            Three or more ## sections automatically create the On this page navigation.
+          </p>
           <textarea id="content" name="content" defaultValue={post?.content || ""} required />
         </div>
 

@@ -56,37 +56,16 @@ async function seedMissingProducts() {
   });
 }
 
-async function seedPostsIfEmpty() {
-  const postCount = await prisma.post.count();
+async function seedMissingPosts() {
+  const existingPosts = await prisma.post.findMany({
+    select: { slug: true }
+  });
+  const existingSlugs = new Set(existingPosts.map((post) => post.slug));
+  const missingPosts = samplePosts.filter((post) => !existingSlugs.has(post.slug));
 
-  if (postCount > 0) {
-    return;
-  }
-
-  for (const post of samplePosts) {
-    await prisma.post.upsert({
-      where: { slug: post.slug },
-      update: {
-        title: post.title,
-        excerpt: post.excerpt,
-        category: post.category,
-        readTime: post.readTime,
-        coverImageUrl: post.coverImageUrl,
-        coverImageAlt: post.coverImageAlt,
-        content: post.content,
-        seoTitle: post.seoTitle,
-        seoDescription: post.seoDescription,
-        aiGenerated: post.aiGenerated,
-        focusKeyword: post.focusKeyword,
-        secondaryKeywords: post.secondaryKeywords.join("\n"),
-        imagePrompt: post.imagePrompt,
-        externalLinks: JSON.stringify(post.externalLinks),
-        generatedAt: post.generatedAt,
-        sourceProductId: post.sourceProductId,
-        published: post.published,
-        publishedAt: post.publishedAt
-      },
-      create: {
+  for (const post of missingPosts) {
+    await prisma.post.create({
+      data: {
         id: post.id,
         title: post.title,
         slug: post.slug,
@@ -99,6 +78,13 @@ async function seedPostsIfEmpty() {
         seoTitle: post.seoTitle,
         seoDescription: post.seoDescription,
         aiGenerated: post.aiGenerated,
+        authorName: post.authorName,
+        authorType: post.authorType,
+        authorUrl: post.authorUrl,
+        reviewerName: post.reviewerName,
+        reviewerUrl: post.reviewerUrl,
+        editorialReviewed: post.editorialReviewed,
+        reviewedAt: post.reviewedAt,
         focusKeyword: post.focusKeyword,
         secondaryKeywords: post.secondaryKeywords.join("\n"),
         imagePrompt: post.imagePrompt,
@@ -198,7 +184,7 @@ async function runBootstrap() {
 
   await seedMissingProducts();
   await ensureProductCodes();
-  await seedPostsIfEmpty();
+  await seedMissingPosts();
   await seedSettingsIfEmpty();
   await seedMascotsIfEmpty();
   bootstrapState = "ready";

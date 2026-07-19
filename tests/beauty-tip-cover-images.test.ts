@@ -43,7 +43,7 @@ test("every current Beauty Tips cover has an optimized local WebP asset", () => 
 
 test("fallback Beauty Tips use the refreshed covers and descriptive alt text", () => {
   for (const post of samplePosts) {
-    assert.match(post.coverImageUrl, /^\/posts\/[a-z0-9-]+\.webp$/);
+    assert.match(post.coverImageUrl, /^\/posts\/(?:[a-z0-9-]+\/)*[a-z0-9-]+\.webp$/);
     assert.match(post.coverImageAlt || "", /Neatique/);
   }
 });

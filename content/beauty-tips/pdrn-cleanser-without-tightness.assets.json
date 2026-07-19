@@ -1,0 +1,47 @@
+{
+  "slug": "how-to-use-pdrn-cleanser-without-tightness",
+  "referenceImage": "images/product image/HH080 PDRN Cleanser/00.png",
+  "outputDirectory": "public/posts/how-to-use-pdrn-cleanser-without-tightness",
+  "assets": [
+    {
+      "id": "cover",
+      "fileName": "pdrn-cleanser-gentle-cleansing-routine-neatique.webp",
+      "role": "cover",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "prompt": "Use case: product-mockup. Asset type: Beauty Tips article cover. Create a premium editorial skincare photograph centered on the exact Neatique PDRN Pink 99% + Niacinamide Whip Cleanser tube supplied as the reference image. Scene: luminous ivory stone vanity with soft blush-pink reflections, a restrained ribbon of dense creamy foam, and a few realistic water droplets. Composition: cinematic 16:9 landscape, product upright and fully visible, generous calm negative space, balanced enough to crop for cards. Lighting: soft morning bathroom light, refined and natural, crisp product edges. Product identity lock: reproduce the supplied tube shape, cap, hot-pink color, Neatique wordmark, PDRN PINK 99%, + NIACINAMIDE, WHIP CLEANSER, and 150 g / 5.29 oz label exactly; do not invent, translate, rearrange, or add packaging text. No people, no extra bottles, no competitor products, no overlay headline, no watermark, no collage.",
+      "alt": "Neatique PDRN Pink 99% + Niacinamide Whip Cleanser beside a ribbon of creamy foam on an ivory vanity.",
+      "caption": "The creamy whip cleanser begins the routine with water, a light touch, and a complete rinse."
+    },
+    {
+      "id": "texture",
+      "fileName": "pdrn-cleanser-whip-foam-texture-neatique.webp",
+      "role": "inline",
+      "aspectRatio": "3:2",
+      "imageSize": "2K",
+      "prompt": "Use case: photorealistic-natural. Asset type: Beauty Tips inline texture photograph. Create a close editorial macro photograph of a small amount of dense, cushiony, pale blush cleansing foam resting across clean wet fingertips above a white ceramic sink. Use the supplied Neatique PDRN Cleanser reference only for the pink-and-ivory color direction; do not show or invent any product packaging. Composition: 3:2 landscape, realistic foam micro-bubbles and water texture, hands cropped naturally, open margins. Lighting: soft diffused daylight, premium but believable skincare editorial. No face, no text, no logo, no bottle, no tube, no jewelry, no watermark, no collage.",
+      "alt": "Dense pale-pink whip cleanser foam spread lightly across wet fingertips above a white ceramic sink.",
+      "caption": "A small amount mixed with water should create enough slip for a gentle fingertip cleanse."
+    },
+    {
+      "id": "technique",
+      "fileName": "pdrn-cleanser-lukewarm-water-fingertips-neatique.webp",
+      "role": "inline",
+      "aspectRatio": "3:2",
+      "imageSize": "2K",
+      "prompt": "Use case: photorealistic-natural. Asset type: Beauty Tips cleansing-technique photograph. Show an adult at a bright minimal bathroom sink gently applying a soft layer of pale blush foam to the cheeks with clean fingertips. The touch must look light, with no scrubbing tool, brush, cloth, or abrasive motion. Composition: 3:2 landscape, face framed from forehead to collarbone, hands clearly visible, authentic skin texture, uncluttered ivory and blush background. Lighting: soft natural morning light, calm and credible. Use the supplied product image only as color inspiration; no product or packaging is visible. No text, no logo, no watermark, no heavy retouching, no generic skincare bottles.",
+      "alt": "Adult gently cleansing the face with fingertips and a soft layer of pale-pink foam at a bright bathroom sink.",
+      "caption": "Fingertips, lukewarm water, and light pressure keep the cleansing step simple and comfortable."
+    },
+    {
+      "id": "routine",
+      "fileName": "pdrn-cleanser-am-pm-routine-neatique.webp",
+      "role": "inline",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "prompt": "Use case: product-mockup. Asset type: Beauty Tips AM and PM routine section image. Create one polished 16:9 editorial photograph featuring the exact supplied Neatique PDRN Pink 99% + Niacinamide Whip Cleanser tube centered on pale stone. Let the background transition subtly from fresh peach morning light on one side to calm rose evening light on the other, with a small water ripple and a restrained foam detail. Keep the scene photographic, elegant, and uncluttered rather than an infographic. Product identity lock: reproduce the supplied tube shape, cap, hot-pink color and every visible label element exactly; do not invent, translate, rearrange, or add packaging text. No sun or moon icons, no clock, no overlay text, no extra packaging, no competitor products, no watermark, no collage.",
+      "alt": "Neatique PDRN whip cleanser in soft morning-to-evening light for a simple AM and PM cleansing routine.",
+      "caption": "The cleanser can open either routine; the steps that follow should match the time of day and skin comfort."
+    }
+  ]
+}
