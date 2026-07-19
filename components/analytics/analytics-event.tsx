@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import type { GoogleAnalyticsParams } from "@/lib/analytics";
+import { hasAnalyticsConsent } from "@/lib/analytics-consent";
 
 declare global {
   interface Window {
@@ -11,17 +12,18 @@ declare global {
 }
 
 export function trackGoogleAnalyticsEvent(eventName: string, params: GoogleAnalyticsParams) {
-  if (typeof window === "undefined") {
-    return;
+  if (typeof window === "undefined" || !hasAnalyticsConsent()) {
+    return false;
   }
 
   if (typeof window.gtag === "function") {
     window.gtag("event", eventName, params);
-    return;
+    return true;
   }
 
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({ event: eventName, ...params });
+  return true;
 }
 
 type AnalyticsEventProps = {
@@ -42,14 +44,27 @@ export function AnalyticsEvent({
   useEffect(() => {
     const storage = dedupeStorage === "local" ? window.localStorage : window.sessionStorage;
 
-    if (dedupeKey && storage.getItem(dedupeKey)) {
-      return;
+    if (dedupeKey) {
+      try {
+        if (storage.getItem(dedupeKey)) {
+          return;
+        }
+      } catch {
+        // Analytics consent checks still protect the event when storage is unavailable.
+      }
     }
 
-    trackGoogleAnalyticsEvent(eventName, JSON.parse(serializedParams) as GoogleAnalyticsParams);
+    const tracked = trackGoogleAnalyticsEvent(
+      eventName,
+      JSON.parse(serializedParams) as GoogleAnalyticsParams
+    );
 
-    if (dedupeKey) {
-      storage.setItem(dedupeKey, "1");
+    if (dedupeKey && tracked) {
+      try {
+        storage.setItem(dedupeKey, "1");
+      } catch {
+        // Do not fail the page when browser privacy settings block storage.
+      }
     }
   }, [dedupeKey, dedupeStorage, eventName, serializedParams]);
 

@@ -9,7 +9,6 @@ import {
   renderFollowEmailTemplate,
   toFollowEmailHtml
 } from "@/lib/follow-emails";
-import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import { sendConfiguredEmail } from "@/lib/email";
 import type { FollowEmailStageKey } from "@/lib/types";
 
@@ -155,15 +154,6 @@ export async function runFollowEmailAutomation(): Promise<FollowEmailAutomationS
     });
 
     try {
-      await syncEmailMarketingContact({
-        email: claim.email,
-        audienceType: "CUSTOMERS",
-        force: true,
-        fullName: claim.name
-      }).catch((error) => {
-        console.error("OMB Brevo contact sync failed:", error);
-      });
-
       const result = await sendConfiguredEmail({
         to: claim.email,
         subject,
@@ -239,15 +229,6 @@ export async function runFollowEmailAutomation(): Promise<FollowEmailAutomationS
     });
 
     try {
-      await syncEmailMarketingContact({
-        email: claim.email,
-        audienceType: "CUSTOMERS",
-        force: true,
-        fullName: claim.name
-      }).catch((error) => {
-        console.error("RYO Brevo contact sync failed:", error);
-      });
-
       const result = await sendConfiguredEmail({
         to: claim.email,
         subject,

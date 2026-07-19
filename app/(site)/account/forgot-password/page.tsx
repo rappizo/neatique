@@ -8,7 +8,8 @@ type ForgotPasswordPageProps = {
 
 export const metadata: Metadata = {
   title: "Forgot Password",
-  description: "Request a temporary password for your Neatique customer account."
+  description: "Request a secure password reset link for your Neatique customer account.",
+  robots: { index: false, follow: false }
 };
 
 function getResetErrorMessage(error?: string) {
@@ -17,8 +18,8 @@ function getResetErrorMessage(error?: string) {
       return "Please enter the email for your Neatique account.";
     case "email":
       return "Please enter a valid email address.";
-    case "send":
-      return "We could not send the password email right now. Please try again.";
+    case "rate":
+      return "Too many reset requests. Please wait 30 minutes and try again.";
     default:
       return null;
   }
@@ -33,10 +34,10 @@ export default async function ForgotPasswordPage({ searchParams }: ForgotPasswor
       <div className="container">
         <div className="admin-login__panel">
           <p className="eyebrow">Password help</p>
-          <h1>Get a new temporary password by email.</h1>
+          <h1>Reset your password securely by email.</h1>
           <p>
             Enter the email connected to your Neatique points. If an account exists, we will send a
-            new temporary password you can use to sign in and update it.
+            a one-time reset link that expires after 30 minutes.
           </p>
           {errorMessage ? <p className="notice notice--warning">{errorMessage}</p> : null}
           <form action={requestCustomerPasswordResetAction} className="contact-form">
@@ -45,7 +46,7 @@ export default async function ForgotPasswordPage({ searchParams }: ForgotPasswor
               <input id="email" name="email" type="email" autoComplete="email" required />
             </div>
             <button type="submit" className="button button--primary">
-              Send temporary password
+              Send reset link
             </button>
           </form>
           <ButtonLink href="/account/login" variant="secondary">

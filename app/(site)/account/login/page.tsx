@@ -25,11 +25,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             during checkout.
           </p>
           {params.error === "invalid" ? <p className="notice">Incorrect email or password.</p> : null}
+          {params.error === "rate" ? (
+            <p className="notice">Too many sign-in attempts. Please wait 30 minutes and try again.</p>
+          ) : null}
           {params.error === "exists" ? (
             <p className="notice">That email already has an account. Please sign in instead.</p>
           ) : null}
           {params.status === "reset-sent" ? (
-            <p className="notice">If that email has an account, a temporary password is on the way.</p>
+            <p className="notice">If that email has an account, a secure reset link is on the way.</p>
+          ) : null}
+          {params.status === "reset-complete" ? (
+            <p className="notice">Your password is updated. You can now sign in.</p>
           ) : null}
           <form action={loginCustomerAction} className="contact-form">
             <div className="field">
@@ -38,7 +44,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </div>
             <div className="field">
               <label htmlFor="password">Password</label>
-              <input id="password" name="password" type="password" required />
+              <input id="password" name="password" type="password" autoComplete="current-password" required />
             </div>
             <button type="submit" className="button button--primary">
               Sign in

@@ -2,6 +2,7 @@
 
 import { Prisma } from "@prisma/client";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { headers } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { runAiPostAutomation } from "@/lib/ai-post-automation";
 import { prisma } from "@/lib/db";
@@ -25,9 +26,11 @@ import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import {
   clearAdminSession,
   getAdminUserForCredentials,
+  hasConfiguredAdminCredentials,
   requireFullAdminSession,
   setAdminSession
 } from "@/lib/admin-auth";
+import { consumeSecurityRateLimit, getSecurityIdentifiers } from "@/lib/security-rate-limit";
 import {
   EMAIL_SETTINGS_CACHE_TAG,
   PUBLIC_POSTS_CACHE_TAG,
@@ -651,6 +654,28 @@ function parseReviewDateInput(value: string | undefined | null) {
 export async function loginAction(formData: FormData) {
   const username = toPlainString(formData.get("username"));
   const password = toPlainString(formData.get("password"));
+
+  if (!username || username.length > 80 || !password || password.length > 256) {
+    redirect("/admin/login?error=1");
+  }
+
+  const requestHeaders = await headers();
+  const rateLimit = await consumeSecurityRateLimit({
+    scope: "admin-login",
+    identifiers: getSecurityIdentifiers(requestHeaders, username),
+    maxAttempts: 8,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 30 * 60 * 1000
+  });
+
+  if (!rateLimit.allowed) {
+    redirect("/admin/login?error=rate");
+  }
+
+  if (!hasConfiguredAdminCredentials()) {
+    redirect("/admin/login?error=config");
+  }
+
   const user = getAdminUserForCredentials(username, password);
 
   if (!user) {

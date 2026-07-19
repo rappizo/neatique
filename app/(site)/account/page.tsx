@@ -39,13 +39,16 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
           </div>
         </div>
 
-        {params.status === "password-updated" || params.error === "password" ? (
+        {params.status === "password-updated" || params.error?.startsWith("password") ? (
           <div className="account-page-notices">
             {params.status === "password-updated" ? (
               <p className="notice">Your password was updated.</p>
             ) : null}
             {params.error === "password" ? (
               <p className="notice">Your current password was incorrect.</p>
+            ) : null}
+            {params.error === "password-format" ? (
+              <p className="notice">Your new password must be between 12 and 128 characters.</p>
             ) : null}
           </div>
         ) : null}
@@ -79,11 +82,19 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
               <form action={updateCustomerPasswordAction}>
                 <div className="field">
                   <label htmlFor="currentPassword">Current password</label>
-                  <input id="currentPassword" name="currentPassword" type="password" />
+                  <input id="currentPassword" name="currentPassword" type="password" autoComplete="current-password" />
                 </div>
                 <div className="field">
                   <label htmlFor="newPassword">New password</label>
-                  <input id="newPassword" name="newPassword" type="password" required />
+                  <input
+                    id="newPassword"
+                    name="newPassword"
+                    type="password"
+                    minLength={12}
+                    maxLength={128}
+                    autoComplete="new-password"
+                    required
+                  />
                 </div>
                 <button type="submit" className="button button--primary">
                   Update password

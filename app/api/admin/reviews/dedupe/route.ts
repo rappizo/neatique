@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateFullAdminCredentials } from "@/lib/admin-auth";
 import { buildReviewDeduplicationPlan } from "@/lib/review-dedupe";
+import { consumeSecurityRateLimit, getSecurityIdentifiers } from "@/lib/security-rate-limit";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,7 @@ function unauthorizedResponse() {
   );
 }
 
-function isAuthorized(request: Request) {
+async function isAuthorized(request: Request) {
   const authHeader = request.headers.get("authorization") || "";
 
   if (!authHeader.startsWith("Basic ")) {
@@ -35,7 +36,15 @@ function isAuthorized(request: Request) {
     const username = decoded.slice(0, separatorIndex);
     const password = decoded.slice(separatorIndex + 1);
 
-    return validateFullAdminCredentials(username, password);
+    const rateLimit = await consumeSecurityRateLimit({
+      scope: "admin-basic-auth",
+      identifiers: getSecurityIdentifiers(request.headers, username),
+      maxAttempts: 8,
+      windowMs: 15 * 60 * 1000,
+      blockMs: 30 * 60 * 1000
+    });
+
+    return rateLimit.allowed && validateFullAdminCredentials(username, password);
   } catch {
     return false;
   }
@@ -54,7 +63,7 @@ async function loadPublishedReviews() {
 }
 
 export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!(await isAuthorized(request))) {
     return unauthorizedResponse();
   }
 
@@ -69,7 +78,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!(await isAuthorized(request))) {
     return unauthorizedResponse();
   }
 

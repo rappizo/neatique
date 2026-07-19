@@ -9,12 +9,13 @@ export function hashPassword(password: string) {
 export function verifyPassword(password: string, storedHash: string) {
   const [salt, expectedKey] = storedHash.split(":");
 
-  if (!salt || !expectedKey) {
+  if (!salt || !expectedKey || !/^[a-f0-9]{128}$/i.test(expectedKey)) {
     return false;
   }
 
-  const derivedKey = scryptSync(password, salt, 64).toString("hex");
-  return timingSafeEqual(Buffer.from(derivedKey), Buffer.from(expectedKey));
+  const derivedKey = scryptSync(password, salt, 64);
+  const expected = Buffer.from(expectedKey, "hex");
+  return expected.length === derivedKey.length && timingSafeEqual(derivedKey, expected);
 }
 
 export function generateTemporaryPassword(length = 12) {

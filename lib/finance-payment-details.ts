@@ -1,5 +1,4 @@
 import { Prisma } from "@prisma/client";
-import * as XLSX from "xlsx";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { prisma } from "@/lib/db";
 
@@ -288,10 +287,9 @@ function parsePaymentDate(value: unknown, fallbackDate: string) {
   }
 
   if (typeof value === "number" && Number.isFinite(value)) {
-    const parsed = XLSX.SSF.parse_date_code(value);
-    if (parsed) {
-      return buildUtcDate(parsed.y, parsed.m, parsed.d);
-    }
+    const excelEpoch = Date.UTC(1899, 11, 30);
+    const parsed = new Date(excelEpoch + Math.floor(value) * 24 * 60 * 60 * 1000);
+    return buildUtcDate(parsed.getUTCFullYear(), parsed.getUTCMonth() + 1, parsed.getUTCDate());
   }
 
   const text = toText(value);
@@ -437,68 +435,6 @@ export function buildManualFinancePaymentDetailInput(input: FinancePaymentInput)
     fallbackPaymentStage: normalizePaymentStage(input.paymentStage),
     fallbackAccountType: normalizeAccountType(input.accountType)
   });
-}
-
-export function parseFinancePaymentDetailsWorkbook(
-  buffer: Buffer,
-  defaults: FinancePaymentInput,
-  sourceFileName: string
-) {
-  const workbook = XLSX.read(buffer, {
-    type: "buffer",
-    cellDates: true
-  });
-  const fallbackDate = toText(defaults.paymentDate) || getTodayDateInputValue();
-  const fallbackPaymentStage = normalizePaymentStage(defaults.paymentStage);
-  const fallbackAccountType = normalizeAccountType(defaults.accountType);
-  const rowsToCreate: Prisma.FinancePaymentDetailCreateManyInput[] = [];
-
-  for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName];
-    if (!sheet) {
-      continue;
-    }
-
-    const rows = XLSX.utils.sheet_to_json(sheet, {
-      header: 1,
-      raw: true,
-      defval: ""
-    }) as unknown[][];
-    const headerRowIndex = findHeaderRow(rows);
-
-    if (headerRowIndex < 0) {
-      continue;
-    }
-
-    const headerMap = buildHeaderMap(rows[headerRowIndex]);
-
-    for (const row of rows.slice(headerRowIndex + 1)) {
-      const rowInput: FinancePaymentInput = {
-        paymentDate: getCell(row, headerMap, "paymentDate") || defaults.paymentDate,
-        paymentStage: getCell(row, headerMap, "paymentStage") || defaults.paymentStage,
-        accountType: getCell(row, headerMap, "accountType") || defaults.accountType,
-        lingxingContractNo: getCell(row, headerMap, "lingxingContractNo") || defaults.lingxingContractNo,
-        sku: getCell(row, headerMap, "sku") || defaults.sku,
-        productName: getCell(row, headerMap, "productName") || defaults.productName,
-        unit: getCell(row, headerMap, "unit") || defaults.unit,
-        quantity: getCell(row, headerMap, "quantity") || defaults.quantity,
-        unitPriceYuan: getCell(row, headerMap, "unitPriceYuan") || defaults.unitPriceYuan,
-        paymentAmountYuan: getCell(row, headerMap, "paymentAmountYuan") || defaults.paymentAmountYuan
-      };
-      const createInput = buildCreateInput(rowInput, {
-        fallbackDate,
-        fallbackPaymentStage,
-        fallbackAccountType,
-        sourceFileName
-      });
-
-      if (createInput) {
-        rowsToCreate.push(createInput);
-      }
-    }
-  }
-
-  return rowsToCreate;
 }
 
 function mapFinancePaymentDetail(row: any): FinancePaymentDetailRecord {

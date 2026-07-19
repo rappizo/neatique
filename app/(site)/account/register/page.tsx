@@ -25,6 +25,13 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
             reviews.
           </p>
           {params.error === "missing" ? <p className="notice">Please complete the required fields.</p> : null}
+          {params.error === "email" ? <p className="notice">Please enter a valid email address.</p> : null}
+          {params.error === "password" ? (
+            <p className="notice">Use a password between 12 and 128 characters.</p>
+          ) : null}
+          {params.error === "rate" ? (
+            <p className="notice">Too many account attempts. Please wait one hour and try again.</p>
+          ) : null}
           <form action={registerCustomerAction} className="contact-form">
             <div className="form-row">
               <div className="field">
@@ -42,7 +49,16 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
             </div>
             <div className="field">
               <label htmlFor="password">Password</label>
-              <input id="password" name="password" type="password" required />
+              <input
+                id="password"
+                name="password"
+                type="password"
+                minLength={12}
+                maxLength={128}
+                autoComplete="new-password"
+                required
+              />
+              <small>Use 12–128 characters.</small>
             </div>
             <label className="field field--checkbox">
               <input type="checkbox" name="marketingOptIn" />

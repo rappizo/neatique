@@ -534,21 +534,21 @@ export async function sendSmtpDiagnosticEmail(input: {
 export async function sendCustomerWelcomeEmail(input: {
   email: string;
   firstName?: string | null;
-  password: string;
+  token: string;
 }) {
   const name = input.firstName || "there";
+  const setupUrl = `${siteConfig.url}/account/reset-password?token=${encodeURIComponent(input.token)}`;
 
   return sendConfiguredEmail({
     to: input.email,
     subject: "Your Neatique account is ready",
-    text: `Hi ${name}, your Neatique account has been created. You can sign in with ${input.email} and temporary password ${input.password}.`,
+    text: `Hi ${name}, your Neatique account is ready. Use this one-time link within 30 minutes to choose your password: ${setupUrl}`,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
         <h2 style="font-family:Georgia,serif;color:#ed7361">Welcome to Neatique</h2>
         <p>Hi ${name}, your account has been created so you can track orders, points, and reviews.</p>
-        <p><strong>Login email:</strong> ${input.email}</p>
-        <p><strong>Temporary password:</strong> ${input.password}</p>
-        <p>You can sign in and update your password anytime from the account center. If you lose this password, use Forgot password to receive a new temporary password.</p>
+        <p><a href="${setupUrl}" style="display:inline-block;background:#ed7361;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px">Choose your password</a></p>
+        <p>This secure link expires in 30 minutes and can only be used once. You can request a new link from Forgot password at any time.</p>
       </div>
     `
   });
@@ -557,21 +557,21 @@ export async function sendCustomerWelcomeEmail(input: {
 export async function sendCustomerPasswordResetEmail(input: {
   email: string;
   firstName?: string | null;
-  password: string;
+  token: string;
 }) {
   const name = input.firstName || "there";
+  const resetUrl = `${siteConfig.url}/account/reset-password?token=${encodeURIComponent(input.token)}`;
 
   return sendConfiguredEmail({
     to: input.email,
-    subject: "Your Neatique temporary password",
-    text: `Hi ${name}, we created a new temporary password for your Neatique account. Sign in with ${input.email} and temporary password ${input.password}.`,
+    subject: "Reset your Neatique password",
+    text: `Hi ${name}, use this one-time link to reset your Neatique password: ${resetUrl}. The link expires in 30 minutes. If you did not request this, you can ignore this email.`,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
-        <h2 style="font-family:Georgia,serif;color:#ed7361">Your temporary password is ready</h2>
-        <p>Hi ${name}, we created a new temporary password for your Neatique account.</p>
-        <p><strong>Login email:</strong> ${input.email}</p>
-        <p><strong>Temporary password:</strong> ${input.password}</p>
-        <p>Sign in at <a href="${siteConfig.url}/account/login" style="color:#ed7361">neatiquebeauty.com/account/login</a>, then update your password from the account center.</p>
+        <h2 style="font-family:Georgia,serif;color:#ed7361">Reset your password</h2>
+        <p>Hi ${name}, use the secure one-time link below to choose a new password.</p>
+        <p><a href="${resetUrl}" style="display:inline-block;background:#ed7361;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px">Choose a new password</a></p>
+        <p>This link expires in 30 minutes and can only be used once. If you did not request it, you can safely ignore this email.</p>
       </div>
     `
   });

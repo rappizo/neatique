@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import "@/app/globals.css";
 import { siteConfig } from "@/lib/site-config";
 import { defaultOgImage } from "@/lib/seo";
 import { WebVitalsReporter } from "@/components/analytics/web-vitals-reporter";
+import { GoogleConsentManager } from "@/components/analytics/google-consent-manager";
 
 const GOOGLE_TAG_ID = process.env.NEXT_PUBLIC_GOOGLE_TAG_ID?.trim() || "G-WRS7GSKT5T";
 const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION?.trim();
@@ -73,18 +73,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="google-tag-manager" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GOOGLE_TAG_ID}');
-          `}
-        </Script>
+        <GoogleConsentManager tagId={GOOGLE_TAG_ID} />
         <WebVitalsReporter />
         {children}
       </body>

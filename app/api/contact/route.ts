@@ -8,7 +8,6 @@ import {
   validateContactSubmissionInput
 } from "@/lib/contact-guard";
 import { sendContactSubmissionEmails } from "@/lib/email";
-import { syncEmailMarketingContact } from "@/lib/email-marketing";
 import { createFormSubmission } from "@/lib/form-submissions";
 
 export async function POST(request: Request) {
@@ -68,18 +67,6 @@ export async function POST(request: Request) {
     },
     legacyContactSubmissionId: contactSubmission.id
   });
-
-  try {
-    await syncEmailMarketingContact({
-      email: submission.email,
-      audienceType: "LEADS",
-      force: true,
-      fullName: submission.name,
-      source: "CONTACT_FORM"
-    });
-  } catch (error) {
-    console.error("Brevo contact sync failed:", error);
-  }
 
   try {
     await sendContactSubmissionEmails({

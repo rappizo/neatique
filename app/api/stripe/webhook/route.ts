@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import Stripe from "stripe";
@@ -9,7 +9,6 @@ import {
 import { prisma } from "@/lib/db";
 import { sendCustomerWelcomeEmail } from "@/lib/email";
 import { sendOrderEventEmailForOrder } from "@/lib/order-emails";
-import { generateTemporaryPassword, hashPassword } from "@/lib/password";
 import { createOrderReviewToken } from "@/lib/order-review";
 import { stripe } from "@/lib/stripe";
 
@@ -17,6 +16,10 @@ export const runtime = "nodejs";
 
 function createOrderNumber() {
   return `NEA-${Date.now().toString().slice(-8)}-${randomBytes(2).toString("hex").toUpperCase()}`;
+}
+
+function hashPasswordSetupToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 function splitCustomerName(name: string | null | undefined) {
@@ -115,7 +118,7 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
     (sum, line) => sum + line.pointsReward * line.quantity,
     0
   );
-  let welcomePayload: { email: string; firstName: string | null; password: string } | null = null;
+  let welcomePayload: { email: string; firstName: string | null; token: string } | null = null;
   let orderReceivedEmailOrderId: string | null = null;
 
   try {
@@ -136,8 +139,8 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
             where: { email: customerEmail }
           });
 
-      let welcomePassword: string | null = null;
-      let customer = existingCustomer
+      let welcomeToken: string | null = null;
+      const customer = existingCustomer
         ? await tx.customer.update({
             where: { id: existingCustomer.id },
             data: {
@@ -156,8 +159,6 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
               email: customerEmail,
               firstName: nameParts.firstName,
               lastName: nameParts.lastName,
-              passwordHash: hashPassword((welcomePassword = generateTemporaryPassword())),
-              passwordSetAt: new Date(),
               totalSpentCents: totalCents,
               loyaltyPoints: pointsEarned,
               marketingOptIn: false
@@ -165,12 +166,16 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
           });
 
       if (!customer.passwordHash) {
-        welcomePassword = generateTemporaryPassword();
-        customer = await tx.customer.update({
-          where: { id: customer.id },
+        welcomeToken = randomBytes(32).toString("base64url");
+        await tx.passwordResetToken.updateMany({
+          where: { customerId: customer.id, consumedAt: null },
+          data: { consumedAt: new Date() }
+        });
+        await tx.passwordResetToken.create({
           data: {
-            passwordHash: hashPassword(welcomePassword),
-            passwordSetAt: new Date()
+            customerId: customer.id,
+            tokenHash: hashPasswordSetupToken(welcomeToken),
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000)
           }
         });
       }
@@ -282,11 +287,11 @@ async function handleCompletedCheckout(session: Stripe.Checkout.Session) {
         });
       }
 
-      if (welcomePassword) {
+      if (welcomeToken) {
         welcomePayload = {
           email: customerEmail,
           firstName: customer.firstName,
-          password: welcomePassword
+          token: welcomeToken
         };
       }
     });

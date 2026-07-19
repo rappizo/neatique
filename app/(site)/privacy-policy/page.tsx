@@ -36,20 +36,22 @@ const sections = [
     title: "Payments, analytics, and service providers",
     paragraphs: [
       "Payments on Neatique Beauty are processed through secure third-party providers such as Stripe. We do not store full payment card details on our own servers.",
-      "We may also use trusted tools for website analytics, order management, email delivery, and customer communication. These providers only receive the information needed to perform their services for us."
+      "We may also use trusted tools for order management, email delivery, customer communication, and—only with your consent—website analytics. These providers only receive the information needed to perform their services for us."
     ]
   },
   {
     title: "Cookies and tracking",
     paragraphs: [
-      "We may use cookies and similar technologies to remember cart activity, keep your session active, understand site performance, and improve the browsing experience.",
-      "You can control cookies through your browser settings, although some features of the website may work less smoothly if certain cookies are disabled."
+      "Essential cookies and similar technologies may remember cart activity, keep your account or admin session active, and protect forms from abuse. These are required for the service to function.",
+      "Google Analytics is optional and remains disabled unless you select Accept analytics. Advertising storage remains disabled. You can change this choice at any time using the Privacy choices button on the website.",
+      "You can also control cookies through your browser settings, although some essential website features may work less smoothly if required storage is disabled."
     ]
   },
   {
     title: "Your choices and contact",
     paragraphs: [
       "You may unsubscribe from marketing emails at any time by using the unsubscribe link in the email. You may also contact us if you would like us to update or delete information connected to your account, subject to legal and operational requirements.",
+      "Submitting an order registration, reward claim, or customer support form does not subscribe you to promotional emails. Marketing contact sync only occurs when you explicitly opt in.",
       "For privacy questions, email us through our contact page and we will do our best to help promptly."
     ]
   }

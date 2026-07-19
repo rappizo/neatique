@@ -492,6 +492,7 @@ model Customer {
   tiktokFollowRewards          TikTokFollowReward[]
   reviews                      ProductReview[]
   sessions                     CustomerSession[]
+  passwordResetTokens          PasswordResetToken[]
   convertedGuestRewardSessions GuestRewardSession[] @relation("ConvertedGuestRewardSessions")
   transferredGuestRewardEvents GuestRewardEvent[]   @relation("TransferredGuestRewardEvents")
   createdAt                    DateTime             @default(now())
@@ -911,6 +912,48 @@ model CustomerSession {
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([customerId, expiresAt])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([customerId, createdAt])
+  @@index([expiresAt, consumedAt])
+}
+
+model AdminSession {
+  id                    String   @id @default(cuid())
+  tokenHash             String   @unique
+  username              String
+  role                  String
+  credentialFingerprint String
+  expiresAt             DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([username, expiresAt])
+  @@index([expiresAt])
+}
+
+model SecurityRateLimit {
+  key             String    @id
+  count           Int       @default(0)
+  windowStartedAt DateTime
+  blockedUntil    DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@index([blockedUntil])
+  @@index([updatedAt])
 }
 
 model ProductReview {

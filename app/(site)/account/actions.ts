@@ -1,15 +1,43 @@
 "use server";
 
+import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clearCustomerSession, createCustomerSession, makeReviewDisplayName, requireCustomerSession } from "@/lib/customer-auth";
 import { prisma } from "@/lib/db";
 import { sendCustomerPasswordResetEmail } from "@/lib/email";
 import { syncEmailMarketingContact } from "@/lib/email-marketing";
-import { generateTemporaryPassword, hashPassword, verifyPassword } from "@/lib/password";
+import { hashPassword, verifyPassword } from "@/lib/password";
+import { consumeSecurityRateLimit, getSecurityIdentifiers } from "@/lib/security-rate-limit";
 import { toBool, toInt, toPlainString } from "@/lib/utils";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_MIN_LENGTH = 12;
+const PASSWORD_MAX_LENGTH = 128;
+const PASSWORD_RESET_DURATION_MS = 30 * 60 * 1000;
+
+function isValidCustomerPassword(password: string) {
+  return password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH;
+}
+
+function hashResetToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+async function checkAccountRateLimit(input: {
+  scope: string;
+  subject?: string;
+  maxAttempts: number;
+  windowMs: number;
+  blockMs: number;
+}) {
+  const requestHeaders = await headers();
+  return consumeSecurityRateLimit({
+    ...input,
+    identifiers: getSecurityIdentifiers(requestHeaders, input.subject)
+  });
+}
 
 export async function registerCustomerAction(formData: FormData) {
   const email = toPlainString(formData.get("email")).toLowerCase();
@@ -20,6 +48,26 @@ export async function registerCustomerAction(formData: FormData) {
 
   if (!email || !password) {
     redirect("/account/register?error=missing");
+  }
+
+  if (!emailPattern.test(email)) {
+    redirect("/account/register?error=email");
+  }
+
+  if (!isValidCustomerPassword(password)) {
+    redirect("/account/register?error=password");
+  }
+
+  const rateLimit = await checkAccountRateLimit({
+    scope: "customer-register",
+    subject: email,
+    maxAttempts: 5,
+    windowMs: 60 * 60 * 1000,
+    blockMs: 60 * 60 * 1000
+  });
+
+  if (!rateLimit.allowed) {
+    redirect("/account/register?error=rate");
   }
 
   const existingCustomer = await prisma.customer.findUnique({
@@ -78,9 +126,23 @@ export async function loginCustomerAction(formData: FormData) {
   const email = toPlainString(formData.get("email")).toLowerCase();
   const password = toPlainString(formData.get("password"));
 
-  const customer = await prisma.customer.findUnique({
-    where: { email }
+  const rateLimit = await checkAccountRateLimit({
+    scope: "customer-login",
+    subject: email,
+    maxAttempts: 10,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 30 * 60 * 1000
   });
+
+  if (!rateLimit.allowed) {
+    redirect("/account/login?error=rate");
+  }
+
+  const customer = emailPattern.test(email) && password.length > 0 && password.length <= PASSWORD_MAX_LENGTH
+    ? await prisma.customer.findUnique({
+    where: { email }
+      })
+    : null;
 
   if (!customer?.passwordHash || !verifyPassword(password, customer.passwordHash)) {
     redirect("/account/login?error=invalid");
@@ -108,6 +170,18 @@ export async function requestCustomerPasswordResetAction(formData: FormData) {
     redirect("/account/forgot-password?error=email");
   }
 
+  const rateLimit = await checkAccountRateLimit({
+    scope: "customer-password-reset-request",
+    subject: email,
+    maxAttempts: 5,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 30 * 60 * 1000
+  });
+
+  if (!rateLimit.allowed) {
+    redirect("/account/forgot-password?error=rate");
+  }
+
   const customer = await prisma.customer.findUnique({
     where: { email }
   });
@@ -116,27 +190,112 @@ export async function requestCustomerPasswordResetAction(formData: FormData) {
     redirect("/account/login?status=reset-sent");
   }
 
-  const temporaryPassword = generateTemporaryPassword();
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = hashResetToken(token);
+  const resetToken = await prisma.$transaction(async (tx) => {
+    await tx.passwordResetToken.updateMany({
+      where: {
+        customerId: customer.id,
+        consumedAt: null
+      },
+      data: { consumedAt: new Date() }
+    });
+
+    return tx.passwordResetToken.create({
+      data: {
+        customerId: customer.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + PASSWORD_RESET_DURATION_MS)
+      }
+    });
+  });
+
   const delivery = await sendCustomerPasswordResetEmail({
     email: customer.email,
     firstName: customer.firstName,
-    password: temporaryPassword
+    token
   });
 
   if (!delivery.delivered) {
     console.error("Customer password reset email delivery failed:", delivery);
-    redirect("/account/forgot-password?error=send");
+    await prisma.passwordResetToken.delete({ where: { id: resetToken.id } }).catch(() => undefined);
   }
 
-  await prisma.customer.update({
-    where: { id: customer.id },
-    data: {
-      passwordHash: hashPassword(temporaryPassword),
-      passwordSetAt: new Date()
-    }
+  redirect("/account/login?status=reset-sent");
+}
+
+export async function completeCustomerPasswordResetAction(formData: FormData) {
+  const token = toPlainString(formData.get("token"));
+  const password = toPlainString(formData.get("password"));
+
+  if (!token || !isValidCustomerPassword(password)) {
+    const query = !token ? "invalid" : "password";
+    redirect(`/account/reset-password?token=${encodeURIComponent(token)}&error=${query}`);
+  }
+
+  const rateLimit = await checkAccountRateLimit({
+    scope: "customer-password-reset-complete",
+    subject: hashResetToken(token),
+    maxAttempts: 8,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 30 * 60 * 1000
   });
 
-  redirect("/account/login?status=reset-sent");
+  if (!rateLimit.allowed) {
+    redirect(`/account/reset-password?token=${encodeURIComponent(token)}&error=rate`);
+  }
+
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashResetToken(token) }
+  });
+
+  if (!resetToken || resetToken.consumedAt || resetToken.expiresAt <= new Date()) {
+    redirect("/account/reset-password?error=invalid");
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const consumed = await tx.passwordResetToken.updateMany({
+        where: {
+          id: resetToken.id,
+          consumedAt: null,
+          expiresAt: { gt: new Date() }
+        },
+        data: { consumedAt: new Date() }
+      });
+
+      if (consumed.count !== 1) {
+        throw new Error("RESET_TOKEN_INVALID");
+      }
+
+      await tx.customer.update({
+        where: { id: resetToken.customerId },
+        data: {
+          passwordHash: hashPassword(password),
+          passwordSetAt: new Date()
+        }
+      });
+
+      await tx.customerSession.deleteMany({
+        where: { customerId: resetToken.customerId }
+      });
+
+      await tx.passwordResetToken.updateMany({
+        where: {
+          customerId: resetToken.customerId,
+          consumedAt: null
+        },
+        data: { consumedAt: new Date() }
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "RESET_TOKEN_INVALID") {
+      redirect("/account/reset-password?error=invalid");
+    }
+    throw error;
+  }
+
+  redirect("/account/login?status=reset-complete");
 }
 
 export async function logoutCustomerAction() {
@@ -161,13 +320,28 @@ export async function updateCustomerPasswordAction(formData: FormData) {
     redirect("/account?error=password");
   }
 
-  await prisma.customer.update({
-    where: { id: customerId },
-    data: {
-      passwordHash: hashPassword(newPassword),
-      passwordSetAt: new Date()
-    }
-  });
+  if (!isValidCustomerPassword(newPassword)) {
+    redirect("/account?error=password-format");
+  }
+
+  await prisma.$transaction([
+    prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        passwordHash: hashPassword(newPassword),
+        passwordSetAt: new Date()
+      }
+    }),
+    prisma.customerSession.deleteMany({
+      where: { customerId }
+    }),
+    prisma.passwordResetToken.updateMany({
+      where: { customerId, consumedAt: null },
+      data: { consumedAt: new Date() }
+    })
+  ]);
+
+  await createCustomerSession(customerId);
 
   revalidatePath("/account");
   redirect("/account?status=password-updated");

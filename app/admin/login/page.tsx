@@ -28,6 +28,12 @@ export default async function AdminLoginPage({ searchParams }: AdminLoginPagePro
           </p>
         </div>
         {params.error === "1" ? <p className="notice">Invalid username or password.</p> : null}
+        {params.error === "rate" ? (
+          <p className="notice">Too many sign-in attempts. Please wait 30 minutes and try again.</p>
+        ) : null}
+        {params.error === "config" ? (
+          <p className="notice">Admin access is not configured. Add an admin password in the deployment environment.</p>
+        ) : null}
         <form action={loginAction} className="contact-form">
           <div className="field">
             <label htmlFor="username">Username</label>
