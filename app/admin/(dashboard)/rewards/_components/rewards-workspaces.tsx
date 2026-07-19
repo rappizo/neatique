@@ -476,6 +476,9 @@ export function TikTokFollowRewardsSection({
                     <div className="admin-table__cell-stack">
                       <strong>{customerName}</strong>
                       <span>{reward.customerEmail}</span>
+                      {reward.guestWallet ? (
+                        <span className="form-note">Guest wallet · account not created yet</span>
+                      ) : null}
                       {reward.email !== reward.customerEmail ? (
                         <span className="form-note">Submitted email: {reward.email}</span>
                       ) : null}

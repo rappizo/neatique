@@ -3350,6 +3350,27 @@ main {
   margin: 0;
 }
 
+.reward-verification-card {
+  align-self: start;
+}
+
+.reward-verification-form {
+  max-width: 32rem;
+  margin-top: 1.5rem;
+}
+
+.reward-verification-form input[name="code"] {
+  max-width: 16rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-align: center;
+}
+
+.reward-verification-resend {
+  margin-top: 1rem;
+}
+
 .review-card__image-wrap,
 .review-detail-card__image-wrap {
   display: block;

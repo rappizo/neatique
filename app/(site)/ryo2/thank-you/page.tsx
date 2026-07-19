@@ -12,11 +12,11 @@ export default function RyoThankYouPage() {
       <div className="container">
         <div className="page-hero om-thank-you">
           <p className="eyebrow">Thank you</p>
-          <h1>Your order registration is complete, and your 500 points are in.</h1>
+          <h1>Your order registration is complete, and your 500 points are ready.</h1>
           <p>
-            We added the RYO reward points to your Neatique account automatically. Complete the
-            TikTok follow screenshot upload too, and your balance can reach 1,000 points for a
-            mascot redemption.
+            Your RYO points are saved in this browser—no account was required. Complete the TikTok
+            follow screenshot upload too, then verify your email only at the final mascot redemption
+            step.
           </p>
           <div className="stack-row">
             <ButtonLink href="/mascot" variant="primary">

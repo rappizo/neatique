@@ -99,6 +99,34 @@ enum ComicPromptRunStatus {
   APPROVED
 }
 
+enum GuestRewardSessionStatus {
+  ACTIVE
+  CONVERTED
+  EXPIRED
+}
+
+enum GuestRewardEventStatus {
+  EARNED
+  TRANSFERRED
+  REVERSED
+}
+
+enum GuestRewardSource {
+  RYO
+  TIKTOK_FOLLOW
+}
+
+enum GuestRedemptionDraftStatus {
+  PENDING_VERIFICATION
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum EmailVerificationPurpose {
+  MASCOT_REDEMPTION
+}
+
 model Product {
   id                   String            @id @default(cuid())
   productCode          String?           @unique
@@ -447,25 +475,27 @@ model ComicImageCreation {
 }
 
 model Customer {
-  id                  String               @id @default(cuid())
-  email               String               @unique
-  firstName           String?
-  lastName            String?
-  passwordHash        String?
-  passwordSetAt       DateTime?
-  lastLoginAt         DateTime?
-  marketingOptIn      Boolean              @default(false)
-  loyaltyPoints       Int                  @default(0)
-  totalSpentCents     Int                  @default(0)
-  orders              Order[]
-  rewards             RewardEntry[]
-  mascotRedemptions   MascotRedemption[]
-  ryoClaims           RyoClaim[]
-  tiktokFollowRewards TikTokFollowReward[]
-  reviews             ProductReview[]
-  sessions            CustomerSession[]
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  id                           String               @id @default(cuid())
+  email                        String               @unique
+  firstName                    String?
+  lastName                     String?
+  passwordHash                 String?
+  passwordSetAt                DateTime?
+  lastLoginAt                  DateTime?
+  marketingOptIn               Boolean              @default(false)
+  loyaltyPoints                Int                  @default(0)
+  totalSpentCents              Int                  @default(0)
+  orders                       Order[]
+  rewards                      RewardEntry[]
+  mascotRedemptions            MascotRedemption[]
+  ryoClaims                    RyoClaim[]
+  tiktokFollowRewards          TikTokFollowReward[]
+  reviews                      ProductReview[]
+  sessions                     CustomerSession[]
+  convertedGuestRewardSessions GuestRewardSession[] @relation("ConvertedGuestRewardSessions")
+  transferredGuestRewardEvents GuestRewardEvent[]   @relation("TransferredGuestRewardEvents")
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
 }
 
 model ReviewPersona {
@@ -508,44 +538,46 @@ model ReviewPersona {
 }
 
 model MascotReward {
-  id          String             @id @default(cuid())
-  sku         String             @unique
-  name        String
-  slug        String             @unique
-  description String?
-  imageUrl    String
-  pointsCost  Int                @default(1000)
-  active      Boolean            @default(true)
-  sortOrder   Int                @default(0)
-  redemptions MascotRedemption[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id                    String                 @id @default(cuid())
+  sku                   String                 @unique
+  name                  String
+  slug                  String                 @unique
+  description           String?
+  imageUrl              String
+  pointsCost            Int                    @default(1000)
+  active                Boolean                @default(true)
+  sortOrder             Int                    @default(0)
+  redemptions           MascotRedemption[]
+  guestRedemptionDrafts GuestRedemptionDraft[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 }
 
 model MascotRedemption {
-  id              String                      @id @default(cuid())
-  pointsSpent     Int
-  status          MascotRedemptionStatus      @default(REQUESTED)
-  email           String
-  fullName        String
-  address1        String
-  address2        String?
-  city            String
-  state           String
-  postalCode      String
-  country         String                      @default("US")
-  shippingCarrier ShippingCarrier?
-  trackingNumber  String?
-  shippedAt       DateTime?
-  adminNote       String?
-  fulfilledAt     DateTime?
-  customerId      String
-  mascotId        String
-  customer        Customer                    @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  mascot          MascotReward                @relation(fields: [mascotId], references: [id], onDelete: Cascade)
-  emailLogs       MascotRedemptionEmailLog[]
-  createdAt       DateTime                    @default(now())
-  updatedAt       DateTime                    @updatedAt
+  id                   String                     @id @default(cuid())
+  pointsSpent          Int
+  status               MascotRedemptionStatus     @default(REQUESTED)
+  email                String
+  fullName             String
+  address1             String
+  address2             String?
+  city                 String
+  state                String
+  postalCode           String
+  country              String                     @default("US")
+  shippingCarrier      ShippingCarrier?
+  trackingNumber       String?
+  shippedAt            DateTime?
+  adminNote            String?
+  fulfilledAt          DateTime?
+  customerId           String
+  mascotId             String
+  customer             Customer                   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  mascot               MascotReward               @relation(fields: [mascotId], references: [id], onDelete: Cascade)
+  emailLogs            MascotRedemptionEmailLog[]
+  guestRedemptionDraft GuestRedemptionDraft?      @relation("CompletedGuestRedemption")
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
@@ -723,7 +755,7 @@ model RewardEntry {
 }
 
 model RyoClaim {
-  id                    String           @id @default(cuid())
+  id                    String              @id @default(cuid())
   platformKey           String
   platformLabel         String
   orderId               String
@@ -739,42 +771,136 @@ model RyoClaim {
   screenshotBase64      String?
   screenshotBytes       Int?
   customerId            String?
-  pointsAwarded         Int              @default(500)
-  rewardGranted         Boolean          @default(false)
+  guestSessionId        String?
+  pointsAwarded         Int                 @default(500)
+  rewardGranted         Boolean             @default(false)
   rewardGrantedAt       DateTime?
   reviewStepSubmittedAt DateTime?
   adminNote             String?
   completedAt           DateTime?
-  customer              Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer              Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  guestSession          GuestRewardSession? @relation(fields: [guestSessionId], references: [id], onDelete: SetNull)
   followEmails          FollowEmailLog[]
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   @@index([platformKey, createdAt])
   @@index([email, createdAt])
   @@index([completedAt, createdAt])
   @@index([rewardGranted])
+  @@index([guestSessionId, createdAt])
 }
 
 model TikTokFollowReward {
-  id                 String   @id @default(cuid())
-  email              String   @unique
+  id                 String              @id @default(cuid())
+  email              String
   fullName           String
   tiktokUsername     String?
   screenshotName     String
   screenshotMimeType String
   screenshotBase64   String
   screenshotBytes    Int
-  customerId         String
-  pointsAwarded      Int      @default(500)
-  rewardGranted      Boolean  @default(true)
-  rewardGrantedAt    DateTime @default(now())
-  customer           Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  screenshotSha256   String?             @unique
+  customerId         String?
+  guestSessionId     String?
+  pointsAwarded      Int                 @default(500)
+  rewardGranted      Boolean             @default(true)
+  rewardGrantedAt    DateTime            @default(now())
+  customer           Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  guestSession       GuestRewardSession? @relation(fields: [guestSessionId], references: [id], onDelete: SetNull)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([customerId, createdAt])
+  @@index([guestSessionId, createdAt])
   @@index([rewardGranted, createdAt])
+}
+
+model GuestRewardSession {
+  id                  String                   @id @default(cuid())
+  tokenHash           String                   @unique
+  status              GuestRewardSessionStatus @default(ACTIVE)
+  emailHint           String?
+  nameHint            String?
+  expiresAt           DateTime
+  convertedAt         DateTime?
+  convertedCustomerId String?
+  convertedCustomer   Customer?                @relation("ConvertedGuestRewardSessions", fields: [convertedCustomerId], references: [id], onDelete: SetNull)
+  rewardEvents        GuestRewardEvent[]
+  redemptionDrafts    GuestRedemptionDraft[]
+  ryoClaims           RyoClaim[]
+  tiktokFollowRewards TikTokFollowReward[]
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  @@index([status, expiresAt])
+  @@index([convertedCustomerId, convertedAt])
+}
+
+model GuestRewardEvent {
+  id             String                 @id @default(cuid())
+  source         GuestRewardSource
+  sourceId       String
+  points         Int
+  status         GuestRewardEventStatus @default(EARNED)
+  note           String?
+  guestSessionId String
+  customerId     String?
+  guestSession   GuestRewardSession     @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  customer       Customer?              @relation("TransferredGuestRewardEvents", fields: [customerId], references: [id], onDelete: SetNull)
+  transferredAt  DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([guestSessionId, status, createdAt])
+  @@index([customerId, transferredAt])
+}
+
+model GuestRedemptionDraft {
+  id                    String                     @id @default(cuid())
+  status                GuestRedemptionDraftStatus @default(PENDING_VERIFICATION)
+  email                 String
+  fullName              String
+  address1              String
+  address2              String?
+  city                  String
+  state                 String
+  postalCode            String
+  country               String                     @default("US")
+  reservedUntil         DateTime
+  guestSessionId        String
+  mascotId              String
+  completedRedemptionId String?                    @unique
+  guestSession          GuestRewardSession         @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  mascot                MascotReward               @relation(fields: [mascotId], references: [id], onDelete: Cascade)
+  completedRedemption   MascotRedemption?          @relation("CompletedGuestRedemption", fields: [completedRedemptionId], references: [id], onDelete: SetNull)
+  verifications         EmailVerification[]
+  completedAt           DateTime?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  @@index([guestSessionId, status, createdAt])
+  @@index([email, status, createdAt])
+  @@index([reservedUntil])
+}
+
+model EmailVerification {
+  id           String                   @id @default(cuid())
+  purpose      EmailVerificationPurpose
+  email        String
+  tokenHash    String
+  expiresAt    DateTime
+  attemptCount Int                      @default(0)
+  consumedAt   DateTime?
+  draftId      String
+  draft        GuestRedemptionDraft     @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@index([draftId, createdAt])
+  @@index([email, purpose, createdAt])
+  @@index([expiresAt])
 }
 
 model CustomerSession {
@@ -788,38 +914,38 @@ model CustomerSession {
 }
 
 model ProductReview {
-  id               String         @id @default(cuid())
-  rating           Int
-  title            String
-  content          String
-  displayName      String
-  purchaseChannel String?
-  reviewImageUrl  String?
-  hasRating       Boolean        @default(true)
-  reviewDate       DateTime       @default(now())
-  status           ReviewStatus   @default(PENDING)
-  verifiedPurchase Boolean        @default(false)
-  incentivizedReview Boolean      @default(false)
-  adminNotes       String?
-  source           String         @default("CUSTOMER")
-  productId        String
-  customerId       String?
-  orderId          String?
-  personaId        String?
-  publishedAt      DateTime?
-  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  customer         Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  persona          ReviewPersona? @relation(fields: [personaId], references: [id], onDelete: SetNull)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  rating             Int
+  title              String
+  content            String
+  displayName        String
+  purchaseChannel    String?
+  reviewImageUrl     String?
+  hasRating          Boolean        @default(true)
+  reviewDate         DateTime       @default(now())
+  status             ReviewStatus   @default(PENDING)
+  verifiedPurchase   Boolean        @default(false)
+  incentivizedReview Boolean        @default(false)
+  adminNotes         String?
+  source             String         @default("CUSTOMER")
+  productId          String
+  customerId         String?
+  orderId            String?
+  personaId          String?
+  publishedAt        DateTime?
+  product            Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer           Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  order              Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  persona            ReviewPersona? @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
+  @@unique([orderId, productId])
   @@index([productId, reviewDate])
   @@index([productId, status, reviewDate])
   @@index([customerId, reviewDate])
   @@index([personaId, reviewDate])
   @@index([status, reviewDate])
-  @@unique([orderId, productId])
 }
 
 model StoreSetting {

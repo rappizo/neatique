@@ -578,6 +578,12 @@ function mapReward(reward: any): RewardEntryRecord {
 
 function mapTikTokFollowReward(reward: any): TikTokFollowRewardRecord {
   const customer = reward.customer;
+  const guestPoints = Array.isArray(reward.guestSession?.rewardEvents)
+    ? reward.guestSession.rewardEvents.reduce(
+        (total: number, event: any) => total + Number(event.points || 0),
+        0
+      )
+    : 0;
 
   return {
     id: reward.id,
@@ -591,7 +597,8 @@ function mapTikTokFollowReward(reward: any): TikTokFollowRewardRecord {
     customerEmail: customer?.email ?? reward.email,
     customerFirstName: customer?.firstName ?? null,
     customerLastName: customer?.lastName ?? null,
-    customerLoyaltyPoints: customer?.loyaltyPoints ?? 0,
+    customerLoyaltyPoints: customer?.loyaltyPoints ?? guestPoints,
+    guestWallet: !customer,
     pointsAwarded: reward.pointsAwarded,
     rewardGranted: reward.rewardGranted,
     rewardGrantedAt: reward.rewardGrantedAt ? new Date(reward.rewardGrantedAt) : null,
@@ -1938,6 +1945,14 @@ export async function getTikTokFollowRewards(limit = 50) {
                 rewards: {
                   orderBy: [{ createdAt: "desc" }],
                   take: 12
+                }
+              }
+            },
+            guestSession: {
+              include: {
+                rewardEvents: {
+                  where: { status: "EARNED" },
+                  orderBy: { createdAt: "desc" }
                 }
               }
             }

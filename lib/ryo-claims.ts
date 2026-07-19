@@ -1,6 +1,6 @@
-import { sendCustomerWelcomeEmail, sendRyoRewardApprovedEmail } from "@/lib/email";
+import { sendRyoRewardApprovedEmail } from "@/lib/email";
+import { createGuestRewardEventTx } from "@/lib/guest-rewards";
 import { RYO_REWARD_POINTS } from "@/lib/mascot-program";
-import { ensureCustomerRewardAccountTx } from "@/lib/reward-accounts";
 import { prisma } from "@/lib/db";
 import type { Prisma, RyoClaim } from "@prisma/client";
 
@@ -16,81 +16,64 @@ type RyoCompletionData = {
   screenshotBytes?: number | null;
 };
 
+type RewardDestination = {
+  customerId: string | null;
+  guestSessionId: string | null;
+};
+
 type CompleteRyoClaimResult =
-  | {
-      status: "missing";
-    }
-  | {
+  | { status: "missing" }
+  | ({
       status: "already-complete";
       platformKey: string;
       claimId: string;
-      customerId: string | null;
-    }
-  | {
-      status: "duplicate-order";
-      platformKey: string;
-    }
-  | {
+    } & RewardDestination)
+  | { status: "duplicate-order"; platformKey: string }
+  | ({
       status: "completed";
       claimId: string;
       platformKey: string;
-      customerId: string;
       pointsAwarded: number;
       customerEmail: string;
       firstName: string | null;
-      tempPassword: string | null;
-    };
+    } & RewardDestination);
 
 type ApproveRyoClaimResult =
-  | {
-      status: "missing";
-    }
-  | {
-      status: "not-ready";
-    }
-  | {
-      status: "already-approved";
-      claimId: string;
-    }
-  | {
+  | { status: "missing" }
+  | { status: "not-ready" }
+  | { status: "already-approved"; claimId: string }
+  | ({
       status: "approved";
       claimId: string;
-      customerId: string;
       pointsAwarded: number;
       customerEmail: string;
       firstName: string | null;
-      tempPassword: string | null;
-    };
+    } & RewardDestination);
+
+function firstNameFromClaim(claim: RyoClaim) {
+  return claim.name.trim().split(/\s+/)[0] || null;
+}
 
 async function grantRyoClaimRewardTx(
   tx: Prisma.TransactionClient,
   claim: RyoClaim,
   adminNote?: string | null
 ): Promise<ApproveRyoClaimResult> {
-  if (!claim.completedAt) {
-    return { status: "not-ready" as const };
+  if (!claim.completedAt || (!claim.customerId && !claim.guestSessionId)) {
+    return { status: "not-ready" };
   }
 
   if (claim.rewardGranted) {
     if (adminNote !== undefined) {
       await tx.ryoClaim.update({
         where: { id: claim.id },
-        data: {
-          adminNote: adminNote ?? null
-        }
+        data: { adminNote: adminNote ?? null }
       });
     }
 
-    return {
-      status: "already-approved" as const,
-      claimId: claim.id
-    };
+    return { status: "already-approved", claimId: claim.id };
   }
 
-  const { customer, tempPassword } = await ensureCustomerRewardAccountTx(tx, {
-    email: claim.email,
-    name: claim.name
-  });
   const approvedAt = new Date();
   const pointsAwarded = claim.pointsAwarded || RYO_REWARD_POINTS;
   const marked = await tx.ryoClaim.updateMany({
@@ -99,7 +82,6 @@ async function grantRyoClaimRewardTx(
       rewardGranted: false
     },
     data: {
-      customerId: customer.id,
       rewardGranted: true,
       rewardGrantedAt: approvedAt,
       adminNote: adminNote ?? claim.adminNote ?? null
@@ -107,59 +89,64 @@ async function grantRyoClaimRewardTx(
   });
 
   if (marked.count === 0) {
-    return {
-      status: "already-approved" as const,
-      claimId: claim.id
-    };
+    return { status: "already-approved", claimId: claim.id };
   }
 
-  await tx.customer.update({
-    where: { id: customer.id },
-    data: {
-      loyaltyPoints: {
-        increment: pointsAwarded
-      }
-    }
-  });
+  let customerEmail = claim.email;
+  let firstName = firstNameFromClaim(claim);
 
-  await tx.rewardEntry.create({
-    data: {
-      customerId: customer.id,
-      type: "EARNED",
+  if (claim.customerId) {
+    const customer = await tx.customer.findUnique({
+      where: { id: claim.customerId },
+      select: { email: true, firstName: true }
+    });
+
+    if (!customer) {
+      throw new Error("RYO reward customer no longer exists.");
+    }
+
+    await tx.customer.update({
+      where: { id: claim.customerId },
+      data: {
+        loyaltyPoints: { increment: pointsAwarded }
+      }
+    });
+    await tx.rewardEntry.create({
+      data: {
+        customerId: claim.customerId,
+        type: "EARNED",
+        points: pointsAwarded,
+        note: `RYO registration completed ${claim.orderId}`
+      }
+    });
+    customerEmail = customer.email;
+    firstName = customer.firstName;
+  } else if (claim.guestSessionId) {
+    await createGuestRewardEventTx(tx, {
+      guestSessionId: claim.guestSessionId,
+      source: "RYO",
+      sourceId: claim.id,
       points: pointsAwarded,
       note: `RYO registration completed ${claim.orderId}`
-    }
-  });
-
-  return {
-    status: "approved" as const,
-    claimId: claim.id,
-    customerId: customer.id,
-    pointsAwarded,
-    customerEmail: customer.email,
-    firstName: customer.firstName,
-    tempPassword
-  };
-}
-
-type RyoRewardEmailInput = {
-  pointsAwarded: number;
-  customerEmail: string;
-  firstName: string | null;
-  tempPassword: string | null;
-};
-
-async function sendRyoRewardEmails(result: RyoRewardEmailInput) {
-  if (result.tempPassword) {
-    await sendCustomerWelcomeEmail({
-      email: result.customerEmail,
-      firstName: result.firstName,
-      password: result.tempPassword
-    }).catch((error) => {
-      console.error("RYO welcome email delivery failed:", error);
     });
   }
 
+  return {
+    status: "approved",
+    claimId: claim.id,
+    customerId: claim.customerId,
+    guestSessionId: claim.guestSessionId,
+    pointsAwarded,
+    customerEmail,
+    firstName
+  };
+}
+
+async function sendRyoRewardEmail(result: {
+  pointsAwarded: number;
+  customerEmail: string;
+  firstName: string | null;
+}) {
   await sendRyoRewardApprovedEmail({
     email: result.customerEmail,
     firstName: result.firstName,
@@ -174,9 +161,7 @@ export async function completeRyoClaimSubmission(input: {
   completionData?: RyoCompletionData;
 }): Promise<CompleteRyoClaimResult> {
   const result = await prisma.$transaction(async (tx) => {
-    const claim = await tx.ryoClaim.findUnique({
-      where: { id: input.claimId }
-    });
+    const claim = await tx.ryoClaim.findUnique({ where: { id: input.claimId } });
 
     if (!claim) {
       return { status: "missing" as const };
@@ -192,10 +177,10 @@ export async function completeRyoClaimSubmission(input: {
             claimId: claim.id,
             platformKey: claim.platformKey,
             customerId: rewardResult.customerId,
+            guestSessionId: rewardResult.guestSessionId,
             pointsAwarded: rewardResult.pointsAwarded,
             customerEmail: rewardResult.customerEmail,
-            firstName: rewardResult.firstName,
-            tempPassword: rewardResult.tempPassword
+            firstName: rewardResult.firstName
           };
         }
       }
@@ -204,49 +189,40 @@ export async function completeRyoClaimSubmission(input: {
         status: "already-complete" as const,
         platformKey: claim.platformKey,
         claimId: claim.id,
-        customerId: claim.customerId
+        customerId: claim.customerId,
+        guestSessionId: claim.guestSessionId
       };
     }
 
     const existingOrderClaim = await tx.ryoClaim.findFirst({
       where: {
-        id: {
-          not: claim.id
-        },
-        completedAt: {
-          not: null
-        },
+        id: { not: claim.id },
+        completedAt: { not: null },
         orderId: claim.orderId
       },
       select: { id: true }
     });
 
     if (existingOrderClaim) {
-      return {
-        status: "duplicate-order" as const,
-        platformKey: claim.platformKey
-      };
+      return { status: "duplicate-order" as const, platformKey: claim.platformKey };
     }
 
-    const completedAt = new Date();
     const updatedClaim = await tx.ryoClaim.update({
       where: { id: claim.id },
       data: {
         ...input.completionData,
-        completedAt
+        completedAt: new Date()
       }
     });
-    const rewardResult = await grantRyoClaimRewardTx(tx, {
-      ...updatedClaim,
-      completedAt
-    });
+    const rewardResult = await grantRyoClaimRewardTx(tx, updatedClaim);
 
     if (rewardResult.status !== "approved") {
       return {
         status: "already-complete" as const,
         claimId: updatedClaim.id,
         platformKey: updatedClaim.platformKey,
-        customerId: updatedClaim.customerId
+        customerId: updatedClaim.customerId,
+        guestSessionId: updatedClaim.guestSessionId
       };
     }
 
@@ -255,15 +231,15 @@ export async function completeRyoClaimSubmission(input: {
       claimId: updatedClaim.id,
       platformKey: updatedClaim.platformKey,
       customerId: rewardResult.customerId,
+      guestSessionId: rewardResult.guestSessionId,
       pointsAwarded: rewardResult.pointsAwarded,
       customerEmail: rewardResult.customerEmail,
-      firstName: rewardResult.firstName,
-      tempPassword: rewardResult.tempPassword
+      firstName: rewardResult.firstName
     };
   });
 
   if (result.status === "completed") {
-    await sendRyoRewardEmails(result);
+    await sendRyoRewardEmail(result);
   }
 
   return result;
@@ -274,9 +250,7 @@ export async function approveRyoClaimReward(input: {
   adminNote?: string | null;
 }): Promise<ApproveRyoClaimResult> {
   const result = await prisma.$transaction(async (tx) => {
-    const claim = await tx.ryoClaim.findUnique({
-      where: { id: input.claimId }
-    });
+    const claim = await tx.ryoClaim.findUnique({ where: { id: input.claimId } });
 
     if (!claim) {
       return { status: "missing" as const };
@@ -286,7 +260,7 @@ export async function approveRyoClaimReward(input: {
   });
 
   if (result.status === "approved") {
-    await sendRyoRewardEmails(result);
+    await sendRyoRewardEmail(result);
   }
 
   return result;

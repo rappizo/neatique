@@ -4,6 +4,7 @@ import { TikTokFollowUploadForm } from "@/components/mascot/tiktok-follow-upload
 import { ButtonLink } from "@/components/ui/button-link";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { formatNumber } from "@/lib/format";
+import { getGuestRewardSession, getGuestRewardSummary } from "@/lib/guest-rewards";
 import { getActiveMascotRewards } from "@/lib/queries";
 import { getMascotPromoQrImageUrl, MASCOT_REDEMPTION_POINTS, RYO_REWARD_POINTS } from "@/lib/mascot-program";
 
@@ -24,7 +25,7 @@ function getFollowUploadErrorMessage(error?: string) {
     case "missing":
       return "Please enter your name and email before uploading the screenshot.";
     case "email":
-      return "Please enter a valid email so we can add the points to the right account.";
+      return "Please enter a valid email for your reward receipt.";
     case "image-required":
       return "Please upload a screenshot showing that you followed Neatique on TikTok.";
     case "image-size":
@@ -39,11 +40,14 @@ function getFollowUploadErrorMessage(error?: string) {
 }
 
 export default async function MascotPage({ searchParams }: MascotPageProps) {
-  const [mascots, customer, params] = await Promise.all([
+  const [mascots, customer, params, guestSession] = await Promise.all([
     getActiveMascotRewards(),
     getCurrentCustomer(),
-    searchParams
+    searchParams,
+    getGuestRewardSession()
   ]);
+  const guestSummary = guestSession ? await getGuestRewardSummary(guestSession.id) : null;
+  const pointsBalance = (customer?.loyaltyPoints ?? 0) + (guestSummary?.points ?? 0);
   const qrImageUrl = getMascotPromoQrImageUrl();
   const customerName = customer
     ? [customer.firstName, customer.lastName].filter(Boolean).join(" ")
@@ -67,6 +71,7 @@ export default async function MascotPage({ searchParams }: MascotPageProps) {
             <span className="pill">{formatNumber(RYO_REWARD_POINTS)} points for TikTok follow screenshot</span>
             <span className="pill">{formatNumber(RYO_REWARD_POINTS)} points when RYO is completed</span>
             <span className="pill">{formatNumber(MASCOT_REDEMPTION_POINTS)} points per mascot</span>
+            <span className="pill">Your available balance: {formatNumber(pointsBalance)} points</span>
           </div>
         </div>
 
@@ -76,20 +81,25 @@ export default async function MascotPage({ searchParams }: MascotPageProps) {
             <h2>Follow Neatique on TikTok, upload the screenshot, and get 500 points automatically.</h2>
             <p>
               Scan the QR code, follow us on TikTok, then upload a screenshot here. The upload
-              creates or updates your Neatique account and adds <strong>500 points</strong> right
-              away. One follow reward is available per email.
+              adds <strong>500 points</strong> to a secure reward balance in this browser. We only
+              create or connect your account after you confirm a mascot redemption.
             </p>
 
             {params.follow === "awarded" ? (
               <p className="notice">
-                <strong>500 points added.</strong> Your TikTok follow reward is now in your
-                Neatique account.
+                <strong>500 points added.</strong> Your reward is saved in this browser. No account
+                was created.
               </p>
             ) : null}
             {params.follow === "duplicate" ? (
               <p className="notice">
-                This email has already received the TikTok follow reward. You can keep collecting
+                This browser has already received the TikTok follow reward. You can keep collecting
                 points through RYO.
+              </p>
+            ) : null}
+            {params.follow === "duplicate-proof" ? (
+              <p className="notice">
+                This screenshot has already been used for a TikTok follow reward.
               </p>
             ) : null}
             {followErrorMessage ? <p className="notice notice--warning">{followErrorMessage}</p> : null}
@@ -102,8 +112,9 @@ export default async function MascotPage({ searchParams }: MascotPageProps) {
                 <p className="eyebrow">Screenshot upload</p>
                 <h3>Show us the follow, then watch your balance move.</h3>
                 <p>
-                  Use the same email you want to use for mascot redemption. That email decides
-                  which account receives the points, and we will sign that account in after upload.
+                  No sign-in is needed. Your points stay attached to a secure browser session. At
+                  the final redemption step, we verify your email and then create or connect your
+                  account.
                 </p>
                 <TikTokFollowUploadForm
                   customerName={customerName}
@@ -119,8 +130,8 @@ export default async function MascotPage({ searchParams }: MascotPageProps) {
             <p>
               After your purchase, open the Register Your Order flow, verify the order, and submit
               the short registration. As soon as the RYO flow is complete, <strong>500 points are
-              added to your account</strong>. Finish both actions and you will have enough points
-              for one mascot.
+              saved to your reward balance</strong>. Finish both actions and you will have enough
+              points for one mascot—without registering first.
             </p>
             <div className="stack-row">
               <ButtonLink href="/ryo" variant="primary">

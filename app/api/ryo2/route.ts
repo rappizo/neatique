@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { createCustomerSession } from "@/lib/customer-auth";
 import { prisma } from "@/lib/db";
+import { getOwnedRyoClaim } from "@/lib/guest-rewards";
 import {
   getOrderMatchPlatform,
   isHighRating,
@@ -23,27 +23,17 @@ export async function POST(request: Request) {
   const rating = Number.parseInt(String(formData.get("rating") || "").trim(), 10);
   const commentText = String(formData.get("commentText") || "").trim();
 
-  const claim = claimId
-    ? await prisma.ryoClaim.findUnique({
-        where: { id: claimId }
-      })
-    : null;
+  const claim = claimId ? await getOwnedRyoClaim(claimId) : null;
 
   if (!claim) {
     return NextResponse.redirect(new URL("/ryo2?error=claim", request.url), 303);
   }
 
   if (claim.completedAt) {
-    let completedCustomerId = claim.customerId;
-
     if (!claim.rewardGranted) {
       const completionResult = await completeRyoClaimSubmission({
         claimId: claim.id
       });
-
-      if (completionResult.status === "completed" || completionResult.status === "already-complete") {
-        completedCustomerId = completionResult.customerId;
-      }
 
       if (completionResult.status === "completed") {
         revalidatePath("/admin/rewards");
@@ -51,12 +41,6 @@ export async function POST(request: Request) {
         revalidatePath("/account");
         revalidatePath("/rd");
       }
-    }
-
-    if (completedCustomerId) {
-      await createCustomerSession(completedCustomerId).catch((error) => {
-        console.error("RYO customer session creation failed:", error);
-      });
     }
 
     return NextResponse.redirect(new URL(`/ryo2/thank-you?claim=${claim.id}`, request.url), 303);
@@ -138,12 +122,6 @@ export async function POST(request: Request) {
 
   if (completionResult.status === "missing") {
     return NextResponse.redirect(new URL("/ryo2?error=claim", request.url), 303);
-  }
-
-  if (completionResult.status === "completed") {
-    await createCustomerSession(completionResult.customerId).catch((error) => {
-      console.error("RYO customer session creation failed:", error);
-    });
   }
 
   revalidatePath("/admin/rewards");

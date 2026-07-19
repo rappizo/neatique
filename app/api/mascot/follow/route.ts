@@ -1,12 +1,13 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
-import { createCustomerSession, getCurrentCustomer } from "@/lib/customer-auth";
+import { getCurrentCustomer } from "@/lib/customer-auth";
 import { prisma } from "@/lib/db";
-import { sendCustomerWelcomeEmail, sendTikTokFollowRewardEmail } from "@/lib/email";
+import { sendTikTokFollowRewardEmail } from "@/lib/email";
+import { createGuestRewardEventTx, getOrCreateGuestRewardSession } from "@/lib/guest-rewards";
 import { RYO_REWARD_POINTS } from "@/lib/mascot-program";
 import { compressOmbScreenshot } from "@/lib/omb-screenshot";
-import { ensureCustomerRewardAccountTx } from "@/lib/reward-accounts";
 
 export const runtime = "nodejs";
 
@@ -21,8 +22,7 @@ function redirectWithError(request: Request, error: string) {
 }
 
 function splitName(name: string) {
-  const [firstName] = name.trim().split(/\s+/);
-  return firstName || null;
+  return name.trim().split(/\s+/)[0] || null;
 }
 
 export async function POST(request: Request) {
@@ -34,8 +34,8 @@ export async function POST(request: Request) {
   const currentCustomerName = currentCustomer
     ? [currentCustomer.firstName, currentCustomer.lastName].filter(Boolean).join(" ")
     : "";
-  const email = rawEmail || currentCustomer?.email.trim().toLowerCase() || "";
-  const fullName = rawName || currentCustomerName || email.split("@")[0];
+  const email = currentCustomer?.email.trim().toLowerCase() || rawEmail;
+  const fullName = currentCustomerName || rawName || email.split("@")[0];
 
   if (!fullName || !email) {
     return redirectWithError(request, "missing");
@@ -49,12 +49,7 @@ export async function POST(request: Request) {
     return redirectWithError(request, "image-required");
   }
 
-  let screenshotPayload: {
-    name: string;
-    mimeType: string;
-    base64: string;
-    bytes: number;
-  };
+  let screenshotPayload: Awaited<ReturnType<typeof compressOmbScreenshot>>;
 
   try {
     screenshotPayload = await compressOmbScreenshot(screenshot);
@@ -63,48 +58,28 @@ export async function POST(request: Request) {
     return redirectWithError(request, message);
   }
 
+  const screenshotSha256 = createHash("sha256")
+    .update(screenshotPayload.base64)
+    .digest("hex");
+  const guestSession = currentCustomer
+    ? null
+    : await getOrCreateGuestRewardSession({ emailHint: email, nameHint: fullName });
+
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const existing = await tx.tikTokFollowReward.findUnique({
-        where: { email },
-        select: {
-          id: true,
-          customerId: true
-        }
+      const existing = await tx.tikTokFollowReward.findFirst({
+        where: currentCustomer
+          ? { customerId: currentCustomer.id }
+          : { guestSessionId: guestSession!.id },
+        select: { id: true }
       });
 
       if (existing) {
-        return {
-          status: "duplicate" as const,
-          customerId: existing.customerId
-        };
+        return { status: "duplicate" as const };
       }
 
-      const { customer, tempPassword } = await ensureCustomerRewardAccountTx(tx, {
-        email,
-        name: fullName
-      });
       const awardedAt = new Date();
-
-      await tx.customer.update({
-        where: { id: customer.id },
-        data: {
-          loyaltyPoints: {
-            increment: RYO_REWARD_POINTS
-          }
-        }
-      });
-
-      await tx.rewardEntry.create({
-        data: {
-          customerId: customer.id,
-          type: "EARNED",
-          points: RYO_REWARD_POINTS,
-          note: "TikTok follow screenshot reward"
-        }
-      });
-
-      await tx.tikTokFollowReward.create({
+      const reward = await tx.tikTokFollowReward.create({
         data: {
           email,
           fullName,
@@ -113,40 +88,45 @@ export async function POST(request: Request) {
           screenshotMimeType: screenshotPayload.mimeType,
           screenshotBase64: screenshotPayload.base64,
           screenshotBytes: screenshotPayload.bytes,
-          customerId: customer.id,
+          screenshotSha256,
+          customerId: currentCustomer?.id ?? null,
+          guestSessionId: guestSession?.id ?? null,
           pointsAwarded: RYO_REWARD_POINTS,
           rewardGranted: true,
           rewardGrantedAt: awardedAt
         }
       });
 
-      return {
-        status: "awarded" as const,
-        customerId: customer.id,
-        customerEmail: customer.email,
-        firstName: customer.firstName || splitName(fullName),
-        tempPassword
-      };
-    });
-
-    await createCustomerSession(result.customerId).catch((error) => {
-      console.error("TikTok follow customer session creation failed:", error);
-    });
-
-    if (result.status === "awarded") {
-      if (result.tempPassword) {
-        await sendCustomerWelcomeEmail({
-          email: result.customerEmail,
-          firstName: result.firstName,
-          password: result.tempPassword
-        }).catch((error) => {
-          console.error("TikTok follow welcome email delivery failed:", error);
+      if (currentCustomer) {
+        await tx.customer.update({
+          where: { id: currentCustomer.id },
+          data: { loyaltyPoints: { increment: RYO_REWARD_POINTS } }
+        });
+        await tx.rewardEntry.create({
+          data: {
+            customerId: currentCustomer.id,
+            type: "EARNED",
+            points: RYO_REWARD_POINTS,
+            note: "TikTok follow screenshot reward"
+          }
+        });
+      } else {
+        await createGuestRewardEventTx(tx, {
+          guestSessionId: guestSession!.id,
+          source: "TIKTOK_FOLLOW",
+          sourceId: reward.id,
+          points: RYO_REWARD_POINTS,
+          note: "TikTok follow screenshot reward"
         });
       }
 
+      return { status: "awarded" as const };
+    });
+
+    if (result.status === "awarded") {
       await sendTikTokFollowRewardEmail({
-        email: result.customerEmail,
-        firstName: result.firstName,
+        email,
+        firstName: currentCustomer?.firstName || splitName(fullName),
         points: RYO_REWARD_POINTS
       }).catch((error) => {
         console.error("TikTok follow reward email delivery failed:", error);
@@ -157,22 +137,10 @@ export async function POST(request: Request) {
     revalidatePath("/account");
     revalidatePath("/rd");
     revalidatePath("/admin/rewards");
-
     return redirectWithStatus(request, result.status);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const existing = await prisma.tikTokFollowReward.findUnique({
-        where: { email },
-        select: { customerId: true }
-      });
-
-      if (existing?.customerId) {
-        await createCustomerSession(existing.customerId).catch((sessionError) => {
-          console.error("TikTok follow duplicate session creation failed:", sessionError);
-        });
-      }
-
-      return redirectWithStatus(request, "duplicate");
+      return redirectWithStatus(request, "duplicate-proof");
     }
 
     console.error("TikTok follow reward upload failed:", error);

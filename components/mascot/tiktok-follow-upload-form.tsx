@@ -33,7 +33,7 @@ export function TikTokFollowUploadForm({
           />
         </div>
         <div className="field">
-          <label htmlFor="follow-email">Email for your points</label>
+          <label htmlFor="follow-email">Email for your reward receipt</label>
           <input
             id="follow-email"
             name="email"

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OmbClaimStepThreeForm } from "@/components/order-match/omb-claim-step-three-form";
 import { getOrderMatchPlatform, getRyoStepErrorMessage, isHighRating } from "@/lib/order-match";
-import { prisma } from "@/lib/db";
+import { getOwnedRyoClaim } from "@/lib/guest-rewards";
 
 type RegisterOrderStepThreePageProps = {
   searchParams: Promise<{ claim?: string; error?: string }>;
@@ -23,9 +23,7 @@ export default async function RegisterOrderStepThreePage({
     redirect("/ryo");
   }
 
-  const claim = await prisma.ryoClaim.findUnique({
-    where: { id: claimId }
-  });
+  const claim = await getOwnedRyoClaim(claimId);
 
   if (!claim) {
     redirect("/ryo");

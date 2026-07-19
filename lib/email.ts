@@ -658,12 +658,13 @@ export async function sendRyoRewardApprovedEmail(input: {
   return sendConfiguredEmail({
     to: input.email,
     subject: "Your Neatique order registration points are ready",
-    text: `Hi ${name}, your Register Your Order flow is complete and we added ${input.points} points to your Neatique account. Visit ${siteConfig.url}/rd to redeem your mascot once your balance is ready.`,
+    text: `Hi ${name}, your Register Your Order flow is complete and ${input.points} points are now in your Neatique reward balance. Return in the same browser and visit ${siteConfig.url}/rd to redeem your mascot once your balance is ready.`,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
         <h2 style="font-family:Georgia,serif;color:#ed7361">Your RYO points are ready</h2>
-        <p>Hi ${name}, your order registration is complete and we added <strong>${input.points} points</strong> to your Neatique account.</p>
+        <p>Hi ${name}, your order registration is complete and <strong>${input.points} points</strong> are now in your Neatique reward balance.</p>
         <p>You can now visit <a href="${siteConfig.url}/rd" style="color:#ed7361">neatiquebeauty.com/rd</a> to redeem your mascot once your balance is ready.</p>
+        <p>If you participated without signing in, return in the same browser. We will verify your email and create or connect your account only when you confirm a redemption.</p>
         <p>Thank you for supporting Neatique.</p>
       </div>
     `
@@ -680,13 +681,38 @@ export async function sendTikTokFollowRewardEmail(input: {
   return sendConfiguredEmail({
     to: input.email,
     subject: "Your TikTok follow reward points are ready",
-    text: `Hi ${name}, thanks for following Neatique on TikTok. We added ${input.points} points to your Neatique account. Visit ${siteConfig.url}/rd when your balance reaches 1,000 points to redeem a mascot.`,
+    text: `Hi ${name}, thanks for following Neatique on TikTok. ${input.points} points are now in your Neatique reward balance. Return in the same browser and visit ${siteConfig.url}/rd when your balance reaches 1,000 points.`,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
         <h2 style="font-family:Georgia,serif;color:#ed7361">Your TikTok follow reward is in</h2>
-        <p>Hi ${name}, thank you for following Neatique on TikTok. We added <strong>${input.points} points</strong> to your Neatique account.</p>
+        <p>Hi ${name}, thank you for following Neatique on TikTok. <strong>${input.points} points</strong> are now in your Neatique reward balance.</p>
         <p>Once your balance reaches <strong>1,000 points</strong>, visit <a href="${siteConfig.url}/rd" style="color:#ed7361">neatiquebeauty.com/rd</a> to redeem your mascot.</p>
+        <p>If you participated without signing in, return in the same browser. We will verify your email and create or connect your account only at the final redemption step.</p>
         <p>Thank you for supporting Neatique.</p>
+      </div>
+    `
+  });
+}
+
+export async function sendMascotRedemptionVerificationEmail(input: {
+  email: string;
+  firstName?: string | null;
+  mascotName: string;
+  code: string;
+}) {
+  const name = input.firstName || "there";
+
+  return sendConfiguredEmail({
+    to: input.email,
+    subject: `${input.code} is your Neatique mascot verification code`,
+    text: `Hi ${name}, use verification code ${input.code} to confirm your ${input.mascotName} redemption. This code expires in 10 minutes. Neatique will never ask you to share this code.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.7;color:#2e2825">
+        <h2 style="font-family:Georgia,serif;color:#ed7361">Confirm your mascot redemption</h2>
+        <p>Hi ${escapeHtml(name)}, enter this code to confirm your <strong>${escapeHtml(input.mascotName)}</strong> redemption:</p>
+        <p style="font-size:32px;letter-spacing:8px;font-weight:700;margin:24px 0">${input.code}</p>
+        <p>This code expires in 10 minutes. Neatique will never ask you to share it.</p>
+        <p>If you did not request this redemption, you can ignore this email.</p>
       </div>
     `
   });

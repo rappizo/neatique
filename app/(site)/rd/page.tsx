@@ -3,6 +3,7 @@ import Image from "next/image";
 import { ButtonLink } from "@/components/ui/button-link";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { formatDate, formatNumber } from "@/lib/format";
+import { getGuestRewardSession, getGuestRewardSummary } from "@/lib/guest-rewards";
 import { getActiveMascotRewards, getCustomerAccountById } from "@/lib/queries";
 import { MASCOT_REDEMPTION_POINTS } from "@/lib/mascot-program";
 import { CONTIGUOUS_US_STATES } from "@/lib/us-address";
@@ -17,25 +18,34 @@ export const metadata: Metadata = {
 };
 
 export default async function RedeemMascotPage({ searchParams }: RedeemMascotPageProps) {
-  const [mascots, customer, params] = await Promise.all([
+  const [mascots, customer, params, guestSession] = await Promise.all([
     getActiveMascotRewards(),
     getCurrentCustomer(),
-    searchParams
+    searchParams,
+    getGuestRewardSession()
   ]);
-  const account = customer ? await getCustomerAccountById(customer.id) : null;
+  const [account, guestSummary] = await Promise.all([
+    customer ? getCustomerAccountById(customer.id) : null,
+    guestSession ? getGuestRewardSummary(guestSession.id) : null
+  ]);
   const selectedMascot = mascots.find((mascot) => mascot.slug === params.mascot) ?? null;
   const latestRedemption = account?.mascotRedemptions[0] ?? null;
   const latestOrder = account?.orders[0] ?? null;
   const defaultFullName =
     latestRedemption?.fullName ||
     latestOrder?.shippingName ||
-    [account?.customer.firstName, account?.customer.lastName].filter(Boolean).join(" ");
+    [account?.customer.firstName, account?.customer.lastName].filter(Boolean).join(" ") ||
+    guestSummary?.nameHint ||
+    "";
   const defaultAddress1 = latestRedemption?.address1 || latestOrder?.shippingAddress1 || "";
   const defaultAddress2 = latestRedemption?.address2 || latestOrder?.shippingAddress2 || "";
   const defaultCity = latestRedemption?.city || latestOrder?.shippingCity || "";
   const defaultState = latestRedemption?.state || latestOrder?.shippingState || "";
   const defaultPostalCode = latestRedemption?.postalCode || latestOrder?.shippingPostalCode || "";
-  const pointsBalance = account?.customer.loyaltyPoints ?? 0;
+  const accountPoints = account?.customer.loyaltyPoints ?? 0;
+  const guestPoints = guestSummary?.points ?? 0;
+  const pointsBalance = accountPoints + guestPoints;
+  const defaultEmail = customer?.email || guestSummary?.emailHint || "";
 
   return (
     <section className="section">
@@ -52,13 +62,15 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
             <span className="pill">{mascots.length} mascot rewards</span>
             <span className="pill">{formatNumber(MASCOT_REDEMPTION_POINTS)} points each</span>
             <span className="pill">
-              {customer ? `${formatNumber(pointsBalance)} points in your account` : "Sign in to redeem"}
+              {customer
+                ? `${formatNumber(pointsBalance)} points available`
+                : `${formatNumber(pointsBalance)} guest points—no account yet`}
             </span>
           </div>
         </div>
 
-        {params.error === "auth" ? (
-          <p className="notice">Please sign in to redeem mascot rewards with your points.</p>
+        {params.error === "session" ? (
+          <p className="notice">Your guest reward session has expired. Please complete the reward steps again.</p>
         ) : null}
         {params.error === "mascot" ? (
           <p className="notice">We could not find that mascot reward. Please choose another one.</p>
@@ -75,20 +87,27 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
         {params.error === "postal" ? (
           <p className="notice">Please enter a valid U.S. ZIP code.</p>
         ) : null}
+        {params.error === "email" ? (
+          <p className="notice">Please enter a valid email so we can verify the final redemption.</p>
+        ) : null}
+        {params.error === "rate-limited" ? (
+          <p className="notice">Too many verification emails were requested. Please wait 15 minutes and try again.</p>
+        ) : null}
 
         {!customer ? (
           <section className="admin-form">
-            <h2>Sign in to redeem</h2>
+            <h2>No account is required until the final confirmation.</h2>
             <p>
-              Your points balance is attached to your Neatique account. Sign in first, then return
-              here to redeem a mascot.
+              RYO and TikTok points are saved to a secure guest wallet in this browser. Once you
+              have enough points, choose a mascot, enter the shipping address, and verify your email.
+              We create or connect your account only after that verification succeeds.
             </p>
             <div className="stack-row">
-              <ButtonLink href="/account/login" variant="primary">
-                Sign in
+              <ButtonLink href="/mascot" variant="primary">
+                Earn TikTok points
               </ButtonLink>
-              <ButtonLink href="/account/register" variant="secondary">
-                Create account
+              <ButtonLink href="/ryo" variant="secondary">
+                Complete RYO
               </ButtonLink>
             </div>
           </section>
@@ -143,7 +162,7 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
           </div>
         </section>
 
-        {customer && selectedMascot ? (
+        {(customer || guestSession) && selectedMascot ? (
           <section className="checkout-confirmation-layout">
             <div className="checkout-confirmation-main">
               <section className="admin-form">
@@ -152,7 +171,7 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
                     <p className="eyebrow">Redeem {selectedMascot.name}</p>
                     <h2>Confirm the shipping address for your mascot reward.</h2>
                   </div>
-                  <span className="pill">{formatNumber(pointsBalance)} current points</span>
+                  <span className="pill">{formatNumber(pointsBalance)} available points</span>
                 </div>
 
                 {pointsBalance < selectedMascot.pointsCost ? (
@@ -166,6 +185,21 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
 
                     <section className="admin-form checkout-confirmation-form__body">
                       <div className="admin-form__grid">
+                        {!customer ? (
+                          <div className="field">
+                            <label htmlFor="rd-email">Email to verify at the final step</label>
+                            <input
+                              id="rd-email"
+                              name="email"
+                              type="email"
+                              defaultValue={defaultEmail}
+                              required
+                              autoComplete="email"
+                            />
+                          </div>
+                        ) : (
+                          <input type="hidden" name="email" value={customer.email} />
+                        )}
                         <div className="field">
                           <label htmlFor="rd-full-name">Full name</label>
                           <input
@@ -216,7 +250,9 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
                       </div>
                       <div className="stack-row checkout-confirmation-form__actions">
                         <button type="submit" className="button button--primary">
-                          Redeem {selectedMascot.name}
+                          {customer
+                            ? `Redeem ${selectedMascot.name}`
+                            : `Verify email & redeem ${selectedMascot.name}`}
                         </button>
                       </div>
                     </section>
@@ -247,8 +283,9 @@ export default async function RedeemMascotPage({ searchParams }: RedeemMascotPag
                 </div>
               </div>
               <p className="form-note">
-                Rewards points never reduce product prices at checkout. This redemption only creates
-                a mascot shipment request for the address above.
+                {customer
+                  ? "This redemption creates a mascot shipment request for the address above."
+                  : "Submitting this form sends a six-digit code. Your account and shipment request are created only after you enter the correct code."}
               </p>
               {account?.mascotRedemptions.length ? (
                 <div className="checkout-confirmation-summary__coupons">

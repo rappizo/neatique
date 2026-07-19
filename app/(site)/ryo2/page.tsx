@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OmbClaimStepTwoForm } from "@/components/order-match/omb-claim-step-two-form";
 import { getOrderMatchPlatform, getRyoStepErrorMessage } from "@/lib/order-match";
-import { prisma } from "@/lib/db";
+import { getOwnedRyoClaim } from "@/lib/guest-rewards";
 import { getOmbSelectableProducts } from "@/lib/queries";
 
 type RegisterOrderStepTwoPageProps = {
@@ -24,9 +24,7 @@ export default async function RegisterOrderStepTwoPage({
     redirect("/ryo");
   }
 
-  const claim = await prisma.ryoClaim.findUnique({
-    where: { id: claimId }
-  });
+  const claim = await getOwnedRyoClaim(claimId);
 
   if (!claim) {
     redirect("/ryo");

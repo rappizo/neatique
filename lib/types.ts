@@ -358,11 +358,12 @@ export type TikTokFollowRewardRecord = {
   screenshotName: string;
   screenshotMimeType: string;
   screenshotBytes: number;
-  customerId: string;
+  customerId: string | null;
   customerEmail: string;
   customerFirstName: string | null;
   customerLastName: string | null;
   customerLoyaltyPoints: number;
+  guestWallet: boolean;
   pointsAwarded: number;
   rewardGranted: boolean;
   rewardGrantedAt: Date | null;

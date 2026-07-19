@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { syncEmailMarketingContact } from "@/lib/email-marketing";
+import { getCurrentCustomerId } from "@/lib/customer-auth";
+import { getOrCreateGuestRewardSession } from "@/lib/guest-rewards";
 import {
   getOrderMatchPlatform,
   isOrderMatchPlatform,
@@ -58,6 +59,10 @@ export async function POST(request: Request) {
     );
   }
 
+  const customerId = await getCurrentCustomerId();
+  const guestSession = customerId
+    ? null
+    : await getOrCreateGuestRewardSession({ emailHint: email, nameHint: name });
   const claim = await prisma.ryoClaim.create({
     data: {
       platformKey: platform.key,
@@ -65,21 +70,11 @@ export async function POST(request: Request) {
       orderId,
       name,
       email,
-      phone: phone || null
+      phone: phone || null,
+      customerId,
+      guestSessionId: guestSession?.id ?? null
     }
   });
-
-  try {
-    await syncEmailMarketingContact({
-      email,
-      audienceType: "CUSTOMERS",
-      force: true,
-      fullName: name,
-      source: "RYO_FLOW"
-    });
-  } catch (error) {
-    console.error("RYO Brevo customer sync failed:", error);
-  }
 
   return NextResponse.redirect(
     new URL(`/ryo2?platform=${platform.key}&claim=${claim.id}`, request.url),
