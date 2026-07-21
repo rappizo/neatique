@@ -50,6 +50,10 @@ export function AdminSidebarNav({ items }: { items: AdminNavItem[] }) {
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const activeChildHref = items
+    .flatMap((item) => item.children ?? [])
+    .filter((child) => isHrefActive(pathname, currentSearch, child.href))
+    .sort((left, right) => right.href.length - left.href.length)[0]?.href;
 
   return (
     <nav className="admin-sidebar__nav" aria-label="Admin navigation">
@@ -96,7 +100,7 @@ export function AdminSidebarNav({ items }: { items: AdminNavItem[] }) {
                   <Link
                     key={child.href}
                     href={child.href}
-                    className={isHrefActive(pathname, currentSearch, child.href) ? "admin-sidebar__child is-active" : "admin-sidebar__child"}
+                    className={child.href === activeChildHref ? "admin-sidebar__child is-active" : "admin-sidebar__child"}
                   >
                     {child.label}
                   </Link>

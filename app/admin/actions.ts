@@ -75,10 +75,11 @@ import {
   SYNTHETIC_REVIEW_SOURCE
 } from "@/lib/review-compliance";
 import {
+  ADMIN_REVIEW_UPLOAD_MAX_FILE_SIZE_BYTES,
   ADMIN_UPLOADED_REVIEW_INTERNAL_RATING,
   ADMIN_UPLOADED_REVIEW_SOURCE,
   ADMIN_UPLOADED_REVIEW_TITLE,
-  normalizeReviewImageUrl
+  parseAdminReviewUploadCsv
 } from "@/lib/review-upload";
 import { approveRyoClaimReward } from "@/lib/ryo-claims";
 import {
@@ -208,8 +209,26 @@ function buildReviewRedirect(status: string, redirectTo?: string, productSlug?: 
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
 }
 
-function parseCsvBoolean(value: string | undefined) {
-  return ["1", "true", "yes", "y", "on"].includes((value ?? "").trim().toLowerCase());
+function buildReviewUploadRedirect(
+  status: string,
+  details?: { count?: number; row?: number; field?: string; sku?: string }
+) {
+  const params = new URLSearchParams({ status });
+
+  if (details?.count !== undefined) {
+    params.set("count", String(details.count));
+  }
+  if (details?.row !== undefined) {
+    params.set("row", String(details.row));
+  }
+  if (details?.field) {
+    params.set("field", details.field);
+  }
+  if (details?.sku) {
+    params.set("sku", details.sku.slice(0, 100));
+  }
+
+  return `/admin/reviews/upload?${params.toString()}`;
 }
 
 function buildCouponRedirect(status: string, couponId?: string) {
@@ -573,61 +592,6 @@ function buildMascotPayload(formData: FormData) {
       sortOrder: Math.max(0, toInt(formData.get("sortOrder"), 0))
     }
   };
-}
-
-function normalizeCsvHeader(value: string) {
-  return value.trim().toLowerCase().replace(/[\s_-]+/g, "");
-}
-
-function parseCsv(text: string) {
-  const rows: string[][] = [];
-  let currentRow: string[] = [];
-  let currentCell = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    const nextChar = text[index + 1];
-
-    if (char === '"') {
-      if (inQuotes && nextChar === '"') {
-        currentCell += '"';
-        index += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === "," && !inQuotes) {
-      currentRow.push(currentCell.trim());
-      currentCell = "";
-      continue;
-    }
-
-    if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (char === "\r" && nextChar === "\n") {
-        index += 1;
-      }
-
-      currentRow.push(currentCell.trim());
-      if (currentRow.some((cell) => cell.length > 0)) {
-        rows.push(currentRow);
-      }
-      currentRow = [];
-      currentCell = "";
-      continue;
-    }
-
-    currentCell += char;
-  }
-
-  currentRow.push(currentCell.trim());
-  if (currentRow.some((cell) => cell.length > 0)) {
-    rows.push(currentRow);
-  }
-
-  return rows;
 }
 
 function parseReviewStatus(value: string | undefined): ReviewStatus {
@@ -1761,172 +1725,90 @@ export async function generateAiReviewsAction(formData: FormData) {
 export async function uploadReviewAction(formData: FormData) {
   await requireFullAdminSession();
 
-  const productId = toPlainString(formData.get("productId"));
-  const displayName = toPlainString(formData.get("displayName"));
-  const purchaseChannel = toPlainString(formData.get("purchaseChannel"));
-  const content = toPlainString(formData.get("content"));
-  const imageUrlResult = normalizeReviewImageUrl(
-    toPlainString(formData.get("reviewImageUrl"))
-  );
+  const file = formData.get("csvFile");
+  const isReadableFile =
+    file && typeof file === "object" && "text" in file && typeof file.text === "function";
 
-  if (!productId || !displayName || !purchaseChannel || !content) {
-    redirect(buildReviewRedirect("upload-missing-fields"));
+  if (!isReadableFile) {
+    redirect(buildReviewUploadRedirect("missing-file"));
   }
 
-  if (!imageUrlResult.valid) {
-    redirect(buildReviewRedirect("upload-invalid-image-url"));
+  const fileSize = "size" in file && typeof file.size === "number" ? file.size : 0;
+  if (fileSize > ADMIN_REVIEW_UPLOAD_MAX_FILE_SIZE_BYTES) {
+    redirect(buildReviewUploadRedirect("file-too-large"));
   }
 
-  const product = await prisma.product.findUnique({
-    where: { id: productId },
+  const parsed = parseAdminReviewUploadCsv(await file.text());
+  if (!parsed.ok) {
+    redirect(
+      buildReviewUploadRedirect(parsed.code, {
+        row: parsed.rowNumber,
+        field: parsed.field
+      })
+    );
+  }
+
+  const products = await prisma.product.findMany({
+    where: {
+      productCode: {
+        not: null
+      }
+    },
     select: {
       id: true,
       slug: true,
       productCode: true
     }
   });
+  const productBySku = new Map(
+    products
+      .filter((product): product is typeof product & { productCode: string } => Boolean(product.productCode))
+      .map((product) => [product.productCode.trim().toUpperCase(), product])
+  );
+  const rowsWithProducts = parsed.rows.map((row) => ({
+    row,
+    product: productBySku.get(row.sku.trim().toUpperCase())
+  }));
+  const missingProductRow = rowsWithProducts.find(({ product }) => !product);
 
-  if (!product?.productCode) {
-    redirect(buildReviewRedirect("upload-sku-not-found"));
+  if (missingProductRow) {
+    redirect(
+      buildReviewUploadRedirect("sku-not-found", {
+        row: missingProductRow.row.rowNumber,
+        sku: missingProductRow.row.sku
+      })
+    );
   }
 
   const now = new Date();
-  await prisma.productReview.create({
-    data: {
-      productId: product.id,
+  await prisma.productReview.createMany({
+    data: rowsWithProducts.map(({ row, product }) => ({
+      productId: product!.id,
       rating: ADMIN_UPLOADED_REVIEW_INTERNAL_RATING,
       title: ADMIN_UPLOADED_REVIEW_TITLE,
-      content,
-      displayName,
-      purchaseChannel,
-      reviewImageUrl: imageUrlResult.value,
+      content: row.content,
+      displayName: row.displayName,
+      purchaseChannel: row.purchaseChannel,
+      reviewImageUrl: row.reviewImageUrl,
       hasRating: false,
       verifiedPurchase: false,
-      reviewDate: now,
+      reviewDate: row.reviewDate,
       status: "PUBLISHED",
       publishedAt: now,
       source: ADMIN_UPLOADED_REVIEW_SOURCE
-    }
+    }))
   });
 
   revalidatePath("/admin/reviews");
-  revalidatePath(`/admin/reviews/${product.slug}`);
-  refreshStorefront([product.slug]);
-  redirect(buildReviewRedirect("uploaded"));
-}
-
-export async function bulkImportReviewsAction(formData: FormData) {
-  await requireFullAdminSession();
-
-  const productSlug = toPlainString(formData.get("productSlug"));
-  const redirectTo = toPlainString(formData.get("redirectTo"));
-  const file = formData.get("csvFile");
-  const raw =
-    file && typeof file === "object" && "text" in file && typeof file.text === "function"
-      ? await file.text()
-      : toPlainString(formData.get("rows"));
-
-  if (!raw) {
-    redirect(buildReviewRedirect("empty", redirectTo, productSlug));
-  }
-
-  const rows = parseCsv(raw);
-
-  if (rows.length < 2) {
-    redirect(buildReviewRedirect("invalid-csv", redirectTo, productSlug));
-  }
-
-  const [headerRow, ...dataRows] = rows;
-  const headerMap = new Map(headerRow.map((cell, index) => [normalizeCsvHeader(cell), index]));
-  const productSlugIndex = headerMap.get("productslug");
-  const displayNameIndex = headerMap.get("displayname");
-  const emailIndex = headerMap.get("email");
-  const ratingIndex = headerMap.get("rating");
-  const titleIndex = headerMap.get("title");
-  const contentIndex = headerMap.get("content");
-  const statusIndex = headerMap.get("status");
-  const reviewDateIndex = headerMap.get("reviewdate");
-  const purchaseChannelIndex = headerMap.get("purchasechannel");
-  const reviewImageUrlIndex = headerMap.get("reviewimageurl");
-  const incentivizedReviewIndex = headerMap.get("incentivizedreview");
-
-  if (
-    displayNameIndex === undefined ||
-    ratingIndex === undefined ||
-    titleIndex === undefined ||
-    contentIndex === undefined
-  ) {
-    redirect(buildReviewRedirect("invalid-columns", redirectTo, productSlug));
-  }
-
-  const products = await prisma.product.findMany({
-    where: productSlug
-      ? {
-          slug: productSlug
-        }
-      : undefined,
-    select: {
-      id: true,
-      slug: true
-    }
-  });
-  const productBySlug = new Map(products.map((product) => [product.slug, product]));
-
-  for (const row of dataRows) {
-    const rowProductSlug = productSlug || (productSlugIndex !== undefined ? row[productSlugIndex] : "");
-    const product = rowProductSlug ? productBySlug.get(rowProductSlug) : null;
-    const nextStatus = parseReviewStatus(statusIndex !== undefined ? row[statusIndex] : undefined);
-    const parsedReviewDate = parseReviewDateInput(
-      reviewDateIndex !== undefined ? row[reviewDateIndex] : undefined
-    );
-    const importedImageUrl = normalizeReviewImageUrl(
-      reviewImageUrlIndex !== undefined ? row[reviewImageUrlIndex] : undefined
-    );
-
-    if (!product) {
-      continue;
-    }
-
-    const email = emailIndex !== undefined ? row[emailIndex] : "";
-    const customer = email
-      ? await prisma.customer.findUnique({
-          where: { email }
-        })
-      : null;
-
-    await prisma.productReview.create({
-      data: {
-        productId: product.id,
-        customerId: customer?.id ?? null,
-        rating: toInt(row[ratingIndex], 5),
-        hasRating: Boolean(row[ratingIndex]?.trim()),
-        title: row[titleIndex] || "",
-        content: row[contentIndex] || "",
-        displayName: row[displayNameIndex] || customer?.email || "Verified customer",
-        purchaseChannel:
-          purchaseChannelIndex !== undefined ? row[purchaseChannelIndex] || null : null,
-        reviewImageUrl: importedImageUrl.valid ? importedImageUrl.value : null,
-        // Imported rows cannot be represented as verified purchases without a
-        // traceable order relation. They may still be published as unverified reviews.
-        verifiedPurchase: false,
-        incentivizedReview:
-          incentivizedReviewIndex !== undefined
-            ? parseCsvBoolean(row[incentivizedReviewIndex])
-            : false,
-        reviewDate: parsedReviewDate ?? new Date(),
-        status: nextStatus,
-        publishedAt: nextStatus === "PUBLISHED" ? parsedReviewDate ?? new Date() : null,
-        source: "ADMIN_IMPORT"
-      }
-    });
-  }
-
-  revalidatePath("/admin/reviews");
-  if (productSlug) {
+  revalidatePath("/admin/reviews/upload");
+  const productSlugs = Array.from(
+    new Set(rowsWithProducts.map(({ product }) => product!.slug))
+  );
+  for (const productSlug of productSlugs) {
     revalidatePath(`/admin/reviews/${productSlug}`);
   }
-  refreshStorefront(productSlug ? [productSlug] : []);
-  redirect(buildReviewRedirect("imported", redirectTo, productSlug));
+  refreshStorefront(productSlugs);
+  redirect(buildReviewUploadRedirect("uploaded", { count: parsed.rows.length }));
 }
 
 export async function saveStoreSettingsAction(formData: FormData) {

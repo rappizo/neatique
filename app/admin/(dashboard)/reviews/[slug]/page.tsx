@@ -5,7 +5,6 @@ import { ReviewBulkActionButton } from "@/components/admin/review-bulk-action-bu
 import { ReviewBulkSelectToggle } from "@/components/admin/review-bulk-select-toggle";
 import { ReviewInlineRow } from "@/components/admin/review-inline-row";
 import { RatingStars } from "@/components/ui/rating-stars";
-import { bulkImportReviewsAction } from "@/app/admin/actions";
 import { getAdminReviewPageByProductSlug } from "@/lib/queries";
 
 type AdminProductReviewsPageProps = {
@@ -14,8 +13,6 @@ type AdminProductReviewsPageProps = {
 };
 
 const pageSize = 50;
-const csvColumns =
-  "displayName,email,rating,title,content,purchaseChannel,reviewImageUrl,reviewDate,status,incentivizedReview";
 
 function buildPageHref(slug: string, page: number) {
   return `/admin/reviews/${slug}?page=${page}`;
@@ -76,8 +73,8 @@ export default async function AdminProductReviewsPage({
         <p className="eyebrow">Reviews / {product.name}</p>
         <h1>Edit reviews for {product.name}.</h1>
         <p>
-          Moderate reviews, update ratings, and import more comments for this product without
-          loading the rest of the catalog.
+          Moderate reviews and update ratings for this product without loading the rest of the
+          catalog.
         </p>
       </div>
 
@@ -87,6 +84,12 @@ export default async function AdminProductReviewsPage({
         </Link>
         <Link href={`/shop/${product.slug}`} className="button button--ghost">
           View Product Page
+        </Link>
+        <Link
+          href={`/api/admin/reviews/${product.slug}/export`}
+          className="button button--secondary"
+        >
+          Export CSV
         </Link>
       </div>
 
@@ -141,34 +144,6 @@ export default async function AdminProductReviewsPage({
               )}
             </div>
 
-            <form action={bulkImportReviewsAction} encType="multipart/form-data" className="admin-form">
-              <input type="hidden" name="productSlug" value={product.slug} />
-              <input type="hidden" name="redirectTo" value={redirectTo} />
-              <div className="field">
-                <label htmlFor={`csvFile-${product.id}`}>Upload CSV for {product.name}</label>
-                <input
-                  id={`csvFile-${product.id}`}
-                  name="csvFile"
-                  type="file"
-                  accept=".csv,text/csv"
-                />
-              </div>
-              <p className="form-note">
-                CSV columns: <code>{csvColumns}</code>. Imported reviews remain unverified unless a
-                traceable completed order is linked through the customer review workflow.
-              </p>
-              <div className="stack-row">
-                <button type="submit" className="button button--primary">
-                  Import CSV
-                </button>
-                <Link
-                  href={`/api/admin/reviews/${product.slug}/export`}
-                  className="button button--secondary"
-                >
-                  Export CSV
-                </Link>
-              </div>
-            </form>
           </div>
         </div>
       </section>
@@ -284,7 +259,13 @@ export default async function AdminProductReviewsPage({
       ) : (
         <section className="admin-form admin-review-item">
           <h3>No reviews yet</h3>
-          <p>Upload a CSV for {product.name} or wait for customer reviews to appear here.</p>
+          <p>
+            Use the separate Upload Reviews page to import a CSV, or wait for customer reviews to
+            appear here.
+          </p>
+          <Link href="/admin/reviews/upload" className="button button--primary">
+            Upload Reviews
+          </Link>
         </section>
       )}
     </div>
