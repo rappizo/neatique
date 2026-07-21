@@ -1,11 +1,12 @@
 import { normalizeArticleContent } from "@/lib/article-format";
 import { generateImageWithApiYi, getApiYiImageSettings } from "@/lib/apiyi-images";
+import {
+  extractApiYiErrorMessage,
+  getApiYiResponseOutputText,
+  getApiYiTextSettings
+} from "@/lib/apiyi";
 import { siteConfig } from "@/lib/site-config";
 import { slugify } from "@/lib/utils";
-
-const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL || "https://api.openai.com/v1";
-const DEFAULT_OPENAI_POST_MODEL = process.env.OPENAI_POST_MODEL || process.env.OPENAI_EMAIL_MODEL || "gpt-5.4-mini";
-const DEFAULT_OPENAI_POST_IMAGE_MODEL = process.env.OPENAI_POST_IMAGE_MODEL || "gpt-image-1";
 
 type ProductContext = {
   id: string;
@@ -68,19 +69,15 @@ export type PostImageReferenceAsset = {
   data: Buffer;
 };
 
-function getOpenAiApiKey() {
-  return (process.env.OPENAI_API_KEY || "").trim();
-}
-
-export function getOpenAiPostSettings() {
-  const apiKey = getOpenAiApiKey();
+export function getApiYiPostSettings() {
+  const textSettings = getApiYiTextSettings();
   const apiYiImageSettings = getApiYiImageSettings();
 
   return {
-    ready: Boolean(apiKey),
-    model: DEFAULT_OPENAI_POST_MODEL,
-    imageModel: apiYiImageSettings.ready ? apiYiImageSettings.model : DEFAULT_OPENAI_POST_IMAGE_MODEL,
-    apiKeyConfigured: Boolean(apiKey)
+    ready: textSettings.ready && apiYiImageSettings.ready,
+    model: textSettings.model,
+    imageModel: apiYiImageSettings.model,
+    apiKeyConfigured: textSettings.apiKeyConfigured
   };
 }
 
@@ -168,39 +165,12 @@ function buildExternalReferenceSummary(references: AllowedExternalReference[]) {
     .join("\n");
 }
 
-function getResponseOutputText(response: any) {
-  if (typeof response?.output_text === "string" && response.output_text.trim()) {
-    return response.output_text.trim();
-  }
-
-  const outputBlocks = Array.isArray(response?.output) ? response.output : [];
-
-  for (const block of outputBlocks) {
-    const contents = Array.isArray(block?.content) ? block.content : [];
-    for (const content of contents) {
-      if (typeof content?.text === "string" && content.text.trim()) {
-        return content.text.trim();
-      }
-    }
-  }
-
-  return "";
-}
-
 function safeJsonParse(value: string) {
   try {
     return JSON.parse(value);
   } catch {
     return null;
   }
-}
-
-function extractOpenAiErrorMessage(error: unknown) {
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-
-  return null;
 }
 
 function normalizeExternalLinks(
@@ -249,10 +219,10 @@ function buildBrandedPostImagePrompt(basePrompt: string, product: ProductContext
 export async function generateSeoPostDraftWithAi(
   input: GenerateSeoPostInput
 ): Promise<GeneratedSeoPostDraft> {
-  const apiKey = getOpenAiApiKey();
+  const settings = getApiYiTextSettings();
 
-  if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+  if (!settings.ready) {
+    throw new Error("APIYI API key is not configured.");
   }
 
   const allowedExternalReferences = getAllowedExternalReferences(input.product);
@@ -308,14 +278,14 @@ export async function generateSeoPostDraftWithAi(
     ]
   };
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+  const response = await fetch(`${settings.baseUrl}/responses`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${settings.apiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: DEFAULT_OPENAI_POST_MODEL,
+      model: settings.model,
       input: [
         {
           role: "system",
@@ -397,15 +367,15 @@ export async function generateSeoPostDraftWithAi(
       parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
     const message =
       (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI request failed with ${response.status}.`;
+        ? extractApiYiErrorMessage(parsedRecord.error)
+        : null) || `APIYI request failed with ${response.status}.`;
     throw new Error(message);
   }
 
-  const outputText = getResponseOutputText(parsed);
+  const outputText = getApiYiResponseOutputText(parsed);
 
   if (!outputText) {
-    throw new Error("OpenAI did not return an SEO post draft.");
+    throw new Error("APIYI did not return an SEO post draft.");
   }
 
   const output = safeJsonParse(outputText);
@@ -427,7 +397,7 @@ export async function generateSeoPostDraftWithAi(
     typeof normalizedOutput.imagePrompt !== "string" ||
     typeof normalizedOutput.content !== "string"
   ) {
-    throw new Error("OpenAI returned an invalid SEO post draft.");
+    throw new Error("APIYI returned an invalid SEO post draft.");
   }
 
   return {
@@ -460,62 +430,19 @@ export async function generateSeoPostDraftWithAi(
 export async function generateSeoPostImageWithAi(prompt: string): Promise<GeneratedPostImageAsset> {
   const apiYiImageSettings = getApiYiImageSettings();
 
-  if (apiYiImageSettings.ready) {
-    const image = await generateImageWithApiYi({
-      prompt,
-      aspectRatio: "16:9",
-      imageSize: "2K"
-    });
-
-    return {
-      mimeType: image.mimeType,
-      base64Data: image.data.toString("base64")
-    };
+  if (!apiYiImageSettings.ready) {
+    throw new Error("APIYI image generation is not configured.");
   }
 
-  const apiKey = getOpenAiApiKey();
-
-  if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
-  }
-
-  const response = await fetch(`${OPENAI_API_BASE_URL}/images/generations`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: DEFAULT_OPENAI_POST_IMAGE_MODEL,
-      prompt,
-      size: "1536x1024",
-      quality: "medium"
-    })
+  const image = await generateImageWithApiYi({
+    prompt,
+    aspectRatio: "16:9",
+    imageSize: "2K"
   });
 
-  const rawText = await response.text();
-  const parsed = rawText ? safeJsonParse(rawText) : null;
-
-  if (!response.ok) {
-    const parsedRecord =
-      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-    const message =
-      (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI image generation failed with ${response.status}.`;
-    throw new Error(message);
-  }
-
-  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
-  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
-
-  if (!base64Data) {
-    throw new Error("OpenAI did not return a cover image.");
-  }
-
   return {
-    mimeType: "image/png",
-    base64Data
+    mimeType: image.mimeType,
+    base64Data: image.data.toString("base64")
   };
 }
 
@@ -525,78 +452,27 @@ export async function generateSeoPostImageFromProductReferenceWithAi(
 ): Promise<GeneratedPostImageAsset> {
   const apiYiImageSettings = getApiYiImageSettings();
 
-  if (apiYiImageSettings.ready) {
-    const image = await generateImageWithApiYi({
-      prompt: [
-        prompt,
-        "Use the supplied product image as the binding reference for packaging shape, label placement, brand palette, and product identity.",
-        "Preserve all visible product text exactly and do not invent or rearrange packaging copy."
-      ].join(" "),
-      referenceImages: [{
-        mimeType: referenceImage.mimeType,
-        data: referenceImage.data
-      }],
-      aspectRatio: "16:9",
-      imageSize: "2K"
-    });
-
-    return {
-      mimeType: image.mimeType,
-      base64Data: image.data.toString("base64")
-    };
+  if (!apiYiImageSettings.ready) {
+    throw new Error("APIYI image generation is not configured.");
   }
 
-  const apiKey = getOpenAiApiKey();
-
-  if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
-  }
-
-  const formData = new FormData();
-  formData.append("model", DEFAULT_OPENAI_POST_IMAGE_MODEL);
-  formData.append("prompt", [
-    prompt,
-    "Use the supplied product image as the reference for packaging shape, label placement, brand palette, and overall product identity.",
-    "Turn that core product into a premium editorial scene image rather than returning a simple cutout or plain product packshot."
-  ].join(" "));
-  formData.append("size", "1536x1024");
-  formData.append("quality", "medium");
-  formData.append(
-    "image",
-    new Blob([new Uint8Array(referenceImage.data)], { type: referenceImage.mimeType }),
-    referenceImage.fileName
-  );
-
-  const response = await fetch(`${OPENAI_API_BASE_URL}/images/edits`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: formData
+  const image = await generateImageWithApiYi({
+    prompt: [
+      prompt,
+      "Use the supplied product image as the binding reference for packaging shape, label placement, brand palette, and product identity.",
+      "Preserve all visible product text exactly and do not invent or rearrange packaging copy.",
+      "Turn the referenced product into a premium editorial scene rather than a simple cutout or plain packshot."
+    ].join(" "),
+    referenceImages: [{
+      mimeType: referenceImage.mimeType,
+      data: referenceImage.data
+    }],
+    aspectRatio: "16:9",
+    imageSize: "2K"
   });
 
-  const rawText = await response.text();
-  const parsed = rawText ? safeJsonParse(rawText) : null;
-
-  if (!response.ok) {
-    const parsedRecord =
-      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-    const message =
-      (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI image edit failed with ${response.status}.`;
-    throw new Error(message);
-  }
-
-  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
-  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
-
-  if (!base64Data) {
-    throw new Error("OpenAI did not return a cover image from the product reference.");
-  }
-
   return {
-    mimeType: "image/png",
-    base64Data
+    mimeType: image.mimeType,
+    base64Data: image.data.toString("base64")
   };
 }

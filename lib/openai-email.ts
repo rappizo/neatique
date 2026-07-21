@@ -1,8 +1,10 @@
 import { siteConfig } from "@/lib/site-config";
 import type { EmailAudienceType } from "@/lib/types";
-
-const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL || "https://api.openai.com/v1";
-const DEFAULT_OPENAI_EMAIL_MODEL = process.env.OPENAI_EMAIL_MODEL || "gpt-5.4-mini";
+import {
+  extractApiYiErrorMessage,
+  getApiYiResponseOutputText,
+  getApiYiTextSettings
+} from "@/lib/apiyi";
 
 type EmailProductContext = {
   name: string;
@@ -50,18 +52,8 @@ type GeneratedMailboxReply = {
   replyText: string;
 };
 
-function getOpenAiApiKey() {
-  return (process.env.OPENAI_API_KEY || "").trim();
-}
-
-export function getOpenAiEmailSettings() {
-  const apiKey = getOpenAiApiKey();
-
-  return {
-    ready: Boolean(apiKey),
-    model: DEFAULT_OPENAI_EMAIL_MODEL,
-    apiKeyConfigured: Boolean(apiKey)
-  };
+export function getApiYiEmailSettings() {
+  return getApiYiTextSettings();
 }
 
 function clipText(value: string, maxLength: number) {
@@ -119,25 +111,6 @@ function buildAudienceHint(audienceType: EmailAudienceType) {
   }
 }
 
-function getResponseOutputText(response: any) {
-  if (typeof response?.output_text === "string" && response.output_text.trim()) {
-    return response.output_text.trim();
-  }
-
-  const outputBlocks = Array.isArray(response?.output) ? response.output : [];
-
-  for (const block of outputBlocks) {
-    const contents = Array.isArray(block?.content) ? block.content : [];
-    for (const content of contents) {
-      if (typeof content?.text === "string" && content.text.trim()) {
-        return content.text.trim();
-      }
-    }
-  }
-
-  return "";
-}
-
 function buildMailboxStyleExamplesSummary(
   examples: NonNullable<GenerateMailboxReplyInput["styleExamples"]>
 ) {
@@ -162,10 +135,10 @@ function buildMailboxStyleExamplesSummary(
 export async function generateEmailCampaignDraftWithAi(
   input: GenerateEmailCampaignDraftInput
 ): Promise<GeneratedEmailCampaignDraft> {
-  const apiKey = getOpenAiApiKey();
+  const settings = getApiYiTextSettings();
 
-  if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+  if (!settings.ready) {
+    throw new Error("APIYI API key is not configured.");
   }
 
   const productCatalogSummary = buildProductCatalogSummary(input.products);
@@ -196,14 +169,14 @@ export async function generateEmailCampaignDraftWithAi(
     required: ["subject", "previewText", "contentHtml", "contentText"]
   };
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+  const response = await fetch(`${settings.baseUrl}/responses`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${settings.apiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: DEFAULT_OPENAI_EMAIL_MODEL,
+      model: settings.model,
       input: [
         {
           role: "system",
@@ -267,15 +240,15 @@ export async function generateEmailCampaignDraftWithAi(
       parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
     const message =
       (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI request failed with ${response.status}.`;
+        ? extractApiYiErrorMessage(parsedRecord.error)
+        : null) || `APIYI request failed with ${response.status}.`;
     throw new Error(message);
   }
 
-  const outputText = getResponseOutputText(parsed);
+  const outputText = getApiYiResponseOutputText(parsed);
 
   if (!outputText) {
-    throw new Error("OpenAI did not return campaign content.");
+    throw new Error("APIYI did not return campaign content.");
   }
 
   const output = safeJsonParse(outputText);
@@ -289,7 +262,7 @@ export async function generateEmailCampaignDraftWithAi(
     typeof normalizedOutput.contentHtml !== "string" ||
     typeof normalizedOutput.contentText !== "string"
   ) {
-    throw new Error("OpenAI returned an invalid campaign draft.");
+    throw new Error("APIYI returned an invalid campaign draft.");
   }
 
   return {
@@ -303,10 +276,10 @@ export async function generateEmailCampaignDraftWithAi(
 export async function generateMailboxReplyWithAi(
   input: GenerateMailboxReplyInput
 ): Promise<GeneratedMailboxReply> {
-  const apiKey = getOpenAiApiKey();
+  const settings = getApiYiTextSettings();
 
-  if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+  if (!settings.ready) {
+    throw new Error("APIYI API key is not configured.");
   }
 
   const schema = {
@@ -324,14 +297,14 @@ export async function generateMailboxReplyWithAi(
 
   const styleExamplesSummary = buildMailboxStyleExamplesSummary(input.styleExamples || []);
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+  const response = await fetch(`${settings.baseUrl}/responses`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${settings.apiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: DEFAULT_OPENAI_EMAIL_MODEL,
+      model: settings.model,
       input: [
         {
           role: "system",
@@ -394,15 +367,15 @@ export async function generateMailboxReplyWithAi(
       parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
     const message =
       (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI request failed with ${response.status}.`;
+        ? extractApiYiErrorMessage(parsedRecord.error)
+        : null) || `APIYI request failed with ${response.status}.`;
     throw new Error(message);
   }
 
-  const outputText = getResponseOutputText(parsed);
+  const outputText = getApiYiResponseOutputText(parsed);
 
   if (!outputText) {
-    throw new Error("OpenAI did not return reply content.");
+    throw new Error("APIYI did not return reply content.");
   }
 
   const output = safeJsonParse(outputText);
@@ -410,20 +383,12 @@ export async function generateMailboxReplyWithAi(
     output && typeof output === "object" ? (output as Record<string, unknown>) : null;
 
   if (!normalizedOutput || typeof normalizedOutput.replyText !== "string") {
-    throw new Error("OpenAI returned an invalid reply payload.");
+    throw new Error("APIYI returned an invalid reply payload.");
   }
 
   return {
     replyText: normalizedOutput.replyText.trim()
   };
-}
-
-function extractOpenAiErrorMessage(error: unknown) {
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-
-  return null;
 }
 
 function safeJsonParse(value: string) {

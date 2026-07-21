@@ -211,7 +211,7 @@ export async function ensureComicWorkspaceScaffold() {
       "",
       "## Color and lighting logic",
       "",
-      "## What `gpt-image-2` prompts should keep stable"
+      "## What image-model prompts should keep stable"
     ].join("\n")
   );
 
@@ -382,7 +382,7 @@ export async function ensureComicChapterWorkspace(
       "- hallways and room layouts",
       "- special campus landmarks used only in this chapter",
       "",
-      "When building prompts for `gpt-image-2`, upload only the scene sheets that are relevant to the current panel."
+      "When building image prompts, upload only the scene sheets that are relevant to the current panel."
     ].join("\n")
   );
 }

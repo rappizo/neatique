@@ -130,8 +130,8 @@ test("comic reference resolver avoids Snacri model and full-cast refs for note-o
 });
 
 test("comic reference resolver preserves comparison references when reference limit is tight", async () => {
-  const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
-  process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";
+  const previousLimit = process.env.COMIC_MAX_REFERENCE_IMAGES;
+  process.env.COMIC_MAX_REFERENCE_IMAGES = "4";
 
   try {
     const references = await resolveComicPageReferenceImages({
@@ -162,9 +162,9 @@ test("comic reference resolver preserves comparison references when reference li
     );
   } finally {
     if (previousLimit === undefined) {
-      delete process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+      delete process.env.COMIC_MAX_REFERENCE_IMAGES;
     } else {
-      process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = previousLimit;
+      process.env.COMIC_MAX_REFERENCE_IMAGES = previousLimit;
     }
   }
 });

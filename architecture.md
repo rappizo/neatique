@@ -21,7 +21,7 @@ flowchart LR
 
   NextApp --> Stripe[Stripe Checkout/Webhook]
   NextApp --> Blob[Vercel Blob]
-  NextApp --> OpenAI[OpenAI / Image Models]
+  NextApp --> APIYI[APIYI / AI Models]
   NextApp --> Brevo[Brevo Marketing]
   NextApp --> SMTP[SMTP / IMAP Mail]
 
@@ -35,7 +35,7 @@ flowchart LR
 - 后台页面：以运营管理、内容生产、审核和自动化为主。
 - 数据库：保存结构化业务数据，不再作为正式大图存储主路径。
 - 媒体：正式商品、博客、首页、吉祥物和漫画图片优先走 Vercel Blob。
-- 外部服务：Stripe 负责支付，Brevo 负责营销邮件，OpenAI 负责 AI 文案/图片，SMTP/IMAP 负责邮箱。
+- 外部服务：Stripe 负责支付，Brevo 负责营销邮件，APIYI 统一负责 AI 文案/图片，SMTP/IMAP 负责邮箱。
 
 ## 2. 网站地图
 
@@ -261,7 +261,7 @@ flowchart LR
   Prisma --> DB[(Supabase Postgres)]
   Services --> Blob[Vercel Blob]
   Services --> Stripe[Stripe]
-  Services --> OpenAI[OpenAI]
+  Services --> APIYI[APIYI]
   Services --> Brevo[Brevo]
   Services --> Email[SMTP/IMAP]
 
@@ -728,13 +728,13 @@ sequenceDiagram
 sequenceDiagram
   participant Admin
   participant App
-  participant OpenAI
+  participant APIYI
   participant Blob
   participant DB
 
   Admin->>App: 生成文章/封面
-  App->>OpenAI: 请求文案或图片
-  OpenAI-->>App: 返回 draft / base64 image
+  App->>APIYI: 请求文案或图片
+  APIYI-->>App: 返回 draft / base64 image
   App->>Blob: 上传正式封面
   Blob-->>App: 返回 public URL
   App->>DB: 保存 Post + coverImageUrl
@@ -747,14 +747,14 @@ sequenceDiagram
 sequenceDiagram
   participant Admin
   participant App
-  participant OpenAI
+  participant APIYI
   participant Blob
   participant DB
   participant Reader
 
   Admin->>App: 生成页面图片任务
-  App->>OpenAI: 生成/编辑漫画图片
-  OpenAI-->>App: 返回图片
+  App->>APIYI: 生成/编辑漫画图片
+  APIYI-->>App: 返回图片
   App->>Blob: 上传图片
   Blob-->>App: 返回 imageUrl
   App->>DB: 创建 ComicEpisodeAsset

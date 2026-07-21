@@ -1,4 +1,6 @@
 import { Buffer } from "node:buffer";
+import { getApiYiTextSettings } from "@/lib/apiyi";
+import { generateImageWithApiYi, getApiYiImageSettings } from "@/lib/apiyi-images";
 import type { ComicReferenceImageFile } from "@/lib/comic-reference-images";
 import type { ComicCharacterIdentityLock } from "@/lib/comic-character-identity";
 import {
@@ -19,34 +21,26 @@ import {
 import sharp from "sharp";
 
 function normalizeApiBaseUrl(value: string) {
-  return (value.trim() || "https://api.openai.com/v1").replace(/\/+$/, "");
+  return (value.trim() || "https://api.apiyi.com/v1").replace(/\/+$/, "");
 }
 
-const OPENAI_API_BASE_URL = normalizeApiBaseUrl(
-  process.env.OPENAI_API_BASE_URL || "https://api.openai.com/v1"
-);
-const OPENAI_COMIC_IMAGE_API_BASE_URL = normalizeApiBaseUrl(
-  process.env.OPENAI_COMIC_IMAGE_API_BASE_URL || OPENAI_API_BASE_URL
-);
-const DEFAULT_OPENAI_COMIC_MODEL =
-  process.env.OPENAI_COMIC_MODEL ||
-  process.env.OPENAI_POST_MODEL ||
-  process.env.OPENAI_EMAIL_MODEL ||
-  "gpt-5.5";
+const APIYI_TEXT_SETTINGS = getApiYiTextSettings();
+const APIYI_API_BASE_URL = normalizeApiBaseUrl(APIYI_TEXT_SETTINGS.baseUrl);
+const DEFAULT_OPENAI_COMIC_MODEL = APIYI_TEXT_SETTINGS.model;
 const DEFAULT_OPENAI_COMIC_OUTLINE_MODEL =
-  process.env.OPENAI_COMIC_OUTLINE_MODEL || DEFAULT_OPENAI_COMIC_MODEL;
+  APIYI_TEXT_SETTINGS.model || DEFAULT_OPENAI_COMIC_MODEL;
 const DEFAULT_OPENAI_COMIC_PROMPT_MODEL =
-  process.env.OPENAI_COMIC_PROMPT_MODEL || DEFAULT_OPENAI_COMIC_MODEL;
+  APIYI_TEXT_SETTINGS.model || DEFAULT_OPENAI_COMIC_MODEL;
 const OPENAI_COMIC_OUTLINE_REASONING_EFFORT =
-  process.env.OPENAI_COMIC_OUTLINE_REASONING_EFFORT || "low";
+  process.env.COMIC_OUTLINE_REASONING_EFFORT || "low";
 const OPENAI_COMIC_PROMPT_REASONING_EFFORT =
-  process.env.OPENAI_COMIC_PROMPT_REASONING_EFFORT || "low";
+  process.env.COMIC_PROMPT_REASONING_EFFORT || "low";
 const DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS = 1000 * 60 * 10;
 const MAX_OPENAI_COMIC_OUTLINE_TIMEOUT_SECONDS = 60 * 13;
 const DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS = 1000 * 55;
 const DEFAULT_OPENAI_COMIC_IMAGE_TIMEOUT_MS = 1000 * 60 * 12;
 const MAX_OPENAI_COMIC_IMAGE_TIMEOUT_SECONDS = 60 * 12;
-const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2";
+const DEFAULT_OPENAI_COMIC_IMAGE_MODEL = process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image";
 const OPENAI_COMIC_IMAGE_PROMPT_MAX_LENGTH = 30000;
 const MUCI_MODEL_SHEET_EXACT_LOCK = [
   "Muci Model Sheet Exact Lock:",
@@ -467,12 +461,12 @@ type GenerateChineseComicChildOutlinesInput = {
   visualStyleGuide?: string | null;
 };
 
-function getOpenAiApiKey() {
-  return (process.env.OPENAI_API_KEY || "").trim();
+function getApiYiApiKey() {
+  return getApiYiTextSettings().apiKey;
 }
 
 function getOpenAiComicOutlineTimeoutMs() {
-  const configuredSeconds = Number.parseInt(process.env.OPENAI_COMIC_OUTLINE_TIMEOUT_SECONDS || "", 10);
+  const configuredSeconds = Number.parseInt(process.env.COMIC_OUTLINE_TIMEOUT_SECONDS || "", 10);
 
   if (!Number.isFinite(configuredSeconds) || configuredSeconds <= 0) {
     return DEFAULT_OPENAI_COMIC_OUTLINE_TIMEOUT_MS;
@@ -482,7 +476,7 @@ function getOpenAiComicOutlineTimeoutMs() {
 }
 
 function getOpenAiComicPromptTimeoutMs() {
-  const configuredSeconds = Number.parseInt(process.env.OPENAI_COMIC_PROMPT_TIMEOUT_SECONDS || "", 10);
+  const configuredSeconds = Number.parseInt(process.env.COMIC_PROMPT_TIMEOUT_SECONDS || "", 10);
 
   if (!Number.isFinite(configuredSeconds) || configuredSeconds <= 0) {
     return DEFAULT_OPENAI_COMIC_PROMPT_TIMEOUT_MS;
@@ -496,7 +490,7 @@ function getDefaultOpenAiComicImageTimeoutMs(_quality?: string | null) {
 }
 
 function getOpenAiComicImageTimeoutMs(quality?: string | null) {
-  const configuredSeconds = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_TIMEOUT_SECONDS || "", 10);
+  const configuredSeconds = Number.parseInt(process.env.COMIC_IMAGE_TIMEOUT_SECONDS || "", 10);
 
   if (!Number.isFinite(configuredSeconds) || configuredSeconds <= 0) {
     return getDefaultOpenAiComicImageTimeoutMs(quality);
@@ -518,7 +512,7 @@ function getOpenAiComicImageAbortSignal(quality?: string | null) {
 }
 
 function getOpenAiComicImageQuality(attempt = 1) {
-  const configured = process.env.OPENAI_COMIC_IMAGE_QUALITY?.trim();
+  const configured = process.env.COMIC_IMAGE_QUALITY?.trim();
 
   if (configured) {
     return configured;
@@ -551,7 +545,7 @@ function getStandaloneComicImageQualityGuide(quality: string) {
 }
 
 function getOpenAiComicImageOutputFormat() {
-  const configured = (process.env.OPENAI_COMIC_IMAGE_OUTPUT_FORMAT || "jpeg").trim().toLowerCase();
+  const configured = (process.env.COMIC_IMAGE_OUTPUT_FORMAT || "jpeg").trim().toLowerCase();
 
   if (configured === "jpg") {
     return "jpeg";
@@ -561,7 +555,7 @@ function getOpenAiComicImageOutputFormat() {
 }
 
 function getOpenAiComicImageOutputCompression() {
-  const configured = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_OUTPUT_COMPRESSION || "", 10);
+  const configured = Number.parseInt(process.env.COMIC_IMAGE_OUTPUT_COMPRESSION || "", 10);
 
   if (!Number.isFinite(configured) || configured <= 0) {
     return 70;
@@ -571,13 +565,13 @@ function getOpenAiComicImageOutputCompression() {
 }
 
 function getOpenAiComicImageEditQuality() {
-  const configured = process.env.OPENAI_COMIC_IMAGE_EDIT_QUALITY?.trim();
+  const configured = process.env.COMIC_IMAGE_EDIT_QUALITY?.trim();
 
   return configured || "low";
 }
 
 function getOpenAiComicImageEditSourceQuality(attempt = 1) {
-  const configured = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_EDIT_SOURCE_QUALITY || "", 10);
+  const configured = Number.parseInt(process.env.COMIC_IMAGE_EDIT_SOURCE_QUALITY || "", 10);
 
   if (Number.isFinite(configured) && configured > 0) {
     return Math.min(Math.max(configured, 45), 90);
@@ -587,7 +581,7 @@ function getOpenAiComicImageEditSourceQuality(attempt = 1) {
 }
 
 function getOpenAiComicImageEditSourceMaxWidth() {
-  const configured = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_EDIT_SOURCE_MAX_WIDTH || "", 10);
+  const configured = Number.parseInt(process.env.COMIC_IMAGE_EDIT_SOURCE_MAX_WIDTH || "", 10);
 
   if (!Number.isFinite(configured) || configured <= 0) {
     return 1024;
@@ -597,7 +591,7 @@ function getOpenAiComicImageEditSourceMaxWidth() {
 }
 
 function getOpenAiComicImageEditSourceMaxHeight() {
-  const configured = Number.parseInt(process.env.OPENAI_COMIC_IMAGE_EDIT_SOURCE_MAX_HEIGHT || "", 10);
+  const configured = Number.parseInt(process.env.COMIC_IMAGE_EDIT_SOURCE_MAX_HEIGHT || "", 10);
 
   if (!Number.isFinite(configured) || configured <= 0) {
     return 1536;
@@ -621,7 +615,7 @@ function getOpenAiComicImageInputFidelity(attempt = 1) {
     return "";
   }
 
-  const configured = process.env.OPENAI_COMIC_IMAGE_INPUT_FIDELITY?.trim();
+  const configured = process.env.COMIC_IMAGE_INPUT_FIDELITY?.trim();
 
   if (configured) {
     return configured;
@@ -646,7 +640,7 @@ function isOpenAiTimeoutError(error: unknown) {
 }
 
 function shouldUseOpenAiComicPromptBackgroundMode() {
-  return (process.env.OPENAI_COMIC_PROMPT_BACKGROUND || "true").trim().toLowerCase() !== "false";
+  return (process.env.COMIC_PROMPT_BACKGROUND || "true").trim().toLowerCase() !== "false";
 }
 
 function getOpenAiComicImageTimeoutMessage(label: string, quality?: string | null) {
@@ -680,7 +674,7 @@ async function fetchOpenAiComicImageResponse(
 
 async function fetchOpenAiComicOutlineResponse(apiKey: string, body: Record<string, unknown>) {
   try {
-    return await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+    return await fetch(`${APIYI_API_BASE_URL}/responses`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -692,9 +686,9 @@ async function fetchOpenAiComicOutlineResponse(apiKey: string, body: Record<stri
   } catch (error) {
     if (isOpenAiTimeoutError(error)) {
       throw new Error(
-        `OpenAI outline request timed out after ${Math.round(
+        `APIYI outline request timed out after ${Math.round(
           getOpenAiComicOutlineTimeoutMs() / 1000
-        )} seconds. The task can be retried automatically; if it keeps timing out, use a smaller revision scope or set OPENAI_COMIC_OUTLINE_MODEL to a faster model.`
+        )} seconds. The task can be retried automatically; if it keeps timing out, use a smaller revision scope or set AI_TEXT_MODEL to a faster model.`
       );
     }
 
@@ -942,7 +936,7 @@ function buildChineseOutlineTranslationPrompt(input: TranslateChineseComicOutlin
     "- Preserve Markdown headings, bullet structure, numbering, and emphasis where practical.",
     "- In Chinese summary and outline, use locked Chinese character names when provided; otherwise keep the English character name.",
     "- In summaryEn and outlineEn, keep English character names exactly.",
-    "- Keep model/tool terms such as Prompt, gpt-image-2, Season, Chapter, and Episode readable when they function as workflow labels.",
+    `- Keep model/tool terms such as Prompt, ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}, Season, Chapter, and Episode readable when they function as workflow labels.`,
     "- Do not add new plot beats, remove existing beats, rename characters, or smooth over contradictions by inventing new canon.",
     "- The summary should be a faithful Chinese version of the existing summary, not a new pitch."
   ].join("\n");
@@ -951,10 +945,10 @@ function buildChineseOutlineTranslationPrompt(input: TranslateChineseComicOutlin
 async function requestChineseComicOutlineTranslation(
   input: TranslateChineseComicOutlineInput
 ): Promise<GeneratedChineseComicOutline> {
-  const apiKey = getOpenAiApiKey();
+  const apiKey = getApiYiApiKey();
 
   if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+    throw new Error("APIYI API key is not configured.");
   }
 
   if (!input.outline.trim()) {
@@ -1010,7 +1004,7 @@ async function requestChineseComicOutlineTranslation(
     const message =
       (parsedRecord && "error" in parsedRecord
         ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI outline translation failed with ${response.status}.`;
+        : null) || `APIYI outline translation failed with ${response.status}.`;
     throw new Error(message);
   }
 
@@ -1029,7 +1023,7 @@ async function requestChineseComicOutlineTranslation(
     !record.outline.trim() ||
     !record.outlineEn.trim()
   ) {
-    throw new Error("OpenAI did not return a valid translated Chinese comic outline.");
+    throw new Error("APIYI did not return a valid translated Chinese comic outline.");
   }
 
   return {
@@ -1071,10 +1065,10 @@ function getChildChineseOutlineSchema(childLevel: Exclude<ComicOutlineLevel, "PR
 }
 
 async function requestChineseComicOutline(input: GenerateChineseComicOutlineInput) {
-  const apiKey = getOpenAiApiKey();
+  const apiKey = getApiYiApiKey();
 
   if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+    throw new Error("APIYI API key is not configured.");
   }
 
   const response = await fetchOpenAiComicOutlineResponse(apiKey, {
@@ -1121,7 +1115,7 @@ async function requestChineseComicOutline(input: GenerateChineseComicOutlineInpu
     const message =
       (parsedRecord && "error" in parsedRecord
         ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI outline generation failed with ${response.status}.`;
+        : null) || `APIYI outline generation failed with ${response.status}.`;
     throw new Error(message);
   }
 
@@ -1142,7 +1136,7 @@ async function requestChineseComicOutline(input: GenerateChineseComicOutlineInpu
     !record.outline.trim() ||
     !record.outlineEn.trim()
   ) {
-    throw new Error("OpenAI did not return a valid Chinese comic outline.");
+    throw new Error("APIYI did not return a valid Chinese comic outline.");
   }
 
   return {
@@ -1222,10 +1216,10 @@ function buildChineseChildOutlinesUserPrompt(input: GenerateChineseComicChildOut
 }
 
 async function requestChineseComicChildOutlines(input: GenerateChineseComicChildOutlinesInput) {
-  const apiKey = getOpenAiApiKey();
+  const apiKey = getApiYiApiKey();
 
   if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+    throw new Error("APIYI API key is not configured.");
   }
 
   if (input.children.length === 0) {
@@ -1276,7 +1270,7 @@ async function requestChineseComicChildOutlines(input: GenerateChineseComicChild
     const message =
       (parsedRecord && "error" in parsedRecord
         ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI child outline generation failed with ${response.status}.`;
+        : null) || `APIYI child outline generation failed with ${response.status}.`;
     throw new Error(message);
   }
 
@@ -1310,7 +1304,7 @@ async function requestChineseComicChildOutlines(input: GenerateChineseComicChild
   const returnedIds = new Set(normalized.map((outline) => outline.id));
 
   if (input.children.some((child) => !returnedIds.has(child.id))) {
-    throw new Error("OpenAI did not return an outline for every requested child record.");
+    throw new Error("APIYI did not return an outline for every requested child record.");
   }
 
   return normalized;
@@ -1335,25 +1329,17 @@ export async function generateChineseComicChildOutlinesWithAi(
 }
 
 function getComicImageApiSettings() {
-  const comicImageApiKey = (process.env.OPENAI_COMIC_IMAGE_API_KEY || "").trim();
-
-  if (comicImageApiKey) {
-    return {
-      apiKey: comicImageApiKey,
-      baseUrl: OPENAI_COMIC_IMAGE_API_BASE_URL,
-      apiKeySource: "OPENAI_COMIC_IMAGE_API_KEY"
-    };
-  }
+  const settings = getApiYiImageSettings();
 
   return {
-    apiKey: getOpenAiApiKey(),
-    baseUrl: OPENAI_API_BASE_URL,
-    apiKeySource: "OPENAI_API_KEY"
+    apiKey: settings.apiKey,
+    baseUrl: settings.baseUrl,
+    apiKeySource: "APIYI_API_KEY"
   };
 }
 
-export function getOpenAiComicSettings() {
-  const apiKey = getOpenAiApiKey();
+export function getApiYiComicSettings() {
+  const apiKey = getApiYiApiKey();
   const imageApiSettings = getComicImageApiSettings();
 
   return {
@@ -1478,13 +1464,13 @@ async function requestComicLockRevision<T>(input: {
   errorMessage: string;
   validate: (record: Record<string, unknown>) => T | null;
 }) {
-  const apiKey = getOpenAiApiKey();
+  const apiKey = getApiYiApiKey();
 
   if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+    throw new Error("APIYI API key is not configured.");
   }
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+  const response = await fetch(`${APIYI_API_BASE_URL}/responses`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -1535,7 +1521,7 @@ async function requestComicLockRevision<T>(input: {
     const message =
       (parsedRecord && "error" in parsedRecord
         ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI lock revision failed with ${response.status}.`;
+        : null) || `APIYI lock revision failed with ${response.status}.`;
     throw new Error(message);
   }
 
@@ -1563,7 +1549,7 @@ export async function reviseComicCharacterLockWithAi(
     userPrompt: buildCharacterLockRevisionPrompt(input),
     schemaName: "comic_character_lock_revision",
     schema: getCharacterLockRevisionSchema(),
-    errorMessage: "OpenAI did not return a valid character lock revision.",
+    errorMessage: "APIYI did not return a valid character lock revision.",
     validate: (record) => {
       const revised = {
         role: requiredString(record, "role"),
@@ -1585,7 +1571,7 @@ export async function reviseComicSceneLockWithAi(
     userPrompt: buildSceneLockRevisionPrompt(input),
     schemaName: "comic_scene_lock_revision",
     schema: getSceneLockRevisionSchema(),
-    errorMessage: "OpenAI did not return a valid scene lock revision.",
+    errorMessage: "APIYI did not return a valid scene lock revision.",
     validate: (record) => {
       const revised = {
         summary: requiredString(record, "summary"),
@@ -1853,6 +1839,33 @@ function buildSceneSummary(scenes: ComicSceneContext[]) {
         ].join("\n")
     )
     .join("\n\n");
+}
+
+function getApiYiComicAspectRatio(value: string) {
+  const parsed = parseStandaloneAspectRatio(value);
+  const ratio = parsed.width / parsed.height;
+
+  if (ratio <= 0.7) return "2:3" as const;
+  if (ratio <= 0.79) return "3:4" as const;
+  if (ratio <= 0.9) return "4:5" as const;
+  if (ratio < 1.12) return "1:1" as const;
+  if (ratio < 1.3) return "5:4" as const;
+  if (ratio < 1.45) return "4:3" as const;
+  if (ratio < 1.65) return "3:2" as const;
+  return "16:9" as const;
+}
+
+function getApiYiComicImageSize(quality: string) {
+  if (quality === "high") return "4K" as const;
+  if (quality === "low") return "1K" as const;
+  return "2K" as const;
+}
+
+function toGeneratedComicImageAsset(image: { mimeType: string; data: Buffer }) {
+  return {
+    mimeType: image.mimeType,
+    base64Data: image.data.toString("base64")
+  };
 }
 
 function buildProductLockSummary(productLocks: ComicProductLockContext[] = []) {
@@ -2352,7 +2365,7 @@ function enforceComicImagePromptLength(prompt: string, preservedCurrentPageConte
     : "";
   const suffix = [
     "",
-    "[Image prompt trimmed to stay under the OpenAI image prompt length limit.]",
+    "[Image prompt trimmed to stay under the APIYI image prompt length limit.]",
     "The attached model-sheet images and the Profile MD identity locks already listed above remain binding.",
     preservedContext
   ].join("\n");
@@ -2368,7 +2381,7 @@ function enforceComicImageEditPromptLength(prompt: string, editInstruction: stri
 
   const suffix = [
     "",
-    "[Edit prompt context trimmed to stay under the OpenAI image prompt length limit.]",
+    "[Edit prompt context trimmed to stay under the APIYI image prompt length limit.]",
     "The attached source page, attached model-sheet references, and character identity locks remain binding.",
     "",
     "Admin edit request, preserved after trimming:",
@@ -2557,7 +2570,7 @@ function includePriorityReferences(
 }
 
 function getOpenAiComicImageReferenceLimit() {
-  const maxReferenceImages = Number.parseInt(process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES || "", 10);
+  const maxReferenceImages = Number.parseInt(process.env.COMIC_MAX_REFERENCE_IMAGES || "", 10);
 
   return Number.isFinite(maxReferenceImages) && maxReferenceImages > 0
     ? Math.min(Math.max(maxReferenceImages, 4), 16)
@@ -2688,7 +2701,7 @@ function getOpenAiResponseFailureMessage(response: unknown) {
   const reason =
     typeof incompleteDetails?.reason === "string" ? incompleteDetails.reason : getOpenAiResponseStatus(record);
 
-  return reason ? `OpenAI response ended with status: ${reason}.` : "";
+  return reason ? `APIYI response ended with status: ${reason}.` : "";
 }
 
 function getPendingComicPromptPackage(response: unknown): PendingComicPromptPackage | null {
@@ -2701,7 +2714,7 @@ function getPendingComicPromptPackage(response: unknown): PendingComicPromptPack
   const responseId = getOpenAiResponseId(response);
 
   if (!responseId) {
-    throw new Error("OpenAI prompt package response is pending but did not include a response id.");
+    throw new Error("APIYI prompt package response is pending but did not include a response id.");
   }
 
   return {
@@ -2710,8 +2723,8 @@ function getPendingComicPromptPackage(response: unknown): PendingComicPromptPack
     status,
     message:
       status === "queued"
-        ? "OpenAI is preparing this cover-plus-10-page prompt package."
-        : "OpenAI is still generating this cover-plus-10-page prompt package."
+        ? "APIYI is preparing this cover-plus-10-page prompt package."
+        : "APIYI is still generating this cover-plus-10-page prompt package."
   };
 }
 
@@ -2719,7 +2732,7 @@ function assertOpenAiPromptPackageIsComplete(response: unknown) {
   const status = getOpenAiResponseStatus(response);
 
   if (["failed", "cancelled", "incomplete", "expired"].includes(status)) {
-    throw new Error(getOpenAiResponseFailureMessage(response) || `OpenAI response ${status}.`);
+    throw new Error(getOpenAiResponseFailureMessage(response) || `APIYI response ${status}.`);
   }
 }
 
@@ -2953,7 +2966,7 @@ async function createOpenAiComicPromptPackageResponse(
   body: Record<string, unknown>
 ) {
   try {
-    const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+    const response = await fetch(`${APIYI_API_BASE_URL}/responses`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -2963,11 +2976,11 @@ async function createOpenAiComicPromptPackageResponse(
       body: JSON.stringify(body)
     });
 
-    return readOpenAiJsonResponse(response, "OpenAI prompt package request failed with");
+    return readOpenAiJsonResponse(response, "APIYI prompt package request failed with");
   } catch (error) {
     if (isOpenAiTimeoutError(error)) {
       throw new Error(
-        `OpenAI prompt package request timed out after ${Math.round(
+        `APIYI prompt package request timed out after ${Math.round(
           getOpenAiComicPromptTimeoutMs() / 1000
         )} seconds. The task can be retried automatically.`
       );
@@ -2980,7 +2993,7 @@ async function createOpenAiComicPromptPackageResponse(
 async function retrieveOpenAiComicPromptPackageResponse(apiKey: string, responseId: string) {
   try {
     const response = await fetch(
-      `${OPENAI_API_BASE_URL}/responses/${encodeURIComponent(responseId)}`,
+      `${APIYI_API_BASE_URL}/responses/${encodeURIComponent(responseId)}`,
       {
         method: "GET",
         headers: {
@@ -2990,11 +3003,11 @@ async function retrieveOpenAiComicPromptPackageResponse(apiKey: string, response
       }
     );
 
-    return readOpenAiJsonResponse(response, "OpenAI prompt package retrieval failed with");
+    return readOpenAiJsonResponse(response, "APIYI prompt package retrieval failed with");
   } catch (error) {
     if (isOpenAiTimeoutError(error)) {
       throw new Error(
-        `OpenAI prompt package status check timed out after ${Math.round(
+        `APIYI prompt package status check timed out after ${Math.round(
           getOpenAiComicPromptTimeoutMs() / 1000
         )} seconds. The task can be retried automatically.`
       );
@@ -3190,8 +3203,8 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
     trimImagePromptContext(promptPackCopyText, 1200),
     "",
     globalGptImage2Notes
-      ? `Global gpt-image-2 continuity notes:\n${trimImagePromptContext(globalGptImage2Notes, 700)}`
-      : "Global gpt-image-2 continuity notes: none stored.",
+      ? `Global image-model continuity notes:\n${trimImagePromptContext(globalGptImage2Notes, 700)}`
+      : "Global image-model continuity notes: none stored.",
     "",
     referenceNotesCopyText
       ? `Page-specific reference notes:\n${trimImagePromptContext(referenceNotesCopyText, 500)}`
@@ -3206,18 +3219,15 @@ export function buildComicPageImagePrompt(input: GenerateComicPageImageInput) {
 export async function generateComicPageImageWithAi(
   input: GenerateComicPageImageInput
 ): Promise<GeneratedComicPageImageAsset> {
-  const imageApiSettings = getComicImageApiSettings();
+  const imageApiSettings = getApiYiImageSettings();
 
-  if (!imageApiSettings.apiKey) {
-    throw new Error("Comic image API key is not configured.");
+  if (!imageApiSettings.ready) {
+    throw new Error("APIYI image generation is not configured.");
   }
 
   const attempt = Math.max(input.generationAttempt || 1, 1);
   const referenceImages = selectComicPageImageReferenceImages(input.referenceImages || [], attempt);
   const imageQuality = getOpenAiComicImageQuality(attempt);
-  const outputFormat = getOpenAiComicImageOutputFormat();
-  const outputMimeType = getOpenAiComicImageMimeType(outputFormat);
-  const outputCompression = getOpenAiComicImageOutputCompression();
   const prompt = buildComicPageImagePrompt({
     ...input,
     referenceImages
@@ -3229,77 +3239,27 @@ export async function generateComicPageImageWithAi(
     );
   }
 
-  const formData = new FormData();
-  formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
-  formData.append("prompt", prompt);
-  formData.append("size", "1024x1536");
-  formData.append("quality", imageQuality);
-  formData.append("output_format", outputFormat);
-  if (outputFormat !== "png") {
-    formData.append("output_compression", String(outputCompression));
-  }
-  formData.append("n", "1");
+  const image = await generateImageWithApiYi({
+    prompt,
+    referenceImages: referenceImages.map((referenceImage) => ({
+      mimeType: referenceImage.mimeType,
+      data: Buffer.from(referenceImage.data)
+    })),
+    aspectRatio: "2:3",
+    imageSize: getApiYiComicImageSize(imageQuality),
+    timeoutMs: getOpenAiComicImageTimeoutMs(imageQuality)
+  });
 
-  const inputFidelity = getOpenAiComicImageInputFidelity(attempt);
-  if (inputFidelity) {
-    formData.append("input_fidelity", inputFidelity);
-  }
-
-  for (const referenceImage of referenceImages) {
-    const blob = new Blob([new Uint8Array(referenceImage.data)], {
-      type: referenceImage.mimeType
-    });
-    formData.append("image[]", blob, referenceImage.fileName);
-  }
-
-  const response = await fetchOpenAiComicImageResponse(
-    `${imageApiSettings.baseUrl}/images/edits`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${imageApiSettings.apiKey}`
-      },
-      body: formData
-    },
-    "OpenAI comic page image reference edit",
-    imageQuality
-  );
-
-  const rawText = await response.text();
-  const parsed = rawText ? safeJsonParse(rawText) : null;
-
-  if (!response.ok) {
-    const parsedRecord =
-      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-    const message =
-      (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI comic page image reference edit failed with ${response.status}.`;
-    throw new Error(message);
-  }
-
-  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
-  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
-  const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
-
-  if (!base64Data) {
-    if (imageUrl) {
-      return fetchImageUrlAsBase64(imageUrl);
-    }
-
-    throw new Error("Comic image API did not return a reference-guided comic page image.");
-  }
-
-  return parseImageBase64Response(base64Data, outputMimeType);
+  return toGeneratedComicImageAsset(image);
 }
 
 export async function generateStandaloneComicImageWithAi(
   input: GenerateStandaloneComicImageInput
 ): Promise<GeneratedComicPageImageAsset> {
-  const imageApiSettings = getComicImageApiSettings();
+  const imageApiSettings = getApiYiImageSettings();
 
-  if (!imageApiSettings.apiKey) {
-    throw new Error("Comic image API key is not configured.");
+  if (!imageApiSettings.ready) {
+    throw new Error("APIYI image generation is not configured.");
   }
 
   const prompt = input.prompt.trim();
@@ -3310,8 +3270,6 @@ export async function generateStandaloneComicImageWithAi(
 
   const attempt = Math.max(input.generationAttempt || 1, 1);
   const imageQuality = getStandaloneComicImageQuality(input.quality, attempt);
-  const outputFormat = getOpenAiComicImageOutputFormat();
-  const outputMimeType = getOpenAiComicImageMimeType(outputFormat);
   const referenceImages = getStandaloneReferenceImages(input);
   const standalonePrompt = [
     prompt,
@@ -3326,134 +3284,24 @@ export async function generateStandaloneComicImageWithAi(
     .filter(Boolean)
     .join("\n");
 
-  if (referenceImages.length > 0) {
-    const normalizedReferenceImages = await Promise.all(
-      referenceImages.map((referenceImage) => normalizeStandaloneReferenceImageForAi(referenceImage))
-    );
-    const formData = new FormData();
-    formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
-    formData.append("prompt", standalonePrompt);
-    formData.append("size", getStandaloneComicImageApiSize(input.aspectRatio));
-    formData.append("quality", imageQuality);
-    if (outputFormat) {
-      formData.append("output_format", outputFormat);
-    }
-    if (outputFormat !== "png") {
-      formData.append("output_compression", String(getOpenAiComicImageOutputCompression()));
-    }
-    formData.append("n", "1");
-
-    for (const referenceImage of normalizedReferenceImages) {
-      const referenceBuffer = Buffer.from(referenceImage.base64Data, "base64");
-      formData.append(
-        normalizedReferenceImages.length === 1 ? "image" : "image[]",
-        new Blob([new Uint8Array(referenceBuffer)], { type: referenceImage.mimeType }),
-        referenceImage.fileName
-      );
-    }
-
-    const response = await fetchOpenAiComicImageResponse(
-      `${imageApiSettings.baseUrl}/images/edits`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${imageApiSettings.apiKey}`
-        },
-        body: formData
-      },
-      "OpenAI comic image reference creation",
-      imageQuality
-    );
-
-    const rawText = await response.text();
-    const parsed = rawText ? safeJsonParse(rawText) : null;
-
-    if (!response.ok) {
-      const parsedRecord =
-        parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-      const message =
-        (parsedRecord && "error" in parsedRecord
-          ? extractOpenAiErrorMessage(parsedRecord.error)
-          : null) || `OpenAI comic image reference creation failed with ${response.status}.`;
-      throw new Error(message);
-    }
-
-    const data =
-      parsed && typeof parsed === "object" && Array.isArray((parsed as any).data)
-        ? (parsed as any).data
-        : [];
-    const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
-    const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
-    const generatedImage = base64Data
-      ? parseImageBase64Response(base64Data, outputMimeType)
-      : imageUrl
-        ? await fetchImageUrlAsBase64(imageUrl)
-        : null;
-
-    if (!generatedImage) {
-      throw new Error("Comic image API did not return a reference-guided image.");
-    }
-
-    return cropStandaloneComicImageToAspectRatio(generatedImage, input.aspectRatio);
-  }
-
-  const body: Record<string, unknown> = {
-    model: DEFAULT_OPENAI_COMIC_IMAGE_MODEL,
-    prompt: standalonePrompt,
-    size: getStandaloneComicImageApiSize(input.aspectRatio),
-    quality: imageQuality,
-    n: 1
-  };
-
-  if (outputFormat) {
-    body.output_format = outputFormat;
-  }
-
-  if (outputFormat !== "png") {
-    body.output_compression = getOpenAiComicImageOutputCompression();
-  }
-
-  const response = await fetchOpenAiComicImageResponse(
-    `${imageApiSettings.baseUrl}/images/generations`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${imageApiSettings.apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    },
-    "OpenAI comic image creation",
-    imageQuality
+  const normalizedReferenceImages = await Promise.all(
+    referenceImages.map((referenceImage) => normalizeStandaloneReferenceImageForAi(referenceImage))
   );
+  const image = await generateImageWithApiYi({
+    prompt: standalonePrompt,
+    referenceImages: normalizedReferenceImages.map((referenceImage) => ({
+      mimeType: referenceImage.mimeType,
+      data: Buffer.from(referenceImage.base64Data, "base64")
+    })),
+    aspectRatio: getApiYiComicAspectRatio(input.aspectRatio),
+    imageSize: getApiYiComicImageSize(imageQuality),
+    timeoutMs: getOpenAiComicImageTimeoutMs(imageQuality)
+  });
 
-  const rawText = await response.text();
-  const parsed = rawText ? safeJsonParse(rawText) : null;
-
-  if (!response.ok) {
-    const parsedRecord =
-      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-    const message =
-      (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI comic image creation failed with ${response.status}.`;
-    throw new Error(message);
-  }
-
-  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
-  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
-  const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
-  const generatedImage = base64Data
-    ? parseImageBase64Response(base64Data, outputMimeType)
-    : imageUrl
-      ? await fetchImageUrlAsBase64(imageUrl)
-      : null;
-
-  if (!generatedImage) {
-    throw new Error("Comic image API did not return an image.");
-  }
-
-  return cropStandaloneComicImageToAspectRatio(generatedImage, input.aspectRatio);
+  return cropStandaloneComicImageToAspectRatio(
+    toGeneratedComicImageAsset(image),
+    input.aspectRatio
+  );
 }
 
 export async function generateChineseComicPageVersionWithAi(input: {
@@ -3462,18 +3310,15 @@ export async function generateChineseComicPageVersionWithAi(input: {
   episodeTitle: string;
   characterNameLocks?: ComicCharacterChineseNameLock[];
 }): Promise<GeneratedComicPageImageAsset> {
-  const imageApiSettings = getComicImageApiSettings();
+  const imageApiSettings = getApiYiImageSettings();
 
-  if (!imageApiSettings.apiKey) {
-    throw new Error("Comic image API key is not configured.");
+  if (!imageApiSettings.ready) {
+    throw new Error("APIYI image generation is not configured.");
   }
 
-  const formData = new FormData();
   const sourceBuffer = Buffer.from(input.sourceImage.base64Data, "base64");
-  formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
-  formData.append(
-    "prompt",
-    [
+  const image = await generateImageWithApiYi({
+    prompt: [
       "Create a Simplified Chinese version of the supplied approved comic page.",
       "Edit only the visible text on the page. Translate speech balloons, captions, signs, labels, and small readable English page text into natural Simplified Chinese.",
       "Keep the page art, panel layout, camera angles, character poses, character proportions, facial expressions, linework, gutters, page size, and composition unchanged.",
@@ -3485,59 +3330,17 @@ export async function generateChineseComicPageVersionWithAi(input: {
       "Do not add new English text, watermarks, logos, signatures, extra panels, or extra characters.",
       `Episode: ${input.episodeTitle}`,
       `Page: ${input.pageNumber}`
-    ].join("\n")
-  );
-  formData.append("size", "1024x1536");
-  formData.append("quality", getOpenAiComicImageQuality());
-  const outputFormat = getOpenAiComicImageOutputFormat();
-  formData.append("output_format", outputFormat);
-  if (outputFormat !== "png") {
-    formData.append("output_compression", String(getOpenAiComicImageOutputCompression()));
-  }
-  formData.append(
-    "image",
-    new Blob([new Uint8Array(sourceBuffer)], { type: input.sourceImage.mimeType }),
-    input.sourceImage.fileName
-  );
+    ].join("\n"),
+    referenceImages: [{
+      mimeType: input.sourceImage.mimeType,
+      data: sourceBuffer
+    }],
+    aspectRatio: "2:3",
+    imageSize: "2K",
+    timeoutMs: getOpenAiComicImageTimeoutMs()
+  });
 
-  const response = await fetchOpenAiComicImageResponse(
-    `${imageApiSettings.baseUrl}/images/edits`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${imageApiSettings.apiKey}`
-      },
-      body: formData
-    },
-    "OpenAI Chinese comic page image edit"
-  );
-
-  const rawText = await response.text();
-  const parsed = rawText ? safeJsonParse(rawText) : null;
-
-  if (!response.ok) {
-    const parsedRecord =
-      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-    const message =
-      (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `Comic Chinese page creation failed with ${response.status}.`;
-    throw new Error(message);
-  }
-
-  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
-  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
-  const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
-
-  if (!base64Data) {
-    if (imageUrl) {
-      return fetchImageUrlAsBase64(imageUrl);
-    }
-
-    throw new Error("Comic image API did not return a Chinese comic page image.");
-  }
-
-  return parseImageBase64Response(base64Data, getOpenAiComicImageMimeType(getOpenAiComicImageOutputFormat()));
+  return toGeneratedComicImageAsset(image);
 }
 
 export async function editComicPageImageWithAi(input: {
@@ -3551,10 +3354,10 @@ export async function editComicPageImageWithAi(input: {
   productLocks?: ComicProductLockContext[];
   attempt?: number;
 }): Promise<GeneratedComicPageImageAsset> {
-  const imageApiSettings = getComicImageApiSettings();
+  const imageApiSettings = getApiYiImageSettings();
 
-  if (!imageApiSettings.apiKey) {
-    throw new Error("Comic image API key is not configured.");
+  if (!imageApiSettings.ready) {
+    throw new Error("APIYI image generation is not configured.");
   }
 
   const editInstruction = input.editInstruction.trim();
@@ -3576,8 +3379,6 @@ export async function editComicPageImageWithAi(input: {
     activeCharacterSlugs
   );
   const imageQuality = getOpenAiComicImageEditQuality();
-  const formData = new FormData();
-  formData.append("model", DEFAULT_OPENAI_COMIC_IMAGE_MODEL);
   const editPrompt = [
       "Edit the supplied finished comic page using it as the primary reference image.",
       "The first attached image is the source page to edit. Additional attached images are identity/continuity references and must be used as exact locks, not loose inspiration.",
@@ -3645,76 +3446,33 @@ export async function editComicPageImageWithAi(input: {
     ]
       .filter(Boolean)
       .join("\n");
-  formData.append("prompt", enforceComicImageEditPromptLength(editPrompt, editInstruction));
-  formData.append("size", "1024x1536");
-  formData.append("quality", imageQuality);
-  const outputFormat = getOpenAiComicImageOutputFormat();
-  formData.append("output_format", outputFormat);
-  if (outputFormat !== "png") {
-    formData.append("output_compression", String(getOpenAiComicImageOutputCompression()));
-  }
-  const inputFidelity = getOpenAiComicImageInputFidelity(attempt);
-  if (inputFidelity) {
-    formData.append("input_fidelity", inputFidelity);
-  }
-
-  formData.append("image[]", new Blob([sourceImage.data], { type: sourceImage.mimeType }), sourceImage.fileName);
-
-  for (const referenceImage of referenceImages) {
-    formData.append(
-      "image[]",
-      new Blob([new Uint8Array(referenceImage.data)], { type: referenceImage.mimeType }),
-      referenceImage.fileName
-    );
-  }
-
-  const response = await fetchOpenAiComicImageResponse(
-    `${imageApiSettings.baseUrl}/images/edits`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${imageApiSettings.apiKey}`
+  const image = await generateImageWithApiYi({
+    prompt: enforceComicImageEditPromptLength(editPrompt, editInstruction),
+    referenceImages: [
+      {
+        mimeType: sourceImage.mimeType,
+        data: Buffer.from(sourceImage.data)
       },
-      body: formData
-    },
-    "OpenAI comic page image edit"
-  );
+      ...referenceImages.map((referenceImage) => ({
+        mimeType: referenceImage.mimeType,
+        data: Buffer.from(referenceImage.data)
+      }))
+    ],
+    aspectRatio: "2:3",
+    imageSize: getApiYiComicImageSize(imageQuality),
+    timeoutMs: getOpenAiComicImageTimeoutMs(imageQuality)
+  });
 
-  const rawText = await response.text();
-  const parsed = rawText ? safeJsonParse(rawText) : null;
-
-  if (!response.ok) {
-    const parsedRecord =
-      parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-    const message =
-      (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `Comic page image edit failed with ${response.status}.`;
-    throw new Error(message);
-  }
-
-  const data = parsed && typeof parsed === "object" && Array.isArray((parsed as any).data) ? (parsed as any).data : [];
-  const base64Data = typeof data?.[0]?.b64_json === "string" ? data[0].b64_json.trim() : "";
-  const imageUrl = typeof data?.[0]?.url === "string" ? data[0].url.trim() : "";
-
-  if (!base64Data) {
-    if (imageUrl) {
-      return fetchImageUrlAsBase64(imageUrl);
-    }
-
-    throw new Error("Comic image API did not return an edited comic page image.");
-  }
-
-  return parseImageBase64Response(base64Data, getOpenAiComicImageMimeType(getOpenAiComicImageOutputFormat()));
+  return toGeneratedComicImageAsset(image);
 }
 
 export async function reviseComicPagePromptWithAi(
   input: ReviseComicPagePromptInput
 ): Promise<RevisedComicPagePrompt> {
-  const apiKey = getOpenAiApiKey();
+  const apiKey = getApiYiApiKey();
 
   if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+    throw new Error("APIYI API key is not configured.");
   }
 
   const isCoverPage = isComicCoverPageNumber(input.pageNumber);
@@ -3770,7 +3528,7 @@ export async function reviseComicPagePromptWithAi(
     ]
   };
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+  const response = await fetch(`${APIYI_API_BASE_URL}/responses`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -3792,7 +3550,7 @@ export async function reviseComicPagePromptWithAi(
                 input.pageLabel
                   ? `Treat the visible/admin page label as "${input.pageLabel}". The numeric pageNumber is only an internal schema value.`
                   : null,
-                "Keep the page production-ready for gpt-image-2.",
+                `Keep the page production-ready for ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
                 "Keep the revised prompt concise and production-ready. Do not repeat long global locks; rely on requiredUploads, attached model sheets, and short positive model-sheet reminders.",
                 "Preserve the existing story continuity unless the suggestion explicitly asks for a composition change.",
                 "Do not remove required character or scene continuity details.",
@@ -3859,8 +3617,8 @@ export async function reviseComicPagePromptWithAi(
                   ? "- Keep one unified serif typeface for the exact cover title line."
                   : "- Every panel must return dialogueLines with exact speaker names and exact text to render in balloons or captions.",
                 isCoverPage
-                  ? "- The promptPackCopyText must include the exact cover title line and must tell gpt-image-2 to render it in a consistent serif font."
-                  : "- The promptPackCopyText must include those exact dialogue lines and must tell gpt-image-2 to render them in consistent clean manga lettering.",
+                  ? `- The promptPackCopyText must include the exact cover title line and must tell ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL} to render it in a consistent serif font.`
+                  : `- The promptPackCopyText must include those exact dialogue lines and must tell ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL} to render them in consistent clean manga lettering.`,
                 "- Keep character model-sheet identity locked.",
                 "- Make sure every full-body character keeps visible small rounded feet or foot nubs with the lower frame edge below the feet.",
                 "- Keep the feet connected to the body as one continuous mascot form; do not add a hard horizontal dividing line, shoe line, or solid seam between body and feet.",
@@ -3898,7 +3656,7 @@ export async function reviseComicPagePromptWithAi(
     const message =
       (parsedRecord && "error" in parsedRecord
         ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI page prompt revision failed with ${response.status}.`;
+        : null) || `APIYI page prompt revision failed with ${response.status}.`;
     throw new Error(message);
   }
 
@@ -3906,7 +3664,7 @@ export async function reviseComicPagePromptWithAi(
   const revised = outputText ? safeJsonParse(outputText) : null;
 
   if (!revised || typeof revised !== "object" || Array.isArray(revised)) {
-    throw new Error("OpenAI did not return a valid revised page prompt.");
+    throw new Error("APIYI did not return a valid revised page prompt.");
   }
 
   const record = revised as Record<string, any>;
@@ -3930,7 +3688,7 @@ export async function reviseComicPagePromptWithAi(
     : [];
 
   if (panels.length < minPanelCount) {
-    throw new Error("OpenAI returned too few revised panel beats.");
+    throw new Error("APIYI returned too few revised panel beats.");
   }
 
   const normalizedPanels = panels.slice(0, 3).map((panel, index) => ({
@@ -3982,10 +3740,10 @@ export async function generateComicPromptPackageWithAi(
   input: GenerateComicPromptPackageInput,
   options: ComicPromptPackageAiOptions = {}
 ): Promise<GeneratedComicPromptPackage | PendingComicPromptPackage> {
-  const apiKey = getOpenAiApiKey();
+  const apiKey = getApiYiApiKey();
 
   if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+    throw new Error("APIYI API key is not configured.");
   }
 
   const schema = {
@@ -4149,9 +3907,9 @@ export async function generateComicPromptPackageWithAi(
                 "Build exactly 10 story pages for every episode. The application prepends a generated Cover page prompt as page 0.",
                 "The generated Cover page does not count as any character's first appearance. Character first-appearance introduction boxes, name cards, role cards, profile boxes, or cast bio labels must only be planned on story pages 1-10.",
                 "Use 3 panels per page by default. Only use 2 panels when the story beat deserves extra visual space, such as a reveal, pause, emotional beat, or dramatic transition.",
-                "Every page must include a prompt block that is ready to copy and paste directly into gpt-image-2 after the right references are uploaded.",
+                `Every page must include a prompt block that is ready to send directly to ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL} after the right references are uploaded.`,
                 "Every page must also include a reference-notes block that is ready to copy and paste directly into the image workflow without cleanup.",
-                "When you build the upload checklist, explicitly state which character reference images, reusable scene reference images, and chapter scene reference images should be uploaded before using gpt-image-2.",
+                `When you build the upload checklist, explicitly state which character reference images, reusable scene reference images, and chapter scene reference images should be uploaded before using ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL}.`,
                 "If a named prop or object appears on multiple pages, treat it like a continuity asset: use an existing chapter scene reference if one exists, or explicitly flag that a prop/object reference should be created before image generation.",
                 "When a recurring prop reference exists in the chapter scene reference files, include it in requiredUploads on every page where that prop appears.",
                 "When the old student handbook, Student Handbook (old edition), or old handbook appears, use the chapter prop reference named Student Handbook (old edition).jpg if it exists; match its approved Episode 4 Page 10 design exactly, and never substitute the Sunscreen Field Handbook.jpg design.",
@@ -4230,7 +3988,7 @@ export async function generateComicPromptPackageWithAi(
                 "- Avoid panels where more than 2-3 characters are actively speaking or reacting unless the story beat absolutely requires a crowd moment.",
                 "- Every panel promptText must describe the speech balloon/caption/SFX placement and identify which character is speaking.",
                 "- Every promptPackCopyText block must include a Dialogue and lettering plan section listing every panel's exact dialogue lines.",
-                "- Every promptPackCopyText block must tell gpt-image-2 to render all listed dialogue lines and not omit speech balloons.",
+                `- Every promptPackCopyText block must tell ${DEFAULT_OPENAI_COMIC_IMAGE_MODEL} to render all listed dialogue lines and not omit speech balloons.`,
                 "- Every promptPackCopyText block must enforce one consistent clean rounded manga lettering style across balloons, captions, and SFX.",
                 "- Every promptPackCopyText block must include one compact style/anatomy line: black-and-white manga, pure white mascot bodies, no hands/arms, visible connected feet, and mouth-state continuity.",
                 "- Every promptPackCopyText block that includes Sunny Spritz must explicitly state that she keeps two small rounded feet directly under her soft five-point star body.",
@@ -4250,7 +4008,7 @@ export async function generateComicPromptPackageWithAi(
                 "- If a page uses the ring mark, ring symbol, ring insignia, scratched mark, removed mark, old plaque mark, or Luster Circle clue, include Scratched Ring Mark.jpg in requiredUploads when available.",
                 "- Required uploads must be organized per page, and each item must include real upload image file names plus the matching relative paths.",
                 "- Use CHARACTER for character model sheets, SCENE for reusable master location refs, and CHAPTER_SCENE for chapter-only location sheets.",
-                "- The global gpt-image-2 notes should explain how to preserve continuity, camera logic, reference reuse, clean high-contrast black-and-white manga style, pure white character fills, model-sheet exactness, mouth-state continuity, handless telekinetic action, exact dialogue rendering, and consistent lettering style across all 10 story pages plus the generated cover.",
+                "- The global image-model notes should explain how to preserve continuity, camera logic, reference reuse, clean high-contrast black-and-white manga style, pure white character fills, model-sheet exactness, mouth-state continuity, handless telekinetic action, exact dialogue rendering, and consistent lettering style across all 10 story pages plus the generated cover.",
                 "- Keep the tone useful, concrete, and ready for actual image production."
               ].join("\n")
             }
@@ -4284,7 +4042,7 @@ export async function generateComicPromptPackageWithAi(
   const outputText = getResponseOutputText(parsed);
 
   if (!outputText) {
-    throw new Error("OpenAI did not return a comic prompt package.");
+    throw new Error("APIYI did not return a comic prompt package.");
   }
 
   const output = safeJsonParse(outputText);
@@ -4299,7 +4057,7 @@ export async function generateComicPromptPackageWithAi(
     !Array.isArray(normalizedOutput.pages) ||
     typeof normalizedOutput.globalGptImage2Notes !== "string"
   ) {
-    throw new Error("OpenAI returned an invalid comic prompt package.");
+    throw new Error("APIYI returned an invalid comic prompt package.");
   }
 
   const pages = normalizedOutput.pages as GeneratedComicPagePrompt[];
@@ -4326,7 +4084,7 @@ export async function generateComicPromptPackageWithAi(
     });
 
   if (!hasValidPageShape) {
-    throw new Error("OpenAI returned story pages that do not match the 10-page comic workflow.");
+    throw new Error("APIYI returned story pages that do not match the 10-page comic workflow.");
   }
 
   const normalizedStoryPages = pages

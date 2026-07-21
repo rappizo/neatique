@@ -332,7 +332,7 @@ function buildLegacyReferenceNotes(
 
   return [
     `Page ${String(pageNumber).padStart(2, "0")} upload checklist converted from legacy panel output.`,
-    globalGptImage2Notes ? `Global gpt-image-2 notes:\n${globalGptImage2Notes}` : null,
+    globalGptImage2Notes ? `Global image-model notes:\n${globalGptImage2Notes}` : null,
     uploadLines.length > 0 ? `Upload these files before generating:\n${uploadLines.join("\n")}` : null
   ]
     .filter(Boolean)

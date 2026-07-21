@@ -139,7 +139,7 @@ function getMimeType(fileName: string) {
 }
 
 function getMaxComicReferenceImages() {
-  const configured = Number.parseInt(process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES || "", 10);
+  const configured = Number.parseInt(process.env.COMIC_MAX_REFERENCE_IMAGES || "", 10);
 
   if (!Number.isFinite(configured) || configured <= 0) {
     return DEFAULT_MAX_COMIC_REFERENCE_IMAGES;
@@ -149,7 +149,7 @@ function getMaxComicReferenceImages() {
 }
 
 function getMaxComicCharacterReferenceImages(maxReferences: number) {
-  const configured = Number.parseInt(process.env.OPENAI_COMIC_MAX_CHARACTER_REFERENCES || "", 10);
+  const configured = Number.parseInt(process.env.COMIC_MAX_CHARACTER_REFERENCES || "", 10);
 
   if (!Number.isFinite(configured) || configured <= 0) {
     return Math.min(DEFAULT_MAX_COMIC_CHARACTER_REFERENCE_IMAGES, maxReferences);
@@ -312,7 +312,7 @@ export function normalizeComicReferenceImageOverrides(value: unknown) {
 }
 
 function getComicReferenceBaseUrl() {
-  const explicitBaseUrl = process.env.OPENAI_COMIC_REFERENCE_BASE_URL;
+  const explicitBaseUrl = process.env.COMIC_REFERENCE_BASE_URL;
   const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
   const vercelBaseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "";
   const configuredBaseUrl =

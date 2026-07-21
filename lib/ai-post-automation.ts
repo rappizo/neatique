@@ -6,7 +6,7 @@ import {
   generateSeoPostDraftWithAi,
   generateSeoPostImageFromProductReferenceWithAi,
   generateSeoPostImageWithAi,
-  getOpenAiPostSettings
+  getApiYiPostSettings
 } from "@/lib/openai-posts";
 import { getDefaultProductImageReferenceAsset } from "@/lib/product-media";
 import { storePostCoverImage } from "@/lib/post-image-storage";
@@ -174,9 +174,9 @@ function isDueForAutomation(lastRunAt: Date | null, cadenceDays: number) {
 export async function runAiPostAutomation(
   input: RunAiPostAutomationInput
 ): Promise<RunAiPostAutomationResult> {
-  const [settingsMap, openAiSettings] = await Promise.all([
+  const [settingsMap, apiYiSettings] = await Promise.all([
     loadStoreSettingsMap(),
-    Promise.resolve(getOpenAiPostSettings())
+    Promise.resolve(getApiYiPostSettings())
   ]);
   const settings = getAiPostAutomationSettings(settingsMap);
 
@@ -189,11 +189,11 @@ export async function runAiPostAutomation(
     };
   }
 
-  if (!openAiSettings.ready) {
+  if (!apiYiSettings.ready) {
     return {
       ok: false,
-      status: "missing-openai-key",
-      error: "OPENAI_API_KEY is not configured."
+      status: "missing-apiyi-key",
+      error: "APIYI_API_KEY is not configured."
     };
   }
 
@@ -367,9 +367,9 @@ export async function runAiPostAutomation(
 }
 
 export async function getAiPostAutomationOverview(): Promise<AiPostAutomationOverviewRecord> {
-  const [settingsMap, openAiSettings, products, postCounts] = await Promise.all([
+  const [settingsMap, apiYiSettings, products, postCounts] = await Promise.all([
     loadStoreSettingsMap(),
-    Promise.resolve(getOpenAiPostSettings()),
+    Promise.resolve(getApiYiPostSettings()),
     prisma.product.findMany({
       where: {
         status: "ACTIVE"
@@ -423,7 +423,7 @@ export async function getAiPostAutomationOverview(): Promise<AiPostAutomationOve
     aiPostCount: postCounts.reduce((sum, item) => sum + item._count.id, 0),
     publishedAiPostCount: publishedGroup?._count.id ?? 0,
     draftAiPostCount: draftGroup?._count.id ?? 0,
-    model: openAiSettings.model,
-    imageModel: openAiSettings.imageModel
+    model: apiYiSettings.model,
+    imageModel: apiYiSettings.imageModel
   };
 }

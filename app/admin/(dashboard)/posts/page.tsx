@@ -24,7 +24,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   "automation-settings-saved": "AI post automation settings were saved.",
   "ai-post-draft-created": "AI created a new draft post.",
   "ai-post-published": "AI created and published a new post.",
-  "ai-failed-failed": "AI post generation failed. Review the latest status card for the exact OpenAI or database error.",
+  "ai-failed-failed": "AI post generation failed. Review the latest status card for the exact APIYI or database error.",
   "ai-skipped-not-due": "The next scheduled run is not due yet.",
   "ai-skipped-draft-pending": "An unpublished AI draft already exists, so the automation skipped creating another one.",
   "external-links-validated": "External links were checked and the latest report is ready below.",

@@ -9,7 +9,7 @@ import { ComicImageTaskQueueProvider } from "@/components/admin/comic-image-task
 import { parseComicBilingualText } from "@/lib/comic-bilingual-outline";
 import { getComicExtraStoryOutlinePage } from "@/lib/comic-queries";
 import { formatDate } from "@/lib/format";
-import { getOpenAiComicSettings } from "@/lib/openai-comic";
+import { getApiYiComicSettings } from "@/lib/openai-comic";
 
 type AdminComicExtraStoryOutlinePageProps = {
   searchParams: Promise<{ status?: string; storyId?: string }>;
@@ -59,10 +59,10 @@ function ExtraStoryBilingualPreview({ outline }: { outline: string }) {
 export default async function AdminComicExtraStoryOutlinePage({
   searchParams
 }: AdminComicExtraStoryOutlinePageProps) {
-  const [pageData, params, openAiSettings] = await Promise.all([
+  const [pageData, params, apiYiSettings] = await Promise.all([
     getComicExtraStoryOutlinePage(),
     searchParams,
-    Promise.resolve(getOpenAiComicSettings())
+    Promise.resolve(getApiYiComicSettings())
   ]);
   const selectedStory =
     pageData.extraStories.find((story) => story.id === params.storyId) ||
@@ -113,8 +113,8 @@ export default async function AdminComicExtraStoryOutlinePage({
           </section>
           <section className="admin-card">
             <p className="eyebrow">AI model</p>
-            <h3>{openAiSettings.model}</h3>
-            <p>{openAiSettings.ready ? "OpenAI key is configured." : "Set OPENAI_API_KEY first."}</p>
+            <h3>{apiYiSettings.model}</h3>
+            <p>{apiYiSettings.ready ? "APIYI key is configured." : "Set APIYI_API_KEY first."}</p>
           </section>
         </div>
 
@@ -189,7 +189,7 @@ export default async function AdminComicExtraStoryOutlinePage({
                   <button
                     type="submit"
                     className="button button--primary"
-                    disabled={!openAiSettings.ready || pageData.parentEpisodes.length === 0}
+                    disabled={!apiYiSettings.ready || pageData.parentEpisodes.length === 0}
                   >
                     Generate extra-story outline
                   </button>
@@ -292,7 +292,7 @@ export default async function AdminComicExtraStoryOutlinePage({
                   <ComicExtraStoryOutlineRevisionForm
                     episodeId={selectedStory.id}
                     episodeTitle={selectedStory.title}
-                    disabled={!openAiSettings.ready}
+                    disabled={!apiYiSettings.ready}
                   />
                 </div>
               </section>

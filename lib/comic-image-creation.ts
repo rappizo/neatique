@@ -9,7 +9,7 @@ import {
 } from "@/lib/comic-image-storage";
 import {
   generateStandaloneComicImageWithAi,
-  getOpenAiComicSettings
+  getApiYiComicSettings
 } from "@/lib/openai-comic";
 import { createComicTaskTimer, type ComicTaskTiming } from "@/lib/comic-task-timing";
 
@@ -422,7 +422,7 @@ export async function generateComicImageCreation(input: {
           prompt,
           aspectRatio,
           quality,
-          model: getOpenAiComicSettings().imageModel,
+          model: getApiYiComicSettings().imageModel,
           sourceType,
           referenceCreationId,
           referenceImageUrl,

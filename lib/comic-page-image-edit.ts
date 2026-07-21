@@ -296,12 +296,8 @@ export async function editComicPageImageForAsset(input: {
           data: {
             episodeId: asset.episodeId,
             promptType: "PAGE_IMAGE_EDIT",
-            model:
-              process.env.OPENAI_COMIC_MODEL ||
-              process.env.OPENAI_POST_MODEL ||
-              process.env.OPENAI_EMAIL_MODEL ||
-              "gpt-5.5",
-            imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          model: process.env.AI_TEXT_MODEL || "gpt-5.4-mini",
+          imageModel: process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image",
             status: "READY",
             inputContext,
             outputSummary: `Edited ${asset.episode.title} ${formatComicPageLabel(asset.sortOrder).toLowerCase()} from an existing page candidate with ${referenceImages.length} continuity reference image${referenceImages.length === 1 ? "" : "s"}.`,
@@ -340,12 +336,8 @@ export async function editComicPageImageForAsset(input: {
         data: {
           episodeId: asset.episodeId,
           promptType: "PAGE_IMAGE_EDIT",
-          model:
-            process.env.OPENAI_COMIC_MODEL ||
-            process.env.OPENAI_POST_MODEL ||
-            process.env.OPENAI_EMAIL_MODEL ||
-            "gpt-5.5",
-          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          model: process.env.AI_TEXT_MODEL || "gpt-5.4-mini",
+          imageModel: process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image",
           status: "FAILED",
           inputContext,
           outputSummary: `${formatComicPageLabel(asset.sortOrder)} image edit failed.`,

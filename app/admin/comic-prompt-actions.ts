@@ -218,12 +218,8 @@ export async function generateComicPromptPackageAction(formData: FormData) {
         data: {
           episodeId,
           promptType: "EPISODE_PROMPT_PACKAGE",
-          model:
-            process.env.OPENAI_COMIC_MODEL ||
-            process.env.OPENAI_POST_MODEL ||
-            process.env.OPENAI_EMAIL_MODEL ||
-            "gpt-5.5",
-          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          model: process.env.AI_TEXT_MODEL || "gpt-5.4-mini",
+          imageModel: process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image",
           status: "READY",
           inputContext,
           outputSummary: result.episodeLogline,
@@ -256,12 +252,8 @@ export async function generateComicPromptPackageAction(formData: FormData) {
       data: {
         episodeId,
         promptType: "EPISODE_PROMPT_PACKAGE",
-        model:
-          process.env.OPENAI_COMIC_MODEL ||
-          process.env.OPENAI_POST_MODEL ||
-          process.env.OPENAI_EMAIL_MODEL ||
-          "gpt-5.5",
-        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          model: process.env.AI_TEXT_MODEL || "gpt-5.4-mini",
+          imageModel: process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image",
         status: "FAILED",
         inputContext,
         outputSummary: "Prompt generation failed.",
@@ -545,12 +537,8 @@ export async function restoreComicPagePromptRevisionAction(formData: FormData) {
       data: {
         episodeId,
         promptType: "PAGE_PROMPT_REVISION",
-        model:
-          process.env.OPENAI_COMIC_MODEL ||
-          process.env.OPENAI_POST_MODEL ||
-          process.env.OPENAI_EMAIL_MODEL ||
-          "gpt-5.5",
-        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          model: process.env.AI_TEXT_MODEL || "gpt-5.4-mini",
+          imageModel: process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image",
         status: "READY",
         inputContext,
           outputSummary: `Restored ${episode.title} ${formatComicPageLabel(pageNumber).toLowerCase()} ${restoreVersion} prompt from revision history.`,
@@ -706,12 +694,8 @@ export async function reviseComicPagePromptAction(formData: FormData) {
         data: {
           episodeId,
           promptType: "PAGE_PROMPT_REVISION",
-          model:
-            process.env.OPENAI_COMIC_MODEL ||
-            process.env.OPENAI_POST_MODEL ||
-            process.env.OPENAI_EMAIL_MODEL ||
-            "gpt-5.5",
-          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          model: process.env.AI_TEXT_MODEL || "gpt-5.4-mini",
+          imageModel: process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image",
           status: "READY",
           inputContext,
           outputSummary: `Revised ${episode.title} ${formatComicPageLabel(pageNumber).toLowerCase()} prompt from admin suggestion.`,
@@ -732,12 +716,8 @@ export async function reviseComicPagePromptAction(formData: FormData) {
       data: {
         episodeId,
         promptType: "PAGE_PROMPT_REVISION",
-        model:
-          process.env.OPENAI_COMIC_MODEL ||
-          process.env.OPENAI_POST_MODEL ||
-          process.env.OPENAI_EMAIL_MODEL ||
-          "gpt-5.5",
-        imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          model: process.env.AI_TEXT_MODEL || "gpt-5.4-mini",
+          imageModel: process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image",
         status: "FAILED",
         inputContext,
         outputSummary: `${formatComicPageLabel(pageNumber)} prompt revision failed.`,

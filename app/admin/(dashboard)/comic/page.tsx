@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { syncComicWorkspaceAction } from "@/app/admin/comic-sync-actions";
-import { getOpenAiComicSettings } from "@/lib/openai-comic";
+import { getApiYiComicSettings } from "@/lib/openai-comic";
 import { getComicAdminOverview } from "@/lib/comic-queries";
 import { formatDate } from "@/lib/format";
 
@@ -21,9 +21,9 @@ const STATUS_MESSAGES: Record<string, string> = {
 export default async function AdminComicOverviewPage({
   searchParams
 }: AdminComicOverviewPageProps) {
-  const [overview, openAiSettings, params] = await Promise.all([
+  const [overview, apiYiSettings, params] = await Promise.all([
     getComicAdminOverview(),
-    Promise.resolve(getOpenAiComicSettings()),
+    Promise.resolve(getApiYiComicSettings()),
     searchParams
   ]);
 
@@ -65,12 +65,12 @@ export default async function AdminComicOverviewPage({
           <h3>{overview.characterCount} characters / {overview.sceneCount} scenes</h3>
           <p>
             Keep stable looks, personalities, and scene notes here so the prompt workflow can tell
-            you exactly what to upload for <code>gpt-image-2</code>.
+            you exactly what to upload for <code>{apiYiSettings.imageModel}</code> through APIYI.
           </p>
           <div className="stack-row">
-            <span className="pill">{openAiSettings.model}</span>
-            <span className="pill">{openAiSettings.imageModel}</span>
-            <span className="pill">{openAiSettings.ready ? "AI ready" : "Set OpenAI key"}</span>
+            <span className="pill">{apiYiSettings.model}</span>
+            <span className="pill">{apiYiSettings.imageModel}</span>
+            <span className="pill">{apiYiSettings.ready ? "APIYI ready" : "Set APIYI_API_KEY"}</span>
           </div>
         </section>
 

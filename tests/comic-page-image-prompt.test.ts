@@ -36,7 +36,7 @@ function referenceImage(input: {
   };
 }
 
-test("comic page image prompt stays under OpenAI length limit while preserving reference locks", () => {
+test("comic page image prompt stays under APIYI length limit while preserving reference locks", () => {
   const prompt = buildComicPageImagePrompt({
     projectTitle: "Neatique Skincare College",
     seasonTitle: "Season 1",
@@ -1176,8 +1176,8 @@ test("comic page image prompt normalizes legacy Professor Cera Lin pentagonal wo
 });
 
 test("comic page image reference selection keeps similar teardrop comparison during retries", () => {
-  const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
-  process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";
+  const previousLimit = process.env.COMIC_MAX_REFERENCE_IMAGES;
+  process.env.COMIC_MAX_REFERENCE_IMAGES = "4";
 
   try {
     const selected = selectComicPageImageReferenceImages(
@@ -1237,16 +1237,16 @@ test("comic page image reference selection keeps similar teardrop comparison dur
     );
   } finally {
     if (previousLimit === undefined) {
-      delete process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+      delete process.env.COMIC_MAX_REFERENCE_IMAGES;
     } else {
-      process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = previousLimit;
+      process.env.COMIC_MAX_REFERENCE_IMAGES = previousLimit;
     }
   }
 });
 
 test("comic page image reference selection keeps cover logo during retries", () => {
-  const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
-  process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";
+  const previousLimit = process.env.COMIC_MAX_REFERENCE_IMAGES;
+  process.env.COMIC_MAX_REFERENCE_IMAGES = "4";
 
   try {
     const selected = selectComicPageImageReferenceImages(
@@ -1292,16 +1292,16 @@ test("comic page image reference selection keeps cover logo during retries", () 
     );
   } finally {
     if (previousLimit === undefined) {
-      delete process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+      delete process.env.COMIC_MAX_REFERENCE_IMAGES;
     } else {
-      process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = previousLimit;
+      process.env.COMIC_MAX_REFERENCE_IMAGES = previousLimit;
     }
   }
 });
 
 test("comic page image reference selection keeps product lock references", () => {
-  const previousLimit = process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
-  process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = "4";
+  const previousLimit = process.env.COMIC_MAX_REFERENCE_IMAGES;
+  process.env.COMIC_MAX_REFERENCE_IMAGES = "4";
 
   try {
     const selected = selectComicPageImageReferenceImages(
@@ -1348,9 +1348,9 @@ test("comic page image reference selection keeps product lock references", () =>
     );
   } finally {
     if (previousLimit === undefined) {
-      delete process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES;
+      delete process.env.COMIC_MAX_REFERENCE_IMAGES;
     } else {
-      process.env.OPENAI_COMIC_MAX_REFERENCE_IMAGES = previousLimit;
+      process.env.COMIC_MAX_REFERENCE_IMAGES = previousLimit;
     }
   }
 });

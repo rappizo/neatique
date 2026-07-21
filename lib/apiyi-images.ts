@@ -1,4 +1,5 @@
-const DEFAULT_APIYI_BASE_URL = "https://api.apiyi.com/v1";
+import { getApiYiBaseSettings } from "@/lib/apiyi";
+
 const DEFAULT_APIYI_IMAGE_MODEL = "gemini-3.1-flash-image";
 
 export type ApiYiReferenceImage = {
@@ -14,23 +15,18 @@ export type ApiYiGeneratedImage = {
 export type GenerateApiYiImageInput = {
   prompt: string;
   referenceImages?: ApiYiReferenceImage[];
-  aspectRatio?: "1:1" | "3:2" | "4:3" | "16:9" | "9:16";
+  aspectRatio?: "1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "16:9" | "9:16" | "21:9";
   imageSize?: "1K" | "2K" | "4K";
+  timeoutMs?: number;
 };
 
-function normalizeBaseUrl(value: string) {
-  return value.trim().replace(/\/+$/, "");
-}
-
 export function getApiYiImageSettings() {
-  const apiKey = (process.env.APIYI_API_KEY || "").trim();
-  const baseUrl = normalizeBaseUrl(process.env.APIYI_BASE_URL || DEFAULT_APIYI_BASE_URL);
+  const baseSettings = getApiYiBaseSettings();
   const model = (process.env.AI_IMAGE_MODEL || DEFAULT_APIYI_IMAGE_MODEL).trim();
 
   return {
-    ready: Boolean(apiKey && baseUrl && model),
-    apiKey,
-    baseUrl,
+    ...baseSettings,
+    ready: Boolean(baseSettings.ready && model),
     model
   };
 }
@@ -196,7 +192,7 @@ export async function generateImageWithApiYi(
         image_size: input.imageSize || "2K"
       }
     }),
-    signal: AbortSignal.timeout(240_000)
+    signal: AbortSignal.timeout(input.timeoutMs || 240_000)
   });
 
   const rawText = await response.text();

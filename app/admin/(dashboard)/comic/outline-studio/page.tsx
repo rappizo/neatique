@@ -8,7 +8,7 @@ import {
   parseComicBilingualText
 } from "@/lib/comic-bilingual-outline";
 import { getComicOutlineStudioPage } from "@/lib/comic-queries";
-import { getOpenAiComicSettings } from "@/lib/openai-comic";
+import { getApiYiComicSettings } from "@/lib/openai-comic";
 import type {
   ComicChapterRecord,
   ComicEpisodeRecord,
@@ -34,8 +34,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   "season-outlines-generated": "已根据整部漫画大纲生成所有 Season 双语大纲。",
   "chapter-outlines-generated": "已根据 Season 大纲生成所有 Chapter 双语大纲。",
   "episode-outlines-generated": "已根据 Chapter 大纲生成所有 Episode 双语大纲。",
-  "outline-failed": "大纲生成失败。请检查 OpenAI key、模型设置或稍后重试。",
-  "outline-translation-failed": "大纲中文版本补齐失败。请检查 OpenAI key、模型设置或稍后重试。",
+  "outline-failed": "大纲生成失败。请检查 APIYI key、模型设置或稍后重试。",
+  "outline-translation-failed": "大纲中文版本补齐失败。请检查 APIYI key、模型设置或稍后重试。",
   "missing-parent-outline": "请先生成并确认上一级大纲，再生成下一层级。",
   "missing-outline": "当前项目还没有可处理的大纲。",
   "outline-already-chinese": "当前大纲已经有中文版本。",
@@ -232,14 +232,14 @@ function publishCenterEpisodeHref(chapterId: string, episodeId: string) {
 export default async function AdminComicOutlineStudioPage({
   searchParams
 }: AdminComicOutlineStudioPageProps) {
-  const [params, pageData, openAiSettings] = await Promise.all([
+  const [params, pageData, apiYiSettings] = await Promise.all([
     searchParams,
     getComicOutlineStudioPage(),
-    Promise.resolve(getOpenAiComicSettings())
+    Promise.resolve(getApiYiComicSettings())
   ]);
   const project = pageData.project;
   const projectOutlineReady = hasUsableOutline(project?.storyOutline);
-  const disabledForAi = !openAiSettings.ready;
+  const disabledForAi = !apiYiSettings.ready;
   const seasonCount = pageData.seasons.length;
   const chapterCount = pageData.seasons.reduce(
     (sum, season) => sum + season.chapters.length,
@@ -323,8 +323,8 @@ export default async function AdminComicOutlineStudioPage({
         </section>
         <section className="admin-card">
           <p className="eyebrow">Current AI model</p>
-          <h3>{openAiSettings.model}</h3>
-          <p>{openAiSettings.ready ? "OpenAI key is configured." : "Set OPENAI_API_KEY first."}</p>
+          <h3>{apiYiSettings.model}</h3>
+          <p>{apiYiSettings.ready ? "APIYI key is configured." : "Set APIYI_API_KEY first."}</p>
         </section>
         <section className="admin-card">
           <p className="eyebrow">Next step</p>
@@ -477,12 +477,12 @@ function ProjectOutlineSection({
   const projectId = project?.id || "";
   const projectOutlineReady = hasUsableOutline(project?.storyOutline);
   const generationDisabledReason = disabledForAi
-    ? "OPENAI_API_KEY 还没有配置。"
+    ? "APIYI_API_KEY 还没有配置。"
     : !projectId
       ? "还没有整部漫画记录。"
       : undefined;
   const seasonGenerationDisabledReason = disabledForAi
-    ? "OPENAI_API_KEY 还没有配置。"
+    ? "APIYI_API_KEY 还没有配置。"
     : !projectOutlineReady
       ? "请先确认整部漫画大纲。"
       : seasonCount === 0
@@ -546,12 +546,12 @@ function SeasonOutlineSection({
 }) {
   const seasonOutlineReady = hasUsableOutline(season.outline);
   const generationDisabledReason = disabledForAi
-    ? "OPENAI_API_KEY 还没有配置。"
+    ? "APIYI_API_KEY 还没有配置。"
     : !projectOutlineReady
       ? "请先确认整部漫画大纲。"
       : undefined;
   const chapterGenerationDisabledReason = disabledForAi
-    ? "OPENAI_API_KEY 还没有配置。"
+    ? "APIYI_API_KEY 还没有配置。"
     : !seasonOutlineReady
       ? "请先确认 Season 大纲。"
       : season.chapters.length === 0
@@ -615,12 +615,12 @@ function ChapterOutlineSection({
   const firstHalfEpisodes = chapter.episodes.slice(0, 5);
   const secondHalfEpisodes = chapter.episodes.slice(5, 10);
   const generationDisabledReason = disabledForAi
-    ? "OPENAI_API_KEY 还没有配置。"
+    ? "APIYI_API_KEY 还没有配置。"
     : !seasonOutlineReady
       ? "请先确认 Season 大纲。"
       : undefined;
   const episodeGenerationDisabledReason = disabledForAi
-    ? "OPENAI_API_KEY 还没有配置。"
+    ? "APIYI_API_KEY 还没有配置。"
     : !chapterOutlineReady
       ? "请先确认 Chapter 大纲。"
       : undefined;
@@ -629,7 +629,7 @@ function ChapterOutlineSection({
     rangeLabel: string
   ) =>
     disabledForAi
-      ? "OPENAI_API_KEY 还没有配置。"
+    ? "APIYI_API_KEY 还没有配置。"
       : !chapterOutlineReady
         ? "请先确认 Chapter 大纲。"
         : episodeBatch.length === 0
@@ -716,12 +716,12 @@ function EpisodeOutlineSection({
   const chapterOutlineReady = hasUsableOutline(chapter.outline);
   const episodeOutlineReady = hasUsableOutline(episode.outline);
   const generationDisabledReason = disabledForAi
-    ? "OPENAI_API_KEY 还没有配置。"
+    ? "APIYI_API_KEY 还没有配置。"
     : !chapterOutlineReady
       ? "请先确认 Chapter 大纲。"
       : undefined;
   const promptDisabledReason = disabledForAi
-    ? "OPENAI_API_KEY 还没有配置。"
+    ? "APIYI_API_KEY 还没有配置。"
     : !episodeOutlineReady
       ? "请先确认 Episode 大纲。"
       : undefined;

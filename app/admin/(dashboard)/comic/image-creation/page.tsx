@@ -15,12 +15,12 @@ import {
   listComicImageCreations
 } from "@/lib/comic-image-creation";
 import { formatDate } from "@/lib/format";
-import { getOpenAiComicSettings } from "@/lib/openai-comic";
+import { getApiYiComicSettings } from "@/lib/openai-comic";
 
 export default async function AdminComicImageCreationPage() {
-  const [images, openAiSettings] = await Promise.all([
+  const [images, apiYiSettings] = await Promise.all([
     listComicImageCreations(36),
-    Promise.resolve(getOpenAiComicSettings())
+    Promise.resolve(getApiYiComicSettings())
   ]);
   const referenceImages: ComicImageCreationReferenceOption[] = images.map((image) => ({
     id: image.id,
@@ -52,8 +52,8 @@ export default async function AdminComicImageCreationPage() {
         <div className="cards-3">
           <section className="admin-card">
             <p className="eyebrow">Image model</p>
-            <h3>{openAiSettings.imageModel}</h3>
-            <p>{openAiSettings.imageReady ? "Image API key is configured." : "Set OpenAI image API key first."}</p>
+            <h3>{apiYiSettings.imageModel}</h3>
+            <p>{apiYiSettings.imageReady ? "APIYI image API key is configured." : "Set APIYI_API_KEY first."}</p>
           </section>
           <section className="admin-card">
             <p className="eyebrow">Ratios</p>

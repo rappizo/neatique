@@ -236,12 +236,8 @@ export async function generateComicPageImageForEpisode(input: {
           data: {
             episodeId,
             promptType: "PAGE_IMAGE_GENERATION",
-            model:
-              process.env.OPENAI_COMIC_MODEL ||
-              process.env.OPENAI_POST_MODEL ||
-              process.env.OPENAI_EMAIL_MODEL ||
-              "gpt-5.5",
-            imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          model: process.env.AI_TEXT_MODEL || "gpt-5.4-mini",
+          imageModel: process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image",
             status: "READY",
             inputContext,
             outputSummary: `Generated ${episode.title} ${formatComicPageLabel(page.pageNumber).toLowerCase()} with ${imageInput.referenceImages.length} direct reference image${imageInput.referenceImages.length === 1 ? "" : "s"}.`,
@@ -282,12 +278,8 @@ export async function generateComicPageImageForEpisode(input: {
         data: {
           episodeId,
           promptType: "PAGE_IMAGE_GENERATION",
-          model:
-            process.env.OPENAI_COMIC_MODEL ||
-            process.env.OPENAI_POST_MODEL ||
-            process.env.OPENAI_EMAIL_MODEL ||
-            "gpt-5.5",
-          imageModel: process.env.OPENAI_COMIC_IMAGE_MODEL || "gpt-image-2",
+          model: process.env.AI_TEXT_MODEL || "gpt-5.4-mini",
+          imageModel: process.env.AI_IMAGE_MODEL || "gemini-3.1-flash-image",
           status: "FAILED",
           inputContext,
           outputSummary: `${formatComicPageLabel(page.pageNumber)} image generation failed.`,

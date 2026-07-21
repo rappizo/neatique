@@ -290,9 +290,9 @@ function formatDuration(ms: number) {
 
 function formatTaskStageLabel(stage: string) {
   const labels: Record<string, string> = {
-    openAiImage: "OpenAI",
-    openAiImageEdit: "OpenAI edit",
-    openAiChineseEdit: "OpenAI zh",
+    openAiImage: "APIYI",
+    openAiImageEdit: "APIYI edit",
+    openAiChineseEdit: "APIYI zh",
     loadReferenceContexts: "refs",
     loadProductReferences: "product refs",
     resolveReferences: "resolve refs",

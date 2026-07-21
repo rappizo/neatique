@@ -69,7 +69,7 @@ function buildImageResultMessages(errorMessage?: string | null) {
     "page-image-failed": {
       title: "Draft image creation failed",
       description: errorMessage
-        ? `OpenAI returned: ${errorMessage}`
+        ? `APIYI returned: ${errorMessage}`
         : "The image request did not complete. Open the episode editor and check the latest prompt run entry for the stored error message.",
       tone: "danger"
     },
@@ -82,7 +82,7 @@ function buildImageResultMessages(errorMessage?: string | null) {
     "page-edit-failed": {
       title: "Page edit failed",
       description: errorMessage
-        ? `OpenAI returned: ${errorMessage}`
+        ? `APIYI returned: ${errorMessage}`
         : "The page image edit did not complete. Open the episode editor and check the latest prompt run entry for the stored error message.",
       tone: "danger"
     },

@@ -11,7 +11,7 @@ import {
 import { EmailCampaignEditorForm } from "@/components/admin/email-campaign-editor-form";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { fetchBrevoCampaignReportById, fetchBrevoSenders, getBrevoSettings } from "@/lib/brevo";
-import { getOpenAiEmailSettings } from "@/lib/openai-email";
+import { getApiYiEmailSettings } from "@/lib/openai-email";
 import { formatDate, formatNumber, formatPercent, formatTime } from "@/lib/format";
 import { getEmailCampaignById, getStoreSettings } from "@/lib/queries";
 
@@ -44,7 +44,7 @@ export default async function AdminEmailCampaignDetailPage({
   const [{ id }, query, settings] = await Promise.all([params, searchParams, getStoreSettings()]);
   const [campaign] = await Promise.all([getEmailCampaignById(id)]);
   const brevoSettings = getBrevoSettings(settings);
-  const openAiSettings = getOpenAiEmailSettings();
+  const apiYiSettings = getApiYiEmailSettings();
 
   if (!campaign) {
     notFound();
@@ -142,8 +142,8 @@ export default async function AdminEmailCampaignDetailPage({
         </p>
 
         <div className="stack-row">
-          <span className="pill">{openAiSettings.ready ? "OpenAI ready" : "OpenAI not configured"}</span>
-          <span className="pill">{openAiSettings.model ? `Model ${openAiSettings.model}` : "Set OPENAI_API_KEY"}</span>
+          <span className="pill">{apiYiSettings.ready ? "APIYI ready" : "APIYI not configured"}</span>
+          <span className="pill">{apiYiSettings.model ? `Model ${apiYiSettings.model}` : "Set APIYI_API_KEY"}</span>
           <span className="pill">{campaign.strategyBrief?.trim() ? "Brief ready" : "Strategy brief missing"}</span>
         </div>
 
@@ -161,7 +161,7 @@ export default async function AdminEmailCampaignDetailPage({
             className="button button--primary"
             modalTitle="Generating your campaign draft"
             modalDescription="The subject line, preview text, HTML, and plain-text fallback are being drafted now."
-            disabled={!openAiSettings.ready}
+            disabled={!apiYiSettings.ready}
           />
         </form>
       </section>

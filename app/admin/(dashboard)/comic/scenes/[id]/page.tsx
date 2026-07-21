@@ -31,7 +31,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   "reference-upload-failed": "参考图上传失败，请稍后再试。",
   "lock-revised": "场景锁定内容已根据修改意见更新。",
   "lock-revision-missing": "请先输入修改意见。",
-  "lock-revision-failed": "场景锁定内容更新失败，请检查 OpenAI 配置或稍后再试。",
+  "lock-revision-failed": "场景锁定内容更新失败，请检查 APIYI 配置或稍后再试。",
   "lock-restored": "场景锁定内容已回溯到旧版本。",
   "missing-lock-history": "没有找到这个旧版本。"
 };

@@ -390,8 +390,8 @@ export default async function AdminEmailMarketingPage({
             </p>
           </div>
           <div className="stack-row">
-            <span className="pill">{overview.aiReady ? "OpenAI ready" : "OpenAI not configured"}</span>
-            <span className="pill">{overview.aiModel ? `Model ${overview.aiModel}` : "Set OPENAI_API_KEY"}</span>
+            <span className="pill">{overview.aiReady ? "APIYI ready" : "APIYI not configured"}</span>
+            <span className="pill">{overview.aiModel ? `Model ${overview.aiModel}` : "Set APIYI_API_KEY"}</span>
           </div>
         </div>
 

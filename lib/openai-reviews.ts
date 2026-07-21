@@ -3,10 +3,11 @@ import {
   formatReviewPersonaForPrompt,
   type ReviewPersonaForGeneration
 } from "@/lib/review-personas";
-
-const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL || "https://api.openai.com/v1";
-const DEFAULT_OPENAI_REVIEW_MODEL =
-  process.env.OPENAI_REVIEW_MODEL || process.env.OPENAI_EMAIL_MODEL || "gpt-5.4-mini";
+import {
+  extractApiYiErrorMessage,
+  getApiYiResponseOutputText,
+  getApiYiTextSettings
+} from "@/lib/apiyi";
 
 type ProductReviewContext = {
   id: string;
@@ -98,37 +99,8 @@ const reviewLastNames = [
   "Myers"
 ];
 
-function getOpenAiApiKey() {
-  return (process.env.OPENAI_API_KEY || "").trim();
-}
-
-export function getOpenAiReviewSettings() {
-  const apiKey = getOpenAiApiKey();
-
-  return {
-    ready: Boolean(apiKey),
-    model: DEFAULT_OPENAI_REVIEW_MODEL,
-    apiKeyConfigured: Boolean(apiKey)
-  };
-}
-
-function getResponseOutputText(response: any) {
-  if (typeof response?.output_text === "string" && response.output_text.trim()) {
-    return response.output_text.trim();
-  }
-
-  const outputBlocks = Array.isArray(response?.output) ? response.output : [];
-
-  for (const block of outputBlocks) {
-    const contents = Array.isArray(block?.content) ? block.content : [];
-    for (const content of contents) {
-      if (typeof content?.text === "string" && content.text.trim()) {
-        return content.text.trim();
-      }
-    }
-  }
-
-  return "";
+export function getApiYiReviewSettings() {
+  return getApiYiTextSettings();
 }
 
 function safeJsonParse(value: string) {
@@ -137,14 +109,6 @@ function safeJsonParse(value: string) {
   } catch {
     return null;
   }
-}
-
-function extractOpenAiErrorMessage(error: unknown) {
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-
-  return null;
 }
 
 function buildProductSummary(product: ProductReviewContext) {
@@ -279,10 +243,10 @@ async function generateAiReviewBatch(
   previousDrafts: GeneratedAiReviewDraft[],
   requiredRatings: number[]
 ) {
-  const apiKey = getOpenAiApiKey();
+  const settings = getApiYiTextSettings();
 
-  if (!apiKey) {
-    throw new Error("OpenAI API key is not configured.");
+  if (!settings.ready) {
+    throw new Error("APIYI API key is not configured.");
   }
 
   const referenceReviews = input.referenceReviews ?? [];
@@ -318,14 +282,14 @@ async function generateAiReviewBatch(
     required: ["reviews"]
   };
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
+  const response = await fetch(`${settings.baseUrl}/responses`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${settings.apiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: DEFAULT_OPENAI_REVIEW_MODEL,
+      model: settings.model,
       input: [
         {
           role: "system",
@@ -439,15 +403,15 @@ async function generateAiReviewBatch(
       parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
     const message =
       (parsedRecord && "error" in parsedRecord
-        ? extractOpenAiErrorMessage(parsedRecord.error)
-        : null) || `OpenAI request failed with ${response.status}.`;
+        ? extractApiYiErrorMessage(parsedRecord.error)
+        : null) || `APIYI request failed with ${response.status}.`;
     throw new Error(message);
   }
 
-  const outputText = getResponseOutputText(parsed);
+  const outputText = getApiYiResponseOutputText(parsed);
 
   if (!outputText) {
-    throw new Error("OpenAI did not return AI review drafts.");
+    throw new Error("APIYI did not return AI review drafts.");
   }
 
   const output = safeJsonParse(outputText);
@@ -468,7 +432,7 @@ async function generateAiReviewBatch(
     .filter((row): row is GeneratedAiReviewDraft => Boolean(row));
 
   if (drafts.length !== quantity) {
-    throw new Error("OpenAI returned an incomplete AI review batch.");
+    throw new Error("APIYI returned an incomplete AI review batch.");
   }
 
   return drafts;

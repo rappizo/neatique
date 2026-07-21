@@ -60,9 +60,9 @@ import { expireCouponsIfNeeded } from "@/lib/coupon-expiration";
 import { parseStoredCouponProductCodes } from "@/lib/coupons";
 import { hasValidPostgresDatabaseUrl } from "@/lib/database-config";
 import { prisma } from "@/lib/db";
-import { getOpenAiEmailSettings } from "@/lib/openai-email";
+import { getApiYiEmailSettings } from "@/lib/openai-email";
 import { getAiPostAutomationOverview as loadAiPostAutomationOverview } from "@/lib/ai-post-automation";
-import { getOpenAiPostSettings } from "@/lib/openai-posts";
+import { getApiYiPostSettings } from "@/lib/openai-posts";
 import { isSyntheticReviewSource, SYNTHETIC_REVIEW_SOURCE } from "@/lib/review-compliance";
 import { getFollowEmailOverview as buildFollowEmailOverview } from "@/lib/follow-emails";
 import {
@@ -1171,8 +1171,8 @@ export async function getAiPostAutomationOverview() {
       aiPostCount: 0,
       publishedAiPostCount: 0,
       draftAiPostCount: 0,
-      model: getOpenAiPostSettings().model,
-      imageModel: getOpenAiPostSettings().imageModel
+      model: getApiYiPostSettings().model,
+      imageModel: getApiYiPostSettings().imageModel
     }
   );
 }
@@ -2425,7 +2425,7 @@ export async function getEmailMarketingOverview() {
       ]);
 
       const brevoSettings = getBrevoSettings(settings);
-      const openAiSettings = getOpenAiEmailSettings();
+      const apiYiSettings = getApiYiEmailSettings();
       const [brevoListsResult, brevoReportsResult] = await Promise.all([
         fetchBrevoLists(brevoSettings),
         fetchBrevoCampaignReports(brevoSettings)
@@ -2532,8 +2532,8 @@ export async function getEmailMarketingOverview() {
         syncedCampaignCount,
         scheduledCampaignCount,
         sentCampaignCount,
-        aiReady: openAiSettings.ready,
-        aiModel: openAiSettings.model,
+        aiReady: apiYiSettings.ready,
+        aiModel: apiYiSettings.model,
         audiences,
         brevoLists: brevoListsResult.lists,
         brevoError: brevoListsResult.error || brevoReportsResult.error,
