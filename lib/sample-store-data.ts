@@ -5,7 +5,10 @@ import {
   getLocalProductGallery
 } from "@/lib/product-media";
 import { buildSiteImageUrl } from "@/lib/site-media";
-import { pdrnCleanserWithoutTightnessPost } from "@/lib/editorial-posts";
+import {
+  pdrnCleanserWithoutTightnessPost,
+  pdrnSerumCreamWithoutPillingPost
+} from "@/lib/editorial-posts";
 
 type BaseProduct = Omit<ProductRecord, "reviewCount" | "averageRating">;
 
@@ -1026,6 +1029,7 @@ export const sampleProducts: ProductRecord[] = baseProducts.map((product) => {
 });
 
 export const samplePosts: BeautyPostRecord[] = [
+  pdrnSerumCreamWithoutPillingPost,
   pdrnCleanserWithoutTightnessPost,
   {
     id: "post_pdrn_intro",

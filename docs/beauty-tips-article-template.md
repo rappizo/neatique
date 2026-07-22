@@ -12,7 +12,7 @@ This is the default production standard for every new `/beauty-tips/` article. I
 6. Illustrated method or comparison sections: place an image after the concept it clarifies, not as decoration between every paragraph.
 7. AM/PM routine or usage sequence where the topic involves product use.
 8. Common mistakes, when to simplify, and patch-test or stop-use guidance where relevant.
-9. FAQ: three to five visible questions that add new information rather than repeating headings.
+9. FAQ: three to five visible questions that add new information rather than repeating headings; the page converts this section into matching `FAQPage` structured data.
 10. Topic collection, three related Beauty Tips, helpful references, matching product, and the editorial disclaimer.
 
 ## 2. Writing and SEO rules
@@ -96,5 +96,5 @@ Use `--only <asset-id>` to validate one image before generating a full set. Exis
 - Every image has a descriptive filename, alt text, caption, dimensions, and optimized file size.
 - The post contains collection, product, related-guide, and authoritative reference links.
 - FAQ answers are visible on the page and do not make medical claims.
-- Article and Breadcrumb structured data validate, and the full image set is present in Article structured data.
+- Article, visible-FAQ, and Breadcrumb structured data validate, and the full image set is present in Article structured data.
 - A named human reviewer is recorded before publication when the article includes safety or health-adjacent guidance.

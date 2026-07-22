@@ -25,6 +25,7 @@ export const COLLECTIONS: CollectionDefinition[] = [
     secondaryKeywords: ["PDRN serum and cream", "PDRN skincare routine", "PDRN cleanser"],
     productSlugs: ["pdrn-cleanser", "pdrn-serum", "pdrn-cream"],
     guideSlugs: [
+      "how-to-layer-pdrn-serum-and-cream-without-pilling",
       "how-to-use-pdrn-cleanser-without-tightness",
       "what-is-pdrn-skincare",
       "pdrn-peptide-serum-guide-smooth-hydrated-skin",

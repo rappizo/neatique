@@ -5,7 +5,7 @@ import { getPostBySlug, getPublishedPosts } from "@/lib/queries";
 import { defaultOgImage, toAbsoluteUrl } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
 import { getCollectionsForPost } from "@/lib/collections";
-import { extractArticleImages } from "@/lib/article-format";
+import { extractArticleFaqs, extractArticleImages } from "@/lib/article-format";
 
 type PostPageProps = {
   params: Promise<{ slug: string }>;
@@ -107,9 +107,11 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
   const authorName = post.authorName?.trim() || "Neatique Beauty Editorial Team";
   const authorType = post.authorType === "Person" ? "Person" : "Organization";
   const articleImages = extractArticleImages(post.content).map((image) => safeAbsoluteImageUrl(image.src));
-  const structuredData = {
-    "@context": "https://schema.org",
+  const articleFaqs = extractArticleFaqs(post.content);
+  const articleUrl = `${siteConfig.url}/beauty-tips/${post.slug}`;
+  const articleStructuredData = {
     "@type": "Article",
+    "@id": `${articleUrl}#article`,
     headline: post.title,
     description: post.seoDescription || post.excerpt,
     image: [safeAbsoluteImageUrl(post.coverImageUrl), ...articleImages],
@@ -137,7 +139,27 @@ export default async function BeautyTipPostPage({ params }: PostPageProps) {
       : {}),
     citation: post.externalLinks.map((link) => link.url),
     isAccessibleForFree: true,
-    mainEntityOfPage: `${siteConfig.url}/beauty-tips/${post.slug}`
+    mainEntityOfPage: articleUrl
+  };
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      articleStructuredData,
+      ...(articleFaqs.length > 0
+        ? [{
+            "@type": "FAQPage",
+            "@id": `${articleUrl}#faq`,
+            mainEntity: articleFaqs.map((faq) => ({
+              "@type": "Question",
+              name: faq.question,
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: faq.answer
+              }
+            }))
+          }]
+        : [])
+    ]
   };
 
   return (

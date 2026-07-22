@@ -8,6 +8,7 @@ loadEnvConfig(process.cwd());
 type BeautyTipImageManifest = {
   slug: string;
   referenceImage?: string;
+  referenceImages?: string[];
   outputDirectory: string;
   assets: Array<{
     id: string;
@@ -15,6 +16,7 @@ type BeautyTipImageManifest = {
     role: "cover" | "inline";
     aspectRatio: "1:1" | "3:2" | "4:3" | "16:9" | "9:16";
     imageSize: "1K" | "2K" | "4K";
+    referenceImages?: string[];
     prompt: string;
     alt: string;
     caption: string;
@@ -50,6 +52,15 @@ async function fileExists(filePath: string) {
   }
 }
 
+async function readReferenceImages(referenceImagePaths: string[]) {
+  return Promise.all(
+    referenceImagePaths.map(async (referenceImagePath) => ({
+      mimeType: path.extname(referenceImagePath).toLowerCase() === ".jpg" ? "image/jpeg" : "image/png",
+      data: await readFile(assertWorkspacePath(referenceImagePath))
+    }))
+  );
+}
+
 async function main() {
   const manifestArgument = getArgument("--manifest");
 
@@ -67,12 +78,11 @@ async function main() {
     throw new Error("The image manifest must include a slug and at least one asset.");
   }
 
-  const referenceImage = manifest.referenceImage
-    ? {
-        mimeType: path.extname(manifest.referenceImage).toLowerCase() === ".jpg" ? "image/jpeg" : "image/png",
-        data: await readFile(assertWorkspacePath(manifest.referenceImage))
-      }
-    : null;
+  const referenceImagePaths = [
+    ...(Array.isArray(manifest.referenceImages) ? manifest.referenceImages : []),
+    ...(manifest.referenceImage ? [manifest.referenceImage] : [])
+  ].filter((value, index, values) => value && values.indexOf(value) === index);
+  const referenceImages = await readReferenceImages(referenceImagePaths);
 
   const { generateImageWithApiYi, getApiYiImageSettings } = await import("../lib/apiyi-images");
   const settings = getApiYiImageSettings();
@@ -104,9 +114,12 @@ async function main() {
     }
 
     console.log(`Generating ${asset.id} with ${settings.model} through APIYI...`);
+    const assetReferenceImages = Array.isArray(asset.referenceImages)
+      ? await readReferenceImages(asset.referenceImages)
+      : referenceImages;
     const generated = await generateImageWithApiYi({
       prompt: asset.prompt,
-      referenceImages: referenceImage ? [referenceImage] : [],
+      referenceImages: assetReferenceImages,
       aspectRatio: asset.aspectRatio,
       imageSize: asset.imageSize
     });

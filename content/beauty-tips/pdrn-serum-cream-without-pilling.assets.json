@@ -1,0 +1,54 @@
+{
+  "slug": "how-to-layer-pdrn-serum-and-cream-without-pilling",
+  "outputDirectory": "public/posts/how-to-layer-pdrn-serum-and-cream-without-pilling",
+  "generationMethod": "OpenAI built-in image generation",
+  "assets": [
+    {
+      "id": "cover",
+      "fileName": "pdrn-serum-cream-layering-neatique.webp",
+      "role": "cover",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "referenceImages": [
+        "images/product image/HH079 PDRN Serum/0.png",
+        "images/product image/HH075 PDRN Cream/0.png"
+      ],
+      "prompt": "Use case: product-mockup. Asset type: 16:9 Beauty Tips article cover for a premium skincare ecommerce site. Create a refined editorial photograph showing the exact Neatique PDRN5+ serum bottle from reference image 1 and the exact Neatique PDRN Pink Collagen Capsule Cream jar from reference image 2 together as a two-step layering pair. Scene: luminous ivory stone vanity with pale blush reflections, a restrained serum droplet and a small cream swipe. Composition: cinematic 16:9 landscape, both products upright and fully visible near center, with calm margins and the subjects inside the center 70% safe area. Lighting: soft diffused morning light. Preserve each package's exact silhouette, cap, material, colors, logo, product name, percentages, volume and label hierarchy. No invented, translated, rearranged, duplicated or extra packaging text. No people, hands, extra bottles, competitor products, headline overlays, icons, collage or watermark.",
+      "alt": "Neatique PDRN5+ Serum and PDRN Pink Collagen Capsule Cream arranged together on a softly lit ivory vanity.",
+      "caption": "The lightweight serum and richer cream form a clear two-step leave-on sequence."
+    },
+    {
+      "id": "texture",
+      "fileName": "pdrn-serum-cream-texture-comparison-neatique.webp",
+      "role": "inline",
+      "aspectRatio": "3:2",
+      "imageSize": "2K",
+      "referenceImages": [],
+      "prompt": "Use case: photorealistic-natural. Asset type: 3:2 Beauty Tips inline texture photograph. Create a premium macro skincare still life comparing one translucent pale-pink serum droplet with light fluid slip and one small plush pale-pink cream ribbon with a richer satin body. Use a clean ivory stone surface with a faint blush reflection. Place the serum on the left and cream on the right with generous space between them. Use soft diffused daylight and believable viscosity. No packaging, product names, skin, face, hands, labels, text, logos, watermark, collage, glitter or extra cosmetics.",
+      "alt": "A translucent pale-pink serum droplet beside a richer pale-pink cream ribbon on ivory stone.",
+      "caption": "The fluid serum belongs underneath the richer cream because the two textures play different routine roles."
+    },
+    {
+      "id": "method",
+      "fileName": "pdrn-serum-cream-press-and-smooth-neatique.webp",
+      "role": "inline",
+      "aspectRatio": "3:2",
+      "imageSize": "2K",
+      "referenceImages": [],
+      "prompt": "Use case: photorealistic-natural. Asset type: 3:2 Beauty Tips inline application-method photograph. Show an adult with natural, unretouched skin gently pressing a very thin layer of moisturizer over the cheek with clean fingertips after a lightweight serum has already been spread. The touch is light and deliberate, illustrating press-and-smooth application without vigorous rubbing. Frame the face from forehead to collarbone in a bright minimal ivory-and-blush bathroom with soft natural morning light. Realistic anatomy, five fingers, natural nails, no rings, no visible irritation and no before-and-after claim. No packaging, text, logo, watermark, tools, extra hands, heavy retouching or collage.",
+      "alt": "Adult gently pressing a thin moisturizer layer over the cheek with clean fingertips in soft morning light.",
+      "caption": "Light pressing and smoothing place the cream over the serum with less friction than repeated rubbing."
+    },
+    {
+      "id": "troubleshooting",
+      "fileName": "pdrn-layering-pilling-troubleshooting-neatique.webp",
+      "role": "inline",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "referenceImages": [],
+      "prompt": "Use case: photorealistic-natural. Asset type: 16:9 Beauty Tips inline troubleshooting still life. On two adjacent clear glass testing tiles, show a small thin translucent serum layer with light cream spread smoothly over it on the left, and visibly excess product rolled into a few soft cosmetic crumbs after over-rubbing on the right. This is a product-texture demonstration, not a skin result. Use an ivory stone lab-style vanity, subtle blush reflections and soft neutral daylight. No divider, labels, skin, body, packaging, medical equipment, text, before-and-after claim, logos, watermark, glitter, food-like crumbs, arrows, icons or collage.",
+      "alt": "Two glass tiles compare smoothly spread serum and cream with excess product rolled into soft cosmetic residue.",
+      "caption": "A controlled texture test shows why thin, settled layers stay smoother than an overworked excess."
+    }
+  ]
+}

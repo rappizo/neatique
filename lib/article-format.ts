@@ -124,3 +124,64 @@ export function extractArticleImages(content: string) {
     .filter((block): block is Extract<ArticleBlock, { type: "image" }> => block.type === "image")
     .map(({ src, alt, caption }) => ({ src, alt, caption }));
 }
+
+function stripInlineArticleMarkup(value: string) {
+  return value
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+export function extractArticleFaqs(content: string) {
+  const blocks = parseArticleContent(content);
+  const faqs: Array<{ question: string; answer: string }> = [];
+  let insideFaqSection = false;
+  let currentQuestion = "";
+  let currentAnswerParts: string[] = [];
+
+  const flushFaq = () => {
+    const question = stripInlineArticleMarkup(currentQuestion);
+    const answer = stripInlineArticleMarkup(currentAnswerParts.join(" "));
+
+    if (question && answer) {
+      faqs.push({ question, answer });
+    }
+
+    currentQuestion = "";
+    currentAnswerParts = [];
+  };
+
+  for (const block of blocks) {
+    if (block.type === "h2") {
+      if (insideFaqSection) {
+        flushFaq();
+        break;
+      }
+
+      insideFaqSection = /^(frequently asked questions|faqs?)$/i.test(block.text.trim());
+      continue;
+    }
+
+    if (!insideFaqSection) {
+      continue;
+    }
+
+    if (block.type === "h3") {
+      flushFaq();
+      currentQuestion = block.text;
+      continue;
+    }
+
+    if (block.type === "paragraph" && currentQuestion) {
+      currentAnswerParts.push(block.text);
+    } else if (block.type === "list" && currentQuestion) {
+      currentAnswerParts.push(block.items.join("; "));
+    }
+  }
+
+  if (insideFaqSection) {
+    flushFaq();
+  }
+
+  return faqs;
+}

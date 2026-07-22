@@ -45,6 +45,7 @@ const AI_GENERATED_PERSON_IMAGE_KEYS = [
   "HH079 PDRN Serum/7.png",
   "HH079 PDRN Serum/LP4.jpg",
   "HH079 PDRN Serum/LP5.jpg",
+  "posts/how-to-layer-pdrn-serum-and-cream-without-pilling/pdrn-serum-cream-press-and-smooth-neatique.webp",
   "posts/how-to-use-pdrn-cleanser-without-tightness/pdrn-cleanser-lukewarm-water-fingertips-neatique.webp"
 ].map(normalizeImageKey);
 
