@@ -8,6 +8,8 @@ export type ProductCustomerVoiceVideo = {
   creator: string;
   title: string;
   note: string;
+  url?: string;
+  posterSrc?: string;
 };
 
 type ProductCustomerVoiceSliderProps = {

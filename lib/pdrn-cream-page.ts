@@ -27,22 +27,44 @@ export const pdrnCreamSeo = {
 
 export const pdrnCreamCustomerVoiceVideos = [
   {
-    id: "7619379257407474974",
-    creator: "@yennceto",
-    title: "Soft capsule cream texture in motion",
-    note: "A quick real-routine look at the plush finish shoppers notice first."
+    id: "7656862958940736799",
+    creator: "@mandsmarie95",
+    title: "A glow-ready PDRN cream moment",
+    note: "A quick K-beauty routine look at Neatique PDRN Pink Capsule Cream and its glow-first finish.",
+    url: "https://www.tiktok.com/@mandsmarie95/video/7656862958940736799",
+    posterSrc: "/videos/pdrn-cream/7656862958940736799.webp"
   },
   {
-    id: "7619814505651932446",
-    creator: "@anaisbeauty1",
-    title: "A closer look at bounce, glow, and comfort",
-    note: "A creator clip that helps new shoppers picture how PDRN Cream sits on skin."
+    id: "7656154537593507103",
+    creator: "@mandsmarie95",
+    title: "The PDRN step you should not skip",
+    note: "See why Amanda makes this capsule cream part of a simple Korean skincare routine.",
+    url: "https://www.tiktok.com/@mandsmarie95/video/7656154537593507103",
+    posterSrc: "/videos/pdrn-cream/7656154537593507103.webp"
   },
   {
-    id: "7618994711973399839",
-    creator: "@ninlama2020",
-    title: "Daily wear feedback before you buy",
-    note: "A simple customer voice moment showing why the formula feels easy to reach for."
+    id: "7657175955491917086",
+    creator: "@mandsmarie95",
+    title: "A hydration boost from pink capsules",
+    note: "Amanda spotlights the capsule texture, 6% niacinamide, collagen, and the hydrated finish.",
+    url: "https://www.tiktok.com/@mandsmarie95/video/7657175955491917086",
+    posterSrc: "/videos/pdrn-cream/7657175955491917086.webp"
+  },
+  {
+    id: "7658329258275769631",
+    creator: "@mandsmarie95",
+    title: "Watch the capsules melt into skin",
+    note: "A close-up look at the cream melting in for a visibly plump, hydrated-looking finish.",
+    url: "https://www.tiktok.com/@mandsmarie95/video/7658329258275769631",
+    posterSrc: "/videos/pdrn-cream/7658329258275769631.webp"
+  },
+  {
+    id: "7657566111075962142",
+    creator: "@mandsmarie95",
+    title: "Amanda's honest 10/10 review",
+    note: "Her straight-to-the-point verdict on Neatique PDRN Pink Capsule Cream.",
+    url: "https://www.tiktok.com/@mandsmarie95/video/7657566111075962142",
+    posterSrc: "/videos/pdrn-cream/7657566111075962142.webp"
   }
 ];
 

@@ -6,6 +6,7 @@ import { addToCartAction } from "@/app/(site)/cart/actions";
 import { AnalyticsEvent } from "@/components/analytics/analytics-event";
 import { TrackedExternalLink } from "@/components/analytics/tracked-external-link";
 import { ProductCustomerVoiceSlider } from "@/components/product/product-customer-voice-slider";
+import { ProductCustomerVideoGrid } from "@/components/product/product-customer-video-grid";
 import { ProductContentFlow } from "@/components/product/product-content-flow";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { ProductReviewsShowcase } from "@/components/product/product-reviews-showcase";
@@ -741,10 +742,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
           {isPdrnCream ? (
             <>
-              <ProductCustomerVoiceSlider
-                eyebrow="Customer voice"
-                heading="See how real shoppers talk about Neatique PDRN Cream before you buy."
-                description="A quick look at texture, finish, and daily-routine feedback from TikTok creators who help new shoppers picture how the cream actually wears."
+              <ProductCustomerVideoGrid
+                eyebrow="Real creator routines"
+                heading="See PDRN Pink Capsule Cream melt into real skin."
+                description="Five TikTok moments from Amanda Marie show the capsule texture, hydration, plump-looking glow, and her honest 10/10 take. Press play when you are ready, or open any original post on TikTok."
                 videos={pdrnCreamCustomerVoiceVideos}
               />
 
