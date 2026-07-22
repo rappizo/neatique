@@ -97,19 +97,21 @@ test("the first three-month-plan article follows the editorial and image standar
   }
 });
 
-test("the second three-month-plan article is a complete review-ready draft", () => {
+test("the second three-month-plan article is reviewed and ready for public release", () => {
   const post = pdrnSerumCreamWithoutPillingPost;
   const blocks = parseArticleContent(post.content);
   const headings = blocks.filter((block) => block.type === "h2");
   const images = extractArticleImages(post.content);
   const faqs = extractArticleFaqs(post.content);
 
-  assert.equal(post.published, false);
+  assert.equal(post.published, true);
   assert.equal(post.aiGenerated, true);
-  assert.equal(post.editorialReviewed, false);
-  assert.equal(post.reviewerName, null);
-  assert.equal(post.reviewedAt, null);
-  assert.equal(post.publishedAt, null);
+  assert.equal(post.authorName, "Tracy Chen");
+  assert.equal(post.authorType, "Person");
+  assert.equal(post.editorialReviewed, true);
+  assert.equal(post.reviewerName, "Tracy Chen");
+  assert.ok(post.reviewedAt instanceof Date);
+  assert.ok(post.publishedAt instanceof Date);
   assert.ok(headings.length >= 8);
   assert.equal(images.length, 3);
   assert.equal(faqs.length, 5);
